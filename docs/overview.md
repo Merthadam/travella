@@ -59,7 +59,7 @@ Connector service
 
 ## Deliberately open
 
-- Identity-provider product and its exact authentication endpoint formats.
+- Exact Amazon Cognito authentication endpoint formats and client integration details.
 - Database technology and detailed data model.
 - Provider set and supplier access, including Skyscanner availability.
 - Final validated generative-UI format and component catalog; A2UI remains a candidate, not a decision.
