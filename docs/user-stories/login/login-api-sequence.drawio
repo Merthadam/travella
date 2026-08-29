@@ -1,0 +1,64 @@
+<mxfile host="app.diagrams.net" modified="2026-08-29T00:00:00.000Z" agent="Codex" version="26.0.14" type="device">
+  <diagram id="login-api-sequence" name="US-001 API sequence">
+    <mxGraphModel dx="1400" dy="940" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="2" value="Browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="50" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" value="Managed identity provider&lt;br&gt;(product/routes TBD)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="50" width="210" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="Travella CRUD API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="690" y="50" width="170" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="5" value="Plan data store" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="50" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="6" value="" style="dashed=1;strokeColor=#666666;" edge="1" parent="1" source="2">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="145" y="800" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="7" value="" style="dashed=1;strokeColor=#666666;" edge="1" parent="1" source="3">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="455" y="800" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="8" value="" style="dashed=1;strokeColor=#666666;" edge="1" parent="1" source="4">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="775" y="800" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="9" value="" style="dashed=1;strokeColor=#666666;" edge="1" parent="1" source="5">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1100" y="800" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="10" value="1. HTTPS/TLS: POST /register or POST /login&lt;br&gt;credentials go only to the identity provider" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="2" target="3">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="250" y="155" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="11" value="2. Email-verification required, 2FA challenge, or safe credential error" style="endArrow=block;html=1;rounded=0;dashed=1;" edge="1" parent="1" source="3" target="2">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="260" y="215" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="12" value="3. HTTPS/TLS: submit verification link/code or POST /mfa/verify&lt;br&gt;only when required" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="2" target="3">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="250" y="285" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="13" value="4. Authenticated session / short-lived access token&lt;br&gt;never in URL or logs" style="endArrow=block;html=1;rounded=0;dashed=1;" edge="1" parent="1" source="3" target="2">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="260" y="355" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="14" value="5. HTTPS/TLS: GET /v1/plans&lt;br&gt;Authorization: Bearer &amp;lt;access token&amp;gt;" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="2" target="4">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="405" y="440" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="15" value="6. Validate token signature, issuer, audience, expiry, and traveler subject&lt;br&gt;(keys are obtained from the identity provider and cached)" style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="620" y="500" width="310" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="16" value="7. Read plans where owner = token subject" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="4" target="5">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="850" y="620" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="17" value="8. Matching plans" style="endArrow=block;html=1;rounded=0;dashed=1;" edge="1" parent="1" source="5" target="4">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="850" y="675" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="18" value="9. 200 OK + only this traveler’s plans&lt;br&gt;or 401 for invalid/expired token" style="endArrow=block;html=1;rounded=0;dashed=1;" edge="1" parent="1" source="4" target="2">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="405" y="750" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="19" value="Security rules&lt;br&gt;• Credentials and 2FA codes never reach Travella services.&lt;br&gt;• All connections require HTTPS/TLS.&lt;br&gt;• Tokens, passwords, codes, and emails are redacted from logs.&lt;br&gt;• The CRUD API never trusts a user ID supplied by the browser." style="shape=note;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="70" y="835" width="1110" height="100" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

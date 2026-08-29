@@ -31,3 +31,5 @@ As a traveler, I can create an account or sign in so I can securely access only 
 ## Diagram
 
 Open [login-use-case.drawio](login-use-case.drawio) in Draw.io / diagrams.net to edit the use-case diagram.
+
+Open [login-api-sequence.drawio](login-api-sequence.drawio) in Draw.io / diagrams.net to edit the API sequence diagram. It models a direct browser-to-managed-identity-provider flow; the provider product and its exact endpoint names remain to be chosen.
