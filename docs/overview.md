@@ -56,6 +56,7 @@ Connector service
 - [Login user story](user-stories/login/README.md)
 - [Login use-case diagram](user-stories/login/login-use-case.drawio)
 - [Login API sequence diagram](user-stories/login/login-api-sequence.drawio)
+- [Option selection and planning canvas user story](user-stories/option-selection-and-canvas/README.md)
 
 ## Deliberately open
 

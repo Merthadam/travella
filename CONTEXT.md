@@ -28,6 +28,10 @@ _Avoid_: Dashboard, board
 A selected location displayed on a plan's map. MVP pin categories are stay, airport, car rental, restaurant, and activity.
 _Avoid_: Marker, red dot
 
+**Custom Map Pin**:
+A lightweight, traveler-saved place on a plan's map. It is not a Selected Option and has no price, availability, or supplier link.
+_Avoid_: Booking, unverified option
+
 **Selected Option**:
 A flight, car rental, place, or other result that the traveler has chosen for a plan. Search results are not selected options until the plan changes.
 _Avoid_: Search result, booking

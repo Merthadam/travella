@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840" role="img" aria-labelledby="title description">
+  <title id="title">US-003 Canvas selection flow</title>
+  <desc id="description">Flowchart showing provider option search, map place search, explicit plan-change confirmations, and planning-canvas management.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/></marker>
+    <style>
+      .title { font: 700 22px Arial, sans-serif; fill: #1f2937; }
+      .node { stroke-width: 2; rx: 10; ry: 10; }
+      .traveler { fill: #dae8fc; stroke: #6c8ebf; }
+      .provider { fill: #d5e8d4; stroke: #82b366; }
+      .canvas { fill: #e1d5e7; stroke: #9673a6; }
+      .control { fill: #fff2cc; stroke: #d6b656; }
+      .plan { fill: #f8cecc; stroke: #b85450; }
+      .info { fill: #f5f5f5; stroke: #666666; }
+      .edge { fill: none; stroke: #334155; stroke-width: 2; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 8 6; }
+      .main { font: 600 16px Arial, sans-serif; fill: #1f2937; text-anchor: middle; }
+      .sub { font: 12px Arial, sans-serif; fill: #334155; text-anchor: middle; }
+      .label { font: 11px Arial, sans-serif; fill: #334155; text-anchor: middle; }
+      .legend { font: 13px Arial, sans-serif; fill: #1f2937; }
+    </style>
+  </defs>
+  <g transform="scale(.75)">
+    <rect width="1600" height="1120" fill="#ffffff"/>
+    <text x="60" y="62" class="title">US-003 · Select options and maintain the Planning Canvas</text>
+
+    <rect x="60" y="210" width="185" height="74" class="node info"/><text x="153" y="240" class="main">Confirmed destination</text><text x="153" y="263" class="sub">Draft Plan and linked Conversation</text>
+    <rect x="300" y="210" width="215" height="74" class="node canvas"/><text x="408" y="240" class="main">Map-first Planning Canvas</text><text x="408" y="263" class="sub">switch to categorized list</text>
+
+    <rect x="575" y="105" width="210" height="76" class="node traveler"/><text x="680" y="136" class="main">Canvas option search</text><text x="680" y="159" class="sub">stay · flight · car rental</text>
+    <rect x="850" y="105" width="215" height="76" class="node provider"/><text x="958" y="136" class="main">Provider-backed results</text><text x="958" y="159" class="sub">shown only when functional</text>
+    <rect x="1125" y="105" width="190" height="76" class="node traveler"/><text x="1220" y="136" class="main">Traveler chooses</text><text x="1220" y="158" class="main">an unsaved option</text>
+    <polygon points="1465,85 1550,143 1465,201 1380,143" class="control" stroke-width="2"/><text x="1465" y="139" class="main">Single-choice option</text><text x="1465" y="160" class="main">already saved?</text>
+    <rect x="1125" y="290" width="255" height="76" class="node control"/><text x="1253" y="321" class="main">Describe add or replacement</text><text x="1253" y="344" class="main">and request confirmation</text>
+    <rect x="1125" y="435" width="255" height="76" class="node plan"/><text x="1253" y="466" class="main">Save Selected Option</text><text x="1253" y="489" class="main">and applicable Map Pin</text>
+
+    <rect x="575" y="385" width="210" height="76" class="node traveler"/><text x="680" y="416" class="main">Map place search</text><text x="680" y="439" class="sub">stay · restaurant · activity</text>
+    <rect x="850" y="385" width="215" height="76" class="node info"/><text x="958" y="416" class="main">Temporary search-result pins</text><text x="958" y="439" class="sub">distinct; not saved</text>
+    <polygon points="1220,365 1315,423 1220,481 1125,423" class="control" stroke-width="2"/><text x="1220" y="419" class="main">Save as Custom Map Pin?</text>
+    <rect x="1380" y="385" width="190" height="76" class="node traveler"/><text x="1475" y="416" class="main">Choose category</text><text x="1475" y="439" class="sub">stay · restaurant · activity</text>
+    <rect x="1380" y="545" width="190" height="76" class="node control"/><text x="1475" y="576" class="main">Describe Custom Map Pin</text><text x="1475" y="599" class="main">and request confirmation</text>
+    <rect x="1380" y="690" width="190" height="84" class="node plan"/><text x="1475" y="721" class="main">Save lightweight</text><text x="1475" y="744" class="main">Custom Map Pin</text><text x="1475" y="764" class="sub">no price, availability, or supplier link</text>
+
+    <rect x="575" y="700" width="210" height="76" class="node info"/><text x="680" y="731" class="main">Saved pin details</text><text x="680" y="754" class="main">or categorized list</text>
+    <rect x="850" y="700" width="215" height="76" class="node traveler"/><text x="958" y="731" class="main">Remove saved item, or</text><text x="958" y="754" class="main">edit Custom Map Pin</text>
+    <rect x="1125" y="700" width="255" height="76" class="node control"/><text x="1253" y="731" class="main">Describe exact removal or edit</text><text x="1253" y="754" class="main">and request confirmation</text>
+    <rect x="1125" y="855" width="255" height="76" class="node plan"/><text x="1253" y="897" class="main">Update saved Plan and Canvas</text>
+
+    <path d="M245 247 H300" class="edge"/><text x="272" y="236" class="label">open Canvas</text>
+    <path d="M515 247 H545 V143 H575" class="edge"/><text x="548" y="133" class="label">search option</text>
+    <path d="M785 143 H850" class="edge"/><text x="817" y="133" class="label">functional mode</text>
+    <path d="M1065 143 H1125" class="edge"/><text x="1095" y="133" class="label">inspect</text>
+    <path d="M1315 143 H1380" class="edge"/><text x="1348" y="133" class="label">add</text>
+    <path d="M1465 201 V260 H1253 V290" class="edge"/><text x="1360" y="250" class="label">yes: replacement</text>
+    <path d="M1465 201 V330 H1253 V290" class="edge"/><text x="1360" y="320" class="label">no: addition</text>
+    <path d="M1253 366 V435" class="edge"/><text x="1305" y="407" class="label">confirmed</text>
+    <path d="M515 247 H545 V423 H575" class="edge"/><text x="548" y="413" class="label">search map</text>
+    <path d="M785 423 H850" class="edge"/><text x="817" y="413" class="label">browse</text>
+    <path d="M1065 423 H1125" class="edge"/><text x="1095" y="413" class="label">choose result</text>
+    <path d="M1315 423 H1380" class="edge"/><text x="1348" y="413" class="label">yes</text>
+    <path d="M1475 461 V545" class="edge"/><text x="1530" y="510" class="label">select category</text>
+    <path d="M1475 621 V690" class="edge"/><text x="1530" y="660" class="label">confirmed</text>
+    <path d="M1220 481 V540 H680 V461" class="edge dash"/><text x="950" y="530" class="label">not saved</text>
+    <path d="M515 247 H545 V738 H575" class="edge"/><text x="548" y="728" class="label">view saved item</text>
+    <path d="M785 738 H850" class="edge"/><text x="817" y="728" class="label">manage</text>
+    <path d="M1065 738 H1125" class="edge"/><text x="1095" y="728" class="label">request change</text>
+    <path d="M1253 776 V855" class="edge"/><text x="1305" y="815" class="label">confirmed</text>
+    <path d="M1253 511 V600 H680 V700" class="edge"/><text x="965" y="590" class="label">render saved pins</text>
+    <path d="M1475 774 V825 H680 V776" class="edge"/><text x="1060" y="815" class="label">render custom pin</text>
+    <path d="M1253 931 V955 H680 V776" class="edge"/><text x="1010" y="945" class="label">refresh Canvas</text>
+
+    <rect x="60" y="1000" width="1510" height="54" fill="#f5f5f5" stroke="#666666" rx="7"/>
+    <text x="80" y="1023" class="legend" font-weight="700">Legend</text><text x="80" y="1044" class="legend">Blue: traveler action · Green: provider result · Purple: canvas state · Yellow: explicit confirmation/decision · Red: saved Plan change · Grey: information or temporary state</text>
+  </g>
+</svg>
