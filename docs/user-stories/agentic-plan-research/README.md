@@ -107,6 +107,52 @@ Travella maintains a structured, traveler-editable planning brief for the Plan. 
 | Research retention | Unselected recommendations and source bundles are temporary. | Avoids quietly retaining exploratory material as durable traveler data. |
 | Research control | The traveler can interrupt or redirect research at any time. | The Conversation remains responsive to the traveler’s latest intent. |
 
+## Technical direction
+
+### Agent flow and model access
+
+- The agent service will use one end-to-end LangGraph flow for a Plan. The flow will grow incrementally from named, inspectable steps with explicit input/output state contracts; it is not a hierarchy of autonomous sub-agents.
+- Each step calls a provider-neutral model adapter. Claude is a candidate model provider, but model selection remains configurable without changing the graph's state contracts or tool boundaries.
+- The research part of the flow always has web-search access. Tool permissions for other graph steps remain open until those steps are designed.
+- Research tools normalize their output into a common evidence record before model synthesis. Evidence records carry the relevant provider/source, URL, retrieval time, concise excerpt, and structured travel facts.
+- Retrieved webpages, provider results, and other external content are untrusted data. They cannot issue instructions, invoke tools, or change a Plan without explicit agent interpretation and traveler confirmation.
+- Research retries are bounded. When a web or provider request still fails, the agent explains the limitation and offers a next step; it neither retries indefinitely nor fabricates substitute data.
+
+### Plan-scoped state and checkpoints
+
+- Each Plan maps to one isolated LangGraph thread/checkpoint namespace, scoped by the authenticated traveler and Plan identifier. The agent may read only that Plan, its linked Conversation, and its own checkpoint state.
+- The MVP allows one active agent session per Plan. A second session first reconciles a checkpoint, then makes the original session read-only before taking over.
+- The graph keeps one coherent context. Every field declares whether it is internal-only, checkpointed, exposed through AG-UI, or an allowed combination of those roles.
+- AG-UI receives only an explicitly whitelisted, validated projection of graph context. It never receives a full checkpoint, internal reasoning, credentials, or raw provider/web payloads.
+- The canvas can receive live agent context through AG-UI. Traveler actions appear immediately; agent-originated micro-updates are briefly batched into composed, smooth UI updates.
+- Checkpoints retain normalized context needed to resume work, not raw provider payloads, rejected alternatives, or full source bundles. Every checkpoint carries a state-schema version and uses explicit migrations as the graph evolves.
+- Checkpoints are created at major journey milestones, after confirmed Plan changes, and after a short idle period. Returning to a Plan restores the latest successful checkpoint; unfinished research is shown as interrupted and must be restarted or re-requested.
+- A checkpoint is not considered saved until its LangGraph state and matching CRUD snapshot are consistent. Partial saves are retried safely and are never presented to the traveler as saved progress.
+- Checkpoint state follows the Draft Plan deletion and seven-day recovery lifecycle. It becomes unavailable during deletion, can be restored with the Plan during recovery, and is permanently purged with the Plan afterward.
+- The graph depends on an agent-state storage interface for checkpoint save/load, recovery-period purge, and active-session takeover. The backing NoSQL technology remains undecided.
+
+### Long-term memory
+
+- Amazon Bedrock AgentCore Memory is the intended MVP long-term-memory capability behind the agent-memory interface.
+- AgentCore may automatically extract useful long-term insights from Conversations. Long-term memory is scoped to the authenticated traveler, not a single Plan, and can support future Plans without crossing travelers.
+- Long-term memories remain after the source Draft Plan and Conversation are deleted. They are advisory context only: current Plan preferences, the current Conversation, and the traveler's latest instruction always take precedence.
+- The graph retrieves only relevant long-term memories at Plan entry and when the topic materially changes. Retrieved memories enter the graph as bounded structured data, never as raw instructions.
+- Long-term-memory controls are not part of the MVP user interface.
+
+### Authorization, mutations, and operations
+
+- Any Plan mutation requires a short-lived, single-use confirmation token created by the traveler's UI action. The CRUD API verifies that it is bound to the exact traveler, Plan, and proposed change; an agent request alone cannot mutate a Plan.
+- Checkpoint state and long-term memory are encrypted at rest. Every read/write is authorized server-side against the authenticated traveler and, where applicable, the current Plan scope.
+- Production observability records privacy-preserving operational metadata such as trace IDs, node/tool timing, outcomes, and error classes. It excludes or redacts Conversation content, raw research payloads, credentials, and personal data by default.
+
+### Technical decisions still open
+
+- Whether, how, and when prose responses stream through AG-UI.
+- The exact LangGraph nodes, their full state contracts, and non-research tool permissions.
+- Model/provider selection and model-routing policy.
+- AgentCore configuration details and long-term-memory retrieval policy.
+- The checkpoint backing store, exact idle duration, and checkpoint retry/reconciliation mechanics.
+
 ## Decision relationships
 
 ```mermaid
@@ -140,6 +186,8 @@ flowchart TD
 
 - [Agentic plan flow](agentic-plan-flow.drawio)
 - [Agentic plan flow preview](agentic-plan-flow-preview.svg)
+- [LangGraph flow](langgraph-flow.drawio)
+- [LangGraph flow preview](langgraph-flow-preview.svg)
 - [Domain glossary](../../../CONTEXT.md)
 - [Travella overview](../../overview.md)
 - [Architecture foundations](../../planning/architecture-foundations.md)
