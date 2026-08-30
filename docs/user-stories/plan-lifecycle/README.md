@@ -81,6 +81,7 @@ The MVP has no finalized or completed Plan state. Active Plans remain Draft Plan
 | Deletion | Delete moves a Draft Plan out of My plans into Recently deleted immediately. | The active list stays clear while the traveler retains a recoverable safety net. |
 | Recovery | A deleted Plan can be restored for seven days, then identifiable Plan data is removed. | Provides meaningful protection against accidental deletion while limiting retained private data. |
 | Completion | No finalized/complete Plan state exists in the MVP. | It keeps the first lifecycle focused; a future finalized-plan design can be introduced intentionally. |
+| Lifecycle model | [Plan lifecycle state diagram](plan-lifecycle-state.drawio) documents creation, deletion, recovery, and expiry. | These conditional states and the recovery deadline are easier to review visually. |
 
 ## Initial state and event contract
 
@@ -105,6 +106,8 @@ The MVP has no finalized or completed Plan state. Active Plans remain Draft Plan
 
 ## Related artifacts
 
+- [Plan lifecycle state diagram](plan-lifecycle-state.drawio)
+- [Plan lifecycle state preview](plan-lifecycle-state-preview.svg)
 - [Travella overview](../../overview.md)
 - [Domain glossary](../../../CONTEXT.md)
 - [Architecture foundations](../../planning/architecture-foundations.md)

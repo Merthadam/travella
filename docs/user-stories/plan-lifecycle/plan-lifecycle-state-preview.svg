@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="900" viewBox="0 0 1040 900" role="img" aria-labelledby="title desc">
+  <title id="title">US-004 Plan lifecycle state diagram</title>
+  <desc id="desc">A state diagram showing an active draft plan being deleted, restored within seven days, or permanently removed after its recovery period expires.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/></marker>
+    <style>
+      .title{font:700 20px Arial,sans-serif;fill:#1f2937}.state{font:700 15px Arial,sans-serif;fill:#1f2937;text-anchor:middle}.sub{font:12px Arial,sans-serif;fill:#374151;text-anchor:middle}.label{font:12px Arial,sans-serif;fill:#374151;text-anchor:middle}.note{font:12px Arial,sans-serif;fill:#374151}.legend{font:12px Arial,sans-serif;fill:#374151}.edge{stroke:#374151;stroke-width:2;fill:none;marker-end:url(#arrow)}.dashed{stroke-dasharray:7 5}
+    </style>
+  </defs>
+  <rect width="1040" height="900" fill="#fff"/>
+  <text x="70" y="50" class="title">US-004 · Plan lifecycle</text>
+  <circle cx="120" cy="220" r="12" fill="#1f2937"/>
+  <rect x="220" y="178" width="270" height="84" rx="10" fill="#d5e8d4" stroke="#82b366" stroke-width="2"/>
+  <text x="355" y="210" class="state">Active Draft Plan</text><text x="355" y="234" class="sub">in My plans; title and last view saved</text>
+  <rect x="620" y="178" width="270" height="84" rx="10" fill="#fff2cc" stroke="#d6b656" stroke-width="2"/>
+  <text x="755" y="210" class="state">Recently deleted</text><text x="755" y="234" class="sub">recoverable for seven days</text>
+  <rect x="620" y="400" width="270" height="84" rx="10" fill="#f8cecc" stroke="#b85450" stroke-width="2"/>
+  <text x="755" y="431" class="state">Expired / permanently removed</text><text x="755" y="454" class="sub">identifiable Plan data removed; no restoration</text>
+  <circle cx="755" cy="560" r="12" fill="#1f2937"/>
+  <path d="M132 220 H220" class="edge"/><text x="176" y="204" class="label">create New plan</text>
+  <path d="M490 220 H620" class="edge"/><text x="555" y="204" class="label">delete</text>
+  <path d="M755 178 V118 H355 V178" class="edge"/><text x="555" y="108" class="label">restore before deadline</text>
+  <path d="M755 262 V400" class="edge dashed"/><rect x="660" y="305" width="190" height="48" fill="#fff"/><text x="755" y="326" class="label">seven-day Recovery</text><text x="755" y="344" class="label">Period expires</text>
+  <path d="M755 484 V548" class="edge"/>
+  <rect x="185" y="355" width="315" height="91" rx="4" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text x="203" y="380" class="note">open, rename, plan activity</text><text x="203" y="402" class="note">remain active; update last-used view</text><text x="203" y="420" class="note">or activity time</text>
+  <rect x="70" y="590" width="820" height="40" rx="4" fill="#f5f5f5" stroke="#666"/>
+  <text x="86" y="615" class="legend">Solid arrow: traveler action or normal transition   •   Dashed arrow: expiry transition   •   Every transition is authorized for the authenticated traveler.</text>
+</svg>
