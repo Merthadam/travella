@@ -1,22 +1,26 @@
 ---
 name: create-user-story
-description: Create or refine a repository user story from product context through a focused grilling session, purposeful diagram selection, and human review between diagram iterations. Use for planning user stories, acceptance criteria, and supporting documentation; do not use for implementing product code.
+description: Create or refine a repository user story through focused decision discovery, iterative documentation, purposeful diagram selection, and human review. Use for planning user stories, acceptance criteria, and supporting documentation; do not use for implementing product code.
 ---
 
 # Create User Story
 
 Create a coherent, decision-backed user-story package that fits the product context already recorded in the repository.
 
-## Start with context, then grill
+## Start with context, then guide decisions
 
 Before creating or changing artifacts:
 
 1. Read the product overview, glossary, relevant architecture decisions, planning documents, and related user stories.
 2. Identify confirmed decisions, explicit exclusions, unresolved questions, and contradictions. Treat the newest explicit user decision as authoritative; flag conflicts rather than silently blending them.
-3. Run a focused grilling session before drafting. Ask only questions that existing context cannot answer, one decision at a time. Do not re-ask a question already answered in the repository or current conversation.
-4. Summarize the accepted decisions and remaining unknowns before proposing artifacts.
+3. Keep a working decision ledger while reading and talking: confirmed choice, affected behavior, source, and any superseded choice. The newest explicit user decision is authoritative.
+4. Run a focused decision conversation before substantial drafting. Ask one question at a time, but only when it affects the traveler outcome, scope, trust, recovery, or an implementation boundary the user wants to decide. Do not re-ask a question already answered in the repository or current conversation.
+5. Group related decisions into a short arc, such as candidate lifecycle, confirmation, or recovery. After a natural boundary—or sooner when the user says the questions are repetitive—stop questioning, summarize the accepted set, update the story source of truth, and move to the next unresolved area.
+6. Do not turn every implementation detail into a question. Make clearly reversible, low-risk defaults when they preserve the user's intent; mark genuinely open choices instead of inventing them.
+7. When the user corrects or qualifies an earlier answer, state the revised interpretation and replace the old decision everywhere it matters before continuing.
+8. Summarize the accepted decisions and remaining material unknowns before proposing a new artifact or diagram.
 
-Keep questions product-facing. Explain technical consequences only when they affect a product or security decision.
+Keep questions product-facing and in the user's requested language level. Explain technical consequences only when they affect a product, security, or meaningful delivery decision. Do not turn the conversation into a checklist or repeatedly seek confirmation of an already implied choice.
 
 ## Build the story package
 
@@ -28,6 +32,10 @@ Put the story in `docs/user-stories/<story-slug>/`. Keep the story README as the
 - Acceptance criteria or clear testable outcomes when the story is ready for implementation.
 - A decision table with the decision and its rationale.
 - Links to every supporting diagram and related artifact.
+
+Update the README at natural decision boundaries instead of holding every decision until the end. Reconcile new decisions with earlier text immediately; do not leave a story internally contradictory while continuing the interview.
+
+For a story that is ready to plan technically, record an initial state/event contract when it materially reduces ambiguity. Keep it implementation-neutral: identify authoritative data, compact resumable context, transient/raw data, allowed browser projection, typed traveler actions, and idempotency or recovery expectations. It is not a reason to prematurely choose a database, protocol schema, or vendor.
 
 Use the repository glossary consistently. Record new confirmed decisions beside the affected story, not only in a generic planning index.
 
@@ -43,9 +51,21 @@ The repository is expected to grow a graph-based knowledge base under `docs/`, w
 
 Do not create, move, or delete the knowledge-base structure until the user explicitly asks. In particular, preserve `docs/overview.md` as-is until the user explicitly replaces or retires it.
 
+## Agentic and research flows
+
+When a story includes an agent, research, or dynamic UI, cover these areas only when they apply to the requested flow:
+
+- Traveler authority: what requires explicit confirmation, what may update context, and how direct traveler edits override agent inference.
+- Research lifecycle: what the traveler sees while work runs, how interruption and stale work behave, and what appears after recovery.
+- Recommendation lifecycle: what is transient, what compact context may survive for the current plan, what starts fresh for a new plan, and whether recommendations may refresh.
+- Evidence: how a traveler can inspect support for a claim without exposing raw tool payloads or internal reasoning by default.
+- UI projection: the difference between internal state, checkpointed state, and the validated fields/events the browser may receive.
+
+Use the user's confirmed product decisions to set these rules. Do not impose a specific agent framework, model, memory product, streaming method, component library, or storage technology unless the user selected it.
+
 ## Choose diagrams deliberately
 
-Decide which diagram types materially clarify the story; user stories differ, so do not apply a fixed diagram set.
+Decide which diagram types materially clarify the story; user stories differ, so do not apply a fixed diagram set. First inspect existing diagrams and written contracts. Skip a new diagram when they already make the relationship clear.
 
 Use:
 
@@ -74,6 +94,8 @@ Do not infer approval for another diagram from approval of the previous one.
 
 ## Quality bar
 
-Keep terminology, narrative, diagrams, and decision records aligned. Surface important edge cases, authorization boundaries, external dependencies, recovery behavior, and security expectations when they belong to the story.
+Keep terminology, narrative, diagrams, state/event contracts, and decision records aligned. Before handing off, run a concise acceptance pass: turn the confirmed behavior into testable outcomes, remove duplicated or contradictory wording, and check document formatting.
+
+Surface important edge cases, authorization boundaries, external dependencies, recovery behavior, and security expectations when they belong to the story. For agentic stories, distinguish an understandable user-facing progress state from hidden reasoning.
 
 Preserve product scope: do not turn assumptions into requirements, invent integrations, or change behavior beyond confirmed decisions. Do not commit, push, or alter unrelated files unless the user explicitly asks.

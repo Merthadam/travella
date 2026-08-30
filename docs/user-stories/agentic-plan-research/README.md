@@ -16,7 +16,7 @@ The agent helps with research and recommendations, but it does not silently make
 - The Conversation is a light, progressive grilling session, not a long mandatory questionnaire. The agent can begin low-risk research early, asks only questions that materially narrow the search, and lets the traveler fast-forward when they already know an answer.
 - The agent may use validated, in-conversation A2UI-style components for focused choices and comparisons. The exact component schema and catalog remain open.
 - A traveler explicitly confirms every plan change, including setting or changing the destination, adding or removing a Selected Option, and any resulting Map Pin change.
-- The traveler can interrupt or redirect in-progress research at any time. The agent cancels or deprioritizes the superseded work and follows the newer direction.
+- The traveler can send a new message at any time. The agent stops its current thinking immediately, handles the new message, then continues or restarts research from the latest context when appropriate. It never presents an obsolete result.
 
 ## Planning brief
 
@@ -24,36 +24,59 @@ Travella maintains a structured, traveler-editable planning brief for the Plan. 
 
 - The agent updates active brief entries immediately when the traveler supplies or clearly implies them.
 - The traveler can manually edit or delete any brief entry.
+- The agent asks about one preference or decision at a time. It either researches from the answer or asks the next most useful question; it does not present a batch questionnaire.
+- A traveler edit is authoritative until the traveler changes it again. An agent inference that would change an existing traveler entry remains tentative and needs confirmation before replacing it.
 - Deleting an entry removes it as an active preference. The underlying fact remains available to the agent only as inactive, previously mentioned context, so it can avoid unnecessarily re-asking the same question.
 - Inactive entries must not influence ranking or recommendations unless the traveler explicitly brings them back into the conversation.
+
+## Temporary destination candidates
+
+During destination discovery, the graph keeps a compact, Plan-scoped candidate list. A candidate is one destination/city in the MVP, not a country, route, or multi-city plan.
+
+- A candidate has a stable identifier, a status (`shortlisted`, `being explored`, or `rejected`), a simple confidence label (`strong fit`, `possible fit`, or `weak fit`), a short explanation of fit and caveats, and references to normalized evidence records. Each material fit claim or caveat cites its supporting source or sources. It never stores full raw research content in graph state.
+- Only one candidate is `being explored` at a time. A traveler-named destination outside the shortlist becomes that active candidate immediately and offers a clear path to choose it as the Plan destination.
+- The first shortlist has at most five candidates. It may be shorter when fewer places fit. `Weak fit` candidates appear only when there are not enough stronger matches.
+- The agent does not reveal partial candidate cards while a research pass is running. It shows only concise progress states, then presents the completed shortlist as one result.
+- A change to an active Brief entry that affects destination discovery starts a fresh research pass automatically. The agent presents a replacement shortlist only after that pass is complete.
+- The traveler may also explicitly refresh recommendations without changing the Brief, for example to request newer research.
+- During that refresh, the prior completed shortlist remains visible with a quiet updating state. It is replaced only by the next complete shortlist.
+- When the traveler asks for more ideas, the agent extends the list. It keeps existing order stable and does not silently remove earlier candidates; later, stronger matches may be visually de-emphasized only with an explanation.
+- A rejected candidate and its rejection reason remain available for this Plan so it is not suggested again. A completely new Plan starts without those rejections.
+- Conflicting or thin evidence marks a candidate as needing more research. If no candidate fits, the agent explains the gap and asks one focused question rather than manufacturing a full shortlist.
+- Candidate records survive normal Plan checkpoints. After the traveler confirms a destination, other candidates remain saved as quiet fallback context, not visible in the normal destination view. The agent brings them back only if the traveler asks to change/reconsider the destination or a major new constraint makes it unsuitable.
 
 ## Destination discovery and change
 
 1. The traveler creates or resumes a Draft Plan and opens its linked Conversation.
 2. The traveler begins with an intent or a known destination.
 3. The agent performs relevant research, offers focused questions or choices when useful, and updates the planning brief as the traveler responds.
-4. The traveler explicitly chooses one destination/city for the Plan.
-5. If the traveler later chooses a different destination/city, Travella identifies affected destination-specific Selected Options and Map Pins.
-6. Travella requires confirmation before clearing those affected choices and pins. It preserves the wider active brief and inactive historical context so the agent can offer relevant alternatives for the new destination.
+4. The agent shows a shortlist of compact destination candidates, or explores one candidate in more depth when the traveler asks.
+5. The traveler explicitly chooses one destination/city for the Plan.
+6. If the traveler later chooses a different destination/city, Travella identifies affected destination-specific Selected Options and Map Pins.
+7. Travella requires confirmation before clearing those affected choices and pins. It preserves the wider active brief, inactive historical context, and quiet fallback candidates so the agent can offer relevant alternatives for the new destination.
 
 ## Research transparency and uncertainty
 
 - Research-backed recommendations display lightweight source/search indicators without disrupting the Conversation.
 - The traveler can open the supporting material from those indicators when they want to inspect it.
+- A shortlist event carries only compact source badges and evidence identifiers. Supporting material is requested only after the traveler opens a badge; raw source content is never included in the initial shortlist payload.
+- Opening a source badge shows a small in-app source panel first, with an optional link to the original source rather than an automatic redirect away from Travella.
+- Citations stay visually minimal. Travella does not add source-type or credibility labels in the MVP.
+- Research activity is represented by concise, user-facing states: `preparing`, `searching`, `comparing`, `needs your input`, `ready to choose`, and `unable to continue`. These use a small icon or animation, not exposed chain-of-thought or detailed internal reasoning.
 - When evidence conflicts, is stale, or is insufficient to support a confident recommendation, the agent says so and asks the traveler how to proceed.
 - Travella presents only functional provider-backed search modes. A mode whose provider integration is unavailable remains hidden; demonstration data, if ever shown, must be labeled honestly.
-- Unselected recommendations and their source bundles are temporary research output. They are not durable plan data.
+- Full unselected recommendations and source bundles are temporary research output, not durable Plan data. A compact candidate assessment and its evidence references may remain in Plan-scoped checkpoint state for recovery and later reconsideration.
 
 ## Happy-path flow
 
 1. An authenticated traveler opens a Draft Plan and its Conversation.
 2. The traveler describes an idea, for example: “I am a windsurfer and want a summer holiday with reliable wind at the same time each day.”
-3. The agent begins relevant research, shows its progress/source indicators, and asks only the next useful question or presents a focused choice.
+3. The agent begins relevant research, shows a concise research state and source indicators, and asks only the next useful question or presents a focused choice.
 4. The traveler answers, edits the planning brief, or fast-forwards by stating a decision they have already made.
-5. The agent updates the active brief and explains recommendations with accessible supporting material.
-6. The traveler explicitly chooses a destination/city.
+5. The agent updates the active brief and presents up to five compact candidates with accessible supporting material.
+6. The traveler can explore one candidate in more depth, reject it, ask for more options, or explicitly choose a destination/city.
 7. The agent continues the Conversation in the context of that destination, but waits for explicit confirmation before changing the Plan with a Selected Option or Map Pin.
-8. The traveler may interrupt or redirect research at any time; the agent follows the newest instruction.
+8. A new traveler message stops current thinking; the agent handles it and then continues or restarts research using the latest context.
 
 ## In scope
 
@@ -61,6 +84,7 @@ Travella maintains a structured, traveler-editable planning brief for the Plan. 
 - One linked Conversation per Plan.
 - Progressive agent questioning, research, recommendations, and explainable uncertainty.
 - A structured, traveler-editable planning brief with active and inactive context states.
+- A compact, Plan-scoped candidate list for destination discovery, including shortlist, active exploration, rejection, confidence, and evidence references.
 - Explicit confirmation for every plan change.
 - Destination commitment and confirmed clearing of destination-specific selections/pins when changing destination.
 - In-conversation validated A2UI-style choice and comparison components.
@@ -80,15 +104,30 @@ Travella maintains a structured, traveler-editable planning brief for the Plan. 
 1. A traveler can start a Draft Plan with either a known destination/city or an open-ended travel intent.
 2. A Draft Plan can have no destination during discovery and has no more than one chosen destination/city in the MVP.
 3. The agent can start relevant low-risk research before collecting every preference and asks focused questions only as useful.
-4. The traveler can supply an early decision, skip a question, interrupt research, or redirect the Conversation without losing control of the Plan.
+4. The agent asks only one preference or decision question at a time; the traveler can supply an early decision, skip a question, interrupt research, or redirect the Conversation without losing control of the Plan.
 5. The active planning brief reflects new traveler preferences immediately and can be manually edited by the traveler.
-6. Deleted brief entries are retained only as inactive, previously mentioned context and do not influence recommendations unless the traveler reintroduces them.
-7. No destination, Selected Option, Map Pin, or other Plan change is made without the traveler’s explicit confirmation.
-8. Changing the chosen destination identifies affected destination-specific selections and pins and requires confirmation before clearing them.
-9. Research-backed recommendations expose lightweight source/search indicators and let the traveler inspect the supporting material.
-10. The agent explicitly communicates conflicting, stale, or insufficient evidence and asks the traveler how to proceed.
-11. Unselected recommendations and their source bundles are not persisted as Plan data.
-12. Provider-dependent modes are hidden until backed by a functional integration, and any demonstration data is labeled honestly.
+6. A manual brief edit takes precedence over agent inference; an inferred conflicting change remains tentative until confirmed.
+7. Deleted brief entries are retained only as inactive, previously mentioned context and do not influence recommendations unless the traveler reintroduces them.
+8. The first destination shortlist contains no more than five candidates, may contain fewer, and shows weak-fit candidates only if insufficient stronger matches exist.
+9. Candidates store compact assessment and evidence references, not raw research payloads. Rejected candidates remain available only for the current Plan; a new Plan starts fresh.
+10. A traveler can explore one candidate at a time, reject it, ask to extend the shortlist, or name a new destination directly.
+11. Confirming a destination hides, but retains, alternative candidates as Plan-scoped fallback context for a later reconsideration.
+12. A new message stops ongoing reasoning, and no obsolete research result is shown after the agent continues or restarts from the latest context.
+13. Research shows concise progress states without exposing internal reasoning.
+14. Candidate cards appear only once the research pass has produced a completed shortlist; partial cards are not shown.
+15. A change to an active Brief entry that affects destination discovery automatically starts a fresh research pass; the replacement shortlist appears only when it is complete.
+16. The traveler can manually refresh recommendations without changing the Brief.
+17. The prior completed shortlist remains visible with a quiet updating state until a replacement shortlist is complete.
+18. No destination, Selected Option, Map Pin, or other Plan change is made without the traveler’s explicit confirmation.
+19. Changing the chosen destination identifies affected destination-specific selections and pins and requires confirmation before clearing them.
+20. Research-backed recommendations expose lightweight source/search indicators and let the traveler inspect the supporting material on demand; initial shortlist payloads do not contain raw source material.
+21. A source badge opens a small in-app source panel before any optional external redirect.
+22. The agent explicitly communicates conflicting, stale, or insufficient evidence and asks the traveler how to proceed.
+23. Full unselected research payloads and source bundles are not persisted as Plan data; compact candidate assessments and evidence references may persist in Plan-scoped checkpoint state.
+24. Provider-dependent modes are hidden until backed by a functional integration, and any demonstration data is labeled honestly.
+25. Every material candidate fit claim and caveat has a compact source citation. Opening it loads the in-app source panel on demand rather than including raw source material in the shortlist.
+26. After refresh or reconnect, Travella restores the latest consistent snapshot directly. It shows the last completed shortlist when present and does not automatically restart interrupted research.
+27. A Brief-driven or manual refresh keeps the prior completed shortlist visible with a quiet updating state until one complete replacement shortlist is available.
 
 ## Decisions
 
@@ -100,12 +139,26 @@ Travella maintains a structured, traveler-editable planning brief for the Plan. 
 | Choice UI | The agent can present validated A2UI-style choices and comparisons in the Conversation. | Focused micro-decisions make an agentic flow more dynamic while keeping the interface safe. |
 | Authority | Every Plan change requires explicit traveler confirmation. | The traveler retains control of consequential travel decisions. |
 | Brief updates | The agent immediately records clearly stated or implied active preferences in the editable brief. | The brief stays useful without duplicate data entry. |
+| Brief authority | Traveler edits take precedence. An agent inference that conflicts with one remains tentative until confirmed. | The agent cannot silently rewrite a decision the traveler made directly. |
+| Question cadence | The agent explores one preference or decision at a time. | The experience stays conversational and avoids a brittle multi-question form. |
 | Brief deletion | Deleted entries become inactive historical context and cannot influence recommendations unless reintroduced. | Preserves conversational continuity without treating removed information as a current preference. |
+| Candidate shape | A candidate is a compact, single-destination assessment with status, confidence, fit/caveats, and evidence references. | It supports clear comparison and recovery without retaining raw research content. |
+| Candidate citations | Each material fit claim and caveat cites its supporting source or sources. | The traveler can inspect why a recommendation was made. |
+| Candidate shortlist | Show at most five initial candidates; extend only on request; preserve the existing order and options. | The traveler sees a manageable set without losing prior exploration. |
+| Candidate reveal | Do not show partial candidate cards; reveal a completed shortlist after the research pass. | Prevents early, incomplete results from feeling like the recommendation. |
+| Brief-driven refresh | A destination-discovery-relevant active-Brief change starts a fresh research pass automatically. | Recommendations remain aligned with the traveler’s latest direction. |
+| Manual refresh | The traveler can request newer research without changing the Brief. | The traveler can revisit time-sensitive information on demand. |
+| Candidate quality | Use strong/possible/weak fit; show weak fit only if needed, and flag thin/conflicting evidence for more research. | Recommendations remain honest instead of filling a quota. |
+| Candidate retention | Keep candidate assessments and rejections in the current Plan’s checkpoint state; keep alternatives quiet after destination confirmation; start a new Plan fresh. | The traveler can reconsider without turning exploratory research into permanent cross-Plan preference. |
 | Destination change | Clearing destination-specific selections and pins requires confirmation; broader context remains available. | Prevents silent data loss while allowing recommendations to adapt to a new direction. |
 | Research provenance | Recommendations show unobtrusive source/search indicators with optional supporting material. | The traveler can inspect evidence without interrupting the conversational flow. |
+| Source delivery | A shortlist carries only source badges and evidence identifiers; details load only after a traveler opens one. | Keeps the normal agent event compact and avoids exposing raw research material unnecessarily. |
+| Source inspection | Open a small in-app source panel before offering the original external link. | Lets the traveler assess evidence without losing their planning context. |
+| Citation presentation | Keep citations visually minimal; do not add source-type or credibility labels. | Evidence remains available without crowding the research experience. |
 | Uncertainty | The agent must surface conflicting, stale, or insufficient evidence and ask how to proceed. | Trust requires visible uncertainty rather than false confidence. |
-| Research retention | Unselected recommendations and source bundles are temporary. | Avoids quietly retaining exploratory material as durable traveler data. |
-| Research control | The traveler can interrupt or redirect research at any time. | The Conversation remains responsive to the traveler’s latest intent. |
+| Research retention | Full unselected research results and source bundles are temporary; compact candidate assessments can be Plan-scoped checkpoint context. | Allows recovery and reconsideration without quietly retaining raw exploratory material. |
+| Research control | A new message stops current thinking. The agent resumes or restarts research from the latest context without showing stale output. | The Conversation stays responsive and coherent. |
+| Research visibility | Show named, concise research states rather than internal reasoning. | The traveler sees meaningful progress without exposing implementation detail. |
 
 ## Technical direction
 
@@ -124,12 +177,36 @@ Travella maintains a structured, traveler-editable planning brief for the Plan. 
 - The MVP allows one active agent session per Plan. A second session first reconciles a checkpoint, then makes the original session read-only before taking over.
 - The graph keeps one coherent context. Every field declares whether it is internal-only, checkpointed, exposed through AG-UI, or an allowed combination of those roles.
 - AG-UI receives only an explicitly whitelisted, validated projection of graph context. It never receives a full checkpoint, internal reasoning, credentials, or raw provider/web payloads.
+- A completed destination shortlist reaches the browser through one validated `shortlist_ready` event containing the compact candidate-card projection. The browser never constructs a shortlist from incremental candidate-card events.
 - The canvas can receive live agent context through AG-UI. Traveler actions appear immediately; agent-originated micro-updates are briefly batched into composed, smooth UI updates.
-- Checkpoints retain normalized context needed to resume work, not raw provider payloads, rejected alternatives, or full source bundles. Every checkpoint carries a state-schema version and uses explicit migrations as the graph evolves.
-- Checkpoints are created at major journey milestones, after confirmed Plan changes, and after a short idle period. Returning to a Plan restores the latest successful checkpoint; unfinished research is shown as interrupted and must be restarted or re-requested.
+- Checkpoints retain normalized context needed to resume work, including compact candidate assessments and rejection reasons, but never raw provider payloads or full source bundles. Every checkpoint carries a state-schema version and uses explicit migrations as the graph evolves.
+- Checkpoints are created at major journey milestones, after confirmed Plan changes, and after a short idle period. Returning to a Plan restores the latest successful checkpoint. If a completed shortlist exists, Travella shows it; unfinished research is shown as interrupted and is not restarted automatically.
 - A checkpoint is not considered saved until its LangGraph state and matching CRUD snapshot are consistent. Partial saves are retried safely and are never presented to the traveler as saved progress.
+- On a browser refresh or reconnect, Travella restores the latest consistent Plan and agent-state snapshot directly; it does not replay historical chat or UI events to reconstruct the current screen.
+- Recently opened Plan contexts may be held in a small, transient server-side cache to avoid unnecessary durable-store reads. The cache is authenticated and Plan-scoped, may be discarded at any time, and is never the source of truth.
 - Checkpoint state follows the Draft Plan deletion and seven-day recovery lifecycle. It becomes unavailable during deletion, can be restored with the Plan during recovery, and is permanently purged with the Plan afterward.
 - The graph depends on an agent-state storage interface for checkpoint save/load, recovery-period purge, and active-session takeover. The backing NoSQL technology remains undecided.
+
+### Initial state and event contract
+
+This is the initial contract for the destination-discovery part of the graph. It is deliberately a design contract, not a database schema or final AG-UI component schema.
+
+| Area | Kept in graph/checkpoint context | Durable Plan data | May be exposed to the browser |
+| --- | --- | --- | --- |
+| Identity and ordering | Server-verified traveler ID, Plan ID, active-session ID, event ID, state version | Plan and Conversation ownership | Never directly |
+| Planning brief | Active, tentative, and inactive entries; origin and last-confirmed/changed time | Traveler-approved editable Brief | Whitelisted Brief projection only |
+| Destination candidates | Compact candidate records, status, confidence, fit/caveats, evidence references, and rejection reasons | Not Selected Options or Map Pins | Completed shortlist and deliberate candidate-action results only |
+| Chosen destination | Current proposed or confirmed destination and affected-change analysis | Confirmed destination after traveler confirmation | Whitelisted destination state and confirmation UI |
+| Research run | Current visible status, working focus, normalized evidence references, and cancellation/restart information | No raw research payloads | Concise research-status projection only |
+| UI delivery | Validated event revision and explicit exposed-field projection | None | Only whitelisted, schema-validated AG-UI events |
+
+- The server verifies `travelerId`, `planId`, `sessionId`, and `eventId`; the browser does not author them.
+- All browser actions are normalized into typed events. The initial set is `chat_message`, `canvas_brief_patch`, `candidate_action`, `confirmation`, `resume`, and `takeover`.
+- `candidate_action` covers exploring a candidate, rejecting one, asking for more options, naming a new destination, and opening a cited source. These are context actions, not Plan mutations.
+- Every event is idempotent by its event ID. Re-delivery cannot trigger duplicate research, duplicate checkpoint work, or a repeated Plan mutation.
+- The only initial completed-list event is `shortlist_ready`. It carries a complete, compact shortlist; source detail is retrieved on demand after a traveler action.
+- A current research run has a visible state (`preparing`, `searching`, `comparing`, `needs your input`, `ready to choose`, or `unable to continue`). A new traveler message stops current thinking. The agent then continues or restarts from the latest context, never emitting the obsolete run's result.
+- On recovery, the agent shows the last completed shortlist when one exists. It does not automatically restart an interrupted research run.
 
 ### Long-term memory
 
