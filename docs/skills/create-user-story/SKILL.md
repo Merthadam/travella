@@ -77,9 +77,11 @@ Use the user's confirmed product decisions to set these rules. Do not impose a s
 
 ## Choose diagrams deliberately
 
-Decide which diagram types materially clarify the story; user stories differ, so do not apply a fixed diagram set. First inspect existing diagrams and written contracts. Skip a new diagram when they already make the relationship clear.
+For this project, create one native Draw.io **user-flow diagram** by default for each substantive new user story once its core flow is confirmed. It is the story's primary visual artifact for now, not the start of a fixed diagram set. Use it to show the initial context, the traveler's main actions, meaningful decision branches, recovery or error outcomes, and handoffs to related stories.
 
-Use:
+Do not create a diagram for a minor story refinement that does not materially change the flow. Do not add a second diagram merely for coverage. Add a different diagram type only when the flow diagram cannot clearly represent a central concern—such as lifecycle/expiry, service interaction order, or data ownership—and the user explicitly approves that additional diagram.
+
+Use these exception types only when they materially clarify the story:
 
 - A use-case diagram for actors, system boundary, and user goals.
 - A sequence diagram for ordered browser, service, API, or provider interactions.
@@ -88,7 +90,7 @@ Use:
 - An ER/data-ownership diagram only when persisted ownership or relationships are central.
 - A component or context diagram only when service boundaries matter to the story.
 
-Skip diagrams that do not add clarity. Prefer native `.drawio` files for repository diagrams and use the configured draw.io workflow to render and inspect them.
+Prefer native `.drawio` files for repository diagrams and use the configured draw.io workflow to render and inspect them.
 
 ## Keep a human in the loop
 

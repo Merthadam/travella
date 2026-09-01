@@ -55,6 +55,8 @@ Connector service
 - [Service-boundary ADR](adr/0001-separate-agent-data-and-connector-services.md)
 - [Login user story](user-stories/login/README.md)
 - [Plan lifecycle user story](user-stories/plan-lifecycle/README.md)
+- [Travel-option search and comparison user story](user-stories/search-and-compare-travel-options/README.md)
+- [Travel-option search and comparison flow](user-stories/search-and-compare-travel-options/search-comparison-flow.drawio)
 - [Login use-case diagram](user-stories/login/login-use-case.drawio)
 - [Login API sequence diagram](user-stories/login/login-api-sequence.drawio)
 - [Option selection and planning canvas user story](user-stories/option-selection-and-canvas/README.md)
