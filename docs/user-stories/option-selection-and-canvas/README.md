@@ -18,6 +18,9 @@ Every saved-plan mutation requires explicit traveler confirmation. A Supplier Re
 - A Plan may contain at most one selected stay, flight, and car rental. It may contain multiple selected restaurants and activities.
 - Confirming a new stay, flight, or car rental when one already exists shows a replacement confirmation that identifies the existing option and Map Pin that will be removed.
 - The Planning Canvas is map-first. Selecting a saved Map Pin shows its details. The traveler can switch to a categorized list view of the same saved items.
+- The map is permanent. Confirmed Planning Requirements from [US-002](../agentic-plan-research/README.md) generate the relevant optional flight, accommodation, and car-rental planning surfaces beside it. A generated surface begins in a useful empty state and does not itself start a provider search or save a choice.
+- The traveler can add an optional planning surface or navigate to one through the UI or Conversation. Navigation is transient. Adding or removing a surface changes the confirmed Planning Requirements only after explicit confirmation.
+- If the traveler removes a surface with a saved Selected Option or related Map Pin, Travella offers a clear distinction between hiding the surface and removing the saved item. Any saved-item removal remains a separate explicit confirmation.
 - The Planning Canvas includes an option-search box for stays, flights, and car rentals, so the traveler can start those provider-backed searches without leaving the Canvas. A flight or car-rental search is not a map-place search.
 - The traveler can search and browse places directly on the map when a functional map/place provider is available. These temporary result pins are visually distinct from saved Map Pins.
 - Direct map browsing covers stays, restaurants, and activities only. Flights and car rentals remain separate provider-backed result flows.
@@ -28,13 +31,14 @@ Every saved-plan mutation requires explicit traveler confirmation. A Supplier Re
 ## Happy-path flow
 
 1. The traveler opens a Draft Plan with a confirmed destination and its linked Conversation.
-2. Travella presents only the provider-backed result modes that are functional. The traveler can refine results in the Conversation or UI; start a stay, flight, or car-rental search from the Canvas search box; or search the map for a stay, restaurant, or activity.
-3. The traveler inspects a result or temporary map-search pin. It remains unsaved.
-4. The traveler chooses to add it. Travella presents the exact Selected Option or Custom Map Pin change for explicit confirmation.
-5. After confirmation, the CRUD backend saves the change and the Planning Canvas displays the category-specific Map Pin.
-6. The traveler selects a pin to view its details, or switches to the categorized list view.
-7. The traveler can add more restaurants or activities; a new stay, flight, or car rental instead presents a replacement confirmation.
-8. To remove a saved item or edit a Custom Map Pin, the traveler confirms the described change. Travella then updates the saved Plan and Canvas.
+2. Travella composes the permanent map plus only the optional planning surfaces whose requirements the traveler has confirmed. The traveler can add or navigate to a surface through the Conversation or UI; a surface begins without a provider search.
+3. Travella presents only the provider-backed result modes that are functional. The traveler can refine results in the Conversation or UI; start a stay, flight, or car-rental search from the relevant surface; or search the map for a stay, restaurant, or activity.
+4. The traveler inspects a result or temporary map-search pin. It remains unsaved.
+5. The traveler chooses to add it. Travella presents the exact Selected Option or Custom Map Pin change for explicit confirmation.
+6. After confirmation, the CRUD backend saves the change and the Planning Canvas displays the category-specific Map Pin.
+7. The traveler selects a pin to view its details, or switches to the categorized list view.
+8. The traveler can add more restaurants or activities; a new stay, flight, or car rental instead presents a replacement confirmation.
+9. To remove a saved item or edit a Custom Map Pin, the traveler confirms the described change. Travella then updates the saved Plan and Canvas.
 
 ## In scope
 
@@ -42,6 +46,8 @@ Every saved-plan mutation requires explicit traveler confirmation. A Supplier Re
 - One selected stay, flight, and car rental, plus multiple selected restaurants and activities.
 - Replacement confirmation for a single-choice option.
 - A map-first Planning Canvas with category-specific saved Map Pins, pin details, and a categorized-list alternate view.
+- Generative workspace composition: a permanent map plus traveler-confirmed optional flight, accommodation, and car-rental planning surfaces.
+- Adding, hiding, removing, and navigating to optional surfaces without confusing transient UI changes with saved Selected Option or Map Pin mutations.
 - A Canvas option-search box for provider-backed stay, flight, and car-rental results.
 - Direct map searching/browsing for stays, restaurants, and activities when a functional map/place provider is available.
 - Creating, editing, and removing categorized Custom Map Pins from map-place search.
@@ -71,6 +77,9 @@ Every saved-plan mutation requires explicit traveler confirmation. A Supplier Re
 11. A traveler can change a Custom Map Pin's category or searched location only through an explicit confirmation.
 12. Flights and car rentals are available only through functional provider-backed result flows; unavailable modes are hidden and any demonstration data is labeled honestly.
 13. No flow in this story represents a Selected Option, Custom Map Pin, or supplier link as a confirmed booking.
+14. The map remains present while optional flight, accommodation, and car-rental surfaces are generated only from confirmed Planning Requirements; a generated surface does not start a provider search or save a selection on its own.
+15. A traveler can request an allowed surface add or navigation through either the Conversation or UI. Navigation changes only the active view, and an added surface does not change an existing saved option or pin.
+16. Removing an optional surface with no saved item requires confirmation of the Planning Requirements change. When a saved item exists, Travella clearly separates hiding the surface from removing the saved option or pin and requires the applicable separate confirmation.
 
 ## Decisions
 
@@ -82,6 +91,8 @@ Every saved-plan mutation requires explicit traveler confirmation. A Supplier Re
 | Multiple-choice categories | A Plan may hold multiple restaurants and activities. | Travelers commonly want several possible places in a destination. |
 | Replacement | Replacing a single-choice option identifies the existing option and Map Pin that will be removed. | Avoids accidental loss of a current choice. |
 | Canvas view | The Canvas defaults to a map, with pin details and a categorized-list alternate view. | The map is the planning surface; the list supports scanning and management. |
+| Workspace composition | The map is permanent; confirmed Planning Requirements generate optional flight, accommodation, and car-rental surfaces. | The canvas responds to the traveler's actual trip needs and demonstrates GenUI without an uncontrolled canvas. |
+| Workspace navigation | A traveler may add, hide, remove, or navigate to optional surfaces through chat or UI. Navigation is transient; requirement and saved-item changes remain explicit. | Conversation can operate the plan while preserving clear authority over durable data. |
 | Canvas option search | The Canvas includes a search box for provider-backed stay, flight, and car-rental searches. | The traveler can compare and save core travel options in the same planning surface. |
 | Map search | The map supports direct browsing/search for stays, restaurants, and activities when a functional provider exists. | Travelers can discover places spatially as well as conversationally. |
 | Map-search boundary | Flights and car rentals are not searched directly on the map. | They require distinct provider-result experiences. |
@@ -100,6 +111,7 @@ This is a product-facing contract, not a final database or protocol schema.
 | Map Pins | Confirmed pin category, location reference, and relationship to its saved item | Temporary map-search results | Saved versus temporary pin state and selected-pin details |
 | Custom Map Pins | Confirmed category, location reference, and lightweight label/details | Proposed category or replacement location | Custom-pin confirmation and rendered pin details |
 | Canvas view | Traveler's current map or list preference, if retained | Current map bounds, map-place query, option-search query, and temporary results | Map/list view and compact search-result projection |
+| Workspace composition | Confirmed Planning Requirements for flight, accommodation, and car rental | Surface order, active surface, empty/search-ready state, and a proposed add/hide/remove action | Permanent map plus the allowed generated surfaces and current navigation focus |
 | Plan mutation | Confirmed version of the Plan | Exact proposed addition, removal, replacement, or edit | A single, clear confirmation request |
 
 - The browser may request searches and propose a change, but cannot author the traveler identity, Plan identity, or saved mutation.
@@ -114,7 +126,7 @@ This is a product-facing contract, not a final database or protocol schema.
 - The provider set, access terms, pricing model, attribution, and retention rules for map/place and travel-result data.
 - The final data model for relationships between Selected Options, Map Pins, and Custom Map Pins.
 - API/event schemas, including search pagination, error handling, and confirmation-token lifetime.
-- How the map state and result searches interact with the agent's validated UI events.
+- How the map state, generated workspace surfaces, and result searches interact with the agent's validated UI events.
 
 ## Diagram
 

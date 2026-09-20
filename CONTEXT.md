@@ -16,13 +16,21 @@ _Avoid_: Trip, itinerary, project
 A plan that the traveler has not finalized and may delete or restore during its recovery period.
 _Avoid_: Temporary trip, session
 
+**Planning Requirements**:
+The traveler-confirmed core categories that a plan may need: flight, accommodation, and car rental. Each is `needed`, `not needed`, or `undecided`; a requirement is not a search result or a Selected Option.
+_Avoid_: Booking requirements, selections
+
 **Conversation**:
 The one-to-one chat history associated with a single plan.
 _Avoid_: Thread, chat session
 
 **Planning Canvas**:
-The editable view of a plan, including its map and saved selections.
+The editable view of a plan, including its permanent map, generated Planning Surfaces, and saved selections.
 _Avoid_: Dashboard, board
+
+**Planning Surface**:
+An optional flight, accommodation, or car-rental workspace area generated from confirmed Planning Requirements. It begins empty/search-ready and is separate from a saved Selected Option.
+_Avoid_: Booking panel, autonomous workflow
 
 **Map Pin**:
 A selected location displayed on a plan's map. MVP pin categories are stay, airport, car rental, restaurant, and activity.

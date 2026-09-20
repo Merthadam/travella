@@ -25,7 +25,7 @@ Travella turns a traveler's request into a provider-backed search without treati
 - Changing search criteria or filters does not silently replace the current set. The traveler uses an explicit **Refresh results** action. While it runs, the prior set remains visible with an **Updating** state and is replaced only by a complete result set.
 - Each result card leads with the provider's total price for the current dates and party. Where the provider cannot supply all mandatory charges, Travella labels the amount as an **estimated total** and clearly disclaims the missing or unknown charges. Per-night or per-day cost is secondary context.
 - Cards disclose their mode's decision-critical details: stay rating, location, and cancellation; flight times, duration, stops, and baggage; or car class, seats, transmission, mileage, and cancellation. Every card and comparison identifies the connected provider.
-- Opening a result card shows fuller provider-backed details in an in-conversation A2UI panel. The traveler may add it to a comparison or begin the separate add-to-Plan confirmation; it does not redirect to a supplier or save the option.
+- Opening a result card shows fuller provider-backed details in a validated component within the Conversation or its relevant generated planning surface. The traveler may add it to a comparison or begin the separate add-to-Plan confirmation; it does not redirect to a supplier or save the option.
 - A traveler can select up to three result cards for a side-by-side A2UI comparison. Comparison is transient: it neither selects nor saves an option.
 - Before showing the add-to-Plan confirmation for an exact-date option, Travella rechecks its provider for current price and availability. An unavailable option cannot be added. Changed price or other material terms are shown and require the traveler to make a fresh choice before proceeding.
 - A temporary provider failure or timeout keeps any last completed results visible, explains that current results could not be refreshed, and offers **Retry**. Travella does not invent fallback availability or prices. A backup provider is out of MVP scope.
@@ -52,7 +52,7 @@ Travella exposes only filters supported by the connected provider for that searc
 ## Happy-path flow
 
 1. An authenticated traveler opens a Draft Plan with a chosen destination/city and its linked Conversation.
-2. The traveler asks for a stay, return flight, or car rental, or the agent offers the appropriate search after a relevant request.
+2. The traveler asks for a stay, return flight, or car rental through chat or from its relevant generated planning surface, or the agent offers the appropriate search after a relevant request.
 3. The agent uses known active planning-brief context and asks only for any missing required input. It records broad trip constraints in the editable brief and keeps narrow refinements in the current search.
 4. When timing is flexible, the agent proposes a labelled provisional range and may show exploratory results. It prompts the traveler for exact dates before they can add an option to the Plan.
 5. Travella sends the complete current query only to the connected functional provider for that search mode and shows a concise search state.
@@ -65,7 +65,7 @@ Travella exposes only filters supported by the connected provider for that searc
 ## In scope
 
 - Provider-backed stay/apartment, return-flight, and same-location car-rental searches for a chosen Plan destination.
-- Progressive collection of mode-specific inputs in the Conversation and validated A2UI search controls.
+- Progressive collection of mode-specific inputs in the Conversation and validated search controls inside the relevant generated planning surface.
 - Clearly labelled provisional-date research and exact-date gating before a saved selection.
 - A compact, provider-capability-aware filter catalog and objective sorts.
 - Best-fit ranking explained against active planning-brief context.
@@ -107,6 +107,7 @@ Travella exposes only filters supported by the connected provider for that searc
 19. An unavailable option cannot enter confirmation. A changed price or material term requires the traveler to make a fresh choice.
 20. After refresh or reconnect, Travella restores a compact completed result set and offers Refresh results; incomplete work and comparison selections may be discarded.
 21. No outcome of this story presents a search result, Selected Option, or supplier link as a completed booking.
+22. A chat request may navigate to or populate the relevant existing planning surface with a validated result component, but it cannot create a surface, start a provider search, or save a selection without the applicable traveler action and confirmation.
 
 ## Decisions
 
@@ -127,6 +128,7 @@ Travella exposes only filters supported by the connected provider for that searc
 | Estimated total | When the provider lacks all mandatory charges, present the price as an estimated total with a clear disclaimer. | Comparisons remain useful without overstating price certainty. |
 | Comparison | A traveler may compare up to three transient options side by side; saving remains a separate confirmed action. | Makes trade-offs easy to inspect without compromising traveler control over the Plan. |
 | Detail view | Opening a card uses an in-conversation detail panel with an optional Compare action; it neither redirects nor saves. | Lets the traveler inspect and compare an option while retaining planning context and control. |
+| Generated-surface delivery | Search controls and tool-backed cards may appear in the Conversation or in the relevant generated planning surface. | The traveler can search and act through chat while keeping the resulting data in the part of the Plan it belongs to. |
 | Confirmation recheck | Recheck an exact-date option before add-to-Plan confirmation; unavailability stops the flow and changed material terms require a fresh choice. | Prevents stale availability or price from becoming a saved planning decision. |
 | Provider error | Keep prior complete results, explain a temporary provider failure, and offer Retry; do not use a backup provider or invent results. | Maintains honest availability and price information while keeping the MVP integration model focused. |
 | Recovery | Restore the latest compact completed set and offer refresh; discard unfinished searches and comparisons. | Restores useful context without presenting temporary work as current inventory. |
@@ -145,13 +147,14 @@ This is a product-facing contract, not a final database, A2UI, or provider schem
 | --- | --- | --- | --- |
 | Planning brief | Traveler-confirmed and active broad trip constraints, including dates, party size, and overall budget | Tentative agent interpretation awaiting traveler confirmation | Editable brief fields and tentative prompts |
 | Search criteria | None beyond qualifying active brief entries | Current search mode, exact or provisional dates, locations, rooms/cabin/driver age, filters, sort, and query version | Validated controls, current criteria, and Refresh results state |
+| Surface delivery | No change | Target generated surface, active navigation focus, and component revision | The matching search surface may receive a validated loading, result, error, or comparison component |
 | Provider results | No raw provider result bundle is durable Plan data | Compact latest completed result cards, provider identity, estimated-total disclaimer where needed, and pagination/Show more context | Compact cards, detail-panel fields, comparison fields, provider identity, and Updating/Retry states |
 | Comparison | None | Up to three current result references | Side-by-side comparison projection |
 | Add-to-Plan handoff | No change until US-003 confirmation succeeds | Exact result reference and successful recheck outcome | A clear next action to begin US-003 confirmation, never a saved mutation |
 
 - The CRUD backend remains the authoritative owner of the Plan, linked Conversation, planning brief, Selected Options, and Map Pins. The connector service owns provider requests, credentials, validation, rate limiting, and response normalization.
 - The browser may request a search or a refresh, but cannot establish the traveler identity, Plan authorization, connected provider, provider option identity, price, availability, or a saved Plan mutation.
-- Search, Refresh results, Show more, detail, comparison, and sort events are bound to the authenticated traveler, authorized Plan, and current query version. A late result from a superseded query must not replace the newer completed set.
+- Search, Refresh results, Show more, detail, comparison, sort, and surface-delivery events are bound to the authenticated traveler, authorized Plan, and current query version. A late result from a superseded query must not replace the newer completed set or populate the wrong surface.
 - A selected add-to-Plan action uses an exact current query and must be rechecked before the browser receives a US-003 confirmation request. Repeated delivery cannot create a duplicate Selected Option or Map Pin.
 - Raw provider response retention, attribution, and caching rules remain integration-design decisions. Restored compact cards must never be represented as a guaranteed current offer without Refresh results or the final recheck.
 

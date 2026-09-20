@@ -13,11 +13,13 @@ For the MVP, a traveler can research a single destination or city, refine option
 1. The traveler creates an account or signs in before starting a saved session.
 2. The traveler creates or resumes one draft plan for one destination/city.
 3. The traveler works in one linked conversation for that plan and remains in control of choices.
-4. After the traveler confirms Planning Requirements, Travella always opens a map-based workspace. It exposes flight, accommodation, and car-rental surfaces only when the corresponding need and required inputs are confirmed and a provider integration is functional; unavailable modes remain hidden.
-5. The traveler refines results through the UI and selects options.
-6. Selected stays/apartments, airports, car rentals, restaurants, and activities appear on the map with distinct category colours.
-7. The traveler opens a supplier site to complete a booking externally.
-8. The traveler can return to the saved plan later, or delete a draft and restore it within seven days.
+4. During initial planning, the traveler confirms whether they need a flight, accommodation, or car rental. Travella composes an editable workspace with the map and only the relevant planning surfaces.
+5. The traveler can later add, remove, or navigate to a planning surface from the UI or Conversation without restarting the Plan.
+6. Travella searches functional provider integrations for flights, accommodation, cars, and places; unavailable modes remain hidden.
+7. The traveler refines results through the UI and selects options.
+8. Selected stays/apartments, airports, car rentals, restaurants, and activities appear on the map with distinct category colours.
+9. The traveler opens a supplier site to complete a booking externally.
+10. The traveler can return to the saved plan later, or delete a draft and restore it within seven days.
 
 ## Current architecture
 

@@ -14,7 +14,7 @@ The agent helps with research and recommendations, but it does not silently make
 
 - A Draft Plan may begin without a destination while the traveler explores an intent. The MVP supports one final destination or city per plan.
 - The Conversation is a light, progressive grilling session, not a long mandatory questionnaire. The agent can begin low-risk research early, asks only questions that materially narrow the search, and lets the traveler fast-forward when they already know an answer.
-- The agent may use validated, in-conversation A2UI-style components for focused choices and comparisons. The exact component schema and catalog remain open.
+- The agent may use validated generative-UI components for focused choices, comparisons, workspace composition, and navigation. The exact component schema and catalog remain open.
 - A traveler explicitly confirms every plan change, including setting or changing the destination, adding or removing a Selected Option, and any resulting Map Pin change.
 - The traveler can send a new message at any time. The agent stops its current thinking immediately, handles the new message, then continues or restarts research from the latest context when appropriate. It never presents an obsolete result.
 
@@ -28,6 +28,18 @@ Travella maintains a structured, traveler-editable planning brief for the Plan. 
 - A traveler edit is authoritative until the traveler changes it again. An agent inference that would change an existing traveler entry remains tentative and needs confirmation before replacing it.
 - Deleting an entry removes it as an active preference. The underlying fact remains available to the agent only as inactive, previously mentioned context, so it can avoid unnecessarily re-asking the same question.
 - Inactive entries must not influence ranking or recommendations unless the traveler explicitly brings them back into the conversation.
+
+## Planning requirements and generated workspace
+
+During initial planning, the agent establishes which core travel categories the traveler expects to need: a return flight, accommodation, and a car rental. This is a small, editable **Planning Requirements** set, separate from a search result or a Selected Option.
+
+- Each core category is `needed`, `not needed`, or `undecided`. The traveler may state a need in free text or choose it in a validated UI control.
+- The agent may infer a tentative requirement, but it must obtain traveler confirmation before it changes the saved requirement or composes the initial workspace from it.
+- A confirmed requirement composes an editable workspace with the Planning Canvas map as the permanent surface plus the relevant flight, accommodation, and/or car-rental planning surfaces. A surface initially provides its relevant controls and empty state; it does not silently begin a provider search or save a choice.
+- The traveler can add a category later from the UI or Conversation, for example, “Add car rental.” That action adds the surface after confirmation and leaves the rest of the Plan intact.
+- The traveler can navigate by chat or UI, for example, “Show accommodation” or “Switch to the map.” Navigation changes the active view only; it is not a Plan mutation.
+- Removing a surface with no saved item removes the requirement and surface after confirmation. When a surface has a saved Selected Option or related Map Pin, Travella clearly separates hiding the surface from removing the saved item, and requires an explicit confirmation for any saved-item removal.
+- The map remains available regardless of the current requirements. Places remain available through the map/place capability rather than being treated as a core travel-category requirement.
 
 ## Temporary destination candidates
 
@@ -50,10 +62,12 @@ During destination discovery, the graph keeps a compact, Plan-scoped candidate l
 1. The traveler creates or resumes a Draft Plan and opens its linked Conversation.
 2. The traveler begins with an intent or a known destination.
 3. The agent performs relevant research, offers focused questions or choices when useful, and updates the planning brief as the traveler responds.
-4. The agent shows a shortlist of compact destination candidates, or explores one candidate in more depth when the traveler asks.
-5. The traveler explicitly chooses one destination/city for the Plan.
-6. If the traveler later chooses a different destination/city, Travella identifies affected destination-specific Selected Options and Map Pins.
-7. Travella requires confirmation before clearing those affected choices and pins. It preserves the wider active brief, inactive historical context, and quiet fallback candidates so the agent can offer relevant alternatives for the new destination.
+4. The agent establishes and proposes the initial Planning Requirements with one focused question or validated choice at a time.
+5. The traveler confirms, changes, or defers those requirements; Travella composes the map plus the relevant empty planning surfaces.
+6. The agent shows a shortlist of compact destination candidates, or explores one candidate in more depth when the traveler asks.
+7. The traveler explicitly chooses one destination/city for the Plan.
+8. If the traveler later chooses a different destination/city, Travella identifies affected destination-specific Selected Options and Map Pins.
+9. Travella requires confirmation before clearing those affected choices and pins. It preserves the wider active brief, inactive historical context, and quiet fallback candidates so the agent can offer relevant alternatives for the new destination.
 
 ## Research transparency and uncertainty
 
@@ -73,10 +87,12 @@ During destination discovery, the graph keeps a compact, Plan-scoped candidate l
 2. The traveler describes an idea, for example: “I am a windsurfer and want a summer holiday with reliable wind at the same time each day.”
 3. The agent begins relevant research, shows a concise research state and source indicators, and asks only the next useful question or presents a focused choice.
 4. The traveler answers, edits the planning brief, or fast-forwards by stating a decision they have already made.
-5. The agent updates the active brief and presents up to five compact candidates with accessible supporting material.
-6. The traveler can explore one candidate in more depth, reject it, ask for more options, or explicitly choose a destination/city.
-7. The agent continues the Conversation in the context of that destination, but waits for explicit confirmation before changing the Plan with a Selected Option or Map Pin.
-8. A new traveler message stops current thinking; the agent handles it and then continues or restarts research using the latest context.
+5. The agent establishes and the traveler confirms, changes, or defers core Planning Requirements. Travella generates the map plus only the relevant empty planning surfaces.
+6. The agent updates the active brief and presents up to five compact candidates with accessible supporting material.
+7. The traveler can explore one candidate in more depth, reject it, ask for more options, or explicitly choose a destination/city.
+8. The traveler can later add a planning surface or navigate to one through chat or UI; adding a surface does not start a search or save an option.
+9. The agent continues the Conversation in the context of that destination, but waits for explicit confirmation before changing the Plan with a Selected Option or Map Pin.
+10. A new traveler message stops current thinking; the agent handles it and then continues or restarts research using the latest context.
 
 ## In scope
 
@@ -84,6 +100,7 @@ During destination discovery, the graph keeps a compact, Plan-scoped candidate l
 - One linked Conversation per Plan.
 - Progressive agent questioning, research, recommendations, and explainable uncertainty.
 - A structured, traveler-editable planning brief with active and inactive context states.
+- Traveler-confirmed Planning Requirements and a generated, editable workspace made of the permanent map plus relevant optional planning surfaces.
 - A compact, Plan-scoped candidate list for destination discovery, including shortlist, active exploration, rejection, confidence, and evidence references.
 - Explicit confirmation for every plan change.
 - Destination commitment and confirmed clearing of destination-specific selections/pins when changing destination.
@@ -128,6 +145,10 @@ During destination discovery, the graph keeps a compact, Plan-scoped candidate l
 25. Every material candidate fit claim and caveat has a compact source citation. Opening it loads the in-app source panel on demand rather than including raw source material in the shortlist.
 26. After refresh or reconnect, Travella restores the latest consistent snapshot directly. It shows the last completed shortlist when present and does not automatically restart interrupted research.
 27. A Brief-driven or manual refresh keeps the prior completed shortlist visible with a quiet updating state until one complete replacement shortlist is available.
+28. The traveler can confirm, change, or defer whether a flight, accommodation, and car rental are needed during initial planning.
+29. Confirmed Planning Requirements generate the map plus only the relevant empty planning surfaces; they do not start a provider search or create a Selected Option, Map Pin, or Supplier Redirect.
+30. The traveler can add a planning surface later from the UI or Conversation without restarting the Plan, and can navigate to an existing surface without changing saved Plan data.
+31. Removing a surface with a saved item distinguishes hiding the surface from removing the saved Selected Option or Map Pin, and never removes saved data without explicit confirmation.
 
 ## Decisions
 
@@ -137,6 +158,9 @@ During destination discovery, the graph keeps a compact, Plan-scoped candidate l
 | MVP destination boundary | Each Plan ends with one final destination/city. | Keeps the first canvas and planning model focused. |
 | Conversation approach | The agent uses a light, progressive grilling conversation; the traveler may fast-forward or revise. | It gathers useful detail without making planning feel like a mandatory form. |
 | Choice UI | The agent can present validated A2UI-style choices and comparisons in the Conversation. | Focused micro-decisions make an agentic flow more dynamic while keeping the interface safe. |
+| Generative workspace | Confirmed Planning Requirements compose the permanent map plus only the relevant flight, accommodation, and car-rental surfaces. | GenUI creates a useful, tailored workspace without treating it as unbounded agent-generated application code. |
+| Requirement authority | The agent may propose needs, but the traveler confirms any saved requirement; a requirement opens an empty planning surface rather than starting a search or selecting an option. | The traveler controls both the scope of the workspace and consequential provider activity. |
+| Workspace evolution | The traveler can add, remove, or navigate to surfaces later through chat or UI; removal of saved data is always distinct and confirmed. | The workspace can grow with the trip without silently discarding planning decisions. |
 | Authority | Every Plan change requires explicit traveler confirmation. | The traveler retains control of consequential travel decisions. |
 | Brief updates | The agent immediately records clearly stated or implied active preferences in the editable brief. | The brief stays useful without duplicate data entry. |
 | Brief authority | Traveler edits take precedence. An agent inference that conflicts with one remains tentative until confirmed. | The agent cannot silently rewrite a decision the traveler made directly. |
@@ -195,13 +219,15 @@ This is the initial contract for the destination-discovery part of the graph. It
 | --- | --- | --- | --- |
 | Identity and ordering | Server-verified traveler ID, Plan ID, active-session ID, event ID, state version | Plan and Conversation ownership | Never directly |
 | Planning brief | Active, tentative, and inactive entries; origin and last-confirmed/changed time | Traveler-approved editable Brief | Whitelisted Brief projection only |
+| Planning Requirements | Tentative agent interpretation and current composition proposal | Traveler-confirmed `needed`, `not needed`, or `undecided` state for flight, accommodation, and car rental | Validated requirement choices, workspace surface list, and active-surface navigation only |
 | Destination candidates | Compact candidate records, status, confidence, fit/caveats, evidence references, and rejection reasons | Not Selected Options or Map Pins | Completed shortlist and deliberate candidate-action results only |
 | Chosen destination | Current proposed or confirmed destination and affected-change analysis | Confirmed destination after traveler confirmation | Whitelisted destination state and confirmation UI |
 | Research run | Current visible status, working focus, normalized evidence references, and cancellation/restart information | No raw research payloads | Concise research-status projection only |
-| UI delivery | Validated event revision and explicit exposed-field projection | None | Only whitelisted, schema-validated AG-UI events |
+| UI delivery | Validated event revision and explicit exposed-field projection | None | Only whitelisted, schema-validated AG-UI events, including workspace composition and navigation projections |
 
 - The server verifies `travelerId`, `planId`, `sessionId`, and `eventId`; the browser does not author them.
-- All browser actions are normalized into typed events. The initial set is `chat_message`, `canvas_brief_patch`, `candidate_action`, `confirmation`, `resume`, and `takeover`.
+- All browser actions are normalized into typed events. The initial set is `chat_message`, `canvas_brief_patch`, `planning_requirements_patch`, `workspace_action`, `candidate_action`, `confirmation`, `resume`, and `takeover`.
+- `planning_requirements_patch` proposes or confirms a core travel requirement. `workspace_action` requests an allowed surface add, hide, remove, or navigation target; it cannot itself remove a Selected Option or Map Pin.
 - `candidate_action` covers exploring a candidate, rejecting one, asking for more options, naming a new destination, and opening a cited source. These are context actions, not Plan mutations.
 - Every event is idempotent by its event ID. Re-delivery cannot trigger duplicate research, duplicate checkpoint work, or a repeated Plan mutation.
 - The only initial completed-list event is `shortlist_ready`. It carries a complete, compact shortlist; source detail is retrieved on demand after a traveler action.
@@ -273,7 +299,7 @@ flowchart TD
 
 ## Open implementation decisions
 
-- Final validated generative-UI schema and approved component catalog.
+- Final validated generative-UI schema and approved component catalog, including workspace-composition, tool-result, and navigation components.
 - Exact interaction design for the planning brief, research indicators, and confirmation controls.
 - Provider set, provider access, source types, and freshness rules.
 - Data model and retention mechanics for active/inactive brief context and interrupted work.
