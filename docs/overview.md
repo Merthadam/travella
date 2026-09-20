@@ -13,7 +13,7 @@ For the MVP, a traveler can research a single destination or city, refine option
 1. The traveler creates an account or signs in before starting a saved session.
 2. The traveler creates or resumes one draft plan for one destination/city.
 3. The traveler works in one linked conversation for that plan and remains in control of choices.
-4. Travella searches functional provider integrations for flights, accommodation, cars, and places; unavailable modes remain hidden.
+4. After the traveler confirms Planning Requirements, Travella always opens a map-based workspace. It exposes flight, accommodation, and car-rental surfaces only when the corresponding need and required inputs are confirmed and a provider integration is functional; unavailable modes remain hidden.
 5. The traveler refines results through the UI and selects options.
 6. Selected stays/apartments, airports, car rentals, restaurants, and activities appear on the map with distinct category colours.
 7. The traveler opens a supplier site to complete a booking externally.
@@ -53,6 +53,8 @@ Connector service
 - [Domain glossary](../CONTEXT.md)
 - [Architecture foundations](planning/architecture-foundations.md)
 - [Service-boundary ADR](adr/0001-separate-agent-data-and-connector-services.md)
+- [MVP phase 1 service contracts](planning/mvp-phase-1-service-contracts.md)
+- [MVP phase 1 contract decision log](planning/mvp-phase-1-contract-decision-log.md)
 - [Login user story](user-stories/login/README.md)
 - [Plan lifecycle user story](user-stories/plan-lifecycle/README.md)
 - [Travel-option search and comparison user story](user-stories/search-and-compare-travel-options/README.md)

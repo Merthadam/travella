@@ -8,7 +8,7 @@ Travella helps an authenticated traveler research a holiday conversationally, re
 
 The initial external-booking boundary is a **supplier redirect**. Travella must not call a redirect a completed booking or promise tickets until a supplier supplies verified confirmation.
 
-The MVP excludes agentic onboarding. Flights and car rental are intended search capabilities, but their UI remains hidden until a real provider integration is functional. Demonstration-only data must be labeled honestly if it is ever shown.
+The MVP excludes agentic onboarding. Flights and car rental are intended search capabilities, but their UI remains hidden until both a real provider integration is functional and confirmed traveler needs make the surface relevant. Demonstration-only data must be labeled honestly if it is ever shown.
 
 ## Traveler and plan lifecycle
 
@@ -19,7 +19,7 @@ The MVP excludes agentic onboarding. Flights and car rental are intended search 
 
 ## Planning canvas
 
-The initial canvas is a one-destination/city map, not a route-optimization surface.
+The initial canvas is a one-destination/city map, not a route-optimization surface. Once a requirements-confirmed Plan opens its workspace, the map is permanent. Flight, accommodation, and car-rental surfaces are optional: the frontend renders them only from a validated workspace projection when the traveler has confirmed the corresponding need and required inputs and a functional provider capability exists.
 
 Selected items appear as category-specific map pins:
 
