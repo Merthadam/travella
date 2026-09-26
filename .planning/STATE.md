@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: account-access
 status: executing
-stopped_at: Phase 1 context gathered
+stopped_at: Phase 1 inline execution checkpoint
 last_updated: "2026-09-26T19:58:19.869Z"
 last_activity: 2026-09-26
-last_activity_desc: Initial full-MVP roadmap created with all v1 requirements mapped.
+last_activity_desc: Python auth core and React stepper scaffold implemented; Cognito/frontend dependency integration remains.
 state_head: 45dfd684508c7e235f68e24e9d70a7a217b2eb3d
 progress:
   total_phases: 8
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-09-26)
 ## Current Position
 
 Phase: 01 (account-access) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
-Status: Ready to execute
-Last activity: 2026-09-26 — Initial full-MVP roadmap created with all v1 requirements mapped.
+Plan: inline execution checkpoint after initial scaffold
+Status: Needs review
+Last activity: 2026-09-26 — Python auth core and React stepper scaffold implemented; live Cognito integration remains.
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
@@ -63,11 +63,13 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
 ### Pending Todos
 
-None yet.
+- Install frontend dependencies and verify `npm run build`.
+- Select and configure the Python web-service adapter and Cognito test pool.
+- Complete live Cognito registration, MFA, recovery, refresh, reset-invalidation, and public-service authorization tests.
 
 ### Blockers/Concerns
 
-None yet.
+- Live Cognito credentials/configuration are not available in this repository, so AUTH-01 through AUTH-08 cannot be marked complete yet.
 
 ## Deferred Items
 
