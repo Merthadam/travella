@@ -32,10 +32,9 @@ Status: **partial / executing**, not plan or phase completion.
 ## Resume without repeating completed work
 
 Implementation commits: `dc97512` (uv and bytecode cleanup), `ea86178`
-(HTTP auth/session boundary), `81bee65` (connected React forms). The reset
-completion slice is currently uncommitted pending its final check. The full
-`bash scripts/check.sh` previously passed after the committed source changes:
-42 Python tests, 6 React tests, lint/format, and production frontend build. Dependency
+(HTTP auth/session boundary), `81bee65` (connected React forms), and `3fd1802`
+(password reset and session revocation). The full `bash scripts/check.sh` now
+passes: 44 Python tests, 7 React tests, lint/format, and production frontend build. Dependency
 deprecation/install-script warnings remain; no test or build failures occurred.
 
 The original three plans are still incomplete. Their TypeScript paths and Jest
