@@ -70,6 +70,7 @@ Implemented routes:
 - `POST /auth/mfa/recovery`, `/auth/mfa/recovery/verify`
 - `POST /auth/forgot-password` (neutral request), `/auth/reset-password`
 - `GET /auth/session`, `POST /auth/refresh`, `POST /auth/sign-out`
+- `GET /private/probe` (walking-skeleton private authorization boundary)
 
 React holds no Cognito tokens. An opaque HttpOnly cookie identifies a server-side
 session. SQLite stores only a hash of the cookie and encrypted token/challenge data.

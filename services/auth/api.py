@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
 
+from .authorization import traveler_key
 from .cognito_adapter import CognitoAdapter
 from .contracts import ValidatedIdentity
 from .session_store import SessionStore
@@ -285,6 +286,15 @@ def create_app(
         if principal.subject != session["subject"]:
             raise HTTPException(401, "Sign-in required.")
         return sid, session, principal
+
+    @app.get("/private/probe")
+    def private_probe(request: Request):
+        """Walking-skeleton private handler; ownership comes only from the session subject."""
+        ready()
+        with store.transaction():
+            _, _, principal = current_session(request)
+            traveler_key(principal)
+            return {"state": "authorized", "destination": "/plans"}
 
     @app.post("/auth/mfa/enrollment/start")
     def start_enrollment(request: Request):

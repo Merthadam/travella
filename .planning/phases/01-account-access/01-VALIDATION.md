@@ -47,7 +47,7 @@ created: "2026-09-26"
 
 ## Current Evidence — 2026-09-26
 
-- `uv run --locked pytest -q`: **51 passed**. One upstream Starlette/httpx deprecation warning.
+- `uv run --locked pytest -q`: **52 passed**. One upstream Starlette/httpx deprecation warning.
 - `npm test --prefix frontend`: **9 passed** (jsdom, not a real browser).
 - `uv run --locked ruff check services`: passed.
 - `uv run --locked ruff format --check services`: passed.
@@ -58,7 +58,7 @@ created: "2026-09-26"
 - No live AWS tests or independent subagent review were performed. No requirement
   is marked complete based on these partial checks.
 
-Remaining gaps: live verification of recovery-code sign-in/replacement, actual private-resource ownership enforcement, safe resource
+Remaining gaps: live verification of recovery-code sign-in/replacement, integration of ownership checks into the future CRUD service, safe resource
 resumption, real browser review, and live Cognito verification. The task map above
 is the target contract; it does not imply these behaviors already pass.
 

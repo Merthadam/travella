@@ -26,7 +26,7 @@ Status: **partial / executing**, not plan or phase completion.
 - `frontend/src/AccountApp.jsx`: forms depend on server results; secrets clear on
   submission/navigation, session refresh handles access expiry, signout returns to sign-in.
 - `bash scripts/check.sh`: locked dependencies, lint/format, API/security tests,
-  React DOM tests, frontend build. 51 Python tests and 9 React tests currently pass.
+  React DOM tests, frontend build. 52 Python tests and 9 React tests currently pass.
 - Local proxy was exercised against the running Python service without AWS.
 - Previously tracked generated Python bytecode is now ignored and untracked;
   local copies were retained. The replaced requirements file is recoverable from Git.
@@ -52,7 +52,9 @@ Do not create complete-plan SUMMARY files until the remaining task criteria pass
 2. Replace private-plan placeholder with token-derived authorization when the
    Plan boundary is available; re-authorize return destinations on the server.
 2. Run actual browser and live-Cognito tests, verify Cognito's session-based
-   replacement semantics, and finish phase verification.
+   replacement semantics, and finish phase verification. The local private
+   authorization walking skeleton is `/private/probe`; full Plan ownership
+   integration belongs with the CRUD service phase.
 
 `docs/runbooks/account-access.md` describes local commands, the cookie/proxy model,
 provider configuration and deployment limitations. `01-VALIDATION.md` holds test

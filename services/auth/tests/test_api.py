@@ -279,6 +279,15 @@ def test_provider_revocation_rejects_an_unexpired_access_token(system):
         assert store.get(sid, now[0]) is None
 
 
+def test_private_probe_requires_verified_session_and_returns_safe_destination(system):
+    client, provider, *_ = system
+    assert client.get("/private/probe").status_code == 401
+    client.post("/auth/sign-in", json=CREDENTIALS)
+    response = client.get("/private/probe")
+    assert response.status_code == 200
+    assert response.json() == {"state": "authorized", "destination": "/plans"}
+
+
 def test_challenge_expires_without_calling_cognito(system):
     client, provider, verifier, store, now = system
     provider.sign_in.return_value = {"ChallengeName": "SOFTWARE_TOKEN_MFA", "Session": "challenge"}
