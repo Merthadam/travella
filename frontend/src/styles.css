@@ -1,0 +1,16 @@
+:root { font-family: Inter, system-ui, sans-serif; color: #18333a; background: #f4f7f6; }
+body { margin: 0; }
+.shell { box-sizing: border-box; max-width: 560px; min-height: 100vh; margin: 0 auto; padding: 12vh 2rem; background: #fff; }
+.eyebrow { letter-spacing: .14em; font-size: .72rem; color: #5b817c; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 1rem 0 2rem; }
+.checklist { display: flex; gap: 1rem; flex-wrap: wrap; padding: 0; list-style: none; color: #8ba29f; font-size: .88rem; }
+.checklist li.done { color: #146b5e; font-weight: 700; }
+label { display: grid; gap: .5rem; margin: 3rem 0 1rem; font-weight: 600; }
+input { border: 1px solid #b4c9c5; border-radius: .75rem; padding: .9rem; font: inherit; }
+.quiet { color: #5c706e; line-height: 1.6; margin: 3rem 0; }
+.error { color: #9c342d; background: #fff0ee; padding: .75rem; border-radius: .5rem; }
+.actions { display: flex; justify-content: space-between; margin-top: 3rem; }
+button { border: 0; border-radius: 999px; padding: .8rem 1.2rem; font: inherit; cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.primary { color: white; background: #146b5e; }
+@media (max-width: 600px) { .shell { padding: 8vh 1.2rem; } .actions { gap: .75rem; } }
