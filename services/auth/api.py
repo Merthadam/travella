@@ -58,6 +58,10 @@ class MfaInput(Input):
     code: Annotated[str, Field(pattern=r"^\d{6}$")]
 
 
+class RecoveryInput(Input):
+    code: SecretStr = Field(min_length=8, max_length=64)
+
+
 def create_app(
     provider: CognitoAdapter | None = None,
     verifier: Callable[[str], ValidatedIdentity] | None = None,
@@ -287,7 +291,7 @@ def create_app(
         ready()
         with store.transaction():
             _, session, principal = current_session(request)
-            result = provider.associate_software_token(session["access"])
+            result = provider.associate_software_token(access_token=session["access"])
             enrollment_session = result.get("Session")
             secret_code = result.get("SecretCode")
             if not enrollment_session or not secret_code:
@@ -320,7 +324,7 @@ def create_app(
                 raise HTTPException(400, "Authenticator code could not be verified.") from None
             codes = [secrets.token_hex(4).upper() for _ in range(10)]
             hashes = [hashlib.sha256(code.encode()).hexdigest() for code in codes]
-            store.put_recovery_codes(principal.subject, hashes, clock())
+            store.put_recovery_codes(principal.subject, session["email"], hashes, clock())
             store.delete_enrollment(principal.subject)
             return {"state": "recovery_codes", "codes": codes}
 
@@ -376,6 +380,79 @@ def create_app(
                 )
                 return finish(result, response, challenge["email"])
             except (ClientError, TokenValidationError, KeyError):
+                pass
+        raise HTTPException(401, SIGN_IN_ERROR)
+
+    @app.post("/auth/mfa/recovery")
+    def recover_mfa(data: RecoveryInput, request: Request, response: Response):
+        ready()
+        with store.transaction():
+            sid = request.cookies.get(cookie)
+            challenge = store.get(sid, clock())
+            store.delete(sid)
+            try:
+                if not challenge or challenge.get("kind") != "challenge":
+                    raise TokenValidationError("Challenge expired")
+                subject = store.consume_recovery_code_for_email(
+                    challenge["email"],
+                    hashlib.sha256(data.code.get_secret_value().encode()).hexdigest(),
+                )
+                if not subject:
+                    raise TokenValidationError("Recovery code rejected")
+                result = provider.associate_software_token(session=challenge["session"])
+                enrollment_session = result.get("Session")
+                secret_code = result.get("SecretCode")
+                if not enrollment_session or not secret_code:
+                    raise TokenValidationError("Replacement setup unavailable")
+                recovery_sid = store.create(
+                    {
+                        "kind": "recovery_enrollment",
+                        "subject": subject,
+                        "email": challenge["email"],
+                        "username": challenge["username"],
+                        "challenge_session": challenge["session"],
+                        "enrollment_session": enrollment_session,
+                    },
+                    clock() + ENROLLMENT_AGE,
+                    clock(),
+                )
+                set_cookie(response, recovery_sid, ENROLLMENT_AGE)
+                return {
+                    "state": "mfa_recovery_enrollment",
+                    "secret_code": secret_code,
+                    "otpauth_uri": "otpauth://totp/Travella?secret="
+                    + secret_code
+                    + "&issuer=Travella",
+                }
+            except (ClientError, BotoCoreError, TokenValidationError, KeyError, ValueError):
+                pass
+        raise HTTPException(401, SIGN_IN_ERROR)
+
+    @app.post("/auth/mfa/recovery/verify")
+    def verify_mfa_recovery(data: MfaInput, request: Request, response: Response):
+        ready()
+        with store.transaction():
+            sid = request.cookies.get(cookie)
+            recovery = store.get(sid, clock())
+            store.delete(sid)
+            try:
+                if not recovery or recovery.get("kind") != "recovery_enrollment":
+                    raise TokenValidationError("Recovery setup expired")
+                result = provider.verify_software_token(
+                    data.code, session=recovery["enrollment_session"]
+                )
+                if result.get("Status") != "SUCCESS":
+                    raise TokenValidationError("Replacement code rejected")
+                result = provider.answer_challenge(
+                    recovery["challenge_session"],
+                    "SOFTWARE_TOKEN_MFA",
+                    {
+                        "USERNAME": recovery["username"],
+                        "SOFTWARE_TOKEN_MFA_CODE": data.code,
+                    },
+                )
+                return finish(result, response, recovery["email"])
+            except (ClientError, BotoCoreError, TokenValidationError, KeyError):
                 pass
         raise HTTPException(401, SIGN_IN_ERROR)
 

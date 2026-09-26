@@ -74,8 +74,13 @@ class CognitoAdapter:
     def global_sign_out(self, access_token: str) -> dict[str, Any]:
         return self.client.global_sign_out(AccessToken=access_token)
 
-    def associate_software_token(self, access_token: str) -> dict[str, Any]:
-        return self.client.associate_software_token(AccessToken=access_token)
+    def associate_software_token(
+        self, *, access_token: str | None = None, session: str | None = None
+    ) -> dict[str, Any]:
+        if bool(access_token) == bool(session):
+            raise ValueError("Exactly one access token or challenge session is required")
+        authorization = {"AccessToken": access_token} if access_token else {"Session": session}
+        return self.client.associate_software_token(**authorization)
 
     def verify_software_token(
         self, code: str, *, access_token: str | None = None, session: str | None = None

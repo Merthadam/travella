@@ -109,10 +109,14 @@ class SessionStore:
     def delete_enrollment(self, subject: str) -> None:
         self.db.execute("DELETE FROM enrollments WHERE subject = ?", (subject,))
 
-    def put_recovery_codes(self, subject: str, hashes: list[str], now: float) -> None:
+    def put_recovery_codes(self, subject: str, email: str, hashes: list[str], now: float) -> None:
         self.db.execute(
             "INSERT OR REPLACE INTO recovery_codes VALUES (?, ?, ?)",
-            (subject, now, self.cipher.encrypt(json.dumps(hashes).encode())),
+            (
+                subject,
+                now,
+                self.cipher.encrypt(json.dumps({"email": email, "hashes": hashes}).encode()),
+            ),
         )
 
     def consume_recovery_code(self, subject: str, candidate_digest: str) -> bool:
@@ -121,7 +125,8 @@ class SessionStore:
         ).fetchone()
         if row is None:
             return False
-        hashes = json.loads(self.cipher.decrypt(row[0]))
+        stored = json.loads(self.cipher.decrypt(row[0]))
+        hashes = stored.get("hashes", stored)
         matched = next(
             (value for value in hashes if hmac.compare_digest(value, candidate_digest)), None
         )
@@ -130,9 +135,37 @@ class SessionStore:
         hashes.remove(matched)
         self.db.execute(
             "UPDATE recovery_codes SET payload = ? WHERE subject = ?",
-            (self.cipher.encrypt(json.dumps(hashes).encode()), subject),
+            (
+                self.cipher.encrypt(
+                    json.dumps({"email": stored.get("email"), "hashes": hashes}).encode()
+                ),
+                subject,
+            ),
         )
         return True
+
+    def consume_recovery_code_for_email(self, email: str, candidate_digest: str) -> str | None:
+        rows = self.db.execute("SELECT subject, payload FROM recovery_codes").fetchall()
+        for subject, payload in rows:
+            stored = json.loads(self.cipher.decrypt(payload))
+            if stored.get("email") != email:
+                continue
+            hashes = stored.get("hashes", stored)
+            matched = next(
+                (value for value in hashes if hmac.compare_digest(value, candidate_digest)), None
+            )
+            if matched is None:
+                return None
+            hashes.remove(matched)
+            self.db.execute(
+                "UPDATE recovery_codes SET payload = ? WHERE subject = ?",
+                (
+                    self.cipher.encrypt(json.dumps({"email": email, "hashes": hashes}).encode()),
+                    subject,
+                ),
+            )
+            return subject
+        return None
 
     def delete(self, token: str | None):
         if token:

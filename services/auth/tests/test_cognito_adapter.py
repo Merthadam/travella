@@ -35,6 +35,14 @@ class CognitoAdapterTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             adapter.verify_software_token("123456", session="challenge", access_token="access")
 
+    def test_mfa_enrollment_accepts_exactly_one_authorization(self):
+        client = Mock()
+        adapter = CognitoAdapter(client, "pool", "client")
+        adapter.associate_software_token(session="challenge")
+        client.associate_software_token.assert_called_once_with(Session="challenge")
+        with self.assertRaises(ValueError):
+            adapter.associate_software_token(session="challenge", access_token="access")
+
 
 if __name__ == "__main__":
     unittest.main()

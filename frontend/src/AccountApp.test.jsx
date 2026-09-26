@@ -93,6 +93,29 @@ test('authenticated enrollment shows recovery codes once', async () => {
   expect(screen.queryByText('ABCD1234')).toBeNull();
 });
 
+test('recovery code requires authenticator replacement before sign-in', async () => {
+  const user = await open();
+  fetch.mockImplementation(async (path) => {
+    if (path === '/auth/sign-in') return response(200, { state: 'mfa_challenge' });
+    if (path === '/auth/mfa/recovery') return response(200, { state: 'mfa_recovery_enrollment', secret_code: 'REPLACESECRET' });
+    if (path === '/auth/mfa/recovery/verify') return response(200, { state: 'signed_in' });
+    if (path === '/auth/session') return response(200, { state: 'signed_in' });
+    return response(401, { message: 'Sign-in required.' });
+  });
+  await user.type(screen.getByLabelText('Email'), 'ada@example.com');
+  await user.type(screen.getByLabelText('Password'), 'secret-password');
+  await user.click(screen.getByRole('button', { name: 'Sign in', exact: true }));
+  await screen.findByRole('heading', { name: 'Two-step verification' });
+  await user.click(screen.getByRole('button', { name: 'Use a recovery code' }));
+  await user.type(screen.getByLabelText('Recovery code'), 'ABCD1234');
+  await user.click(screen.getByRole('button', { name: 'Verify', exact: true }));
+  await screen.findByRole('heading', { name: 'Replace your authenticator' });
+  expect(screen.getByText('REPLACESECRET')).toBeTruthy();
+  await user.type(screen.getByLabelText('Authenticator code'), '654321');
+  await user.click(screen.getByRole('button', { name: 'Verify', exact: true }));
+  await screen.findByRole('heading', { name: 'My plans' });
+});
+
 test('expired access session silently refreshes before rendering private content', async () => {
   let refreshed = false;
   fetch.mockImplementation(async (path) => {

@@ -67,6 +67,7 @@ Implemented routes:
 - `POST /auth/register`, `/auth/verify-email`, `/auth/resend-verification`
 - `POST /auth/sign-in`, `/auth/mfa/challenge` (existing authenticator)
 - `POST /auth/mfa/enrollment/start`, `/auth/mfa/enrollment/verify`
+- `POST /auth/mfa/recovery`, `/auth/mfa/recovery/verify`
 - `POST /auth/forgot-password` (neutral request), `/auth/reset-password`
 - `GET /auth/session`, `POST /auth/refresh`, `POST /auth/sign-out`
 
@@ -89,8 +90,8 @@ rate limits, upstream body limits and deployment security are implemented.
 
 ## Remaining Phase 1 work
 
-- Recovery-code sign-in/replacement and mandatory authenticator replacement after
-  recovery. Enrollment generates ten hashed, one-use codes and displays them once.
+- Live Cognito behavior for recovery-code replacement must still be verified; the
+  local flow requires a replacement authenticator before issuing a session.
 - Resource-aware authorization and safe return to a Plan; `/plans` is a placeholder.
 - The old `AuthFlow` is a UI-domain sketch, not a security authority; HTTP routes
   grant sessions only from verified Cognito outcomes.

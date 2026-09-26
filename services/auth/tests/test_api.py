@@ -208,6 +208,55 @@ def test_mfa_enrollment_rejects_code_and_discards_pending_setup(system):
     provider.verify_software_token.assert_called_once()
 
 
+def test_recovery_code_requires_replacement_authenticator_before_session(system):
+    client, provider, verifier, store, now = system
+    provider.sign_in.return_value = {
+        "ChallengeName": "SOFTWARE_TOKEN_MFA",
+        "Session": "old-mfa-session",
+    }
+    client.post("/auth/sign-in", json=CREDENTIALS)
+    recovery = "ABCD1234"
+    with store.transaction():
+        store.put_recovery_codes(
+            "traveler-one",
+            CREDENTIALS["email"],
+            [hashlib.sha256(recovery.encode()).hexdigest()],
+            now[0],
+        )
+    provider.associate_software_token.return_value = {
+        "Session": "replacement-session",
+        "SecretCode": "NEWSECRET",
+    }
+    response = client.post("/auth/mfa/recovery", json={"code": recovery})
+    assert response.status_code == 200
+    assert response.json()["state"] == "mfa_recovery_enrollment"
+    provider.verify_software_token.return_value = {"Status": "SUCCESS"}
+    provider.answer_challenge.return_value = {
+        "AuthenticationResult": {
+            "AccessToken": "secret-access",
+            "RefreshToken": "secret-refresh",
+        }
+    }
+    response = client.post("/auth/mfa/recovery/verify", json={"code": "654321"})
+    assert response.status_code == 200
+    assert response.json()["state"] == "signed_in"
+    provider.associate_software_token.assert_called_once_with(session="old-mfa-session")
+    provider.verify_software_token.assert_called_once_with("654321", session="replacement-session")
+    provider.answer_challenge.assert_called_once()
+
+
+def test_invalid_recovery_code_cannot_start_replacement(system):
+    client, provider, *_ = system
+    provider.sign_in.return_value = {
+        "ChallengeName": "SOFTWARE_TOKEN_MFA",
+        "Session": "old-mfa-session",
+    }
+    client.post("/auth/sign-in", json=CREDENTIALS)
+    response = client.post("/auth/mfa/recovery", json={"code": "ABCD1234"})
+    assert response.status_code == 401
+    provider.associate_software_token.assert_not_called()
+
+
 def test_failed_password_reset_preserves_existing_sessions(system):
     client, provider, *_ = system
     client.post("/auth/sign-in", json=CREDENTIALS)
