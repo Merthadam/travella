@@ -59,4 +59,3 @@ class AuthFlow:
 
     def interrupt(self) -> None:
         self._secrets.clear()
-

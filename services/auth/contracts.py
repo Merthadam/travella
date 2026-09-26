@@ -16,4 +16,3 @@ class AuthProblem:
     code: Literal["unauthenticated", "forbidden", "not_found", "invalid_input", "retryable"]
     message: str
     retryable: bool = False
-

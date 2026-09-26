@@ -28,11 +28,14 @@ def validate_claims(
     issued_at = claims.get("iat")
     if not isinstance(subject, str) or not subject:
         raise TokenValidationError("missing subject")
-    if not isinstance(expires_at, int) or expires_at <= now:
+    if type(expires_at) is not int or expires_at <= now:
         raise TokenValidationError("expired token")
-    if not isinstance(issued_at, int):
+    if type(issued_at) is not int or issued_at > now:
         raise TokenValidationError("missing issued-at")
-    scopes = frozenset(str(claims.get("scope", "")).split())
+    scope = claims.get("scope", "")
+    if not isinstance(scope, str):
+        raise TokenValidationError("invalid scope")
+    scopes = frozenset(scope.split())
     if not required.issubset(scopes):
         raise TokenValidationError("missing scope")
     return ValidatedIdentity(subject, client_id, scopes, issued_at, expires_at)
@@ -50,4 +53,3 @@ def require_identity(
         return validate_claims(claims, **validation)
     except (TokenValidationError, ValueError, KeyError):
         return AuthProblem("unauthenticated", "Sign-in required.")
-

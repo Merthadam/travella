@@ -24,4 +24,3 @@ class CognitoConfig:
         if missing:
             raise RuntimeError(f"Missing Cognito configuration: {', '.join(missing)}")
         return cls(**values)  # type: ignore[arg-type]
-

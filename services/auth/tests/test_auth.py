@@ -9,14 +9,37 @@ from services.auth.token_validator import TokenValidationError, validate_claims
 class AuthTests(unittest.TestCase):
     def test_valid_access_claims_are_subject_bound(self):
         identity = validate_claims(
-            {"iss": "https://issuer", "token_use": "access", "client_id": "client", "sub": "traveler-1", "iat": 10, "exp": 100, "scope": "plans:read"},
-            issuer="https://issuer", client_id="client", required_scopes=["plans:read"], now=20,
+            {
+                "iss": "https://issuer",
+                "token_use": "access",
+                "client_id": "client",
+                "sub": "traveler-1",
+                "iat": 10,
+                "exp": 100,
+                "scope": "plans:read",
+            },
+            issuer="https://issuer",
+            client_id="client",
+            required_scopes=["plans:read"],
+            now=20,
         )
         self.assertEqual(identity.subject, "traveler-1")
 
     def test_invalid_claims_rejected(self):
         with self.assertRaises(TokenValidationError):
-            validate_claims({"iss": "bad", "token_use": "id", "client_id": "client", "sub": "x", "iat": 1, "exp": 2}, issuer="https://issuer", client_id="client", now=1)
+            validate_claims(
+                {
+                    "iss": "bad",
+                    "token_use": "id",
+                    "client_id": "client",
+                    "sub": "x",
+                    "iat": 1,
+                    "exp": 2,
+                },
+                issuer="https://issuer",
+                client_id="client",
+                now=1,
+            )
 
     def test_refresh_stops_at_thirty_days(self):
         start = datetime(2026, 1, 1, tzinfo=timezone.utc)
