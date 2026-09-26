@@ -66,7 +66,7 @@ Implemented routes:
 
 - `POST /auth/register`, `/auth/verify-email`, `/auth/resend-verification`
 - `POST /auth/sign-in`, `/auth/mfa/challenge` (existing authenticator)
-- `POST /auth/forgot-password` (request only)
+- `POST /auth/forgot-password` (neutral request), `/auth/reset-password`
 - `GET /auth/session`, `POST /auth/refresh`, `POST /auth/sign-out`
 
 React holds no Cognito tokens. An opaque HttpOnly cookie identifies a server-side
@@ -90,8 +90,6 @@ rate limits, upstream body limits and deployment security are implemented.
 
 - Optional MFA enrollment before first private access, once-only recovery-code
   generation/replacement, and mandatory authenticator replacement after recovery.
-- Password-reset completion with account-wide session invalidation. The request
-  route exists; the reset-completion screen/endpoint are deliberately not shipped.
 - Resource-aware authorization and safe return to a Plan; `/plans` is a placeholder.
 - The old `AuthFlow` is a UI-domain sketch, not a security authority; HTTP routes
   grant sessions only from verified Cognito outcomes.

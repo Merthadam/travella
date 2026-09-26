@@ -148,6 +148,38 @@ def test_refresh_failure_destroys_session(system):
     assert client.get("/auth/session").status_code == 401
 
 
+def test_password_reset_invalidates_all_matching_browser_sessions(system):
+    client, provider, verifier, store, now = system
+    client.post("/auth/sign-in", json=CREDENTIALS)
+    first = client.cookies.get("__Host-travella")
+    client.cookies.clear()
+    client.post("/auth/sign-in", json=CREDENTIALS)
+    second = client.cookies.get("__Host-travella")
+    provider.reset_password.return_value = {}
+    response = client.post(
+        "/auth/reset-password",
+        json={"email": CREDENTIALS["email"], "code": "123456", "new_password": "new-password"},
+    )
+    assert response.status_code == 200
+    assert response.json()["state"] == "sign_in"
+    assert provider.global_sign_out.call_count == 2
+    with store.transaction():
+        assert store.get(first, now[0]) is None
+        assert store.get(second, now[0]) is None
+
+
+def test_failed_password_reset_preserves_existing_sessions(system):
+    client, provider, *_ = system
+    client.post("/auth/sign-in", json=CREDENTIALS)
+    provider.reset_password.side_effect = error("CodeMismatchException")
+    response = client.post(
+        "/auth/reset-password",
+        json={"email": CREDENTIALS["email"], "code": "bad", "new_password": "new-password"},
+    )
+    assert response.status_code == 400
+    assert client.get("/auth/session").status_code == 200
+
+
 def test_provider_revocation_rejects_an_unexpired_access_token(system):
     client, provider, verifier, store, now = system
     client.post("/auth/sign-in", json=CREDENTIALS)

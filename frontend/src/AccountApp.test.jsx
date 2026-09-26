@@ -98,3 +98,24 @@ test('provider unavailable is surfaced without a false success', async () => {
   await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('not configured'));
   expect(screen.queryByRole('heading', { name: 'My plans' })).toBeNull();
 });
+
+test('password reset completes without opening a session', async () => {
+  const user = await open();
+  fetch.mockImplementation(async (path) => path === '/auth/forgot-password'
+    ? response(200, { state: 'neutral_confirmation', message: 'Check your inbox.' })
+    : path === '/auth/reset-password'
+      ? response(200, { state: 'sign_in', message: 'Password updated.' })
+      : response(401, { message: 'Sign-in required.' }));
+  await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
+  await user.type(screen.getByLabelText('Email'), 'ada@example.com');
+  await user.click(screen.getByRole('button', { name: 'Send instructions' }));
+  await screen.findByRole('heading', { name: 'Check your inbox' });
+  await user.click(screen.getByRole('button', { name: 'I have a reset code' }));
+  await user.type(screen.getByLabelText('Password reset code'), '123456');
+  await user.type(screen.getByLabelText('New password'), 'new-password');
+  await user.click(screen.getByRole('button', { name: 'Update password' }));
+  await screen.findByRole('heading', { name: 'Welcome back' });
+  expect(screen.queryByRole('heading', { name: 'My plans' })).toBeNull();
+  const [, args] = fetch.mock.calls.find(([path]) => path === '/auth/reset-password');
+  expect(JSON.parse(args.body)).toEqual({ email: 'ada@example.com', code: '123456', new_password: 'new-password' });
+});

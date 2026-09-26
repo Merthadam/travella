@@ -46,6 +46,11 @@ class VerifyInput(EmailInput):
     code: SecretStr = Field(min_length=1, max_length=64)
 
 
+class ResetInput(EmailInput):
+    code: SecretStr = Field(min_length=1, max_length=64)
+    new_password: SecretStr = Field(min_length=8, max_length=256)
+
+
 class MfaInput(Input):
     code: Annotated[str, Field(pattern=r"^\d{6}$")]
 
@@ -213,6 +218,27 @@ def create_app(
                 pass
         return {"state": "neutral_confirmation", "message": RECOVERY_MESSAGE}
 
+    @app.post("/auth/reset-password")
+    def reset_password(data: ResetInput):
+        ready()
+        email = str(data.email)
+        try:
+            provider.reset_password(
+                email, data.code.get_secret_value(), data.new_password.get_secret_value()
+            )
+        except ClientError:
+            raise HTTPException(
+                400, "This reset code could not be used. Request a new one and try again."
+            ) from None
+        with store.transaction():
+            sessions = store.invalidate_account(email)
+            for session in sessions:
+                try:
+                    provider.global_sign_out(session["access"])
+                except (ClientError, BotoCoreError):
+                    pass
+        return {"state": "sign_in", "message": "Password updated. Sign in again to continue."}
+
     def identity(access: str) -> ValidatedIdentity:
         subject = verifier(access)
         user = provider.get_user(access)  # also checks provider revocation
@@ -221,7 +247,7 @@ def create_app(
             raise TokenValidationError("Private access requires verified email")
         return subject
 
-    def finish(result: dict, response: Response):
+    def finish(result: dict, response: Response, email: str):
         tokens = result["AuthenticationResult"]
         principal = identity(tokens["AccessToken"])
         now = clock()
@@ -229,6 +255,7 @@ def create_app(
             {
                 "kind": "session",
                 "subject": principal.subject,
+                "email": email,
                 "access": tokens["AccessToken"],
                 "refresh": tokens["RefreshToken"],
                 "started": now,
@@ -253,7 +280,12 @@ def create_app(
                         "USER_ID_FOR_SRP", str(data.email)
                     )
                     sid = store.create(
-                        {"kind": "challenge", "session": result["Session"], "username": username},
+                        {
+                            "kind": "challenge",
+                            "session": result["Session"],
+                            "username": username,
+                            "email": str(data.email),
+                        },
                         now + 180,
                         now,
                     )
@@ -261,7 +293,7 @@ def create_app(
                     return {"state": "mfa_challenge"}
                 if "AuthenticationResult" not in result:
                     raise TokenValidationError("Unsupported challenge")
-                return finish(result, response)
+                return finish(result, response, str(data.email))
             except (ClientError, TokenValidationError, KeyError):
                 # Raise outside transaction so the deletion commits.
                 pass
@@ -285,7 +317,7 @@ def create_app(
                         "SOFTWARE_TOKEN_MFA_CODE": data.code,
                     },
                 )
-                return finish(result, response)
+                return finish(result, response, challenge["email"])
             except (ClientError, TokenValidationError, KeyError):
                 pass
         raise HTTPException(401, SIGN_IN_ERROR)

@@ -71,6 +71,17 @@ class SessionStore:
             ),
         )
 
+    def invalidate_account(self, email: str) -> list[dict]:
+        """Delete local sessions for an account and return their token payloads."""
+        rows = self.db.execute("SELECT id, payload FROM sessions").fetchall()
+        matches = []
+        for session_id, payload in rows:
+            value = json.loads(self.cipher.decrypt(payload))
+            if value.get("kind") == "session" and value.get("email") == email:
+                matches.append(value)
+                self.db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+        return matches
+
     def delete(self, token: str | None):
         if token:
             self.db.execute("DELETE FROM sessions WHERE id = ?", (self.digest(token),))
