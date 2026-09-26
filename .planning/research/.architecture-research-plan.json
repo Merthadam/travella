@@ -1,0 +1,47 @@
+{
+  "ecosystem": "web",
+  "config": {
+    "exa_search": false,
+    "brave_search": false,
+    "firecrawl": false,
+    "tavily_search": false
+  },
+  "questions": [
+    {
+      "text": "Amazon Cognito official documentation access-token validation JWKS claims and browser authorization-code PKCE guidance",
+      "kind": "web"
+    },
+    {
+      "text": "AG-UI official protocol documentation event stream lifecycle state snapshots tool calls reconnect and generative UI",
+      "kind": "web"
+    },
+    {
+      "text": "LangGraph official persistence documentation threads checkpoints durable execution interrupts and production deployment",
+      "kind": "web"
+    },
+    {
+      "text": "Amazon Bedrock AgentCore Memory official documentation short-term long-term memory namespaces and integration boundaries",
+      "kind": "web"
+    },
+    {
+      "text": "AWS official architecture guidance private service-to-service authentication ECS Fargate VPC networking Secrets Manager and load balancing",
+      "kind": "web"
+    },
+    {
+      "text": "AWS official RDS PostgreSQL transactions row locking backup point-in-time restore and deletion lifecycle architecture guidance",
+      "kind": "web"
+    },
+    {
+      "text": "AWS official transactional outbox event-driven architecture idempotency SQS delivery semantics and dead-letter queues",
+      "kind": "web"
+    },
+    {
+      "text": "OpenTelemetry official documentation trace context propagation logs metrics distributed services privacy redaction",
+      "kind": "web"
+    },
+    {
+      "text": "OWASP official guidance transaction authorization challenge confirmation tokens redirect allowlists and SSRF prevention",
+      "kind": "web"
+    }
+  ]
+}
