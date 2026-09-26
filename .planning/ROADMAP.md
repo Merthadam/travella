@@ -28,7 +28,15 @@ Travella's full documented MVP moves a traveler from secure account access throu
   3. A traveler can enable authenticator-app two-step verification, use one-time recovery codes, and recover a password through a neutral account-existence response without emailed MFA codes.
   4. A successful password reset invalidates active sessions, requires fresh sign-in, and never bypasses configured two-step verification.
   5. Every public Travella service rejects invalid or expired managed-identity tokens and authorizes private resources from the token-derived traveler identity rather than a browser-supplied user ID.
-**Plans**: TBD
+**Plans**: 3
+
+**Wave 1**: Identity boundary and session contracts
+
+**Wave 2** *(blocked on Wave 1 completion)*: Registration, verification, MFA, and recovery stepper
+
+**Wave 3** *(blocked on Waves 1–2 completion)*: Refresh, reset invalidation, signout, and release verification
+
+**Cross-cutting constraints**: token-derived ownership; 30-day bounded refresh; neutral recovery privacy; no secret persistence; safe internal reauthentication return.
 **UI hint**: yes
 **Research flag**: yes — confirm exact Cognito registration, verification, TOTP, recovery, refresh, token-use, and client-integration flows before implementation.
 
