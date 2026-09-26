@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: account-access
 status: executing
-stopped_at: Phase 1 inline execution checkpoint
-last_updated: "2026-09-26T19:58:19.869Z"
+stopped_at: Phase 1 HTTP auth and React integration tested; recovery and enrollment remain
+last_updated: "2026-09-26T20:36:44Z"
 last_activity: 2026-09-26
-last_activity_desc: Python auth core and React stepper scaffold implemented; Cognito/frontend dependency integration remains.
-state_head: 45dfd684508c7e235f68e24e9d70a7a217b2eb3d
+last_activity_desc: uv tooling, FastAPI session boundary and connected React forms; 42 Python and 6 React tests pass.
+state_head: 81bee652780e70444ec282037c5f0f27fdc2cf6d
 progress:
   total_phases: 8
   completed_phases: 0
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-09-26)
 
 ## Current Position
 
-Phase: 01 (account-access) — READY TO EXECUTE
-Plan: inline execution checkpoint after initial scaffold
-Status: Needs review
-Last activity: 2026-09-26 — Python auth core and React stepper scaffold implemented; live Cognito integration remains.
+Phase: 01 (account-access) — IN PROGRESS
+Plan: Partial work across 01-01/01-02/01-03; 0 of 3 plans complete
+Status: Executing — local HTTP/UI integration tested; security workflows remain
+Last activity: 2026-09-26 — uv, FastAPI cookie sessions, JWT verification, React forms and local feedback checks implemented.
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
@@ -57,19 +57,25 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
 ### Decisions
 
+- User selected Python services, a separate React frontend, and uv for Python package management.
+- Continue inline as requested; no subagent completion or independent review is claimed.
+- Browser receives an opaque HttpOnly cookie; Cognito tokens remain encrypted server-side.
+- SQLite is a local single-worker session store only; production auth startup is blocked pending deployment safeguards.
 - Roadmap the full documented MVP as eight vertical traveler-capability phases.
 - Preserve traveler confirmation, CRUD durable-data ownership, Cognito, AG-UI, LangGraph, private Connector/MCP, honest provider states, and no booking claims.
 - Keep provider, database, compute, final generative-UI schema, and wireframes behind phase research flags until their contracts are defined.
 
 ### Pending Todos
 
-- Install frontend dependencies and verify `npm run build`.
-- Select and configure the Python web-service adapter and Cognito test pool.
-- Complete live Cognito registration, MFA, recovery, refresh, reset-invalidation, and public-service authorization tests.
+- Implement optional TOTP enrollment, recovery-code generation/rotation and mandatory authenticator replacement.
+- Implement password-reset completion and account-wide session invalidation.
+- Add resource authorization and safe internal resumption with real private resources.
+- Complete real-browser review and live Cognito tests once AWS setup is authorized.
 
 ### Blockers/Concerns
 
-- Live Cognito credentials/configuration are not available in this repository, so AUTH-01 through AUTH-08 cannot be marked complete yet.
+- AWS provisioning remains deferred by the user. Offline verification is available through `bash scripts/check.sh`.
+- Missing security workflows above are implementation gaps, not merely missing credentials. Phase 1 remains incomplete.
 
 ## Deferred Items
 
@@ -81,6 +87,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-26T17:53:31.061Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-account-access/01-CONTEXT.md
+Last session: 2026-09-26T20:36:44Z
+Stopped at: HTTP auth/session boundary and React integration checked
+Resume file: .planning/phases/01-account-access/01-EXECUTION-CHECKPOINT.md

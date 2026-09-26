@@ -13,16 +13,17 @@ created: "2026-09-26"
 
 | Property | Value |
 |---|---|
-| Framework | To be selected in Wave 0; use the repository's chosen TypeScript/Python test runner |
-| Config file | Wave 0 creates the test configuration |
-| Quick run command | `npm test -- --runInBand` (replace with the selected runner's non-watch command during Wave 0) |
-| Full suite command | `npm test -- --runInBand` |
-| Estimated runtime | < 60 seconds locally once the skeleton exists |
+| Framework | pytest for Python; Vitest + Testing Library for React |
+| Config file | `pyproject.toml`, `frontend/vite.config.js` |
+| Quick Python command | `uv run --locked pytest -q` |
+| Quick React command | `npm test --prefix frontend` |
+| Full local command | `bash scripts/check.sh` |
+| Estimated runtime | ~5 seconds with dependencies cached |
 
 ## Sampling Rate
 
-- After every task commit: run the quick suite.
-- After every plan wave: run the full suite plus auth contract tests.
+- After every task: run the affected quick suite; fix failures before committing.
+- After every plan wave: run `bash scripts/check.sh`; investigate and fix any failure before advancing.
 - Before `$gsd-verify-work`: run browser E2E and security-negative suites.
 
 ## Per-Task Verification Map
@@ -38,10 +39,29 @@ created: "2026-09-26"
 
 ## Wave 0 Requirements
 
-- Select the application framework and test runner.
-- Create a deterministic Cognito adapter boundary with a fake provider for unit tests.
-- Create test fixtures for valid, expired, wrong-audience, wrong-token-use, and foreign-subject tokens.
-- Create a browser-test harness capable of simulating refresh failure and MFA challenge states.
+- [x] Python/FastAPI + React selected; uv manages Python dependencies and locked test tools.
+- [x] Fake provider injected into the real HTTP application for offline tests.
+- [x] Actual RSA signature tests plus issuer/client/expiry/token-use/subject rejection.
+- [x] React DOM integration tests cover refresh failure and MFA challenge states.
+- [ ] Real browser end-to-end tests and complete remaining requirement coverage.
+
+## Current Evidence — 2026-09-26
+
+- `uv run --locked pytest -q`: **42 passed**. One upstream Starlette/httpx deprecation warning.
+- `npm test --prefix frontend`: **6 passed** (jsdom, not a real browser).
+- `uv run --locked ruff check services`: passed.
+- `uv run --locked ruff format --check services`: passed.
+- `npm run build --prefix frontend`: passed.
+- `npm audit --prefix frontend`: zero reported vulnerabilities after updating Vitest.
+- Live local proxy smoke: `/health` reports unconfigured Cognito, sign-in returns
+  HTTP 503 with a safe message and no credentials echoed.
+- No live AWS tests or independent subagent review were performed. No requirement
+  is marked complete based on these partial checks.
+
+Remaining gaps: TOTP enrollment and recovery codes, password-reset completion with
+global invalidation, actual private-resource ownership enforcement, safe resource
+resumption, real browser review, and live Cognito verification. The task map above
+is the target contract; it does not imply these behaviors already pass.
 
 ## Manual-Only Verifications
 
