@@ -26,7 +26,7 @@ Status: **partial / executing**, not plan or phase completion.
 - `frontend/src/AccountApp.jsx`: forms depend on server results; secrets clear on
   submission/navigation, session refresh handles access expiry, signout returns to sign-in.
 - `bash scripts/check.sh`: locked dependencies, lint/format, API/security tests,
-  React DOM tests, frontend build. 49 Python tests and 9 React tests currently pass.
+  React DOM tests, frontend build. 51 Python tests and 9 React tests currently pass.
 - Local proxy was exercised against the running Python service without AWS.
 - Previously tracked generated Python bytecode is now ignored and untracked;
   local copies were retained. The replaced requirements file is recoverable from Git.

@@ -47,7 +47,7 @@ created: "2026-09-26"
 
 ## Current Evidence — 2026-09-26
 
-- `uv run --locked pytest -q`: **49 passed**. One upstream Starlette/httpx deprecation warning.
+- `uv run --locked pytest -q`: **51 passed**. One upstream Starlette/httpx deprecation warning.
 - `npm test --prefix frontend`: **9 passed** (jsdom, not a real browser).
 - `uv run --locked ruff check services`: passed.
 - `uv run --locked ruff format --check services`: passed.

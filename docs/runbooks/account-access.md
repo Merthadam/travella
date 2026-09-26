@@ -88,6 +88,11 @@ challenges once, rate-limits POSTs and enforces a 16 KiB body check. Run **one w
 Production mode is rejected by the entrypoint until shared sessions, distributed
 rate limits, upstream body limits and deployment security are implemented.
 
+Public CRUD handlers should use `services.auth.authorization.require_owner` with
+the independently validated token subject. Browser-supplied owner IDs are never
+an authorization input; foreign resources should be mapped to a non-disclosing
+not-found response.
+
 ## Remaining Phase 1 work
 
 - Live Cognito behavior for recovery-code replacement must still be verified; the
