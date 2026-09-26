@@ -14,8 +14,9 @@ Status: **partial / executing**, not plan or phase completion.
 
 - `services/auth/api.py`: FastAPI registration, confirmation/resend, sign-in,
   existing-TOTP challenge, recovery request/completion, session, refresh and
-  signout routes. Reset completion invalidates matching local sessions and
-  attempts Cognito global sign-out for each active access token.
+  signout routes, plus authenticated TOTP enrollment. Reset completion
+  invalidates matching local sessions and attempts Cognito global sign-out for
+  each active access token. Enrollment returns ten one-use recovery codes once.
 - `jwt_verifier.py`: real RS256/JWKS validation followed by claims checks.
 - `session_store.py`: opaque cookie hashes and encrypted SQLite session records,
   fixed expiry and serialized refresh/signout/challenge updates in one local process.
@@ -24,7 +25,7 @@ Status: **partial / executing**, not plan or phase completion.
 - `frontend/src/AccountApp.jsx`: forms depend on server results; secrets clear on
   submission/navigation, session refresh handles access expiry, signout returns to sign-in.
 - `bash scripts/check.sh`: locked dependencies, lint/format, API/security tests,
-  React DOM tests, frontend build. 44 Python tests and 7 React tests currently pass.
+  React DOM tests, frontend build. 46 Python tests and 8 React tests currently pass.
 - Local proxy was exercised against the running Python service without AWS.
 - Previously tracked generated Python bytecode is now ignored and untracked;
   local copies were retained. The replaced requirements file is recoverable from Git.
@@ -49,7 +50,9 @@ Do not create complete-plan SUMMARY files until the remaining task criteria pass
    and enforce the restricted recovery state at every private boundary.
 2. Replace private-plan placeholder with token-derived authorization when the
    Plan boundary is available; re-authorize return destinations on the server.
-4. Run actual browser and live-Cognito tests, and finish phase verification.
+2. Implement recovery-code sign-in/replacement without granting an unverified
+   session, then run actual browser and live-Cognito tests and finish phase
+   verification.
 
 `docs/runbooks/account-access.md` describes local commands, the cookie/proxy model,
 provider configuration and deployment limitations. `01-VALIDATION.md` holds test

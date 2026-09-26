@@ -12,6 +12,7 @@ input { min-width: 0; }
 .secondary { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
 .secondary button { background: transparent; color: #146b5e; padding: .5rem; text-decoration: underline; }
 .field-error { color: #9c342d; font-size: .85rem; }
+.recovery-codes { background: #f5f1e8; border: 1px solid #d8cfbf; border-radius: .75rem; padding: 1rem; line-height: 1.7; letter-spacing: .08em; }
 [aria-invalid="true"] { border-color: #9c342d; }
 [aria-current="step"] { color: #146b5e; font-weight: 700; }
 button:focus-visible, input:focus-visible { outline: 3px solid #4c9c8f; outline-offset: 3px; }

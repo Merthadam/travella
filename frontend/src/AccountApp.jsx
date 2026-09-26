@@ -6,6 +6,7 @@ const titles = {
   verified: 'Your email is verified', mfa_challenge: 'Two-step verification',
   forgot_password_email: 'Recover your account', neutral_confirmation: 'Check your inbox',
   reset_password: 'Set a new password',
+  mfa_enrollment: 'Set up an authenticator', recovery_codes: 'Save your recovery codes',
   signed_in: 'My plans', loading: 'Opening your account…',
 };
 
@@ -17,6 +18,8 @@ export function AccountApp() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState('');
+  const [secretCode, setSecretCode] = useState('');
+  const [recoveryCodes, setRecoveryCodes] = useState([]);
   const heading = useRef(null);
   const generation = useRef(0);
 
@@ -48,6 +51,8 @@ export function AccountApp() {
   function go(next) {
     generation.current++;
     setStep(next); setError(null); setNotice('');
+    if (next !== 'mfa_enrollment') setSecretCode('');
+    if (next !== 'recovery_codes') setRecoveryCodes([]);
   }
 
   async function submit(event) {
@@ -67,12 +72,15 @@ export function AccountApp() {
       else if (step === 'verify_email') {
         await request('/auth/verify-email', { email, code }); result = { state: 'verified' };
       } else if (step === 'mfa_challenge') result = await request('/auth/mfa/challenge', { code });
+      else if (step === 'mfa_enrollment') result = await request('/auth/mfa/enrollment/verify', { code });
       else if (step === 'forgot_password_email') result = await request('/auth/forgot-password', { email });
       else if (step === 'reset_password') result = await request('/auth/reset-password', { email, code, new_password: secret });
       else result = await request('/auth/sign-in', { email, password: secret });
       if (generation.current !== attempt) return;
       if (result.state === 'signed_in') await readSession();
       if (generation.current !== attempt) return;
+      if (result.state === 'mfa_enrollment') setSecretCode(result.secret_code);
+      if (result.state === 'recovery_codes') setRecoveryCodes(result.codes);
       setStep(result.state); setNotice(result.message || '');
     } catch (err) {
       if (generation.current === attempt) {
@@ -98,7 +106,7 @@ export function AccountApp() {
 
   const hasEmail = ['sign_in', 'register', 'verify_email', 'forgot_password_email', 'reset_password'].includes(step);
   const hasPassword = ['sign_in', 'register', 'reset_password'].includes(step);
-  const isForm = hasEmail || step === 'mfa_challenge';
+  const isForm = hasEmail || ['mfa_challenge', 'mfa_enrollment'].includes(step);
   const fieldError = (name) => error?.fields?.includes(name);
   function field(name, label, props) {
     return <label>{label}<input name={name} required aria-invalid={fieldError(name) || undefined}
@@ -122,7 +130,7 @@ export function AccountApp() {
         </>}
         {hasEmail && field('email', 'Email', { type: 'email', value: email, onChange: e => setEmail(e.target.value), autoComplete: 'email' })}
         {hasPassword && field('password', step === 'reset_password' ? 'New password' : 'Password', { type: 'password', autoComplete: step === 'register' || step === 'reset_password' ? 'new-password' : 'current-password', maxLength: 256 })}
-        {['verify_email', 'mfa_challenge', 'reset_password'].includes(step) && field('code', step === 'verify_email' ? 'Email verification code' : step === 'reset_password' ? 'Password reset code' : 'Authenticator code', { inputMode: 'numeric', autoComplete: 'one-time-code', maxLength: step === 'mfa_challenge' ? 6 : 64 })}
+        {['verify_email', 'mfa_challenge', 'mfa_enrollment', 'reset_password'].includes(step) && field('code', step === 'verify_email' ? 'Email verification code' : step === 'reset_password' ? 'Password reset code' : 'Authenticator code', { inputMode: 'numeric', autoComplete: 'one-time-code', maxLength: 6 })}
         <div className="actions">
           {step !== 'sign_in' && <button type="button" onClick={() => go(step === 'verify_email' ? 'register' : 'sign_in')}>Back</button>}
           <button className="primary" type="submit">{busy ? 'Please wait…' : step === 'register' ? 'Create account' : step === 'sign_in' ? 'Sign in' : step === 'forgot_password_email' ? 'Send instructions' : step === 'reset_password' ? 'Update password' : 'Verify'}</button>
@@ -137,6 +145,8 @@ export function AccountApp() {
     {step === 'verify_email' && <button disabled={busy} onClick={resend}>Resend code</button>}
     {step === 'verified' && <><p className="quiet">Your email is verified. Continue to sign in.</p><button className="primary" onClick={() => go('sign_in')}>Continue</button></>}
     {step === 'neutral_confirmation' && <><button className="primary" onClick={() => go('reset_password')}>I have a reset code</button><button onClick={() => go('sign_in')}>Back to sign in</button></>}
-    {step === 'signed_in' && <><p className="quiet">You’re signed in. Plan management is coming in the next phase.</p><button disabled={busy} onClick={signOut}>Sign out</button></>}
+    {step === 'mfa_enrollment' && <p className="quiet">Add the secret code <code>{secretCode}</code> to your authenticator app, then enter the six-digit code.</p>}
+    {step === 'recovery_codes' && <><p className="quiet">Save these codes somewhere safe. Each can be used once, and they will not be shown again.</p><pre className="recovery-codes">{recoveryCodes.join('\n')}</pre><button className="primary" onClick={() => go('signed_in')}>I saved my codes</button></>}
+    {step === 'signed_in' && <><p className="quiet">You’re signed in. Plan management is coming in the next phase.</p><button disabled={busy} onClick={async () => { setBusy(true); setError(null); try { const result = await request('/auth/mfa/enrollment/start', {}); setSecretCode(result.secret_code); setStep('mfa_enrollment'); } catch (err) { setError(err); } finally { setBusy(false); } }}>Set up authenticator</button><button disabled={busy} onClick={signOut}>Sign out</button></>}
   </main>;
 }

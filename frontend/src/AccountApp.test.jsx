@@ -69,6 +69,30 @@ test('MFA challenge must succeed before the server session opens My plans', asyn
   await screen.findByRole('heading', { name: 'Welcome back' });
 });
 
+test('authenticated enrollment shows recovery codes once', async () => {
+  const user = await open();
+  fetch.mockImplementation(async (path) => {
+    if (path === '/auth/sign-in' || path === '/auth/session') return response(200, { state: 'signed_in' });
+    if (path === '/auth/mfa/enrollment/start') return response(200, { state: 'mfa_enrollment', secret_code: 'JBSWY3DPEHPK3PXP' });
+    if (path === '/auth/mfa/enrollment/verify') return response(200, { state: 'recovery_codes', codes: ['ABCD1234', 'EFGH5678'] });
+    return response(401, { message: 'Sign-in required.' });
+  });
+  await user.type(screen.getByLabelText('Email'), 'ada@example.com');
+  await user.type(screen.getByLabelText('Password'), 'secret-password');
+  await user.click(screen.getByRole('button', { name: 'Sign in', exact: true }));
+  await screen.findByRole('heading', { name: 'My plans' });
+  await user.click(screen.getByRole('button', { name: 'Set up authenticator' }));
+  await screen.findByRole('heading', { name: 'Set up an authenticator' });
+  expect(screen.getByText('JBSWY3DPEHPK3PXP')).toBeTruthy();
+  await user.type(screen.getByLabelText('Authenticator code'), '123456');
+  await user.click(screen.getByRole('button', { name: 'Verify', exact: true }));
+  await screen.findByRole('heading', { name: 'Save your recovery codes' });
+  expect(document.querySelector('.recovery-codes').textContent).toContain('ABCD1234');
+  await user.click(screen.getByRole('button', { name: 'I saved my codes' }));
+  await screen.findByRole('heading', { name: 'My plans' });
+  expect(screen.queryByText('ABCD1234')).toBeNull();
+});
+
 test('expired access session silently refreshes before rendering private content', async () => {
   let refreshed = false;
   fetch.mockImplementation(async (path) => {

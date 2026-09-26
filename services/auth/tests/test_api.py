@@ -1,3 +1,4 @@
+import hashlib
 import json
 import time
 from unittest.mock import Mock
@@ -166,6 +167,45 @@ def test_password_reset_invalidates_all_matching_browser_sessions(system):
     with store.transaction():
         assert store.get(first, now[0]) is None
         assert store.get(second, now[0]) is None
+
+
+def test_mfa_enrollment_verifies_once_and_returns_recovery_codes(system):
+    client, provider, verifier, store, now = system
+    client.post("/auth/sign-in", json=CREDENTIALS)
+    provider.associate_software_token.return_value = {
+        "Session": "enrollment-session",
+        "SecretCode": "JBSWY3DPEHPK3PXP",
+    }
+    provider.verify_software_token.return_value = {"Status": "SUCCESS"}
+    start = client.post("/auth/mfa/enrollment/start", json={})
+    assert start.status_code == 200
+    assert start.json()["state"] == "mfa_enrollment"
+    assert start.json()["secret_code"] == "JBSWY3DPEHPK3PXP"
+    assert "ada@example.com" not in start.json()["otpauth_uri"]
+    verify = client.post("/auth/mfa/enrollment/verify", json={"code": "123456"})
+    assert verify.status_code == 200
+    codes = verify.json()["codes"]
+    assert len(codes) == 10 and len(set(codes)) == 10
+    stored = store.db.execute("SELECT payload FROM recovery_codes").fetchone()[0]
+    assert codes[0].encode() not in stored
+    digest = hashlib.sha256(codes[0].encode()).hexdigest()
+    with store.transaction():
+        assert store.consume_recovery_code("traveler-one", digest) is True
+        assert store.consume_recovery_code("traveler-one", digest) is False
+
+
+def test_mfa_enrollment_rejects_code_and_discards_pending_setup(system):
+    client, provider, *_ = system
+    client.post("/auth/sign-in", json=CREDENTIALS)
+    provider.associate_software_token.return_value = {
+        "Session": "enrollment-session",
+        "SecretCode": "JBSWY3DPEHPK3PXP",
+    }
+    provider.verify_software_token.return_value = {"Status": "ERROR"}
+    client.post("/auth/mfa/enrollment/start", json={})
+    response = client.post("/auth/mfa/enrollment/verify", json={"code": "123456"})
+    assert response.status_code == 400
+    provider.verify_software_token.assert_called_once()
 
 
 def test_failed_password_reset_preserves_existing_sessions(system):

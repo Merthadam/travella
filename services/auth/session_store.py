@@ -5,6 +5,7 @@ sessions are encrypted with a separate key supplied by the environment.
 """
 
 import hashlib
+import hmac
 import json
 import secrets
 import sqlite3
@@ -21,6 +22,12 @@ class SessionStore:
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute("""CREATE TABLE IF NOT EXISTS sessions (
             id TEXT PRIMARY KEY, expires REAL NOT NULL, payload BLOB NOT NULL
+        )""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS recovery_codes (
+            subject TEXT PRIMARY KEY, expires REAL NOT NULL, payload BLOB NOT NULL
+        )""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS enrollments (
+            subject TEXT PRIMARY KEY, expires REAL NOT NULL, payload BLOB NOT NULL
         )""")
         self.db.commit()
 
@@ -81,6 +88,51 @@ class SessionStore:
                 matches.append(value)
                 self.db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
         return matches
+
+    def put_enrollment(self, subject: str, payload: dict, expires: float) -> None:
+        self.db.execute(
+            "INSERT OR REPLACE INTO enrollments VALUES (?, ?, ?)",
+            (subject, expires, self.cipher.encrypt(json.dumps(payload).encode())),
+        )
+
+    def get_enrollment(self, subject: str, now: float) -> dict | None:
+        row = self.db.execute(
+            "SELECT expires, payload FROM enrollments WHERE subject = ?", (subject,)
+        ).fetchone()
+        if row is None:
+            return None
+        if row[0] <= now:
+            self.delete_enrollment(subject)
+            return None
+        return json.loads(self.cipher.decrypt(row[1]))
+
+    def delete_enrollment(self, subject: str) -> None:
+        self.db.execute("DELETE FROM enrollments WHERE subject = ?", (subject,))
+
+    def put_recovery_codes(self, subject: str, hashes: list[str], now: float) -> None:
+        self.db.execute(
+            "INSERT OR REPLACE INTO recovery_codes VALUES (?, ?, ?)",
+            (subject, now, self.cipher.encrypt(json.dumps(hashes).encode())),
+        )
+
+    def consume_recovery_code(self, subject: str, candidate_digest: str) -> bool:
+        row = self.db.execute(
+            "SELECT payload FROM recovery_codes WHERE subject = ?", (subject,)
+        ).fetchone()
+        if row is None:
+            return False
+        hashes = json.loads(self.cipher.decrypt(row[0]))
+        matched = next(
+            (value for value in hashes if hmac.compare_digest(value, candidate_digest)), None
+        )
+        if matched is None:
+            return False
+        hashes.remove(matched)
+        self.db.execute(
+            "UPDATE recovery_codes SET payload = ? WHERE subject = ?",
+            (self.cipher.encrypt(json.dumps(hashes).encode()), subject),
+        )
+        return True
 
     def delete(self, token: str | None):
         if token:
