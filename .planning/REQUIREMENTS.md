@@ -137,23 +137,75 @@ Deferred beyond the initial full MVP roadmap.
 
 ## Traceability
 
-Populated during roadmap creation.
+Mapped during initial full-MVP roadmap creation.
 
 | Requirement | Phase | Status |
 |---|---|---|
-| AUTH-01 through AUTH-08 | TBD | Pending |
-| PLAN-01 through PLAN-08 | TBD | Pending |
-| DISC-01 through DISC-10 | TBD | Pending |
-| WORK-01 through WORK-06 | TBD | Pending |
-| SEARCH-01 through SEARCH-09 | TBD | Pending |
-| CANVAS-01 through CANVAS-07 | TBD | Pending |
-| HANDOFF-01 through HANDOFF-07 | TBD | Pending |
-| TRUST-01 through TRUST-05 | TBD | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| AUTH-06 | Phase 1 | Pending |
+| AUTH-07 | Phase 1 | Pending |
+| AUTH-08 | Phase 1 | Pending |
+| PLAN-01 | Phase 2 | Pending |
+| PLAN-02 | Phase 2 | Pending |
+| PLAN-03 | Phase 2 | Pending |
+| PLAN-04 | Phase 2 | Pending |
+| PLAN-05 | Phase 2 | Pending |
+| PLAN-06 | Phase 2 | Pending |
+| PLAN-07 | Phase 2 | Pending |
+| PLAN-08 | Phase 2 | Pending |
+| DISC-01 | Phase 3 | Pending |
+| DISC-02 | Phase 3 | Pending |
+| DISC-03 | Phase 3 | Pending |
+| DISC-04 | Phase 3 | Pending |
+| DISC-05 | Phase 3 | Pending |
+| DISC-06 | Phase 4 | Pending |
+| DISC-07 | Phase 4 | Pending |
+| DISC-08 | Phase 4 | Pending |
+| DISC-09 | Phase 4 | Pending |
+| DISC-10 | Phase 4 | Pending |
+| WORK-01 | Phase 5 | Pending |
+| WORK-02 | Phase 5 | Pending |
+| WORK-03 | Phase 5 | Pending |
+| WORK-04 | Phase 5 | Pending |
+| WORK-05 | Phase 5 | Pending |
+| WORK-06 | Phase 5 | Pending |
+| SEARCH-01 | Phase 6 | Pending |
+| SEARCH-02 | Phase 6 | Pending |
+| SEARCH-03 | Phase 6 | Pending |
+| SEARCH-04 | Phase 6 | Pending |
+| SEARCH-05 | Phase 6 | Pending |
+| SEARCH-06 | Phase 6 | Pending |
+| SEARCH-07 | Phase 6 | Pending |
+| SEARCH-08 | Phase 6 | Pending |
+| SEARCH-09 | Phase 6 | Pending |
+| CANVAS-01 | Phase 7 | Pending |
+| CANVAS-02 | Phase 7 | Pending |
+| CANVAS-03 | Phase 7 | Pending |
+| CANVAS-04 | Phase 7 | Pending |
+| CANVAS-05 | Phase 7 | Pending |
+| CANVAS-06 | Phase 7 | Pending |
+| CANVAS-07 | Phase 7 | Pending |
+| HANDOFF-01 | Phase 8 | Pending |
+| HANDOFF-02 | Phase 8 | Pending |
+| HANDOFF-03 | Phase 8 | Pending |
+| HANDOFF-04 | Phase 8 | Pending |
+| HANDOFF-05 | Phase 8 | Pending |
+| HANDOFF-06 | Phase 8 | Pending |
+| HANDOFF-07 | Phase 8 | Pending |
+| TRUST-01 | Phase 2 | Pending |
+| TRUST-02 | Phase 2 | Pending |
+| TRUST-03 | Phase 3 | Pending |
+| TRUST-04 | Phase 4 | Pending |
+| TRUST-05 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 60 total
-- Mapped to phases: 0
-- Unmapped: 60
+- Mapped to phases: 60
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-09-26*
