@@ -8,7 +8,11 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! docker compose version >/dev/null 2>&1; then
+if docker compose version >/dev/null 2>&1; then
+  compose=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  compose=(docker-compose)
+else
   echo "Docker Compose is not available. Install Docker Compose and try again." >&2
   exit 1
 fi
@@ -20,4 +24,4 @@ fi
 
 echo "Starting Travella at http://localhost:5173"
 echo "Press Ctrl-C to stop the foreground services."
-docker compose up --build "$@"
+"${compose[@]}" up --build "$@"
