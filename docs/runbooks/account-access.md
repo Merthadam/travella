@@ -34,6 +34,21 @@ Open `http://localhost:5173`. Vite proxies `/auth` and `/health` to Python, so c
 are same-origin. Without Cognito configuration, health reports `auth_configured: false`
 and auth requests return 503 with an explanatory message. There is no fake login.
 
+## Start both services with Docker and Colima
+
+With Colima running, Docker Compose starts the API and frontend together:
+
+```bash
+colima start
+docker compose up --build
+```
+
+Then open `http://localhost:5173`. The frontend container proxies `/auth` and
+`/health` to the `auth` container. Stop with `Ctrl-C`, or use
+`docker compose down`; the named `auth-data` volume keeps the local session
+database between restarts. This compose setup intentionally runs the offline-safe
+development mode until Cognito settings are supplied.
+
 ## Connect a development Cognito pool later
 
 Use `services/.env.example` as the settings reference. Keep actual values in a local
