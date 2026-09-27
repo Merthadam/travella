@@ -10,6 +10,11 @@ During a task, use the narrower feedback command:
 - Python: `uv run --locked pytest -q services/auth/tests/test_api.py`
 - React: `npm test --prefix frontend`
 
+Start the frontend with `npm run dev --prefix frontend`; its Vite command forces
+optimized dependency regeneration so running `npm ci` cannot leave an existing
+dev server pointing at deleted React bundles. Restart the dev server after any
+dependency install.
+
 Run the full script before accepting a wave. Phase completion additionally needs
 the outstanding live-Cognito and manual checks in `01-VALIDATION.md`. Passing this
 script alone is not phase verification.
