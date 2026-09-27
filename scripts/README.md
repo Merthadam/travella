@@ -1,5 +1,19 @@
 # Local verification
 
+## Start local services
+
+With Docker and Colima installed, start the API and frontend together:
+
+```bash
+bash scripts/start-local.sh
+```
+
+The script starts Colima when it is installed but not running, builds the images,
+and opens the services at `http://localhost:5173` and `http://localhost:8000`.
+Pass standard `docker compose up` options when needed, for example
+`bash scripts/start-local.sh -d` for detached mode. Stop detached services with
+`docker compose down`.
+
 Run `bash scripts/check.sh` from the checkout. It installs only locked Python and
 JavaScript dependencies, checks Python lint/formatting, runs the API/security and
 React integration tests, and builds the frontend. It exits nonzero on the first
