@@ -10,6 +10,9 @@ dependencies = [
   "PyJWT[crypto]>=2.9,<3",
   "cryptography>=44,<47",
   "email-validator>=2,<3",
+  "sqlalchemy>=2.0,<2.1",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.14,<2",
 ]
 
 [dependency-groups]
@@ -19,7 +22,7 @@ dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1"]
 package = false
 
 [tool.pytest.ini_options]
-testpaths = ["services/auth/tests"]
+testpaths = ["services/auth/tests", "services/crud/tests"]
 pythonpath = ["."]
 
 [tool.ruff]
