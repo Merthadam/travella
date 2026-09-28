@@ -168,7 +168,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Account Access | 0/TBD | Not started | - |
-| 2. Draft Plans & Durable Lifecycle | 0/TBD | Not started | - |
+| 2. Draft Plans & Durable Lifecycle | 2/4 | In progress | - |
 | 3. Conversation & Planning Brief | 0/TBD | Not started | - |
 | 4. Evidence-backed Destination Discovery | 0/TBD | Not started | - |
 | 5. Requirements & Adaptive Workspace | 0/TBD | Not started | - |
