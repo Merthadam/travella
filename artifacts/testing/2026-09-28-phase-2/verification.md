@@ -64,3 +64,13 @@ Plan 02-02 changes no frontend source. The API helper and Vite proxy wiring are
 now consumed by Plan 02-03.
 PostgreSQL runtime/concurrency, live Cognito and production deployment remain
 unverified; the development entry points refuse production mode.
+
+## Plan 02-04: retention and security checks
+
+- `uv run pytest -q services/crud/tests/test_purge.py services/crud/tests/test_security.py`:
+  5 passed.
+- Purge uses supplied database time, treats the exact recovery deadline as
+  expired, deletes linked rows transactionally, is safe to rerun, and returns only
+  an aggregate `purged_count` metric.
+- Projection tests assert owner identity, credentials, raw payload, and internal
+  reasoning are absent from public Plan output and purge telemetry.
