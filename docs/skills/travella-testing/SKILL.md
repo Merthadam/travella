@@ -1,11 +1,25 @@
 ---
 name: travella-testing
-description: Mandatory verification and screenshot evidence for Travella frontend changes, UI plans/designs, and FastAPI backend CRUD changes. Use before implementing and before delivering any such change.
+description: Mandatory prototype offers during Travella frontend planning, plus verification and screenshot evidence for frontend changes, UI designs, and FastAPI backend CRUD changes. Use before planning, implementing, and delivering this work.
 ---
 
-# Travella testing requirements
+# Travella planning and testing requirements
 
 These requirements come from the project owner. Apply the frontend and backend gates together when a change spans both. Documentation-only changes do not require running the application; UI planning/design still requires visual evidence.
+
+## Frontend planning: always offer prototypes
+
+At the start of every frontend planning/design session, offer the user the choice to explore a few interactive design alternatives with their installed `prototype` skill, or proceed with planning without prototypes. Honor an explicit choice already made in the current session; do not ask again. While awaiting a choice, continue requirements gathering and other work that does not depend on that choice.
+
+When the user chooses prototypes:
+
+1. Read and use `~/.codex/skills/prototype/SKILL.md` and its `UI.md` branch. If the installed location changes, discover the named skill from the available skill catalog.
+2. Default to three structurally distinct design options for the same user journey, following the skill's variant-switching workflow. Different layouts, information hierarchies, or interactions must give the user meaningful choices; colour-only variations are insufficient.
+3. Exercise each variant with Chrome DevTools and save a screenshot of each under the planning evidence directory below. Keep prototype mutations stubbed and label simulated behavior. The prototype skill's lightweight implementation guidance does not waive this browser inspection and screenshot requirement.
+4. Present working preview links and screenshots, briefly explain each option's tradeoffs, and invite the user to select one or combine elements. Record their choice before implementing the selected production design; a recommendation is not a user selection.
+5. Follow the prototype skill's capture and cleanup workflow. Carry the chosen design into production with the applicable verification gates below.
+
+If the user declines prototypes, proceed with the normal planning workflow and retain the applicable screenshot and verification requirements.
 
 ## Before making changes
 
