@@ -355,3 +355,16 @@ def test_expired_and_purged_plans_cannot_be_replayed(system):
     )
     assert mutate(system, deleted, "restore", challenge="expired").status_code == 404
     assert system.client.get("/v1/plans?view=deleted").json()["plans"] == []
+
+
+def test_brief_update_reads_back_and_is_revision_safe(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}/brief"
+    empty = system.client.get(path)
+    assert empty.status_code == 200 and empty.json()["travelers"] == 1 and empty.json()["revision"] == 1
+    payload = {"interests": "food, museums", "start_date": "2027-05-01", "end_date": "2027-05-08", "travelers": 2, "budget": "€2000", "transport_tolerance": "walkable", "accessibility_needs": ""}
+    saved = system.client.patch(path, headers=write_headers(system, 1), json=payload)
+    assert saved.status_code == 200 and saved.json()["interests"] == payload["interests"] and saved.json()["revision"] == 2
+    assert system.client.get(path).json() == saved.json()
+    conflict = system.client.patch(path, headers=write_headers(system, 1), json=payload)
+    assert conflict.status_code == 409

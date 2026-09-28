@@ -98,3 +98,11 @@ Date: 2026-09-28
 - Linked the open billing account to `travella-508112`; CLI now reports `billingEnabled: true`.
 - Reloaded Travella and verified the Places dropdown returns `Lisbon Portugal` and other Lisbon suggestions.
 - Selected `Lisbon Portugal`, confirmed the candidate card, and saved it successfully.
+
+## Planning Brief CRUD run
+
+- Added Plan-scoped Planning Brief persistence with revision-safe PATCH semantics and an Alembic schema revision.
+- HTTP integration test exercises read, update, read-back persistence, and stale-revision conflict behavior.
+- Backend regression suite: `.venv/bin/python -m pytest services/crud/tests services/auth/tests -q` — 103 passed.
+- Chrome exercised the Brief editor with interests, travelers, and budget; save returned to the workspace and reload restored `2 travelers` and `food and museums`.
+- Browser logs contain only Google Maps performance/legacy-widget warnings; no Brief CRUD errors.

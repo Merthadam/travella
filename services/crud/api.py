@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Header, Query
 from .auth import identity_dependency
 from .contracts import LifecycleProblem
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
-from .schemas import ChallengeInput, ChallengeOutput, DestinationInput, DestinationMutationOutput, DestinationOutput, PlanOutput, PlanPage, TitleInput
+from .schemas import BriefInput, BriefMutationOutput, BriefOutput, ChallengeInput, ChallengeOutput, DestinationInput, DestinationMutationOutput, DestinationOutput, PlanOutput, PlanPage, TitleInput
 
 WriteId = Annotated[str, Header(alias="Idempotency-Key", max_length=100)]
 Revision = Annotated[int, Header(alias="If-Match", ge=1)]
@@ -90,6 +90,16 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
         view: Literal["active", "deleted"] = "active",
     ):
         return PlanOutput.from_ref(repo.get(me.subject, plan_id, include_deleted=view == "deleted"))
+
+    @router.get("/{plan_id}/brief", response_model=BriefOutput)
+    def get_brief(plan_id: UUID, repo: Repo, me=Depends(identity)):
+        brief = repo.get_brief(me.subject, plan_id)
+        return BriefOutput(plan_id=brief.plan_id, revision=brief.revision, **{k: brief.payload.get(k, BriefInput().model_dump()[k]) for k in BriefInput.model_fields})
+
+    @router.patch("/{plan_id}/brief", response_model=BriefMutationOutput)
+    def update_brief(plan_id: UUID, data: BriefInput, request_id: WriteId, if_match: Revision, repo: Repo, me=Depends(identity)):
+        brief = repo.update_brief(me.subject, plan_id, request_id, if_match, data.model_dump())
+        return BriefMutationOutput(plan_id=brief.plan_id, revision=brief.revision, **brief.payload)
 
     @router.get("/{plan_id}/destinations", response_model=list[DestinationOutput])
     def destinations(plan_id: UUID, repo: Repo, me=Depends(identity)):

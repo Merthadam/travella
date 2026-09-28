@@ -118,6 +118,16 @@ class DestinationPin(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class PlanningBrief(Base):
+    __tablename__ = "planning_briefs"
+    __table_args__ = (UniqueConstraint("plan_id", name="uq_planning_briefs_plan_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("plans.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    payload: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class PlanActionReceipt(Base):
     __tablename__ = "plan_action_receipts"
     __table_args__ = (

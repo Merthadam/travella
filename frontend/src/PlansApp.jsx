@@ -102,6 +102,9 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const [mapsStatus, setMapsStatus] = useState('');
   const [candidate, setCandidate] = useState(null);
   const [savingDestination, setSavingDestination] = useState(false);
+  const [brief, setBrief] = useState(null);
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [briefSaving, setBriefSaving] = useState(false);
   const [savedDestinations, setSavedDestinations] = useState([]);
   const mapCanvas = useRef(null);
   const placeSearch = useRef(null);
@@ -195,13 +198,16 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   }
   async function open(id, recordActivity = true, restored = false) {
     const ticket = ++generation.current;
-    setLoading(true); setSelected(null); setSavedDestinations([]); setError(null); setCursor(null); url(`/plans/${id}`);
+    setLoading(true); setSelected(null); setSavedDestinations([]); setBrief(null); setBriefOpen(false); setError(null); setCursor(null); url(`/plans/${id}`);
     try {
       let plan;
       try { plan = await api.get(id); }
       catch (err) { if (err.status !== 404) throw err; plan = await api.get(id, 'deleted'); }
       if (!active(ticket)) return;
       setSelected(plan); setView('detail');
+      if (api.brief) {
+        try { setBrief(await api.brief(plan)); } catch (briefError) { if (briefError.status === 401) { fail(briefError, null, ticket); return; } }
+      }
       if (api.destinations) {
         try { setSavedDestinations(await api.destinations(plan)); }
         catch (destinationError) { if (destinationError.status === 401) { fail(destinationError, null, ticket); return; } if (active(ticket)) setError({ message: 'Your plan opened, but its destinations could not be loaded.', retry: () => open(id, false) }); }
@@ -262,6 +268,16 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       <button onClick={() => setDialog({ operation: 'rename', plan })}>Rename<span className="sr-only"> {plan.title}</span></button>
       <button className="danger" onClick={() => setDialog({ operation: 'delete', plan })}>Delete<span className="sr-only"> {plan.title}</span></button></>;
   }
+  async function saveBrief(nextBrief) {
+    if (!selected || briefSaving || !api.updateBrief) return;
+    setBriefSaving(true);
+    try {
+      const result = await api.updateBrief(selected, nextBrief, requestId());
+      setBrief(result); setSelected(current => ({ ...current, revision: result.revision })); setBriefOpen(false);
+    } catch (err) { if (err.status === 401) onExpired(); else setError({ message: err.message || 'Could not save the Planning Brief.', retry: () => saveBrief(nextBrief) }); }
+    finally { setBriefSaving(false); }
+  }
+
   async function saveCandidate() {
     if (!candidate || savingDestination || savedDestinations.some(destination => destination.place_id === candidate.place_id)) return;
     setSavingDestination(true);
@@ -303,7 +319,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       {accountError && <p role="alert" className="error">{accountError.message}</p>}
       {error && <div role="alert" className="error"><p>{error.message}</p>{error.retry && <button onClick={error.retry} disabled={busy || loading}>{error.message.startsWith('Your plan was restored') ? 'Open plan' : 'Retry'}</button>}</div>}
       {loading && <p role="status">{selected ? 'Opening plan…' : view === 'deleted' ? 'Loading recently deleted plans…' : 'Loading your plans…'}</p>}
-      {selected && <PlanWorkspace selected={selected} actions={actions} onOpenConversation={() => setConversationOpen(true)} destinationView={destinationView} setDestinationView={setDestinationView} mapCanvas={mapCanvas} placeSearch={placeSearch} mapsApiKey={mapsApiKey} mapsStatus={mapsStatus} candidate={candidate} setCandidate={setCandidate} savedDestinations={savedDestinations} saveCandidate={saveCandidate} savingDestination={savingDestination} removeDestination={removeDestination} />}
+      {selected && <PlanWorkspace selected={selected} actions={actions} onOpenConversation={() => setConversationOpen(true)} destinationView={destinationView} setDestinationView={setDestinationView} mapCanvas={mapCanvas} placeSearch={placeSearch} mapsApiKey={mapsApiKey} mapsStatus={mapsStatus} candidate={candidate} setCandidate={setCandidate} savedDestinations={savedDestinations} saveCandidate={saveCandidate} savingDestination={savingDestination} removeDestination={removeDestination} brief={brief} briefOpen={briefOpen} setBriefOpen={setBriefOpen} onSaveBrief={saveBrief} briefSaving={briefSaving} />}
       {!selected && <><ul className="plan-grid" aria-label={view === 'deleted' ? 'Deleted plans' : 'Active plans'} aria-busy={loading}>
         {plans.map(plan => <li key={plan.plan_id} className="plan-card"><span className="plan-badge">Draft plan</span>
           <h2>{view === 'deleted' ? plan.title : <a href={`/plans/${plan.plan_id}`} onClick={e => link(e, () => open(plan.plan_id))}>{plan.title}</a>}</h2>

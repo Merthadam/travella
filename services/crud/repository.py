@@ -18,13 +18,14 @@ from uuid import UUID
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from .contracts import ConversationRef, DestinationRef, LifecycleProblem, PlanRef
+from .contracts import BriefRef, ConversationRef, DestinationRef, LifecycleProblem, PlanRef
 from .models import (
     Conversation,
     DestinationPin,
     Plan,
     PlanActionReceipt,
     PlanChallenge,
+    PlanningBrief,
     PlanLifecycle,
     ReceiptStatus,
     TitleSource,
@@ -328,6 +329,33 @@ class PlanRepository:
         if not plan:
             raise LifecycleProblem("not_found")
         return plan
+
+    def get_brief(self, subject: str, plan_id: UUID) -> BriefRef:
+        plan = self.session.scalar(select(Plan).where(Plan.id == plan_id, Plan.traveler_subject == subject))
+        if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE:
+            raise LifecycleProblem("plan_unavailable")
+        row = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
+        payload = json.loads(row.payload) if row else {}
+        return BriefRef(plan_id, payload, plan.revision)
+
+    def update_brief(self, subject: str, plan_id: UUID, request_id: str, expected_revision: int, data: dict) -> BriefRef:
+        now = self.clock(); validate_request_id(request_id, now)
+        payload = {"operation": "brief_update", "plan_id": str(plan_id), **data}
+        existing = self._receipt(subject, request_id, "brief_update", payload)
+        plan = self._locked_plan(subject, plan_id)
+        if existing:
+            return self.get_brief(subject, plan_id)
+        if plan.lifecycle is not PlanLifecycle.ACTIVE or plan.revision != expected_revision:
+            raise LifecycleProblem("revision_conflict")
+        row = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
+        if row:
+            row.payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False); row.updated_at = now
+        else:
+            self.session.add(PlanningBrief(plan_id=plan_id, payload=json.dumps(data, separators=(",", ":"), ensure_ascii=False), updated_at=now))
+        plan.revision += 1; plan.last_activity_at = now; plan.updated_at = now
+        self.session.add(self._success_receipt(subject, request_id, "brief_update", payload, plan_id, now))
+        self.session.commit()
+        return BriefRef(plan_id, data, plan.revision)
 
     def destinations(self, subject: str, plan_id: UUID) -> list[DestinationRef]:
         plan = self.session.scalar(select(Plan).where(Plan.id == plan_id, Plan.traveler_subject == subject))

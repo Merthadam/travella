@@ -42,6 +42,13 @@ class DestinationRef:
     granularity: str
 
 
+@dataclass(frozen=True)
+class BriefRef:
+    plan_id: UUID
+    payload: dict
+    revision: int
+
+
 class LifecycleProblem(Exception):
     def __init__(self, code: str, message: str = "Plan unavailable.") -> None:
         super().__init__(message)
