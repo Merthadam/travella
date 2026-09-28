@@ -62,6 +62,8 @@ class AgentGraph:
         if status not in {"ready", "shortlist_ready"}:
             return {"status": "unable to continue", "error": "Research is temporarily unavailable."}
         candidates = _bounded_candidates(result.get("candidates", []))
+        if not candidates:
+            return {"status": "unable to continue", "error": "No complete candidates were returned."}
         return {"status": "searching", "candidates": candidates, "run_id": result.get("run_id", "")}
 
     async def map_resolution(self, state: AgentState) -> dict[str, Any]:
@@ -87,6 +89,8 @@ class AgentGraph:
         projection: dict[str, Any] = {"status": status, "plan_id": state["plan_id"], "event_id": state["event_id"], "generation": state.get("generation", 0)}
         if status == "shortlist_ready":
             projection["candidates"] = state.get("candidates", [])[:5]
+            if state.get("run_id"):
+                projection["run_id"] = state["run_id"]
         if state.get("question"):
             projection["question"] = state["question"]
         if state.get("error"):

@@ -104,14 +104,112 @@ class ClaudeGatewayAdapter:
             tools=[{"type": "mcp_toolset", "mcp_server_name": "travella-gateway", "default_config": {"enabled": True}, "configs": {}}],
         )
 
+    @staticmethod
+    def _blocks(response: Any) -> list[Any]:
+        blocks = getattr(response, "content", None)
+        if blocks is None and isinstance(response, dict):
+            blocks = response.get("content")
+        return blocks if isinstance(blocks, list) else []
+
+    @staticmethod
+    def _value(value: Any, name: str, default: Any = None) -> Any:
+        if isinstance(value, dict):
+            return value.get(name, default)
+        return getattr(value, name, default)
+
+    @classmethod
+    def _decode_payload(cls, value: Any) -> dict[str, Any] | None:
+        if isinstance(value, dict):
+            if isinstance(value.get("structuredContent"), dict):
+                return value["structuredContent"]
+            if isinstance(value.get("structured_content"), dict):
+                return value["structured_content"]
+            text = value.get("text")
+            if isinstance(text, str):
+                try:
+                    decoded = json.loads(text)
+                except (TypeError, ValueError):
+                    return None
+                return decoded if isinstance(decoded, dict) else None
+            return value
+        if isinstance(value, str):
+            try:
+                decoded = json.loads(value)
+            except (TypeError, ValueError):
+                return None
+            return decoded if isinstance(decoded, dict) else None
+        return None
+
+    @classmethod
+    def _extract_tool_result(cls, response: Any, expected_tool: str) -> dict[str, Any]:
+        """Extract one successful, allowlisted Claude MCP result block.
+
+        The SDK returns typed content blocks, while test transports commonly use
+        dictionaries.  Both are accepted, but a plain assistant text response
+        is never treated as a provider result.
+        """
+        found = False
+        for block in cls._blocks(response):
+            block_type = cls._value(block, "type")
+            tool_name = cls._value(block, "name") or cls._value(block, "tool_name")
+            if block_type not in {"mcp_tool_result", "tool_result"}:
+                continue
+            if tool_name and tool_name != expected_tool:
+                continue
+            found = True
+            if cls._value(block, "is_error", False) or cls._value(block, "error"):
+                raise GatewayProtocolError("Claude MCP tool returned an error")
+            payload = cls._decode_payload(cls._value(block, "result"))
+            if payload is None:
+                content = cls._value(block, "content", [])
+                for item in content if isinstance(content, list) else []:
+                    payload = cls._decode_payload(item)
+                    if payload is not None:
+                        break
+            if not isinstance(payload, dict):
+                raise GatewayProtocolError("Claude MCP tool result was malformed")
+            return payload
+        if found:
+            raise GatewayProtocolError("Claude MCP tool result was malformed")
+        raise GatewayProtocolError("Claude did not invoke the required MCP tool")
+
+    async def complete_tool(
+        self,
+        *,
+        tool: str,
+        arguments: dict[str, Any],
+        authorization_token: str,
+    ) -> dict[str, Any]:
+        if tool not in ALLOWED_TOOLS:
+            raise GatewayProtocolError("tool is not allowlisted")
+        prompt = (
+            "Use exactly one allowed Travella MCP tool for this Plan request. "
+            "Do not invent provider data or explain the tool call. "
+            f"Call {tool} with this JSON argument object: {json.dumps(arguments, separators=(',', ':'))}"
+        )
+        response = await self.complete(message=prompt, authorization_token=authorization_token)
+        return self._extract_tool_result(response, tool)
+
     async def research(self, *, message: str, traveler_scope: str, plan_id: str, event_id: str, authorization_token: str | None = None) -> dict[str, Any]:
-        return await self._gateway(authorization_token or traveler_scope).call_tool(RESEARCH_TOOL, {"theme": message, "traveler_scope": traveler_scope, "plan_id": plan_id, "request_id": event_id})
+        return await self.complete_tool(
+            tool=RESEARCH_TOOL,
+            arguments={"theme": message, "traveler_scope": traveler_scope, "plan_id": plan_id, "request_id": event_id},
+            authorization_token=authorization_token or traveler_scope,
+        )
 
     async def resolve_map(self, *, names: list[str], traveler_scope: str, plan_id: str, authorization_token: str | None = None) -> dict[str, Any]:
-        return await self._gateway(authorization_token or traveler_scope).call_tool(MAP_TOOL, {"candidate_names": names, "traveler_scope": traveler_scope, "plan_id": plan_id})
+        return await self.complete_tool(
+            tool=MAP_TOOL,
+            arguments={"candidate_names": names, "traveler_scope": traveler_scope, "plan_id": plan_id},
+            authorization_token=authorization_token or traveler_scope,
+        )
 
     async def sources(self, *, evidence_ids: list[str], traveler_scope: str, plan_id: str, run_id: str, authorization_token: str | None = None) -> dict[str, Any]:
-        return await self._gateway(authorization_token or traveler_scope).call_tool(SOURCE_TOOL, {"evidence_ids": evidence_ids, "traveler_scope": traveler_scope, "plan_id": plan_id, "run_id": run_id})
+        return await self.complete_tool(
+            tool=SOURCE_TOOL,
+            arguments={"evidence_ids": evidence_ids, "traveler_scope": traveler_scope, "plan_id": plan_id, "run_id": run_id},
+            authorization_token=authorization_token or traveler_scope,
+        )
 
 
 class LocalGatewayAdapter(ClaudeGatewayAdapter):

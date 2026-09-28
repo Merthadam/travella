@@ -19,7 +19,7 @@ from services.crud.auth import bearer_identity
 from .claude import ClaudeGatewayAdapter
 from .graph import AgentGraph
 from .memory import create_memory_adapter
-from .state import ProcessReceiptCache
+from .state import PlanCandidateStore, ProcessReceiptCache
 
 
 class CandidateAction(BaseModel):
@@ -85,7 +85,7 @@ def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, pl
     adapter = adapter or ClaudeGatewayAdapter(os.getenv("AGENTCORE_GATEWAY_URL", "https://gateway.invalid/mcp"))
     graph = graph or AgentGraph(adapter)
     cache = ProcessReceiptCache(cache_size)
-    generations: dict[tuple[str, str], int] = {}
+    candidates = PlanCandidateStore(max_receipts=cache_size)
     memory = create_memory_adapter()
     app = FastAPI(title="Travella agent service", docs_url=None, redoc_url=None)
 
@@ -125,32 +125,93 @@ def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, pl
         token = (authorization or "")[7:].strip()
         plan = await read_plan(identity.subject, request.plan_id, token)
         plan_id = str(request.plan_id)
-        key = (identity.subject, plan_id)
-        existing = cache.get(identity.subject, plan_id, request.event_id)
-        if existing is not None:
-            return AgentResponse.model_validate(existing)
-        generation = generations.get(key, 0) + 1
-        generations[key] = generation
+        reservation = await candidates.reserve(identity.subject, plan_id, request.event_id)
+        if not reservation.owner:
+            if reservation.future.done():
+                return AgentResponse.model_validate(reservation.future.result())
+            prior = await candidates.snapshot(identity.subject, plan_id)
+            return AgentResponse(
+                status="in_progress", plan_id=request.plan_id, event_id=request.event_id,
+                generation=reservation.generation,
+                candidates=list(prior.candidates) if prior else [],
+            )
+        generation = reservation.generation
         action = request.candidate_action.model_dump() if request.candidate_action else None
-        if action and action["action"] in {"explore", "reject", "name"}:
-            projection = {"status": "candidate_action", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "action": action}
+        prior = await candidates.snapshot(identity.subject, plan_id)
+
+        async def finish(projection: dict[str, Any]) -> AgentResponse:
             cache.put(identity.subject, plan_id, request.event_id, projection)
+            await candidates.resolve_pending(identity.subject, plan_id, request.event_id, projection)
             return AgentResponse.model_validate(projection)
-        if action and action["action"] == "inspect":
-            if not action["evidence_ids"]:
-                raise HTTPException(422, "Evidence IDs are required.")
-            run_id = str(request.message or "")[:180]
-            result = await adapter.sources(evidence_ids=action["evidence_ids"], traveler_scope=identity.subject, plan_id=plan_id, run_id=run_id, authorization_token=token)
-            projection = {"status": "source_detail", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "evidence": result.get("evidence", [])[:10]}
-            cache.put(identity.subject, plan_id, request.event_id, projection)
-            return AgentResponse.model_validate(projection)
-        state = {"traveler_scope": identity.subject, "authorization_token": token, "plan_id": plan_id, "plan_revision": int(plan.get("revision", 1)), "event_id": request.event_id, "generation": generation, "message": request.message, "candidate_action": action}
-        result = await graph.invoke(state)
-        projection = result.get("projection") if isinstance(result, dict) else None
-        if not isinstance(projection, dict):
-            raise HTTPException(502, "Agent response was invalid.")
-        cache.put(identity.subject, plan_id, request.event_id, projection)
-        return AgentResponse.model_validate(projection)
+
+        try:
+            action_name = action.get("action") if action else None
+            if action_name in {"explore", "reject"}:
+                if prior is None:
+                    raise HTTPException(422, "No current candidate shortlist.")
+                selected = next((item for item in prior.candidates if item.get("candidate_id") == action.get("candidate_id")), None)
+                if selected is None:
+                    raise HTTPException(422, "Candidate is not part of the current shortlist.")
+                if action_name == "reject":
+                    rejected = frozenset((*prior.rejected, str(selected["candidate_id"])))
+                    remaining = [item for item in prior.candidates if item.get("candidate_id") not in rejected]
+                    if not await candidates.publish(identity.subject, plan_id, generation, query=prior.query, run_id=prior.run_id, candidates=remaining, rejected=rejected):
+                        return await finish({"status": "interrupted", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "candidates": list(prior.candidates)})
+                    return await finish({"status": "candidate_action", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "action": action, "candidates": remaining})
+                return await finish({"status": "candidate_action", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "action": action, "candidates": [selected]})
+
+            if action_name == "inspect":
+                if prior is None or not action["evidence_ids"]:
+                    raise HTTPException(422, "Evidence IDs are required for the current shortlist.")
+                known = {str(ref.get("evidence_id")) for item in prior.candidates for ref in item.get("evidence", [])}
+                if not set(action["evidence_ids"]).issubset(known):
+                    raise HTTPException(422, "Evidence is not part of the current shortlist.")
+                result = await adapter.sources(evidence_ids=action["evidence_ids"], traveler_scope=identity.subject, plan_id=plan_id, run_id=prior.run_id, authorization_token=token)
+                evidence = result.get("evidence", []) if isinstance(result, dict) else []
+                if not isinstance(evidence, list):
+                    raise HTTPException(502, "Source results were invalid.")
+                return await finish({"status": "source_detail", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "evidence": evidence[:10]})
+
+            query = request.message.strip()
+            if action_name == "name":
+                query = (action.get("destination") or "").strip()
+                if not query:
+                    raise HTTPException(422, "Destination is required.")
+            if action_name in {"extend", "refresh"} and not query:
+                query = prior.query if prior else ""
+            if action_name in {"extend", "refresh"} and not query:
+                raise HTTPException(422, "A previous research query is required.")
+            state = {"traveler_scope": identity.subject, "authorization_token": token, "plan_id": plan_id, "plan_revision": int(plan.get("revision", 1)), "event_id": request.event_id, "generation": generation, "message": query, "candidate_action": action}
+            result = await graph.invoke(state)
+            projection = result.get("projection") if isinstance(result, dict) else None
+            if not isinstance(projection, dict):
+                raise HTTPException(502, "Agent response was invalid.")
+            fresh = projection.get("candidates", []) if projection.get("status") == "shortlist_ready" else []
+            if action_name == "extend" and prior:
+                seen = {str(item.get("candidate_id")) for item in prior.candidates}
+                fresh = list(prior.candidates) + [item for item in fresh if str(item.get("candidate_id")) not in seen and str(item.get("candidate_id")) not in prior.rejected]
+                fresh = fresh[:5]
+            if projection.get("status") == "shortlist_ready" and not fresh:
+                projection = {**projection, "status": "unable to continue", "error": "No complete candidates were returned."}
+            if projection.get("status") == "shortlist_ready":
+                run_id = str(result.get("run_id") or projection.get("run_id") or "")
+                if action_name == "extend" and prior:
+                    run_id = prior.run_id
+                if not await candidates.publish(identity.subject, plan_id, generation, query=query, run_id=run_id, candidates=fresh, rejected=prior.rejected if prior else frozenset()):
+                    return await finish({"status": "interrupted", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "candidates": list(prior.candidates) if prior else []})
+                projection = {**projection, "candidates": fresh}
+            elif prior:
+                projection = {**projection, "candidates": list(prior.candidates), "action": action if action_name == "refresh" else projection.get("action")}
+            return await finish(projection)
+        except HTTPException as exc:
+            await candidates.resolve_pending(identity.subject, plan_id, request.event_id, {"status": "unable to continue", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "error": str(exc.detail)})
+            raise
+        except Exception:
+            safe = {"status": "unable to continue", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "error": "Agent provider unavailable."}
+            if prior:
+                safe["candidates"] = list(prior.candidates)
+            await candidates.resolve_pending(identity.subject, plan_id, request.event_id, safe)
+            return AgentResponse.model_validate(safe)
 
     router = APIRouter(prefix="/v1/agent")
 
