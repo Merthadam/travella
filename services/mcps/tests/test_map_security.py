@@ -12,4 +12,4 @@ def test_map_rejects_spoofed_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_MAPS_SERVER_API_KEY", "server-key")
     with authenticated_context(ToolAuthContext("actor-1", "plan-1", "assertion")):
         with pytest.raises(AuthenticationError):
-            asyncio.run(map_server.resolve_candidate_locations(["Kyoto"], "attacker", "plan-1"))
+            asyncio.run(map_server.resolve_candidate_locations(["Kyoto"], "attacker-plan"))

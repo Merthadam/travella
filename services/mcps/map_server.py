@@ -6,23 +6,21 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 from .config import McpSettings, required_secret
-from .transport import AuthenticationError, require_tool_context
+from .transport import authenticated_mcp_app, require_tool_context
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 map_mcp = FastMCP("travella-map-mcp")
 
 
 async def _resolve_candidate_locations(
-    candidate_names: list[str], traveler_scope: str, plan_id: str
+    candidate_names: list[str], plan_id: str
 ) -> dict:
     """Resolve temporary candidate names into map-ready projections.
 
     This tool never creates or updates a Plan record. Saved destinations remain
     an explicit CRUD action in the authenticated application.
     """
-    context = require_tool_context(plan_id=plan_id)
-    if traveler_scope != context.subject:
-        raise AuthenticationError("traveler_scope is controlled by the Gateway")
+    require_tool_context(plan_id=plan_id)
     names = [" ".join(str(name).split()).strip() for name in candidate_names]
     names = list(dict.fromkeys(name for name in names if name))[:5]
     settings = McpSettings.from_env()
@@ -76,22 +74,20 @@ async def _resolve_candidate_locations(
 
 @map_mcp.tool()
 async def resolve_candidate_locations(
-    candidate_names: list[str], traveler_scope: str, plan_id: str
+    candidate_names: list[str], plan_id: str
 ) -> dict:
     """Resolve temporary candidate names into map-ready projections."""
-    return await _resolve_candidate_locations(candidate_names, traveler_scope, plan_id)
+    return await _resolve_candidate_locations(candidate_names, plan_id)
 
 
 @map_mcp.tool()
-async def get_candidate_map_projection(candidate_names: list[str], traveler_scope: str) -> dict:
+async def get_candidate_map_projection(candidate_names: list[str], plan_id: str) -> dict:
     """Return a bounded map projection without mutating durable Plan state."""
-    context = require_tool_context()
-    if context.plan_id == "temporary":
-        raise AuthenticationError("temporary map projection requires a Plan scope")
-    result = await _resolve_candidate_locations(candidate_names, traveler_scope, plan_id=context.plan_id)
-    result["plan_id"] = "temporary"
-    return result
+    return await _resolve_candidate_locations(candidate_names, plan_id)
 
 
 if __name__ == "__main__":
-    map_mcp.run(transport="streamable-http")
+    import os
+
+    import uvicorn
+    uvicorn.run(authenticated_mcp_app(map_mcp), host="0.0.0.0", port=int(os.getenv("PORT", "8001")))

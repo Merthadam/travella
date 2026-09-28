@@ -19,8 +19,11 @@ The servers use Streamable HTTP. Every target call must arrive through the
 Gateway with both an OAuth client-credentials service token and a short-lived
 signed actor/Plan assertion. `tools/list` is allowed for catalog
 synchronization; direct `tools/call` requests are rejected before provider
-work. Set `MCP_ASSERTION_SIGNING_SECRET` and `MCP_GATEWAY_SERVICE_TOKEN` in the
-private runtime environment. The interceptor expects Cognito access tokens and
+work. Set `MCP_ASSERTION_SIGNING_SECRET`, `MCP_GATEWAY_OAUTH_ISSUER`,
+`MCP_GATEWAY_OAUTH_AUDIENCE`, `MCP_GATEWAY_OAUTH_CLIENT_ID`, and either the
+private JWKS URL or signing key in the target runtime. The target validates the
+Gateway OAuth client-credentials token by issuer, signature, audience, expiry,
+client identity, and scope. The interceptor expects Cognito access tokens and
 checks issuer, client, expiry, token use, scope, and CRUD Plan ownership.
 
 The evidence registry is metadata-only and can be persisted across process

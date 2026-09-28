@@ -16,7 +16,9 @@ import json
 import os
 import time
 from dataclasses import dataclass
-from typing import Iterator, Mapping
+from typing import Any, Awaitable, Callable, Iterator, Mapping
+
+import jwt
 
 
 class AuthenticationError(ValueError):
@@ -98,14 +100,42 @@ def verify_scope_assertion(assertion: str, *, subject: str | None = None, plan_i
     return ScopeAssertion(payload["sub"], payload["plan"], audience, int(payload["exp"]), payload["jti"])
 
 
-def verify_service_credential(headers: Mapping[str, str]) -> None:
-    expected = os.getenv("MCP_GATEWAY_SERVICE_TOKEN")
+def _oauth_claims(headers: Mapping[str, str]) -> dict[str, Any]:
     authorization = headers.get("authorization") or headers.get("Authorization")
-    if not expected or not authorization or not authorization.startswith("Bearer "):
+    issuer = os.getenv("MCP_GATEWAY_OAUTH_ISSUER")
+    audience = os.getenv("MCP_GATEWAY_OAUTH_AUDIENCE")
+    client_id = os.getenv("MCP_GATEWAY_OAUTH_CLIENT_ID")
+    required_scope = os.getenv("MCP_GATEWAY_OAUTH_SCOPE", "travella.mcp")
+    key = os.getenv("MCP_GATEWAY_OAUTH_JWT_KEY")
+    jwks_url = os.getenv("MCP_GATEWAY_OAUTH_JWKS_URL")
+    if not authorization or not authorization.startswith("Bearer "):
         raise AuthenticationError("invalid Gateway service credential")
-    supplied = authorization[7:].strip()
-    if not hmac.compare_digest(supplied, expected):
+    if not issuer or not audience or not client_id or not (key or jwks_url):
+        raise AuthenticationError("Gateway OAuth target authentication is not configured")
+    token = authorization[7:].strip()
+    try:
+        signing_key: Any = key
+        if not signing_key:
+            signing_key = jwt.PyJWKClient(jwks_url, timeout=5).get_signing_key_from_jwt(token).key
+        claims = jwt.decode(
+            token,
+            signing_key,
+            algorithms=["RS256", "HS256"],
+            issuer=issuer,
+            audience=audience,
+            options={"require": ["exp", "iat", "iss"]},
+        )
+    except jwt.PyJWTError as exc:
+        raise AuthenticationError("invalid Gateway service credential") from exc
+    supplied_client = claims.get("client_id") or claims.get("azp")
+    if supplied_client != client_id or required_scope not in set(str(claims.get("scope", "")).split()):
         raise AuthenticationError("invalid Gateway service credential")
+    return claims
+
+
+def verify_service_credential(headers: Mapping[str, str]) -> dict[str, Any]:
+    """Verify the Gateway's OAuth client-credentials token at the target."""
+    return _oauth_claims(headers)
 
 
 def authenticate_tool_call(headers: Mapping[str, str], *, assertion: str, plan_id: str) -> ToolAuthContext:
@@ -156,3 +186,81 @@ async def dispatch_authenticated_tool(
         raise AuthenticationError("invalid MCP tool")
     with authenticated_context(context):
         return await tool(**dict(arguments))
+
+
+def _jsonrpc_error(request_id: object, message: str, *, code: int = -32001) -> dict[str, object]:
+    return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
+
+
+class AuthenticatedMcpASGI:
+    """Authenticate the real FastMCP Streamable HTTP route before dispatch."""
+
+    def __init__(self, app: Callable[..., Awaitable[None]], *, path: str = "/mcp") -> None:
+        self.app = app
+        self.path = path
+
+    async def __call__(self, scope: dict[str, Any], receive: Callable[..., Awaitable[dict[str, Any]]], send: Callable[..., Awaitable[None]]) -> None:
+        if scope.get("type") != "http" or scope.get("path") != self.path or scope.get("method") != "POST":
+            await self.app(scope, receive, send)
+            return
+        headers = {key.decode("latin-1"): value.decode("latin-1") for key, value in scope.get("headers", [])}
+        chunks: list[bytes] = []
+        more = True
+        while more:
+            message = await receive()
+            chunks.append(message.get("body", b""))
+            more = bool(message.get("more_body"))
+        body: object = None
+        try:
+            body = json.loads(b"".join(chunks))
+            if not isinstance(body, dict) or body.get("jsonrpc") != "2.0" or "method" not in body:
+                raise AuthenticationError("malformed MCP JSON-RPC envelope")
+            method = body["method"]
+            if method not in {"initialize", "tools/list", "tools/call"}:
+                raise AuthenticationError("unsupported MCP operation")
+            if method == "tools/call":
+                params = body.get("params")
+                if not isinstance(params, dict) or not isinstance(params.get("arguments"), dict):
+                    raise AuthenticationError("malformed MCP tools/call envelope")
+                arguments = dict(params["arguments"])
+                plan_id = str(arguments.get("plan_id") or "").strip()
+                assertion = str(arguments.get("__travella_scope_assertion") or "")
+                if not plan_id or not assertion:
+                    raise AuthenticationError("MCP tools/call requires Gateway scope")
+                context = authenticate_tool_call(headers, assertion=assertion, plan_id=plan_id)
+                arguments.pop("__travella_scope_assertion", None)
+                arguments.pop("traveler_scope", None)
+                params = dict(params)
+                params["arguments"] = arguments
+                body = dict(body)
+                body["params"] = params
+            else:
+                verify_service_credential(headers)
+                context = None
+        except (AuthenticationError, json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
+            response = json.dumps(_jsonrpc_error(body.get("id") if isinstance(body, dict) else None, "MCP request denied")).encode()
+            await send({"type": "http.response.start", "status": 403, "headers": [(b"content-type", b"application/json")]})
+            await send({"type": "http.response.body", "body": response})
+            return
+
+        async def replay() -> dict[str, Any]:
+            sent = False
+            async def next_message() -> dict[str, Any]:
+                nonlocal sent
+                if sent:
+                    return {"type": "http.disconnect"}
+                sent = True
+                return {"type": "http.request", "body": json.dumps(body).encode(), "more_body": False}
+            return await next_message()
+
+        token = _AUTH_CONTEXT.set(context) if context is not None else None
+        try:
+            await self.app(scope, replay, send)
+        finally:
+            if token is not None:
+                _AUTH_CONTEXT.reset(token)
+
+
+def authenticated_mcp_app(mcp_server: Any) -> Any:
+    """Build a mounted, authenticated ASGI app around a FastMCP instance."""
+    return AuthenticatedMcpASGI(mcp_server.streamable_http_app())

@@ -7,8 +7,9 @@ traveler or Plan supplied in tool arguments.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
-from typing import Callable, Mapping
+from typing import Any, Callable, Mapping
 
 import jwt
 
@@ -75,19 +76,23 @@ class GatewayRequestInterceptor:
         scope_values = set(str(claims.get("scope", "")).split())
         if self.required_scope not in scope_values:
             raise AuthenticationError("missing agent scope")
-        arguments = request.body.get("params", {})
+        params = request.body.get("params")
+        if not isinstance(params, Mapping) or params.get("name") is None:
+            raise AuthenticationError("invalid tool arguments")
+        arguments = params.get("arguments")
         if not isinstance(arguments, Mapping):
             raise AuthenticationError("invalid tool arguments")
         plan_id = str(arguments.get("plan_id") or "").strip()
         if not plan_id or not self.plan_owner(str(claims["sub"]), plan_id):
             raise AuthenticationError("Plan is not owned by traveler")
         assertion = issue_scope_assertion(str(claims["sub"]), plan_id)
-        params = dict(arguments)
-        params.pop("traveler_scope", None)
-        params["__travella_scope_assertion"] = assertion
-        params["traveler_scope"] = str(claims["sub"])
+        transformed_arguments = dict(arguments)
+        transformed_arguments.pop("traveler_scope", None)
+        transformed_arguments["__travella_scope_assertion"] = assertion
+        transformed_arguments["traveler_scope"] = str(claims["sub"])
         result = dict(request.body)
-        result["params"] = params
+        result["params"] = dict(params)
+        result["params"]["arguments"] = transformed_arguments
         return GatewayDecision(True, result)
 
 
@@ -96,3 +101,42 @@ def intercept_request(interceptor: GatewayRequestInterceptor, request: GatewayRe
         return interceptor.intercept(request)
     except AuthenticationError as exc:
         return GatewayDecision(False, {"error": str(exc)}, 403)
+
+
+def request_from_agentcore_event(event: Mapping[str, Any]) -> GatewayRequest:
+    """Adapt AgentCore's documented MCP interceptor event to the local contract."""
+    if event.get("interceptorInputVersion") != "1.0":
+        raise AuthenticationError("unsupported interceptor input version")
+    gateway = event.get("mcp", {}).get("gatewayRequest") if isinstance(event.get("mcp"), Mapping) else None
+    if not isinstance(gateway, Mapping) or not isinstance(gateway.get("body"), Mapping):
+        raise AuthenticationError("malformed AgentCore MCP request")
+    return GatewayRequest(
+        str(gateway.get("httpMethod") or "POST"),
+        gateway.get("headers", {}) if isinstance(gateway.get("headers", {}), Mapping) else {},
+        gateway["body"],
+        pass_request_headers="headers" in gateway,
+    )
+
+
+def agentcore_response(decision: GatewayDecision) -> dict[str, Any]:
+    """Wrap a transformed request in AgentCore's documented MCP output envelope."""
+    if not decision.allowed:
+        return {
+            "interceptorOutputVersion": "1.0",
+            "mcp": {"transformedGatewayResponse": {"statusCode": decision.status_code, "body": decision.body}},
+        }
+    return {"interceptorOutputVersion": "1.0", "mcp": {"transformedGatewayRequest": {"body": decision.body}}}
+
+
+def lambda_handler(event: Mapping[str, Any], _context: object = None) -> dict[str, Any]:
+    """AgentCore REQUEST interceptor entry point for a configured deployment."""
+    request = request_from_agentcore_event(event)
+    interceptor = GatewayRequestInterceptor(
+        jwt_key=os.getenv("COGNITO_JWT_KEY", ""),
+        issuer=os.getenv("COGNITO_ISSUER", ""),
+        client_id=os.getenv("COGNITO_CLIENT_ID", ""),
+        # The deployed adapter must replace this with the CRUD ownership
+        # reader; fail closed when the Lambda has not been wired to CRUD yet.
+        plan_owner=lambda _subject, _plan: False,
+    )
+    return agentcore_response(intercept_request(interceptor, request))
