@@ -19,7 +19,7 @@ export function PlanDetails({ brief, open, onOpen, onClose, onSave, saving, erro
   const update = event => setDraft(current => ({ ...current, [event.target.name]: event.target.name === 'travelers' ? (event.target.value === '' ? '' : Math.min(50, Math.max(1, Number(event.target.value)))) : event.target.value }));
   return <section className="trip-details" aria-label="Trip details">
     <div className="trip-details-summary"><div><p className="eyebrow">PLAN CONTEXT</p><strong>{briefLabel(brief || emptyBrief)}</strong></div><button onClick={onOpen}>{brief ? 'Edit details' : 'Add trip details'}</button></div>
-    {open && <div className="trip-details-editor" role="dialog" aria-label="Edit trip details" aria-modal="true">
+    {open && <div className="trip-details-editor" role="region" aria-label="Edit trip details">
       <div className="trip-details-editor-header"><div><p className="eyebrow">PLAN CONTEXT</p><h3>Trip details</h3></div><button type="button" onClick={onClose}>Close</button></div>
       <p className="trip-details-help">These details shape the plan while you stay in control of every saved change.</p>
       <div className="trip-details-fields">

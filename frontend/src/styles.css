@@ -194,8 +194,7 @@ body { background: #eef3f8; }
 .trip-details-summary { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 20px; border: 1px solid rgb(146 170 192 / 45%); border-radius: 18px; background: rgb(255 255 255 / 70%); box-shadow: 0 12px 30px rgb(26 53 80 / 6%); }
 .trip-details-summary strong { display: block; margin-top: 5px; color: #17263a; font-size: 15px; }
 .trip-details-summary button, .trip-details-editor-header button { color: #0c6f68; background: transparent; font-weight: 750; }
-.trip-details-editor { position: absolute; z-index: 4; top: calc(100% + 12px); right: 0; width: min(560px, calc(100vw - 32px)); padding: 22px; border: 1px solid #c7d6e3; border-radius: 22px; background: #f9fcff; box-shadow: 0 24px 60px rgb(7 20 35 / 24%); }
-.trip-details-editor::before { content: ''; position: fixed; z-index: -1; inset: 0; background: rgb(4 14 26 / 22%); pointer-events: none; }
+.trip-details-editor { width: min(760px, 100%); margin-top: 12px; padding: 22px; border: 1px solid #c7d6e3; border-radius: 22px; background: rgb(249 252 255 / 92%); box-shadow: 0 14px 34px rgb(7 20 35 / 10%); }
 .trip-details-editor-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #d5e0eb; }
 .trip-details-editor-header h3 { margin: 4px 0 0; color: #17263a; font-size: 24px; letter-spacing: -.04em; }
 .trip-details-help { color: #647892; line-height: 1.5; }
@@ -205,5 +204,5 @@ body { background: #eef3f8; }
 .trip-details-fields textarea { min-height: 66px; resize: vertical; }
 .trip-details-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .trip-details-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-@media (max-width: 600px) { .trip-details-summary { align-items: start; flex-direction: column; } .trip-details-editor { left: 0; right: auto; } .trip-details-row { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .trip-details-summary { align-items: start; flex-direction: column; } .trip-details-row { grid-template-columns: 1fr; } }
 @media (max-width: 767px) { .plans-main { padding: 24px 16px 56px; } .map-stage { min-height: 430px; border-radius: 20px; } }

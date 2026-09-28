@@ -59,6 +59,12 @@ Date: 2026-09-28
 - Frontend focused suite: `npx vitest run src/PlansApp.test.jsx` — 4 passed.
 - Frontend production build passed; `git diff --check` passed.
 
+## Trip details interaction refinement
+
+- Changed Trip details from an overlay-style editor to an inline expandable panel beneath the Plan context summary.
+- Chrome verification confirmed the editor opens in the document flow without a backdrop, keeps the map workspace context visible, and retains the existing save/cancel controls.
+- Frontend focused suite: `npx vitest run src/PlansApp.test.jsx` — 5 passed; production build and `git diff --check` passed.
+
 ## Frontend structure refactor
 
 - Extracted plan workspace and drawer UI into `frontend/src/features/plans/components/`.
