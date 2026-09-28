@@ -32,7 +32,35 @@ Executed checks:
 Existing warning: Starlette deprecates the current httpx TestClient integration.
 It does not fail these tests. Test records use pytest temporary directories.
 
-Plan 02-02 changes no frontend source. UI screenshots/browser verification belong
-to Plan 02-03. The helper and Vite proxy wiring move together with that consumer.
+## Plan 02-03: My plans UI
+
+Implementation preview rendered with Chrome DevTools from the UI contract:
+`plan/my-plans-preview.html`. The preview shows the two-column active Plan cards,
+stable New plan action, and Recently deleted entry.
+
+Automated UI evidence:
+- `npm test --prefix frontend`: 13 passed (9 account regression tests and 4
+  PlansApp lifecycle tests).
+- `npm run build --prefix frontend`: passed.
+
+Chrome DevTools evidence on `http://localhost:5173`:
+- Signed-out account shell rendered at 1440px and showed `Welcome back` with
+  email/password fields.
+- Sign-in interaction disabled the form while pending and produced the expected
+  401 request; network inspection showed `/auth/session` 401 and `/auth/sign-in`
+  401, with no private Plan DOM rendered.
+- Console inspection found only the expected Vite/React development messages,
+  favicon 404, and the expected unauthorized 401s.
+
+The authenticated browser path is blocked locally because the running service has
+no live Cognito configuration. The example account is available at the required
+local credential path, but this environment cannot establish a managed-identity
+session. This is recorded as incomplete browser verification rather than claimed
+as passed. The preview screenshot was inspected visually; saving a DevTools
+screenshot directly into this worktree was blocked by the browser tool's separate
+workspace-root policy.
+
+Plan 02-02 changes no frontend source. The API helper and Vite proxy wiring are
+now consumed by Plan 02-03.
 PostgreSQL runtime/concurrency, live Cognito and production deployment remain
 unverified; the development entry points refuse production mode.

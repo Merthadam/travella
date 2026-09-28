@@ -83,8 +83,13 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
         return PlanOutput.from_ref(repo.create(me.subject, request_id))
 
     @router.get("/{plan_id}", response_model=PlanOutput)
-    def get(plan_id: UUID, repo: Repo, me=Depends(identity)):
-        return PlanOutput.from_ref(repo.get(me.subject, plan_id))
+    def get(
+        plan_id: UUID,
+        repo: Repo,
+        me=Depends(identity),
+        view: Literal["active", "deleted"] = "active",
+    ):
+        return PlanOutput.from_ref(repo.get(me.subject, plan_id, include_deleted=view == "deleted"))
 
     @router.post("/{plan_id}/activity", response_model=PlanOutput)
     def activity(

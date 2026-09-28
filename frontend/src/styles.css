@@ -24,3 +24,40 @@ button { border: 0; border-radius: 999px; padding: .8rem 1.2rem; font: inherit; 
 button:disabled { opacity: .45; cursor: not-allowed; }
 .primary { color: white; background: #146b5e; }
 @media (max-width: 600px) { .shell { padding: 8vh 1.2rem; } .actions { gap: .75rem; } }
+
+.plans-app { min-height: 100vh; background: #f4f7f6; color: #18333a; }
+.plans-header { background: #fff; border-bottom: 1px solid #b4c9c5; }
+.plans-header > div, .plans-main { max-width: 1120px; margin: 0 auto; }
+.plans-header > div { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding: 16px 32px; }
+.brand { color: #18333a; font-size: 20px; font-weight: 600; text-decoration: none; }
+.plans-header nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.plans-header nav button { min-height: 44px; padding: 10px 12px; color: #146b5e; background: transparent; text-decoration: underline; }
+.plans-main { padding: 48px 32px 64px; }
+.plans-main > a { color: #146b5e; }
+.plans-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin: 24px 0 32px; }
+.plans-heading h1 { margin: 0; font-size: 28px; line-height: 1.2; }
+.plans-heading p, .meta { color: #5c706e; }
+.plan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 0; margin: 0 0 32px; list-style: none; }
+.plan-card, .plan-panel, .plan-empty { padding: 24px; background: #fff; border: 1px solid #b4c9c5; border-radius: 16px; }
+.plan-card h2 { overflow-wrap: anywhere; margin: 16px 0 8px; font-size: 20px; line-height: 1.2; }
+.plan-card h2 a { color: #146b5e; }
+.plan-badge { display: inline-block; padding: 4px 8px; background: #f4f7f6; border-radius: 4px; font-size: 14px; font-weight: 600; }
+.plan-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+.plan-actions button { min-height: 44px; }
+.plan-actions .danger, button.danger { color: #9c342d; background: #fff; border: 1px solid #b4c9c5; }
+.plan-empty { margin-bottom: 32px; }
+.recently-deleted { margin-top: 32px; }
+.recently-deleted h2 { margin-top: 0; }
+.plan-notice { color: #146b5e; }
+.plans-main > button { min-height: 44px; margin-bottom: 32px; }
+.plan-dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 0; border-radius: 16px; color: #18333a; }
+.plan-dialog::backdrop { background: rgb(24 51 58 / 45%); }
+.plan-dialog form { padding: 24px; }
+.plan-dialog h2 { margin-top: 0; font-size: 20px; }
+.plan-dialog label { margin: 24px 0 8px; }
+.plan-dialog input { width: 100%; box-sizing: border-box; }
+.plan-dialog .plan-actions { justify-content: space-between; margin-top: 32px; }
+.skip-link { position: absolute; left: 16px; top: -48px; z-index: 2; padding: 12px; color: #fff; background: #146b5e; }
+.skip-link:focus { top: 16px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 767px) { .plans-header > div, .plans-main { padding-left: 16px; padding-right: 16px; } .plan-grid { grid-template-columns: 1fr; } }

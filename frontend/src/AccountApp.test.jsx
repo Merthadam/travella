@@ -72,6 +72,7 @@ test('MFA challenge must succeed before the server session opens My plans', asyn
 test('authenticated enrollment shows recovery codes once', async () => {
   const user = await open();
   fetch.mockImplementation(async (path) => {
+    if (String(path).startsWith('/v1/plans')) return response(200, { plans: [] });
     if (path === '/auth/sign-in' || path === '/auth/session') return response(200, { state: 'signed_in' });
     if (path === '/auth/mfa/enrollment/start') return response(200, { state: 'mfa_enrollment', secret_code: 'JBSWY3DPEHPK3PXP' });
     if (path === '/auth/mfa/enrollment/verify') return response(200, { state: 'recovery_codes', codes: ['ABCD1234', 'EFGH5678'] });
@@ -96,6 +97,7 @@ test('authenticated enrollment shows recovery codes once', async () => {
 test('recovery code requires authenticator replacement before sign-in', async () => {
   const user = await open();
   fetch.mockImplementation(async (path) => {
+    if (String(path).startsWith('/v1/plans')) return response(200, { plans: [] });
     if (path === '/auth/sign-in') return response(200, { state: 'mfa_challenge' });
     if (path === '/auth/mfa/recovery') return response(200, { state: 'mfa_recovery_enrollment', secret_code: 'REPLACESECRET' });
     if (path === '/auth/mfa/recovery/verify') return response(200, { state: 'signed_in' });

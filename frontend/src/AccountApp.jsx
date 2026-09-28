@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { readSession, request } from './api';
+import { PlansApp } from './PlansApp';
 
 const titles = {
   sign_in: 'Welcome back', register: 'Create your account', verify_email: 'Verify your email',
@@ -107,6 +108,20 @@ export function AccountApp() {
     finally { setBusy(false); }
   }
 
+  async function beginEnrollment() {
+    setBusy(true); setError(null);
+    try {
+      const result = await request('/auth/mfa/enrollment/start', {});
+      setSecretCode(result.secret_code); setStep('mfa_enrollment');
+    } catch (err) { setError(err); }
+    finally { setBusy(false); }
+  }
+
+  if (step === 'signed_in') {
+    return <PlansApp onExpired={() => go('sign_in')} onSignOut={signOut} onAccount={beginEnrollment}
+      accountBusy={busy} accountError={error} />;
+  }
+
   const hasEmail = ['sign_in', 'register', 'verify_email', 'forgot_password_email', 'reset_password'].includes(step);
   const hasPassword = ['sign_in', 'register', 'reset_password'].includes(step);
   const isForm = hasEmail || ['mfa_challenge', 'mfa_enrollment', 'mfa_recovery', 'mfa_recovery_enrollment'].includes(step);
@@ -152,6 +167,5 @@ export function AccountApp() {
     {step === 'mfa_enrollment' && <p className="quiet">Add the secret code <code>{secretCode}</code> to your authenticator app, then enter the six-digit code.</p>}
     {step === 'mfa_recovery_enrollment' && <p className="quiet">Add the replacement secret <code>{secretCode}</code> to your new authenticator app, then enter its six-digit code.</p>}
     {step === 'recovery_codes' && <><p className="quiet">Save these codes somewhere safe. Each can be used once, and they will not be shown again.</p><pre className="recovery-codes">{recoveryCodes.join('\n')}</pre><button className="primary" onClick={() => go('signed_in')}>I saved my codes</button></>}
-    {step === 'signed_in' && <><p className="quiet">You’re signed in. Plan management is coming in the next phase.</p><button disabled={busy} onClick={async () => { setBusy(true); setError(null); try { const result = await request('/auth/mfa/enrollment/start', {}); setSecretCode(result.secret_code); setStep('mfa_enrollment'); } catch (err) { setError(err); } finally { setBusy(false); } }}>Set up authenticator</button><button disabled={busy} onClick={signOut}>Sign out</button></>}
   </main>;
 }
