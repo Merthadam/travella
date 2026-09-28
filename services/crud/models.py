@@ -101,6 +101,23 @@ class Conversation(Base):
     plan: Mapped[Plan] = relationship(back_populates="conversation")
 
 
+class DestinationPin(Base):
+    __tablename__ = "destination_pins"
+    __table_args__ = (UniqueConstraint("plan_id", "place_id", name="uq_destination_pins_plan_place"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    plan_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("plans.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    place_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    address: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    latitude: Mapped[float] = mapped_column(nullable=False)
+    longitude: Mapped[float] = mapped_column(nullable=False)
+    granularity: Mapped[str] = mapped_column(String(32), nullable=False, default="city")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class PlanActionReceipt(Base):
     __tablename__ = "plan_action_receipts"
     __table_args__ = (

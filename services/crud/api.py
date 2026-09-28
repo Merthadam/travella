@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Header, Query
 from .auth import identity_dependency
 from .contracts import LifecycleProblem
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
-from .schemas import ChallengeInput, ChallengeOutput, PlanOutput, PlanPage, TitleInput
+from .schemas import ChallengeInput, ChallengeOutput, DestinationInput, DestinationMutationOutput, DestinationOutput, PlanOutput, PlanPage, TitleInput
 
 WriteId = Annotated[str, Header(alias="Idempotency-Key", max_length=100)]
 Revision = Annotated[int, Header(alias="If-Match", ge=1)]
@@ -90,6 +90,19 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
         view: Literal["active", "deleted"] = "active",
     ):
         return PlanOutput.from_ref(repo.get(me.subject, plan_id, include_deleted=view == "deleted"))
+
+    @router.get("/{plan_id}/destinations", response_model=list[DestinationOutput])
+    def destinations(plan_id: UUID, repo: Repo, me=Depends(identity)):
+        return [DestinationOutput(destination_id=d.destination_id, plan_id=d.plan_id, place_id=d.place_id, name=d.name, address=d.address, latitude=d.latitude, longitude=d.longitude, granularity=d.granularity) for d in repo.destinations(me.subject, plan_id)]
+
+    @router.post("/{plan_id}/destinations", response_model=DestinationMutationOutput)
+    def add_destination(plan_id: UUID, data: DestinationInput, request_id: WriteId, if_match: Revision, repo: Repo, me=Depends(identity)):
+        destination, revision = repo.add_destination(me.subject, plan_id, request_id, if_match, data.model_dump())
+        return DestinationMutationOutput(destination=DestinationOutput(destination_id=destination.destination_id, plan_id=destination.plan_id, place_id=destination.place_id, name=destination.name, address=destination.address, latitude=destination.latitude, longitude=destination.longitude, granularity=destination.granularity), plan_revision=revision)
+
+    @router.delete("/{plan_id}/destinations/{destination_id}", response_model=dict)
+    def remove_destination(plan_id: UUID, destination_id: UUID, request_id: WriteId, if_match: Revision, repo: Repo, me=Depends(identity)):
+        return {"plan_revision": repo.remove_destination(me.subject, plan_id, destination_id, request_id, if_match)}
 
     @router.post("/{plan_id}/activity", response_model=PlanOutput)
     def activity(

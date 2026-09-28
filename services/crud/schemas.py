@@ -70,3 +70,28 @@ class ChallengeOutput(BaseModel):
     revision: int
     title: str | None
     expires_in: int = 300
+
+
+class DestinationInput(Input):
+    place_id: str = Field(min_length=1, max_length=255)
+    name: str = Field(min_length=1, max_length=255)
+    address: str = Field(default="", max_length=512)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    granularity: Literal["city", "country"] = "city"
+
+
+class DestinationOutput(BaseModel):
+    destination_id: UUID
+    plan_id: UUID
+    place_id: str
+    name: str
+    address: str
+    latitude: float
+    longitude: float
+    granularity: Literal["city", "country"]
+
+
+class DestinationMutationOutput(BaseModel):
+    destination: DestinationOutput
+    plan_revision: int

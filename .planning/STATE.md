@@ -90,3 +90,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 Last session: 2026-09-28T15:35:00Z
 Stopped at: Phase 2 implementation complete; resume at 02-UAT.md when Cognito-backed browser auth is available
 Resume file: .planning/phases/02-draft-plans-durable-lifecycle/02-03-PLAN.md
+
+### Frontend structure decision (2026-09-28)
+
+- Plans frontend work is being decomposed under `frontend/src/features/plans/` instead of growing `PlansApp.jsx` as a monolith.
+- Tailwind CSS is the styling system for new frontend components, with Travella theme tokens in `frontend/src/tailwind.css`; existing global styles will be migrated incrementally.
+- Full rationale: `docs/adr/0002-frontend-feature-structure-and-tailwind.md`.

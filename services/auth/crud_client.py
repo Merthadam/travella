@@ -5,10 +5,10 @@ from uuid import UUID
 
 import httpx
 from fastapi import HTTPException
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from services.crud.contracts import PROBLEMS
-from services.crud.schemas import ChallengeOutput, PlanOutput, PlanPage
+from services.crud.schemas import ChallengeOutput, DestinationMutationOutput, DestinationOutput, PlanOutput, PlanPage
 
 SAFE_ERRORS = {code: message for code, (_, message) in PROBLEMS.items()} | {
     "not_found": "Plan unavailable.",
@@ -24,15 +24,18 @@ class CrudClient:
         self.transport = transport
 
     def request(self, method: str, path: str, *, token: str, headers, params, body: bytes):
-        match = re.fullmatch(
-            r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges))?)?", path
-        )
+        match = re.fullmatch(r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|destinations)(?:/([0-9a-fA-F-]{36}))?)?)?", path)
         if not match:
             raise HTTPException(404, "Plan unavailable.")
-        plan_id, action = match.groups()
+        plan_id, action, destination_id = match.groups()
         if plan_id:
             try:
                 UUID(plan_id)
+            except ValueError:
+                raise HTTPException(404, "Plan unavailable.") from None
+        if destination_id:
+            try:
+                UUID(destination_id)
             except ValueError:
                 raise HTTPException(404, "Plan unavailable.") from None
         allowed = (
@@ -42,10 +45,15 @@ class CrudClient:
                 "title": {"PATCH"},
                 "restore": {"POST"},
                 "challenges": {"POST"},
+                "destinations": {"GET", "POST"},
             }[action]
             if plan_id
             else {"GET", "POST"}
         )
+        if destination_id and (action != "destinations" or method != "DELETE"):
+            raise HTTPException(405, "Request method not supported.")
+        if destination_id:
+            allowed = {"DELETE"}
         if method not in allowed:
             raise HTTPException(405, "Request method not supported.")
         forwarded = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
@@ -74,10 +82,22 @@ class CrudClient:
             schema = (
                 ChallengeOutput
                 if action == "challenges"
+                else TypeAdapter(list[DestinationOutput])
+                if action == "destinations" and method == "GET" and not destination_id
+                else DestinationOutput
+                if action == "destinations" and method == "GET" and destination_id
+                else DestinationMutationOutput
+                if action == "destinations" and method == "POST"
+                else dict
+                if action == "destinations" and method == "DELETE"
                 else PlanPage
                 if method == "GET" and not plan_id
                 else PlanOutput
             )
+            if schema is dict:
+                return 200, response.json()
+            if isinstance(schema, TypeAdapter):
+                return 200, schema.dump_python(schema.validate_python(response.json()), mode="json")
             return 200, schema.model_validate(response.json()).model_dump(mode="json")
         except (httpx.HTTPError, ValueError, TypeError, AttributeError, ValidationError):
             # A transport failure may follow a committed write. Preserve the request ID on retry.
