@@ -130,13 +130,21 @@ def agentcore_response(decision: GatewayDecision) -> dict[str, Any]:
 
 def lambda_handler(event: Mapping[str, Any], _context: object = None) -> dict[str, Any]:
     """AgentCore REQUEST interceptor entry point for a configured deployment."""
-    request = request_from_agentcore_event(event)
-    interceptor = GatewayRequestInterceptor(
-        jwt_key=os.getenv("COGNITO_JWT_KEY", ""),
-        issuer=os.getenv("COGNITO_ISSUER", ""),
-        client_id=os.getenv("COGNITO_CLIENT_ID", ""),
-        # The deployed adapter must replace this with the CRUD ownership
-        # reader; fail closed when the Lambda has not been wired to CRUD yet.
-        plan_owner=lambda _subject, _plan: False,
-    )
-    return agentcore_response(intercept_request(interceptor, request))
+    try:
+        request = request_from_agentcore_event(event)
+        jwt_key = os.getenv("COGNITO_JWT_KEY", "")
+        issuer = os.getenv("COGNITO_ISSUER", "")
+        client_id = os.getenv("COGNITO_CLIENT_ID", "")
+        if not jwt_key or not issuer or not client_id:
+            raise AuthenticationError("interceptor authentication is not configured")
+        interceptor = GatewayRequestInterceptor(
+            jwt_key=jwt_key,
+            issuer=issuer,
+            client_id=client_id,
+            # The deployed adapter must replace this with the CRUD ownership
+            # reader; fail closed when the Lambda has not been wired to CRUD.
+            plan_owner=lambda _subject, _plan: False,
+        )
+        return agentcore_response(intercept_request(interceptor, request))
+    except AuthenticationError as exc:
+        return agentcore_response(GatewayDecision(False, {"error": str(exc)}, 403))
