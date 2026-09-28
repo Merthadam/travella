@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { normalizeTitle, plansApi, requestId } from './plansApi';
 import { ConversationDrawer, PlanDrawer } from './features/plans/components/PlanDrawers';
 import { PlanWorkspace } from './features/plans/components/PlanWorkspace';
+import { emptyBrief } from './features/plans/components/PlanDetails';
 
 const unknown = error => !error.status || error.status >= 500 || error.code === 'request_pending';
 const date = value => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'long' });
@@ -103,6 +104,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const [candidate, setCandidate] = useState(null);
   const [savingDestination, setSavingDestination] = useState(false);
   const [savedDestinations, setSavedDestinations] = useState([]);
+  const [brief, setBrief] = useState(null), [briefOpen, setBriefOpen] = useState(false), [briefSaving, setBriefSaving] = useState(false), [briefError, setBriefError] = useState('');
   const mapCanvas = useRef(null);
   const placeSearch = useRef(null);
   const mapInstance = useRef(null);
@@ -195,7 +197,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   }
   async function open(id, recordActivity = true, restored = false) {
     const ticket = ++generation.current;
-    setLoading(true); setSelected(null); setSavedDestinations([]); setError(null); setCursor(null); url(`/plans/${id}`);
+    setLoading(true); setSelected(null); setSavedDestinations([]); setBrief(null); setBriefOpen(false); setBriefError(''); setError(null); setCursor(null); url(`/plans/${id}`);
     try {
       let plan;
       try { plan = await api.get(id); }
@@ -205,6 +207,10 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       if (api.destinations) {
         try { setSavedDestinations(await api.destinations(plan)); }
         catch (destinationError) { if (destinationError.status === 401) { fail(destinationError, null, ticket); return; } if (active(ticket)) setError({ message: 'Your plan opened, but its destinations could not be loaded.', retry: () => open(id, false) }); }
+      }
+      if (api.brief) {
+        try { setBrief(await api.brief(plan)); }
+        catch (briefErrorValue) { if (briefErrorValue.status === 401) { fail(briefErrorValue, null, ticket); return; } if (active(ticket)) setBriefError('Trip details could not be loaded.'); }
       }
       if (recordActivity && plan.lifecycle === 'active') {
         const activityId = requestId();
@@ -218,6 +224,17 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       if (restored && err.status !== 401 && active(ticket)) setError({ message: 'Your plan was restored, but we couldn’t open it. Choose Open plan to try again.', retry: () => open(id) });
       else fail({ ...err, message: 'This plan isn’t available. Return to My plans.' }, () => open(id), ticket);
     } finally { if (active(ticket)) { setLoading(false); heading.current?.focus(); } }
+  }
+  async function saveBrief(nextBrief) {
+    if (!selected || !api.updateBrief || briefSaving) return;
+    setBriefSaving(true); setBriefError('');
+    try {
+      const data = Object.fromEntries(Object.keys(emptyBrief).map(key => [key, nextBrief[key] ?? emptyBrief[key]]));
+      data.travelers = Math.min(50, Math.max(1, Number(data.travelers) || 1));
+      const saved = await api.updateBrief(selected, data, requestId());
+      setBrief(saved); setSelected(current => current ? { ...current, revision: saved.revision } : current); setBriefOpen(false); setNotice('Trip details updated.');
+    } catch (err) { if (err.status === 401) onExpired(); else setBriefError(err.status === 409 ? 'This plan changed. Refresh and try again.' : (err.message || 'Could not save trip details.')); }
+    finally { setBriefSaving(false); }
   }
   async function togglePlanDrawer() {
     const next = !planDrawerOpen;
@@ -302,7 +319,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       {accountError && <p role="alert" className="error">{accountError.message}</p>}
       {error && <div role="alert" className="error"><p>{error.message}</p>{error.retry && <button onClick={error.retry} disabled={busy || loading}>{error.message.startsWith('Your plan was restored') ? 'Open plan' : 'Retry'}</button>}</div>}
       {loading && <p role="status">{selected ? 'Opening plan…' : view === 'deleted' ? 'Loading recently deleted plans…' : 'Loading your plans…'}</p>}
-      {selected && <PlanWorkspace selected={selected} actions={actions} onOpenConversation={() => setConversationOpen(true)} destinationView={destinationView} setDestinationView={setDestinationView} mapCanvas={mapCanvas} placeSearch={placeSearch} mapsApiKey={mapsApiKey} mapsStatus={mapsStatus} candidate={candidate} setCandidate={setCandidate} savedDestinations={savedDestinations} saveCandidate={saveCandidate} savingDestination={savingDestination} removeDestination={removeDestination} />}
+      {selected && <PlanWorkspace selected={selected} actions={actions} brief={brief} briefOpen={briefOpen} setBriefOpen={setBriefOpen} saveBrief={saveBrief} briefSaving={briefSaving} briefError={briefError} destinationView={destinationView} setDestinationView={setDestinationView} mapCanvas={mapCanvas} placeSearch={placeSearch} mapsApiKey={mapsApiKey} mapsStatus={mapsStatus} candidate={candidate} setCandidate={setCandidate} savedDestinations={savedDestinations} saveCandidate={saveCandidate} savingDestination={savingDestination} removeDestination={removeDestination} />}
       {!selected && <><ul className="plan-grid" aria-label={view === 'deleted' ? 'Deleted plans' : 'Active plans'} aria-busy={loading}>
         {plans.map(plan => <li key={plan.plan_id} className="plan-card"><span className="plan-badge">Draft plan</span>
           <h2>{view === 'deleted' ? plan.title : <a href={`/plans/${plan.plan_id}`} onClick={e => link(e, () => open(plan.plan_id))}>{plan.title}</a>}</h2>

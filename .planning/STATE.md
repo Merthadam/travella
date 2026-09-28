@@ -3,7 +3,7 @@ gsd_state_version: "1.0"
 current_phase: 3
 current_phase_name: Conversation & Planning Brief
 status: executing
-stopped_at: "Phase 3A map workspace and destination CRUD verified; next slice is durable Planning Brief CRUD"
+stopped_at: "Phase 3A map workspace, destination CRUD, and compact Planning Brief CRUD verified"
 last_updated: "2026-09-28T15:35:00Z"
 last_activity: 2026-09-28
 last_activity_desc: Phase 2 backend, frontend lifecycle, purge, security, and automated verification complete; authenticated browser UAT is blocked by local auth configuration.
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-09-26)
 
 Phase: 3A (Map-first workspace and destination CRUD) — EXECUTING
 Plan: 03A map workspace and destination CRUD implemented and browser verified
-Status: Executing — Google Maps search, map pin save, list persistence, and drawer gestures verified in Chrome
-Last activity: 2026-09-28 — Phase 3A map/search/destination slice verified; billing linked for Places autocomplete.
+Status: Executing — Google Maps search, destination CRUD, compact Planning Brief CRUD, list persistence, and drawer gestures verified in Chrome
+Last activity: 2026-09-28 — Phase 3A map/search/destination and Plan context slices verified; billing linked for Places autocomplete.
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 

@@ -18,6 +18,8 @@ function makeApi(initial = []) {
     get: vi.fn(async id => plans.find(item => item.plan_id === id) || Promise.reject(Object.assign(new Error('missing'), { status: 404 }))),
     create: vi.fn(async () => { const created = plan(`new-${plans.length}`, 'Untitled plan'); plans = [...plans, created]; return created; }),
     activity: vi.fn(async item => ({ ...item, revision: item.revision + 1 })),
+    brief: vi.fn(async item => ({ plan_id: item.plan_id, revision: item.revision, interests: '', start_date: '', end_date: '', travelers: 1, budget: '', transport_tolerance: '', accessibility_needs: '' })),
+    updateBrief: vi.fn(async (item, data) => ({ plan_id: item.plan_id, revision: item.revision + 1, ...data })),
     prepare: vi.fn(async (item, operation, title) => ({ challenge: 'challenge', operation, revision: item.revision, title })),
     commit: vi.fn(async ({ plan: item, operation, title }) => {
       const updated = { ...item, revision: item.revision + 1, ...(operation === 'rename' ? { title, title_source: 'manual' } : {}), ...(operation === 'delete' ? { lifecycle: 'deleted', recovery_deadline: '2026-10-05T10:00:00Z' } : {}), ...(operation === 'restore' ? { lifecycle: 'active', recovery_deadline: null } : {}) };
@@ -76,4 +78,18 @@ test('delete and restore preserve the authoritative lifecycle', async () => {
   await user.click(screen.getByRole('button', { name: 'Restore plan' }));
   await screen.findByRole('heading', { name: 'Recoverable plan' });
   expect(screen.getByText('Your draft is saved')).toBeTruthy();
+});
+
+test('trip details save through the plan-scoped brief CRUD', async () => {
+  const api = makeApi([plan('a', 'City break')]); const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('link', { name: 'City break' }));
+  await screen.findByRole('button', { name: 'Edit details' });
+  await user.click(screen.getByRole('button', { name: 'Edit details' }));
+  await user.clear(screen.getByLabelText('Interests')); await user.type(screen.getByLabelText('Interests'), 'Food and museums');
+  await user.clear(screen.getByLabelText('Travelers')); await user.type(screen.getByLabelText('Travelers'), '2');
+  await user.click(screen.getByRole('button', { name: 'Save details' }));
+  await waitFor(() => expect(api.updateBrief).toHaveBeenCalled());
+  expect(api.updateBrief.mock.calls[0][1]).toMatchObject({ interests: 'Food and museums', travelers: 2 });
+  expect(await screen.findByText('Trip details updated.')).toBeTruthy();
 });

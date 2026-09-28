@@ -116,6 +116,15 @@ Date: 2026-09-28
 - Plan rename/delete actions remain in the workspace summary, where they are visible beside `Open Copilot`.
 - Frontend checks: `npm run build` passed; `npx vitest run src/PlansApp.test.jsx` passed 4/4; `git diff --check` passed.
 
+## Plan context CRUD run
+
+- Followed the documented Phase 3 boundary: added the Plan-scoped Planning Brief surface for interests, dates, travelers, budget, transport tolerance, and accessibility needs. Multi-destination routes and day-by-day itinerary records remain out of scope per the source user story.
+- Chrome opened the authenticated plan, loaded the existing brief, opened the compact Trip details editor, saved through `PATCH /v1/plans/{plan_id}/brief`, and returned to the map workspace.
+- Reloading the plan restored the saved `2 travelers · €2000` context summary, confirming persistence through the auth proxy and CRUD service.
+- Browser console inspection returned no new error or warning entries during the flow.
+- Frontend focused suite: `npx vitest run src/PlansApp.test.jsx` — 5 passed.
+- Frontend production build passed; `git diff --check` passed.
+
 ## Workspace summary removal run
 
 - Removed the dark in-page plan summary panel entirely.
