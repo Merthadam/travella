@@ -1,39 +1,12 @@
-# Travella agent rules
+# Technology Stack
 
-For every frontend change, frontend planning/design session, or backend CRUD change, **read and follow [the mandatory planning and testing skill](docs/skills/travella-testing/SKILL.md)** before starting work and before reporting completion. This includes the frontend planning prototype offer. Its applicable verification and evidence requirements are delivery gates.
-
-<!-- GSD:project-start source:PROJECT.md -->
-
-## Project
-
-**Travella**
-
-Travella is an authenticated, conversational travel-research and planning product for travelers shaping a holiday around one destination or city. It combines an agent-guided Conversation with an editable, map-first Planning Canvas so a traveler can research, compare, and deliberately save useful options before continuing to an external supplier to complete any booking.
-
-The initial project covers the full documented MVP: private account access, Draft Plan lifecycle and recovery, destination discovery, traveler-confirmed Planning Requirements, a generated workspace, provider-backed search and comparison, saved options and map pins, and a safe supplier handoff. Travella remains a planning product in this MVP; a supplier redirect is never presented as a Travella booking or booking confirmation.
-
-**Core Value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-
-### Constraints
-
-- **Product authority**: Every destination, Planning Requirement, Selected Option, Map Pin, and other durable Plan change requires an explicit traveler action and exact confirmation — the agent cannot silently mutate a Plan.
-- **Scope**: One destination or city per Plan, return flights only, and car rentals returned to the same location — keeps the first planning model coherent.
-- **Provider honesty**: Unavailable provider modes remain hidden; stale, estimated, conflicting, or unavailable results must be labeled rather than invented or overstated.
-- **Booking boundary**: Travella may redirect only from an eligible saved option to a server-generated URL on a verified provider host — it never claims a supplier transaction succeeded.
-- **Data ownership**: The CRUD backend exclusively owns durable Plan data; the Agent and Connector services cannot bypass its authorization and revision contracts.
-- **Privacy and security**: Tokens, credentials, verification codes, email addresses, raw provider payloads, and internal reasoning must not leak through URLs, logs, checkpoints, or browser projections.
-- **Authorization**: Public services independently validate managed-identity tokens and authorize resources using token-derived traveler identity, never a browser-supplied user identifier.
-- **Resilience**: User actions and events are idempotent; obsolete research cannot surface after interruption; only complete, consistent snapshots may be presented as saved.
-- **Deletion**: Deleted Draft Plans and their scoped data are recoverable for seven days and then their identifiable Plan data must be permanently removed.
-- **Architecture**: The frontend, Agent service, CRUD backend, and private Connector service begin as independent deployables in one AWS environment.
-
-<!-- GSD:project-end -->
-
-<!-- GSD:stack-start source:research/STACK.md -->
-
-## Technology Stack
+**Project:** Travella
+**Researched:** 2026-09-26
+**Overall confidence:** MEDIUM-HIGH
 
 ## Accepted foundations
+
+These are product decisions from the repository and are not reopened by ecosystem research:
 
 - Amazon Cognito user pools for Travella-owned registration, verification, password recovery, JWT access tokens, and optional authenticator-app MFA.
 - AG-UI as the agent-to-frontend event boundary.
@@ -87,6 +60,11 @@ The initial project covers the full documented MVP: private account access, Draf
 
 ## Research implications
 
+1. Define token and service authorization contracts before implementing agent or connector tools.
+2. Define the allow-listed AG-UI event/component schemas before generative UI work.
+3. Select the CRUD database only after lifecycle, revision, idempotency, and deletion/recovery requirements are modeled.
+4. Build provider-neutral connector interfaces so Skyscanner/Maps candidates remain replaceable until access is confirmed.
+
 ## Sources
 
 - https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html
@@ -97,49 +75,3 @@ The initial project covers the full documented MVP: private account access, Draf
 - https://langchain-ai.github.io/langgraph/concepts/breakpoints/
 - https://langchain-ai.github.io/langgraphjs/how-tos/cross-thread-persistence-functional/
 - https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/basic/authorization.mdx
-
-<!-- GSD:stack-end -->
-
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
-
-## Conventions
-
-Conventions not yet established. Will populate as patterns emerge during development.
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
-
-## Architecture
-
-Architecture not yet mapped. Follow existing patterns found in the codebase.
-<!-- GSD:architecture-end -->
-
-<!-- GSD:skills-start source:skills/ -->
-
-## Project Skills
-
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-
-- `$gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `$gsd-debug` for investigation and bug fixing
-- `$gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-<!-- GSD:profile-start -->
-
-## Developer Profile
-
-> Profile not yet configured. Run `$gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->

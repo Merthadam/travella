@@ -1,0 +1,25 @@
+{
+  "ecosystem": "mixed",
+  "config": {
+    "exa_search": false,
+    "brave_search": false,
+    "firecrawl": false,
+    "tavily_search": false
+  },
+  "questions": [
+    {"text": "Current stable React, Vite, TypeScript, React Router, TanStack Query, and Zod versions and official support requirements", "kind": "docs", "library": "react", "version": "current"},
+    {"text": "Current AG-UI protocol TypeScript and Python SDK packages, versions, transport, and LangGraph integration", "kind": "docs", "library": "ag-ui", "version": "current"},
+    {"text": "Current stable LangGraph Python version, PostgreSQL checkpointer, interrupts, and durable execution requirements", "kind": "docs", "library": "langgraph", "version": "current"},
+    {"text": "Current stable Python, FastAPI, Pydantic, SQLAlchemy, psycopg, and Alembic versions", "kind": "docs", "library": "fastapi", "version": "current"},
+    {"text": "Current Model Context Protocol specification and official Python SDK version with Streamable HTTP transport", "kind": "docs", "library": "model-context-protocol", "version": "current"},
+    {"text": "Amazon Cognito user pools managed login OAuth authorization code PKCE MFA and access token validation official guidance", "kind": "web"},
+    {"text": "AWS ECS Fargate support for long-lived streaming HTTP workloads ALB private service connectivity and Service Connect", "kind": "web"},
+    {"text": "Amazon Aurora PostgreSQL and RDS PostgreSQL current supported major versions production deployment and Serverless v2 capability", "kind": "web"},
+    {"text": "Amazon Bedrock AgentCore Memory current API SDK and production region availability", "kind": "web"},
+    {"text": "AWS observability current ADOT OpenTelemetry CloudWatch Application Signals ECS guidance", "kind": "web"},
+    {"text": "AWS CDK current stable major version Node.js runtime support and ECS deployment guidance", "kind": "docs", "library": "aws-cdk", "version": "current"},
+    {"text": "Google Maps JavaScript API and Places API current React integration official guidance and map rendering terms", "kind": "web"},
+    {"text": "Current stable Playwright Vitest and contract testing options for React Python service stack", "kind": "docs", "library": "playwright", "version": "current"},
+    {"text": "Amazon SQS EventBridge Scheduler Secrets Manager WAF and CloudFront current capabilities relevant to secure travel planning services", "kind": "web"}
+  ]
+}

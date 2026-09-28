@@ -1,0 +1,33 @@
+[project]
+name = "travella-services"
+version = "0.1.0"
+description = "Travella Python services"
+requires-python = ">=3.12"
+dependencies = [
+  "boto3>=1.40,<2",
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "PyJWT[crypto]>=2.9,<3",
+  "cryptography>=44,<47",
+  "email-validator>=2,<3",
+  "sqlalchemy>=2.0,<2.1",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.14,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["services/auth/tests", "services/crud/tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

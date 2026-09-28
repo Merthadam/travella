@@ -1,0 +1,39 @@
+services:
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      SESSION_DB_PATH: /var/lib/travella/auth.sqlite3
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-}
+      COGNITO_ISSUER: ${COGNITO_ISSUER:-}
+      COGNITO_JWKS_URL: ${COGNITO_JWKS_URL:-}
+      SESSION_ENCRYPTION_KEY: ${SESSION_ENCRYPTION_KEY:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - auth-data:/var/lib/travella
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      VITE_API_TARGET: http://auth:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      auth:
+        condition: service_healthy
+
+volumes:
+  auth-data:
