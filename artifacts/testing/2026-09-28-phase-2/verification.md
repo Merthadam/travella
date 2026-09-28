@@ -74,3 +74,18 @@ unverified; the development entry points refuse production mode.
   an aggregate `purged_count` metric.
 - Projection tests assert owner identity, credentials, raw payload, and internal
   reasoning are absent from public Plan output and purge telemetry.
+
+## Docker runtime smoke check
+
+Started the isolated stack with `docker-compose -p travella-phase2 -f compose.yaml
+-f /tmp/phase2-compose.override.yaml up -d` because the default ports were already
+occupied by another local stack. The Docker frontend is available at
+`http://localhost:5174/`, auth at `http://localhost:8002/`, and CRUD is internal
+to the Compose network.
+
+- CRUD container reached `healthy`; auth reached `healthy`; frontend served HTTP 200.
+- Auth health returned `{"status":"ok","auth_configured":false}`.
+- `/v1/plans` returned HTTP 503 with `Account access is not configured yet`, which
+  is the expected safe response until Cognito settings are provided.
+- The private authenticated My plans journey therefore remains blocked by missing
+  Cognito configuration, matching `02-UAT.md`.
