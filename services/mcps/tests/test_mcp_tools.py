@@ -7,6 +7,7 @@ import pytest
 from services.mcps import map_server, research_server
 from services.mcps.config import McpSettings, required_secret
 from services.mcps.memory import MemoryProvider
+from services.mcps.transport import ToolAuthContext, authenticated_context
 
 
 class FakeResponse:
@@ -42,6 +43,7 @@ class FakeClient:
 
 def test_research_returns_compact_candidates_without_raw_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+    monkeypatch.setenv("MCP_ASSERTION_SIGNING_SECRET", "test-signing-secret")
     monkeypatch.setattr(
         research_server.httpx,
         "AsyncClient",
@@ -64,11 +66,8 @@ def test_research_returns_compact_candidates_without_raw_payload(monkeypatch: py
         ),
     )
 
-    result = asyncio.run(
-        research_server.research_destination_candidates(
-            "slow cultural weekend", "traveler-1", "plan-1", max_candidates=9
-        )
-    )
+    with authenticated_context(ToolAuthContext("traveler-1", "plan-1", "assertion")):
+        result = asyncio.run(research_server.research_destination_candidates("slow cultural weekend", "traveler-1", "plan-1", max_candidates=9))
 
     assert result["plan_id"] == "plan-1"
     assert len(result["candidates"]) == 1
@@ -100,11 +99,8 @@ def test_map_projection_is_temporary_and_bounded(monkeypatch: pytest.MonkeyPatch
         ),
     )
 
-    result = asyncio.run(
-        map_server.get_candidate_map_projection(
-            [" Kyoto ", "", "Osaka", "Tokyo", "Paris", "Rome", "Lisbon"], "traveler-1"
-        )
-    )
+    with authenticated_context(ToolAuthContext("traveler-1", "plan-1", "assertion")):
+        result = asyncio.run(map_server.get_candidate_map_projection([" Kyoto ", "", "Osaka", "Tokyo", "Paris", "Rome", "Lisbon"], "traveler-1"))
 
     assert result["plan_id"] == "temporary"
     assert result["locations"][0]["temporary"] is True

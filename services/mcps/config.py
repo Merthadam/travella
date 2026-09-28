@@ -13,6 +13,8 @@ class McpSettings:
     memory_provider: str
     agentcore_memory_id: str | None
     memory_namespace_template: str
+    mcp_assertion_signing_secret: str | None = None
+    gateway_service_token: str | None = None
 
     @classmethod
     def from_env(cls) -> "McpSettings":
@@ -24,6 +26,8 @@ class McpSettings:
             memory_namespace_template=os.getenv(
                 "AGENTCORE_MEMORY_NAMESPACE_TEMPLATE", "traveler/{actorId}"
             ),
+            mcp_assertion_signing_secret=os.getenv("MCP_ASSERTION_SIGNING_SECRET") or None,
+            gateway_service_token=os.getenv("MCP_GATEWAY_SERVICE_TOKEN") or None,
         )
 
 

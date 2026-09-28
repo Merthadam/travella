@@ -15,4 +15,36 @@ uv run python -m services.mcps.research_server
 uv run python -m services.mcps.map_server
 ```
 
-The servers use Streamable HTTP. They are currently intended to stay on a private network boundary; authentication and production deployment wiring are part of the LangGraph integration work that follows.
+The servers use Streamable HTTP. Every target call must arrive through the
+Gateway with both an OAuth client-credentials service token and a short-lived
+signed actor/Plan assertion. `tools/list` is allowed for catalog
+synchronization; direct `tools/call` requests are rejected before provider
+work. Set `MCP_ASSERTION_SIGNING_SECRET` and `MCP_GATEWAY_SERVICE_TOKEN` in the
+private runtime environment. The interceptor expects Cognito access tokens and
+checks issuer, client, expiry, token use, scope, and CRUD Plan ownership.
+
+The evidence registry is metadata-only and can be persisted across process
+restarts with `MCP_EVIDENCE_REGISTRY_PATH`; it contains only expiring evidence
+IDs, canonical HTTPS URLs, excerpts, and attribution. Raw Tavily responses,
+provider keys, and source bundles are never returned or stored.
+
+Create the redacted AgentCore Gateway contract without contacting AWS:
+
+```bash
+uv run python scripts/provision-agentcore-gateway.py --dry-run
+```
+
+Live provisioning requires configured AWS credentials and deployment-specific
+Cognito authorizer values. The command reconciles a named MCP Gateway and its
+two `MCP_SERVER` targets; it does not use HTTP Runtime target types. After
+deployment, verify catalog and calls with your MCP client:
+
+```text
+tools/list  # returns both research and map tools
+tools/call research_destination_candidates
+tools/call resolve_candidate_locations
+```
+
+Use a real Cognito access token and Gateway-issued scoped assertion for the
+smoke call. Never place provider keys or tokens in these commands, logs, or
+browser configuration.
