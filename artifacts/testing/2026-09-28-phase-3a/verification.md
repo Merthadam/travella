@@ -131,3 +131,11 @@ Date: 2026-09-28
 - The durable Brief API remains available for the later Copilot flow; it is no longer fetched or surfaced in this workspace.
 - Chrome reload confirmed there is no Planning Brief panel or card in the current workspace.
 - Frontend checks: `npm run build` passed; `npx vitest run src/PlansApp.test.jsx` passed 4/4.
+
+## Modern visual redesign run
+
+- Reworked the authenticated workspace around a deep navy, mint, and cool blue-gray visual system with ambient gradients, glass-like surfaces, tighter typography, and stronger map hierarchy.
+- Increased the map canvas presence, restyled search and candidate confirmation overlays, and kept the Plans and Copilot drawers as dark edge panels with mint actions.
+- Chrome verification confirmed readable top navigation, compact left Plans drawer with Rename/Delete actions, and right Copilot drawer with the expected placeholder state.
+- Browser runtime log inspection returned no new error or warning entries during the visual pass.
+- Frontend checks: `npm run build` passed; `npx vitest run src/PlansApp.test.jsx` passed 4/4; `git diff --check` passed.
