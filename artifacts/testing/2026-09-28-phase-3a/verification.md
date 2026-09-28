@@ -106,3 +106,12 @@ Date: 2026-09-28
 - Backend regression suite: `.venv/bin/python -m pytest services/crud/tests services/auth/tests -q` — 103 passed.
 - Chrome exercised the Brief editor with interests, travelers, and budget; save returned to the workspace and reload restored `2 travelers` and `food and museums`.
 - Browser logs contain only Google Maps performance/legacy-widget warnings; no Brief CRUD errors.
+
+## Workspace navigation cleanup run
+
+- Removed the in-page `Back to My plans` link from the Plan workspace.
+- Removed the duplicate lower Conversation placeholder card; the workspace now exposes the right-side pane through `Open Copilot` in the summary.
+- Renamed the right drawer to Copilot and verified it opens from the right edge.
+- Reduced the Plans drawer to a compact left-side pane and verified it opens from the top navigation.
+- Plan rename/delete actions remain in the workspace summary, where they are visible beside `Open Copilot`.
+- Frontend checks: `npm run build` passed; `npx vitest run src/PlansApp.test.jsx` passed 4/4; `git diff --check` passed.

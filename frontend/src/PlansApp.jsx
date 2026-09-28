@@ -312,7 +312,6 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     </div></header>
     {planDrawerOpen && <PlanDrawer plans={drawerPlans} loading={drawerLoading} selected={selected} onClose={() => setPlanDrawerOpen(false)} onOpen={(event, id) => link(event, () => { setPlanDrawerOpen(false); id ? open(id) : load(); })} onNew={() => { setPlanDrawerOpen(false); createPlan(); }} />}
     <main id="plans-main" className="plans-main" tabIndex={-1}>
-      {(view !== 'active' || window.location.pathname !== '/plans') && <a href="/plans" onClick={e => link(e, () => load())}>← Back to My plans</a>}
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>
         {!selected && view === 'active' && <button className="primary" disabled={busy || loading} onClick={createPlan}>{busy ? 'Creating plan…' : 'New plan'}</button>}</div>
       {notice && <p className="plan-notice" role="status">{notice}</p>}
