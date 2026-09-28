@@ -98,3 +98,17 @@ no users, including no `travella.local@example.com`, and the app client exposes
 implemented adapter. The sign-in request therefore returned the expected generic
 HTTP 401 response; authenticated browser UAT remains blocked until a compatible
 test user and client auth flow are provisioned.
+
+Resolution completed during Docker verification:
+
+- Created a dedicated public client `travella-local-phase2` with
+  `ALLOW_USER_PASSWORD_AUTH` and `ALLOW_REFRESH_TOKEN_AUTH`.
+- Created and confirmed `travella.local@example.com` with the local test-account
+  password and verified email attribute.
+- Restarted Docker with the new client ID and `FRONTEND_ORIGIN=http://localhost:5174`.
+- Authenticated HTTP smoke test returned 200 and established the opaque session cookie.
+- Full Docker CRUD sequence passed: create/read, rename, delete, deleted-list,
+  restore, and cleanup delete; all returned 200 and persisted the expected state.
+
+The remaining gate is visual browser interaction and screenshot capture for the
+authenticated My plans workspace.
