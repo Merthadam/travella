@@ -1,9 +1,9 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 2
-current_phase_name: Draft Plans & Durable Lifecycle
+current_phase: 3
+current_phase_name: Conversation & Planning Brief
 status: executing
-stopped_at: "Phase 2 implementation complete; Plan 02-03 browser UAT persisted and blocked by unavailable Cognito"
+stopped_at: "Phase 3A map workspace and destination CRUD verified; next slice is durable Planning Brief CRUD"
 last_updated: "2026-09-28T15:35:00Z"
 last_activity: 2026-09-28
 last_activity_desc: Phase 2 backend, frontend lifecycle, purge, security, and automated verification complete; authenticated browser UAT is blocked by local auth configuration.
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-26)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 2 — Draft Plans & Durable Lifecycle
+**Current focus:** Phase 3A — Map-first workspace and destination CRUD
 
 ## Current Position
 
-Phase: 2 (Draft Plans & Durable Lifecycle) — EXECUTING
-Plan: 02-01, 02-02, and 02-04 implementation complete; 02-03 implementation complete with browser UAT blocked
-Status: Executing — backend and UI implementation verified locally; authenticated browser UAT remains blocked by unavailable Cognito
-Last activity: 2026-09-28 — lifecycle UI, retention purge, security checks, and local verification completed.
+Phase: 3A (Map-first workspace and destination CRUD) — EXECUTING
+Plan: 03A map workspace and destination CRUD implemented and browser verified
+Status: Executing — Google Maps search, map pin save, list persistence, and drawer gestures verified in Chrome
+Last activity: 2026-09-28 — Phase 3A map/search/destination slice verified; billing linked for Places autocomplete.
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
