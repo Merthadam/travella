@@ -71,6 +71,12 @@ Date: 2026-09-28
 - The top context control now toggles the panel in place; the map remains in the same page flow and no modal/backdrop is created.
 - Chrome screenshot inspection confirmed the expanded state is connected visually to the Plan context surface and browser logs remained clean.
 
+## Destination removal confirmation
+
+- Added a two-step confirmation to saved destination removal in List view, matching the documented explicit traveler authority requirement.
+- Chrome opened List view, selected Remove for Lisbon, displayed `Remove this saved destination?`, and Keep cancelled the action without changing the saved list.
+- Browser runtime logs remained clean; the existing map/list and persistence behavior is unchanged.
+
 ## Frontend structure refactor
 
 - Extracted plan workspace and drawer UI into `frontend/src/features/plans/components/`.

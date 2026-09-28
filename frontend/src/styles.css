@@ -107,6 +107,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .saved-destination-list li div { display: grid; gap: 4px; }
 .saved-destination-list li span { color: #5c706e; font-size: 14px; }
 .saved-destination-list li button { color: #9c342d; background: transparent; text-decoration: underline; }
+.destination-confirm { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.destination-confirm span { color: #8b4e52; font-size: 13px; font-weight: 700; }
+.destination-confirm button { min-height: 36px; padding: 6px 10px; }
 .destination-list h3 { margin: 16px 0 4px; font-size: 20px; }
 .empty-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: #146b5e; background: #e2efeb; font-size: 28px; }
 .workspace-lower { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
