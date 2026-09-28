@@ -305,12 +305,12 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     <header className="plans-header"><div>
       <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
       <nav className="app-nav" aria-label="Application navigation">
-        <button className="nav-button" aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}>Plans</button>
+        <button className="nav-button" aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}>Plans</button>{selected && <button className="nav-button" aria-expanded={conversationOpen} onClick={() => setConversationOpen(true)}>Copilot</button>}
         <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
       </nav>
     </div></header>
-    {planDrawerOpen && <PlanDrawer plans={drawerPlans} loading={drawerLoading} selected={selected} onClose={() => setPlanDrawerOpen(false)} onOpen={(event, id) => link(event, () => { setPlanDrawerOpen(false); id ? open(id) : load(); })} onNew={() => { setPlanDrawerOpen(false); createPlan(); }} />}
+    {planDrawerOpen && <PlanDrawer plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={() => setPlanDrawerOpen(false)} onOpen={(event, id) => link(event, () => { setPlanDrawerOpen(false); id ? open(id) : load(); })} onNew={() => { setPlanDrawerOpen(false); createPlan(); }} />}
     <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>
         {!selected && view === 'active' && <button className="primary" disabled={busy || loading} onClick={createPlan}>{busy ? 'Creating plan…' : 'New plan'}</button>}</div>

@@ -115,3 +115,11 @@ Date: 2026-09-28
 - Reduced the Plans drawer to a compact left-side pane and verified it opens from the top navigation.
 - Plan rename/delete actions remain in the workspace summary, where they are visible beside `Open Copilot`.
 - Frontend checks: `npm run build` passed; `npx vitest run src/PlansApp.test.jsx` passed 4/4; `git diff --check` passed.
+
+## Workspace summary removal run
+
+- Removed the dark in-page plan summary panel entirely.
+- Added `Copilot` to the top navigation as the sole workspace trigger for the right-side pane.
+- Moved Rename/Delete for the active plan into the compact left Plans pane; Chrome verification showed both actions there.
+- Chrome screenshot confirmed the workspace now starts with the plan title, Planning Canvas, and map without the previous summary card.
+- Frontend checks: `npm run build` passed; `npx vitest run src/PlansApp.test.jsx` passed 4/4.
