@@ -55,7 +55,7 @@ def test_research_returns_compact_candidates_without_raw_payload(monkeypatch: py
                             {
                                 "title": "Kyoto",
                                 "url": "https://example.test/kyoto",
-                                "content": "A cultural city with temples.",
+                                "content": "Kyoto is a cultural city with temples.",
                                 "raw_content": "private raw payload",
                             }
                         ]
@@ -67,7 +67,7 @@ def test_research_returns_compact_candidates_without_raw_payload(monkeypatch: py
     )
 
     with authenticated_context(ToolAuthContext("traveler-1", "plan-1", "assertion")):
-        result = asyncio.run(research_server.research_destination_candidates("slow cultural weekend", "traveler-1", "plan-1", max_candidates=9))
+        result = asyncio.run(research_server.research_destination_candidates("slow cultural weekend", "plan-1", max_candidates=9))
 
     assert result["plan_id"] == "plan-1"
     assert len(result["candidates"]) == 1
@@ -100,9 +100,9 @@ def test_map_projection_is_temporary_and_bounded(monkeypatch: pytest.MonkeyPatch
     )
 
     with authenticated_context(ToolAuthContext("traveler-1", "plan-1", "assertion")):
-        result = asyncio.run(map_server.get_candidate_map_projection([" Kyoto ", "", "Osaka", "Tokyo", "Paris", "Rome", "Lisbon"], "traveler-1"))
+        result = asyncio.run(map_server.get_candidate_map_projection([" Kyoto ", "", "Osaka", "Tokyo", "Paris", "Rome", "Lisbon"], "plan-1"))
 
-    assert result["plan_id"] == "temporary"
+    assert result["plan_id"] == "plan-1"
     assert result["locations"][0]["temporary"] is True
     assert result["locations"][0]["location"]["lat"] == 35.0116
 
@@ -120,3 +120,45 @@ def test_memory_namespace_and_secret_boundary() -> None:
     assert provider.namespace("actor-7") == "traveler/actor-7"
     with pytest.raises(RuntimeError, match="TAVILY_API_KEY"):
         required_secret(None, "TAVILY_API_KEY")
+
+
+def test_duplicate_destination_has_stable_identity_and_cited_conflict(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+    monkeypatch.setenv("MCP_EVIDENCE_REGISTRY_PATH", str(tmp_path / "evidence.json"))
+    monkeypatch.setattr(
+        research_server.httpx,
+        "AsyncClient",
+        lambda **kwargs: FakeClient(
+            [
+                FakeResponse(
+                    {
+                        "results": [
+                            {
+                                "title": "Kyoto guide",
+                                "url": "https://example.test/kyoto-a",
+                                "content": "Kyoto is a calm cultural city with temples and food.",
+                            },
+                            {
+                                "title": "Kyoto warning",
+                                "url": "https://example.test/kyoto-b",
+                                "content": "Kyoto can be difficult and unpleasant during peak crowds.",
+                            },
+                        ]
+                    }
+                )
+            ],
+            **kwargs,
+        ),
+    )
+    with authenticated_context(ToolAuthContext("traveler-1", "plan-1", "assertion")):
+        first = asyncio.run(research_server.research_destination_candidates("culture", "plan-1", request_id="stable-1"))
+        second = asyncio.run(research_server.research_destination_candidates("culture", "plan-1", request_id="stable-1"))
+
+    candidate = first["candidates"][0]
+    assert candidate["candidate_id"] == second["candidates"][0]["candidate_id"]
+    assert candidate["confidence"] == "uncertain"
+    assert len(candidate["evidence"]) == 2
+    evidence_ids = {item["evidence_id"] for item in candidate["evidence"]}
+    assert all(set(claim["evidence_ids"]) <= evidence_ids for claim in candidate["claims"])
+    assert all(set(caveat["evidence_ids"]) <= evidence_ids for caveat in candidate["caveats"])
+    assert "_polarity" not in candidate
