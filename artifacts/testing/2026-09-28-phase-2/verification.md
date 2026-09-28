@@ -89,3 +89,12 @@ to the Compose network.
   is the expected safe response until Cognito settings are provided.
 - The private authenticated My plans journey therefore remains blocked by missing
   Cognito configuration, matching `02-UAT.md`.
+
+Follow-up against the configured AWS Cognito pool (`travela-local` in
+`eu-north-1`) showed that the pool and app client are reachable, so the Docker
+auth health endpoint changed to `auth_configured:true`. The pool currently has
+no users, including no `travella.local@example.com`, and the app client exposes
+`ALLOW_USER_AUTH`/SRP rather than the `USER_PASSWORD_AUTH` flow used by the
+implemented adapter. The sign-in request therefore returned the expected generic
+HTTP 401 response; authenticated browser UAT remains blocked until a compatible
+test user and client auth flow are provisioned.
