@@ -10,6 +10,7 @@ from botocore.config import Config
 from .api import create_app
 from .cognito_adapter import CognitoAdapter
 from .config import CognitoConfig
+from .crud_client import CrudClient
 from .jwt_verifier import CognitoJwtVerifier
 from .session_store import SessionStore
 
@@ -46,6 +47,7 @@ def configured_app():
         store,
         origin=origin,
         secure_cookies=secure,
+        crud_client=CrudClient(os.environ["CRUD_BASE_URL"]) if os.getenv("CRUD_BASE_URL") else None,
     )
 
 

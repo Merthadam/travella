@@ -35,3 +35,16 @@ class LifecycleProblem(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+PROBLEMS = {
+    "revision_conflict": (409, "Plan changed. Refresh and try again."),
+    "request_reused": (409, "Request could not be processed."),
+    "challenge_invalid": (409, "Confirmation is no longer valid."),
+    "gone": (410, "This plan can no longer be restored."),
+    "invalid_title": (422, "Enter a valid plan name of 120 characters or fewer."),
+    "invalid_request": (400, "Request could not be processed."),
+    "expired_request": (400, "Request could not be processed."),
+    "invalid_cursor": (400, "Refresh the list and try again."),
+    "inconsistent_plan": (503, "Plan is temporarily unavailable."),
+}

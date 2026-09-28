@@ -15,7 +15,7 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from .contracts import ConversationRef, LifecycleProblem, PlanRef
@@ -50,7 +50,7 @@ def normalize_title(value: str) -> str:
     if (
         not normalized
         or len(normalized) > 120
-        or any(ord(ch) < 32 or ord(ch) == 127 for ch in normalized)
+        or any(unicodedata.category(ch) == "Cc" for ch in normalized)
     ):
         raise LifecycleProblem(
             "invalid_title", "Enter a valid plan name of 120 characters or fewer."
@@ -62,6 +62,10 @@ def validate_request_id(request_id: str, now: datetime | None = None) -> None:
     match = REQUEST_ID_RE.fullmatch(request_id)
     if not match:
         raise LifecycleProblem("invalid_request", "Request could not be processed.")
+    try:
+        UUID(match.group(2))
+    except ValueError as exc:
+        raise LifecycleProblem("invalid_request", "Request could not be processed.") from exc
     issued = datetime.fromtimestamp(int(match.group(1)) / 1000, tz=timezone.utc)
     current = now or utc_now()
     if issued < current - REQUEST_MAX_AGE or issued > current + REQUEST_FUTURE_SKEW:
@@ -169,22 +173,47 @@ class PlanRepository:
         )
         if not plan or (plan.lifecycle is PlanLifecycle.DELETED and not include_deleted):
             raise LifecycleProblem("not_found")
+        if plan.lifecycle is PlanLifecycle.DELETED and (
+            not plan.recovery_deadline or as_utc(plan.recovery_deadline) <= self.clock()
+        ):
+            raise LifecycleProblem("gone", "This plan can no longer be restored.")
         return _ref(plan)
 
-    def list(self, subject: str, *, deleted: bool = False) -> list[PlanRef]:
+    def list(
+        self,
+        subject: str,
+        *,
+        deleted: bool = False,
+        limit: int | None = None,
+        after: tuple[datetime, UUID] | None = None,
+    ) -> list[PlanRef]:
         lifecycle = PlanLifecycle.DELETED if deleted else PlanLifecycle.ACTIVE
-        plans = self.session.scalars(
+        query = (
             select(Plan)
             .options(joinedload(Plan.conversation))
             .where(Plan.traveler_subject == subject, Plan.lifecycle == lifecycle)
-            .order_by(Plan.last_activity_at.desc(), Plan.id)
-        ).all()
-        return [_ref(plan) for plan in plans]
+        )
+        if deleted:
+            query = query.where(Plan.recovery_deadline > self.clock())
+        if after:
+            activity, plan_id = after
+            query = query.where(
+                or_(
+                    Plan.last_activity_at < activity,
+                    and_(Plan.last_activity_at == activity, Plan.id > plan_id),
+                )
+            )
+        query = query.order_by(Plan.last_activity_at.desc(), Plan.id)
+        if limit is not None:
+            query = query.limit(limit)
+        return [_ref(plan) for plan in self.session.scalars(query).all()]
 
-    def record_activity(self, subject: str, plan_id: UUID, request_id: str) -> PlanRef:
+    def record_activity(
+        self, subject: str, plan_id: UUID, request_id: str, expected_revision: int | None = None
+    ) -> PlanRef:
         now = self.clock()
         validate_request_id(request_id, now)
-        payload = {"plan_id": str(plan_id), "operation": "activity"}
+        payload = {"plan_id": str(plan_id), "operation": "activity", "revision": expected_revision}
         existing = self._receipt(subject, request_id, "activity", payload)
         if existing:
             return self.get(subject, plan_id)
@@ -192,10 +221,12 @@ class PlanRepository:
             select(Plan)
             .options(joinedload(Plan.conversation))
             .where(Plan.id == plan_id, Plan.traveler_subject == subject)
-            .with_for_update()
+            .with_for_update(of=Plan)
         )
         if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE:
             raise LifecycleProblem("not_found")
+        if expected_revision is not None and plan.revision != expected_revision:
+            raise LifecycleProblem("revision_conflict", "Plan changed. Refresh and try again.")
         plan.last_activity_at = now
         plan.updated_at = now
         plan.revision += 1
@@ -227,11 +258,16 @@ class PlanRepository:
         ttl: timedelta = timedelta(minutes=5),
     ) -> str:
         now = self.clock()
-        plan = self.session.scalar(
-            select(Plan).where(Plan.id == plan_id, Plan.traveler_subject == subject)
-        )
-        if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE:
+        if operation not in {"rename", "delete", "restore"}:
+            raise LifecycleProblem("invalid_request", "Request could not be processed.")
+        plan = self._locked_plan(subject, plan_id)
+        wanted = PlanLifecycle.DELETED if operation == "restore" else PlanLifecycle.ACTIVE
+        if plan.lifecycle is not wanted:
             raise LifecycleProblem("not_found")
+        if operation == "restore" and (
+            not plan.recovery_deadline or as_utc(plan.recovery_deadline) <= now
+        ):
+            raise LifecycleProblem("gone", "This plan can no longer be restored.")
         if plan.revision != expected_revision:
             raise LifecycleProblem("revision_conflict", "Plan changed. Refresh and try again.")
         token = secrets.token_urlsafe(32)
@@ -269,12 +305,12 @@ class PlanRepository:
                 PlanChallenge.plan_id == plan_id,
                 PlanChallenge.operation == operation,
             )
-            .with_for_update()
+            .with_for_update(of=PlanChallenge)
         )
         if (
             not challenge
             or challenge.consumed_at is not None
-            or challenge.expires_at <= now
+            or as_utc(challenge.expires_at) <= now
             or challenge.expected_revision != expected_revision
             or challenge.change_digest != payload_digest(change)
         ):
@@ -286,7 +322,7 @@ class PlanRepository:
             select(Plan)
             .options(joinedload(Plan.conversation))
             .where(Plan.id == plan_id, Plan.traveler_subject == subject)
-            .with_for_update()
+            .with_for_update(of=Plan)
         )
         if not plan:
             raise LifecycleProblem("not_found")
@@ -305,7 +341,12 @@ class PlanRepository:
         now = self.clock()
         validate_request_id(request_id, now)
         title = normalize_title(title)
-        payload = {"plan_id": str(plan_id), "operation": "rename", "title": title}
+        payload = {
+            "plan_id": str(plan_id),
+            "operation": "rename",
+            "title": title,
+            "revision": expected_revision,
+        }
         existing = self._receipt(subject, request_id, "rename", payload)
         if existing:
             return self.get(subject, plan_id, include_deleted=True)
@@ -314,12 +355,16 @@ class PlanRepository:
             raise LifecycleProblem("not_found")
         if plan.revision != expected_revision:
             raise LifecycleProblem("revision_conflict", "Plan changed. Refresh and try again.")
-        self._consume_challenge(subject, plan_id, "rename", expected_revision, {"title": title}, challenge)
+        self._consume_challenge(
+            subject, plan_id, "rename", expected_revision, {"title": title}, challenge
+        )
         plan.title = title
         plan.title_source = TitleSource.MANUAL
         plan.revision += 1
         plan.updated_at = now
-        self.session.add(self._success_receipt(subject, request_id, "rename", payload, plan.id, now))
+        self.session.add(
+            self._success_receipt(subject, request_id, "rename", payload, plan.id, now)
+        )
         self.session.commit()
         return _ref(plan)
 
@@ -334,7 +379,7 @@ class PlanRepository:
     ) -> PlanRef:
         now = self.clock()
         validate_request_id(request_id, now)
-        payload = {"plan_id": str(plan_id), "operation": "delete"}
+        payload = {"plan_id": str(plan_id), "operation": "delete", "revision": expected_revision}
         existing = self._receipt(subject, request_id, "delete", payload)
         if existing:
             return self.get(subject, plan_id, include_deleted=True)
@@ -349,16 +394,24 @@ class PlanRepository:
         plan.recovery_deadline = now + RECOVERY_PERIOD
         plan.revision += 1
         plan.updated_at = now
-        self.session.add(self._success_receipt(subject, request_id, "delete", payload, plan.id, now))
+        self.session.add(
+            self._success_receipt(subject, request_id, "delete", payload, plan.id, now)
+        )
         self.session.commit()
         return _ref(plan)
 
     def restore(
-        self, subject: str, plan_id: UUID, request_id: str, *, challenge: str | None = None
+        self,
+        subject: str,
+        plan_id: UUID,
+        request_id: str,
+        *,
+        challenge: str | None = None,
+        expected_revision: int | None = None,
     ) -> PlanRef:
         now = self.clock()
         validate_request_id(request_id, now)
-        payload = {"plan_id": str(plan_id), "operation": "restore"}
+        payload = {"plan_id": str(plan_id), "operation": "restore", "revision": expected_revision}
         existing = self._receipt(subject, request_id, "restore", payload)
         if existing:
             return self.get(subject, plan_id, include_deleted=True)
@@ -367,6 +420,8 @@ class PlanRepository:
             raise LifecycleProblem("not_deleted")
         if not plan.recovery_deadline or as_utc(plan.recovery_deadline) <= now:
             raise LifecycleProblem("gone", "This plan can no longer be restored.")
+        if expected_revision is not None and plan.revision != expected_revision:
+            raise LifecycleProblem("revision_conflict", "Plan changed. Refresh and try again.")
         self._consume_challenge(subject, plan_id, "restore", plan.revision, {}, challenge)
         plan.lifecycle = PlanLifecycle.ACTIVE
         plan.deleted_at = None
@@ -374,17 +429,21 @@ class PlanRepository:
         plan.last_activity_at = now
         plan.updated_at = now
         plan.revision += 1
-        self.session.add(self._success_receipt(subject, request_id, "restore", payload, plan.id, now))
+        self.session.add(
+            self._success_receipt(subject, request_id, "restore", payload, plan.id, now)
+        )
         self.session.commit()
         return _ref(plan)
 
     def purge_expired(self) -> int:
         now = self.clock()
         plans = self.session.scalars(
-            select(Plan).where(
+            select(Plan)
+            .where(
                 Plan.lifecycle == PlanLifecycle.DELETED,
                 Plan.recovery_deadline <= now,
-            ).with_for_update()
+            )
+            .with_for_update(of=Plan)
         ).all()
         count = len(plans)
         for plan in plans:

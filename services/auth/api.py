@@ -13,10 +13,12 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
+from starlette.concurrency import run_in_threadpool
 
 from .authorization import traveler_key
 from .cognito_adapter import CognitoAdapter
 from .contracts import ValidatedIdentity
+from .crud_client import CrudClient
 from .session_store import SessionStore
 from .token_validator import TokenValidationError
 
@@ -71,6 +73,7 @@ def create_app(
     origin: str = "http://localhost:5173",
     secure_cookies: bool = True,
     clock: Callable[[], float] = time.time,
+    crud_client: CrudClient | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Travella account access", docs_url=None, redoc_url=None)
     cookie = "__Host-travella" if secure_cookies else "travella_local"
@@ -100,7 +103,7 @@ def create_app(
 
     @app.middleware("http")
     async def protection(request: Request, call_next):
-        if request.method == "POST":
+        if request.method in {"POST", "PATCH", "DELETE"}:
             if (
                 request.headers.get("origin") != origin
                 or request.headers.get("x-travella-request") != "1"
@@ -286,6 +289,32 @@ def create_app(
         if principal.subject != session["subject"]:
             raise HTTPException(401, "Sign-in required.")
         return sid, session, principal
+
+    @app.api_route("/v1/plans", methods=["GET", "POST"])
+    @app.api_route("/v1/plans/{suffix:path}", methods=["GET", "POST", "PATCH", "DELETE"])
+    async def lifecycle_proxy(request: Request):
+        ready()
+        body = await request.body()
+
+        def forward():
+            with store.transaction():
+                _, session, _ = current_session(request)
+                if crud_client is None:
+                    raise HTTPException(503, "Plans are not configured yet.")
+                status, data = crud_client.request(
+                    request.method,
+                    request.url.path,
+                    token=session["access"],
+                    headers=request.headers,
+                    params=request.query_params,
+                    body=body,
+                )
+                response = JSONResponse(data, status_code=status)
+                if status == 401:
+                    clear(response)
+                return response
+
+        return await run_in_threadpool(forward)
 
     @app.get("/private/probe")
     def private_probe(request: Request):

@@ -6,6 +6,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      CRUD_BASE_URL: http://crud:8001
       SESSION_DB_PATH: /var/lib/travella/auth.sqlite3
       AWS_REGION: ${AWS_REGION:-eu-central-1}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
@@ -13,12 +14,37 @@ services:
       COGNITO_ISSUER: ${COGNITO_ISSUER:-}
       COGNITO_JWKS_URL: ${COGNITO_JWKS_URL:-}
       SESSION_ENCRYPTION_KEY: ${SESSION_ENCRYPTION_KEY:-}
+    depends_on:
+      crud:
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
       - auth-data:/var/lib/travella
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  crud:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    command: ["uv", "run", "--frozen", "uvicorn", "services.crud.server:app", "--host", "0.0.0.0", "--port", "8001", "--no-access-log"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      CRUD_DATABASE_URL: sqlite:////var/lib/travella/plans.sqlite3
+      CRUD_REQUIRED_SCOPE: ${CRUD_REQUIRED_SCOPE:-aws.cognito.signin.user.admin}
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-}
+      COGNITO_ISSUER: ${COGNITO_ISSUER:-}
+      COGNITO_JWKS_URL: ${COGNITO_JWKS_URL:-}
+    volumes:
+      - plan-data:/var/lib/travella
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready')"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -37,3 +63,4 @@ services:
 
 volumes:
   auth-data:
+  plan-data:
