@@ -123,3 +123,11 @@ Date: 2026-09-28
 - Moved Rename/Delete for the active plan into the compact left Plans pane; Chrome verification showed both actions there.
 - Chrome screenshot confirmed the workspace now starts with the plan title, Planning Canvas, and map without the previous summary card.
 - Frontend checks: `npm run build` passed; `npx vitest run src/PlansApp.test.jsx` passed 4/4.
+
+## Planning Brief removal run
+
+- Removed the Planning Brief card and editor from the workspace UI.
+- The authenticated workspace now presents the plan title, Planning Canvas, map/list controls, and top-level Plans/Copilot panes only.
+- The durable Brief API remains available for the later Copilot flow; it is no longer fetched or surfaced in this workspace.
+- Chrome reload confirmed there is no Planning Brief panel or card in the current workspace.
+- Frontend checks: `npm run build` passed; `npx vitest run src/PlansApp.test.jsx` passed 4/4.
