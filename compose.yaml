@@ -1,4 +1,30 @@
 services:
+  postgres:
+    image: postgres:17.6
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-travella}
+      POSTGRES_USER: ${POSTGRES_USER:-travella}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-travella-local-only}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  crud-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    working_dir: /app
+    command: ["uv", "run", "--frozen", "alembic", "-c", "/app/services/crud/alembic.ini", "upgrade", "head"]
+    environment:
+      CRUD_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@postgres:5432/${POSTGRES_DB:-travella}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   auth:
     build:
       context: .
@@ -34,15 +60,16 @@ services:
     command: ["uv", "run", "--frozen", "uvicorn", "services.crud.server:app", "--host", "0.0.0.0", "--port", "8001", "--no-access-log"]
     environment:
       APP_ENV: ${APP_ENV:-development}
-      CRUD_DATABASE_URL: sqlite:////var/lib/travella/plans.sqlite3
+      CRUD_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@postgres:5432/${POSTGRES_DB:-travella}
       CRUD_REQUIRED_SCOPE: ${CRUD_REQUIRED_SCOPE:-aws.cognito.signin.user.admin}
       AWS_REGION: ${AWS_REGION:-eu-central-1}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-}
       COGNITO_ISSUER: ${COGNITO_ISSUER:-}
       COGNITO_JWKS_URL: ${COGNITO_JWKS_URL:-}
-    volumes:
-      - plan-data:/var/lib/travella
+    depends_on:
+      crud-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready')"]
       interval: 5s
@@ -64,4 +91,4 @@ services:
 
 volumes:
   auth-data:
-  plan-data:
+  postgres-data:
