@@ -63,14 +63,17 @@ Travella's full documented MVP moves a traveler from secure account access throu
 
 ### Phase 02.1: Local PostgreSQL data foundation and typed CRUD schema (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Local development and CRUD services use a typed, migration-controlled PostgreSQL database for durable Plans, auth sessions, and structured planning data.
+**Requirements**: 02.1-DB-01, 02.1-DB-02, 02.1-DB-03, 02.1-DATA-01, 02.1-DATA-02, 02.1-DATA-03, 02.1-CRUD-01, 02.1-AUTH-01
 **Depends on:** Phase 2
-**Plans:** 0 plans
+**Plans:** 4 plans in 4 waves
 
 Plans:
 
-- [ ] TBD (run $gsd-plan-phase 02.1 to break down)
+- [ ] 02.1-01 — Add local PostgreSQL Compose service and strict Alembic startup
+- [ ] 02.1-02 — Harden CRUD PostgreSQL types, JSONB payloads, and constraints
+- [ ] 02.1-03 — Move encrypted auth sessions into PostgreSQL
+- [ ] 02.1-04 — Verify PostgreSQL persistence through the FastAPI CRUD contract
 
 ### Phase 3: Conversation & Planning Brief
 
