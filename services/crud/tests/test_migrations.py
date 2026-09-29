@@ -48,7 +48,17 @@ def migrated_database():
     assert_database_at_head(engine)
     yield engine
     with engine.begin() as connection:
-        for table in ("planning_briefs", "destination_pins", "plan_challenges", "plan_action_receipts", "conversations", "plans"):
+        for table in (
+            "auth_enrollments",
+            "auth_recovery_codes",
+            "auth_sessions",
+            "planning_briefs",
+            "destination_pins",
+            "plan_challenges",
+            "plan_action_receipts",
+            "conversations",
+            "plans",
+        ):
             connection.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))
     engine.dispose()
 
@@ -78,7 +88,7 @@ def test_fresh_postgres_plan_http_round_trip(migrated_database):
 
 
 def test_migration_script_has_single_head():
-    assert migration_heads() == {"0003"}
+    assert migration_heads() == {"0005"}
 
 
 def test_unmigrated_database_is_rejected(tmp_path):

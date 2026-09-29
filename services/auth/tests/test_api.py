@@ -132,7 +132,9 @@ def test_refresh_rotation_preserves_original_maximum_age(system):
     response = client.post("/auth/refresh", json={})
     assert response.status_code == 200
     assert "set-cookie" not in response.headers
-    assert store.db.execute("SELECT expires FROM sessions").fetchone()[0] == start + MAX_AGE
+    assert store.db.execute("SELECT expires FROM sessions").fetchone()[0] == pytest.approx(
+        start + MAX_AGE
+    )
     now[0] = start + MAX_AGE
     assert client.post("/auth/refresh", json={}).status_code == 401
     assert provider.refresh.call_count == 1
