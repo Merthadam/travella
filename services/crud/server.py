@@ -17,6 +17,8 @@ def configured_app():
     if os.getenv("APP_ENV", "development") != "development":
         raise RuntimeError("Production CRUD deployment requires managed migrations and validation")
     url = os.environ.get("CRUD_DATABASE_URL", "")
+    if not url.startswith("postgresql+psycopg://"):
+        raise RuntimeError("CRUD_DATABASE_URL must use the postgresql+psycopg scheme")
     engine = create_crud_engine(url)
     assert_database_at_head(engine)
     verifier = (
