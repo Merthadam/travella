@@ -33,7 +33,7 @@ services:
       APP_ENV: ${APP_ENV:-development}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       CRUD_BASE_URL: http://crud:8001
-      SESSION_DB_PATH: /var/lib/travella/auth.sqlite3
+      SESSION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@postgres:5432/${POSTGRES_DB:-travella}
       AWS_REGION: ${AWS_REGION:-eu-central-1}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-}
@@ -45,8 +45,6 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
-    volumes:
-      - auth-data:/var/lib/travella
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 5s
@@ -90,5 +88,4 @@ services:
         condition: service_healthy
 
 volumes:
-  auth-data:
   postgres-data:

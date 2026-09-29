@@ -1,11 +1,13 @@
 """uv run uvicorn services.auth.app:app --port 8000 --no-access-log"""
 
 import os
-from pathlib import Path
 
 import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
+
+from services.crud.config import create_crud_engine
+from services.crud.migration import assert_database_at_head
 
 from .api import create_app
 from .cognito_adapter import CognitoAdapter
@@ -26,8 +28,12 @@ def configured_app():
         return create_app(origin=origin, secure_cookies=secure)
     config = CognitoConfig.from_env()
     key = os.environ["SESSION_ENCRYPTION_KEY"]
-    path = Path(os.getenv("SESSION_DB_PATH", ".runtime/auth.sqlite3"))
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    database_url = os.environ.get("SESSION_DATABASE_URL", "")
+    if not database_url.startswith("postgresql+psycopg://"):
+        raise RuntimeError("SESSION_DATABASE_URL must use the postgresql+psycopg scheme")
+    database_engine = create_crud_engine(database_url)
+    assert_database_at_head(database_engine)
+    database_engine.dispose()
     # End-user operations use tokens/client IDs, not AWS IAM credentials.
     client = boto3.client(
         "cognito-idp",
@@ -39,8 +45,7 @@ def configured_app():
             retries={"max_attempts": 1},
         ),
     )
-    store = SessionStore(str(path), key)
-    path.chmod(0o600)
+    store = SessionStore(database_url, key)
     return create_app(
         CognitoAdapter(client, config.user_pool_id, config.app_client_id),
         CognitoJwtVerifier(config),
