@@ -99,6 +99,20 @@ def _ref(plan: Plan) -> PlanRef:
     )
 
 
+def _destination_ref(row: DestinationPin) -> DestinationRef:
+    """Project PostgreSQL Decimal coordinates back to the public float contract."""
+    return DestinationRef(
+        row.id,
+        row.plan_id,
+        row.place_id,
+        row.name,
+        row.address,
+        float(row.latitude),
+        float(row.longitude),
+        row.granularity,
+    )
+
+
 class PlanRepository:
     def __init__(self, session: Session, *, clock=utc_now) -> None:
         self.session = session
@@ -158,7 +172,7 @@ class PlanRepository:
                 plan_id=plan.id,
                 result_status=ReceiptStatus.SUCCEEDED,
                 result_ref=str(plan.id),
-                result_json="{}",
+                result_json={},
                 created_at=now,
                 expires_at=now + RECEIPT_RETENTION,
             )
@@ -241,7 +255,7 @@ class PlanRepository:
                 plan_id=plan.id,
                 result_status=ReceiptStatus.SUCCEEDED,
                 result_ref=str(plan.id),
-                result_json="{}",
+                result_json={},
                 created_at=now,
                 expires_at=now + RECEIPT_RETENTION,
             )
@@ -335,7 +349,7 @@ class PlanRepository:
         if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE:
             raise LifecycleProblem("plan_unavailable")
         row = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
-        payload = json.loads(row.payload) if row else {}
+        payload = row.payload if row else {}
         return BriefRef(plan_id, payload, plan.revision)
 
     def update_brief(self, subject: str, plan_id: UUID, request_id: str, expected_revision: int, data: dict) -> BriefRef:
@@ -349,9 +363,9 @@ class PlanRepository:
             raise LifecycleProblem("revision_conflict")
         row = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
         if row:
-            row.payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False); row.updated_at = now
+            row.payload = dict(data); row.updated_at = now
         else:
-            self.session.add(PlanningBrief(plan_id=plan_id, payload=json.dumps(data, separators=(",", ":"), ensure_ascii=False), updated_at=now))
+            self.session.add(PlanningBrief(plan_id=plan_id, payload=dict(data), updated_at=now))
         plan.revision += 1; plan.last_activity_at = now; plan.updated_at = now
         self.session.add(self._success_receipt(subject, request_id, "brief_update", payload, plan_id, now))
         self.session.commit()
@@ -364,7 +378,7 @@ class PlanRepository:
         rows = self.session.scalars(
             select(DestinationPin).where(DestinationPin.plan_id == plan_id).order_by(DestinationPin.created_at, DestinationPin.id)
         ).all()
-        return [DestinationRef(row.id, row.plan_id, row.place_id, row.name, row.address, row.latitude, row.longitude, row.granularity) for row in rows]
+        return [_destination_ref(row) for row in rows]
 
     def add_destination(self, subject: str, plan_id: UUID, request_id: str, expected_revision: int, data: dict) -> tuple[DestinationRef, int]:
         now = self.clock()
@@ -374,21 +388,21 @@ class PlanRepository:
         if existing and existing.result_ref:
             row = self.session.get(DestinationPin, UUID(existing.result_ref))
             plan = self._locked_plan(subject, plan_id)
-            if row: return DestinationRef(row.id, row.plan_id, row.place_id, row.name, row.address, row.latitude, row.longitude, row.granularity), plan.revision
+            if row: return _destination_ref(row), plan.revision
             raise LifecycleProblem("plan_unavailable")
         plan = self._locked_plan(subject, plan_id)
         if plan.revision != expected_revision:
             raise LifecycleProblem("revision_conflict")
         duplicate = self.session.scalar(select(DestinationPin).where(DestinationPin.plan_id == plan_id, DestinationPin.place_id == data["place_id"]))
         if duplicate:
-            return DestinationRef(duplicate.id, duplicate.plan_id, duplicate.place_id, duplicate.name, duplicate.address, duplicate.latitude, duplicate.longitude, duplicate.granularity), plan.revision
+            return _destination_ref(duplicate), plan.revision
         row = DestinationPin(plan_id=plan_id, place_id=data["place_id"], name=data["name"], address=data["address"], latitude=data["latitude"], longitude=data["longitude"], granularity=data["granularity"], created_at=now)
         self.session.add(row)
         plan.revision += 1; plan.last_activity_at = now; plan.updated_at = now
         self.session.add(self._success_receipt(subject, request_id, "destination_add", payload, plan_id, now, result_ref=row.id))
         self.session.flush()
         self.session.commit()
-        return DestinationRef(row.id, row.plan_id, row.place_id, row.name, row.address, row.latitude, row.longitude, row.granularity), plan.revision
+        return _destination_ref(row), plan.revision
 
     def remove_destination(self, subject: str, plan_id: UUID, destination_id: UUID, request_id: str, expected_revision: int) -> int:
         now = self.clock(); validate_request_id(request_id, now)
@@ -545,7 +559,7 @@ class PlanRepository:
             plan_id=plan_id,
             result_status=ReceiptStatus.SUCCEEDED,
             result_ref=str(result_ref or plan_id),
-            result_json="{}",
+            result_json={},
             created_at=now,
             expires_at=now + RECEIPT_RETENTION,
         )
