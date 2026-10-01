@@ -25,3 +25,11 @@ Result: **passed**.
 - Browser/UI and AgentCore long-term-memory activation remain outside this backend slice.
 
 No credentials, tokens, raw provider payloads, or personal data are stored in this artifact.
+
+## Agent module reorganization follow-up
+
+The agent code was reorganized after the deterministic test run above. The focused test suite was **not rerun** after this file move/refactor.
+
+- `uv run ruff check services/agent` — passed.
+- `uv run python -m compileall -q services/agent` — passed.
+- Import/assembly smoke for `create_app`, `AgentGraph`, Claude adapter, and state package — passed; LangGraph assembled with three routes. This checks module wiring only, not request behavior or model connectivity.

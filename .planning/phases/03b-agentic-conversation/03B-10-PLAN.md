@@ -4,7 +4,7 @@ plan: '10'
 type: execute
 wave: 3
 depends_on: ['03B-07', '03B-08', '03B-09']
-files_modified: [services/mcps/gateway_interceptor.py, services/mcps/tests/test_transport.py, services/agent/claude.py, services/agent/graph.py, services/agent/tests/test_agent_tools.py, services/mcps/README.md]
+files_modified: [services/mcps/gateway_interceptor.py, services/mcps/tests/test_transport.py, services/agent/claude/adapter.py, services/agent/claude/messages.py, services/agent/claude/gateway.py, services/agent/graph/nodes/research.py, services/agent/tests/test_agent_tools.py, services/mcps/README.md]
 autonomous: true
 gap_closure: true
 requirements: [DISC-06, DISC-07, DISC-08, DISC-09, DISC-10, TRUST-04]
@@ -16,11 +16,11 @@ must_haves:
     - A valid inspect action uses only current-run evidence IDs and invokes get_candidate_sources via the authenticated connector; invalid IDs never reach the target.
   artifacts:
     - {path: services/mcps/gateway_interceptor.py, provides: deployed ownership callback using private CRUD}
-    - {path: services/agent/claude.py, provides: one bounded Anthropic MCP connector loop and SDK block validation}
+    - {path: services/agent/claude/messages.py, provides: bounded Anthropic MCP connector and SDK block validation}
     - {path: services/agent/tests/test_agent_tools.py, provides: actual SDK/MCP/Gateway/target protocol path tests}
   key_links:
     - {from: services/mcps/gateway_interceptor.py, to: services/crud/api.py, via: authenticated private Plan ownership read}
-    - {from: services/agent/claude.py, to: services/mcps/research_server.py, via: AgentCore Gateway tools/call and OAuth-authenticated FastMCP}
+    - {from: services/agent/claude/messages.py, to: services/mcps/research_server.py, via: AgentCore Gateway tools/call and OAuth-authenticated FastMCP}
 ---
 
 <objective>
@@ -33,7 +33,8 @@ Output: Deployable interceptor callback, bounded SDK connector orchestration, an
 @.planning/phases/03b-agentic-conversation/03B-RESEARCH.md
 @.planning/phases/03b-agentic-conversation/03B-09-SUMMARY.md
 @services/mcps/gateway_interceptor.py
-@services/agent/claude.py
+@services/agent/claude/adapter.py
+@services/agent/claude/messages.py
 @services/mcps/README.md</context>
 <tasks>
 <task type="tracer" tdd="true">
@@ -46,7 +47,7 @@ Output: Deployable interceptor callback, bounded SDK connector orchestration, an
 </task>
 <task type="auto" tdd="true">
   <name>Unify Claude research and source inspection in one bounded MCP connector loop</name>
-  <files>services/agent/claude.py, services/agent/graph.py, services/agent/tests/test_agent_tools.py</files>
+  <files>services/agent/claude/adapter.py, services/agent/claude/messages.py, services/agent/graph/nodes/research.py, services/agent/tests/test_agent_tools.py</files>
   <behavior>Claude receives system prompt and current bounded context, calls allowlisted normalized research/map tools, then produces a cited assessment and assistant reply; inspect calls get_candidate_sources only for current-run known IDs; malformed, over-budget or instruction-bearing tool output fails safely.</behavior>
   <action>Per D-02/03/06, make Anthropic Python Messages SDK MCP connector the single owner of tool execution. Configure only the private AgentCore Gateway and allowlisted research/map/source tools with the verified token; remove competing direct GatewayToolClient execution from the production graph. Bound model turns, tool calls, token/time budget, result size, and one active Plan generation. Parse actual SDK mcp_tool_use/mcp_tool_result/text/stop blocks, validate tool identity and Plan/run metadata, treat normalized external evidence as data, and ask Claude to synthesize candidate fit/confidence/caveats with per-claim evidence IDs. Require a complete shortlist of at most five before publication; preserve latest complete result on failure. For inspect, validate candidate and evidence membership from 03B-09 state, use stored run ID, invoke get_candidate_sources through this same authenticated connector, and return compact detail only. Test valid inspect, unknown/foreign/expired IDs, spoofed run, source injection, missing tool result, map mismatch, and no direct unauthenticated helper path. AgentCore long-term-memory adapter remains disabled.</action>
   <verify><automated>uv run pytest -q services/agent/tests/test_agent_tools.py services/agent/tests/test_agent_api.py</automated><fails_when>Production graph calls GatewayToolClient directly, Claude merely forwards fixed preselected calls, inspect bypasses authenticated MCP, or uncited material claims are published.</fails_when></verify>

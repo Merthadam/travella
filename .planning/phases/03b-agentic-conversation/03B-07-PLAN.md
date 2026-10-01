@@ -4,7 +4,7 @@ plan: '07'
 type: execute
 wave: 1
 depends_on: []
-files_modified: [services/agent/prompts/conversation-v1.md, services/agent/prompts/research-v1.md, services/agent/turn.py, services/agent/graph.py, services/agent/claude.py, services/agent/tests/test_agent_turn.py]
+files_modified: [services/agent/prompts/conversation-v1.md, services/agent/prompts/research-v1.md, services/agent/turn.py, services/agent/graph/builder.py, services/agent/graph/nodes/conversation.py, services/agent/graph/nodes/research.py, services/agent/claude/adapter.py, services/agent/claude/messages.py, services/agent/tests/test_agent_turn.py]
 autonomous: true
 gap_closure: true
 requirements: [DISC-01, DISC-02, DISC-03, DISC-04, DISC-05, DISC-06, DISC-09, TRUST-04]
@@ -18,9 +18,12 @@ must_haves:
     - {path: services/agent/prompts/conversation-v1.md, provides: D-02 versioned conversational policy}
     - {path: services/agent/prompts/research-v1.md, provides: D-06 cited destination assessment policy}
     - {path: services/agent/turn.py, provides: D-03 typed bounded turn context and prompt construction}
-    - {path: services/agent/graph.py, provides: D-01 two-stage LangGraph flow}
+    - {path: services/agent/graph/builder.py, provides: D-01 two-stage LangGraph flow}
+    - {path: services/agent/graph/nodes/conversation.py, provides: focused conversation stage}
+    - {path: services/agent/graph/nodes/research.py, provides: bounded research and map stage}
   key_links:
-    - {from: services/agent/graph.py, to: services/agent/claude.py, via: Anthropic Messages SDK conversation call using system field}
+    - {from: services/agent/graph/nodes/conversation.py, to: services/agent/claude/adapter.py, via: bounded conversation context}
+    - {from: services/agent/claude/adapter.py, to: services/agent/claude/messages.py, via: Anthropic Messages SDK and system field}
 ---
 
 <objective>
@@ -37,13 +40,16 @@ Output: Versioned prompts, typed turn context, two-stage graph, and deterministi
 @.planning/phases/03b-agentic-conversation/03B-RESEARCH.md
 @docs/user-stories/agentic-plan-research/README.md
 @docs/planning/mvp-phase-1-service-contracts.md
-@services/agent/graph.py
-@services/agent/claude.py
+@services/agent/graph/builder.py
+@services/agent/graph/nodes/conversation.py
+@services/agent/graph/nodes/research.py
+@services/agent/claude/adapter.py
+@services/agent/claude/messages.py
 </context>
 <tasks>
 <task type="tracer" tdd="true">
   <name>Answer one Plan turn from a versioned prompt and typed context</name>
-  <files>services/agent/prompts/conversation-v1.md, services/agent/turn.py, services/agent/claude.py, services/agent/tests/test_agent_turn.py</files>
+  <files>services/agent/prompts/conversation-v1.md, services/agent/turn.py, services/agent/claude/adapter.py, services/agent/claude/messages.py, services/agent/tests/test_agent_turn.py</files>
   <behavior>Given a verified Plan context and brief conversation history, the SDK call has a top-level system prompt and bounded user/assistant messages; a short meaningful request can initiate research while a long skip can receive one question or a redirect; raw tool blocks and credentials are absent from the public reply.</behavior>
   <action>Per D-02 and D-03, create a discoverable versioned conversation prompt grounded in the user-story journey and service contracts. Define typed TurnContext with verified actor/Plan/Conversation identifiers, CRUD revision, active Brief values with origin, inactive historical values excluded from ranking, tentative proposals, bounded recent messages, prior complete shortlist and generation. Load the prompt from a fixed allowlisted path, use AsyncAnthropic.beta.messages.create with system= and bounded messages=, and validate text/decision blocks before projecting. Keep the SDK provider configurable behind the existing adapter, but use the selected Anthropic Python SDK in this executable path. Test actual SDK request arguments and no secret/raw-MCP leakage. The final CRUD context loader is introduced by 03B-08; this tracer uses typed fixture context without claiming persistence.</action>
   <verify><automated>uv run pytest -q services/agent/tests/test_agent_turn.py</automated><fails_when>The SDK call lacks system/history/current Brief context, or a short valid intent is routed by character count.</fails_when></verify>
@@ -51,7 +57,7 @@ Output: Versioned prompts, typed turn context, two-stage graph, and deterministi
 </task>
 <task type="auto" tdd="true">
   <name>Collapse the graph to conversation and research decisions</name>
-  <files>services/agent/prompts/research-v1.md, services/agent/graph.py, services/agent/claude.py, services/agent/tests/test_agent_turn.py</files>
+  <files>services/agent/prompts/research-v1.md, services/agent/graph/builder.py, services/agent/graph/nodes/conversation.py, services/agent/graph/nodes/research.py, services/agent/claude/adapter.py, services/agent/tests/test_agent_turn.py</files>
   <behavior>Conversation and research are the only execution stages; map lookup and projection are operations inside research; an assistant reply and research decision survive graph state without an extra formatting node.</behavior>
   <action>Per D-01 and D-06, replace entry/focused_question/map_resolution/projection nodes with conversation and research stages. Route using validated model turn decision plus explicit candidate action, never message length. Conversation stage preserves the assistant reply and at most one focused question; research stage applies the versioned research prompt and current compact context, returning only complete candidate assessment proposals. Keep bounded routing, one graph invocation per event, and safe error states. Defer final Gateway tool-loop consolidation to 03B-10, but expose one adapter seam so that plan can own all tool execution without a second loop. Test stage transitions for first intent, answer, skip, redirect, research early, malformed model block, and source-content instruction attempt.</action>
   <verify><automated>uv run pytest -q services/agent/tests/test_agent_turn.py services/agent/tests/test_agent_api.py</automated><fails_when>Fixed questions or message-length routing remain active, more than one question is projected, or a nonallowlisted model block reaches the response.</fails_when></verify>

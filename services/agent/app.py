@@ -1,15 +1,13 @@
-"""Authenticated FastAPI boundary for the Plan-scoped agent graph."""
+"""FastAPI composition root for the Plan-scoped agent microservice."""
 
 from __future__ import annotations
 
 import os
-from collections.abc import Awaitable, Callable
-from typing import Any, Literal
+from collections.abc import Callable
+from typing import Any
 from uuid import UUID
 
-import httpx
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
 
 from services.auth.config import CognitoConfig
 from services.auth.contracts import ValidatedIdentity
@@ -17,78 +15,25 @@ from services.auth.jwt_verifier import CognitoJwtVerifier
 from services.crud.auth import bearer_identity
 
 from .claude import ClaudeGatewayAdapter
+from .crud_client import CrudContextReader, CrudPlanReader
 from .graph import AgentGraph
+from .http_contracts import AgentRequest, AgentResponse
 from .memory import create_memory_adapter
+from .service import AgentTurnService
 from .state import PlanCandidateStore, ProcessReceiptCache
 
 
-class CandidateAction(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    action: Literal["explore", "reject", "extend", "refresh", "inspect", "name"]
-    candidate_id: str | None = Field(default=None, max_length=180)
-    reason: str | None = Field(default=None, max_length=500)
-    evidence_ids: list[str] = Field(default_factory=list, max_length=10)
-    destination: str | None = Field(default=None, max_length=255)
-
-
-class AgentRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    plan_id: UUID
-    event_id: str = Field(min_length=1, max_length=100)
-    message: str = Field(default="", max_length=2000)
-    candidate_action: CandidateAction | None = None
-
-
-class AgentResponse(BaseModel):
-    status: Literal["needs your input", "shortlist_ready", "candidate_action", "source_detail", "unable to continue", "interrupted", "in_progress"]
-    plan_id: UUID
-    event_id: str
-    generation: int = 0
-    question: str | None = None
-    candidates: list[dict[str, Any]] = Field(default_factory=list)
-    evidence: list[dict[str, Any]] = Field(default_factory=list)
-    action: dict[str, Any] | None = None
-    error: str | None = None
-    assistant_text: str | None = None
-
-
-class CrudPlanReader:
-    def __init__(self, base_url: str) -> None:
-        self.base_url = base_url.rstrip("/")
-
-    async def __call__(self, subject: str, plan_id: UUID, token: str) -> dict[str, Any] | None:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(f"{self.base_url}/v1/plans/{plan_id}", headers={"Authorization": f"Bearer {token}"})
-        if response.status_code == 404:
-            return None
-        if response.status_code >= 400:
-            raise HTTPException(503, "Plan service unavailable.")
-        data = response.json()
-        if data.get("lifecycle") != "active":
-            return None
-        return data
-
-
-class CrudContextReader:
-    def __init__(self, base_url: str) -> None:
-        self.base_url = base_url.rstrip("/")
-
-    async def context(self, plan_id: UUID, token: str) -> dict[str, Any]:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(f"{self.base_url}/v1/plans/{plan_id}/agent-context", headers={"Authorization": f"Bearer {token}"})
-        if response.status_code >= 400:
-            raise HTTPException(503, "Plan context unavailable.")
-        return response.json()
-
-    async def append(self, plan_id: UUID, token: str, *, event_id: str, role: str, content: str, generation: int) -> None:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(f"{self.base_url}/v1/plans/{plan_id}/conversation/messages", headers={"Authorization": f"Bearer {token}"}, json={"event_id": event_id, "role": role, "content": content, "generation": generation})
-        if response.status_code >= 400:
-            raise HTTPException(503, "Conversation persistence unavailable.")
-
-
-def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, plan_reader: Callable[..., Any] | None = None, context_reader: CrudContextReader | None = None, graph: AgentGraph | None = None, adapter: Any | None = None, required_scope: str | None = None, cache_size: int = 256) -> FastAPI:
-    """Create the agent app. Production startup must provide a verifier and reader."""
+def create_app(
+    *,
+    verifier: Callable[[str], ValidatedIdentity] | None = None,
+    plan_reader: Callable[..., Any] | None = None,
+    context_reader: CrudContextReader | None = None,
+    graph: AgentGraph | None = None,
+    adapter: Any | None = None,
+    required_scope: str | None = None,
+    cache_size: int = 256,
+) -> FastAPI:
+    """Compose HTTP, authorization, workflow, and adapters for one deployment."""
     if verifier is None and os.getenv("COGNITO_USER_POOL_ID"):
         verifier = CognitoJwtVerifier(CognitoConfig.from_env())
     if plan_reader is None:
@@ -96,16 +41,24 @@ def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, pl
         if base_url:
             plan_reader = CrudPlanReader(base_url)
             context_reader = context_reader or CrudContextReader(base_url)
-    if verifier is None or plan_reader is None:
-        # Keep import/test factories usable, but never silently authorize requests.
+    if plan_reader is None:
         async def unavailable_reader(*args: Any, **kwargs: Any) -> None:
             return None
-        plan_reader = plan_reader or unavailable_reader
+        plan_reader = unavailable_reader
 
-    adapter = adapter or ClaudeGatewayAdapter(os.getenv("AGENTCORE_GATEWAY_URL", "https://gateway.invalid/mcp"))
-    graph = graph or AgentGraph(adapter)
-    cache = ProcessReceiptCache(cache_size)
+    adapter = adapter or ClaudeGatewayAdapter(
+        os.getenv("AGENTCORE_GATEWAY_URL", "https://gateway.invalid/mcp")
+    )
+    workflow = graph or AgentGraph(adapter)
     candidates = PlanCandidateStore(max_receipts=cache_size)
+    turn_service = AgentTurnService(
+        plan_reader=plan_reader,
+        context_reader=context_reader,
+        graph=workflow,
+        tools=adapter,
+        candidates=candidates,
+        receipts=ProcessReceiptCache(cache_size),
+    )
     memory = create_memory_adapter()
     app = FastAPI(title="Travella agent service", docs_url=None, redoc_url=None)
 
@@ -123,132 +76,32 @@ def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, pl
     def identity_dependency(authorization: str | None = Header(default=None)) -> ValidatedIdentity:
         if verifier is None:
             raise HTTPException(503, "Agent authentication is not configured.")
-        return bearer_identity(verifier, authorization, required_scope=required_scope or os.getenv("AGENT_REQUIRED_SCOPE", "travella/agent"))
-
-    async def read_plan(subject: str, plan_id: UUID, token: str) -> dict[str, Any]:
-        try:
-            result = plan_reader(subject, plan_id, token)
-            if isinstance(result, Awaitable):
-                result = await result
-        except HTTPException:
-            raise
-        except Exception as exc:
-            raise HTTPException(503, "Plan service unavailable.") from exc
-        if not result or result.get("lifecycle") != "active":
-            raise HTTPException(404, "Plan unavailable.")
-        owner = result.get("traveler_subject")
-        if owner and owner != subject:
-            raise HTTPException(404, "Plan unavailable.")
-        return result
-
-    async def handle(request: AgentRequest, identity: ValidatedIdentity, authorization: str | None) -> AgentResponse:
-        token = (authorization or "")[7:].strip()
-        plan = await read_plan(identity.subject, request.plan_id, token)
-        plan_id = str(request.plan_id)
-        context = await context_reader.context(request.plan_id, token) if context_reader else {}
-        reservation = await candidates.reserve(identity.subject, plan_id, request.event_id)
-        if not reservation.owner:
-            if reservation.future.done():
-                return AgentResponse.model_validate(reservation.future.result())
-            prior = await candidates.snapshot(identity.subject, plan_id)
-            return AgentResponse(
-                status="in_progress", plan_id=request.plan_id, event_id=request.event_id,
-                generation=reservation.generation,
-                candidates=list(prior.candidates) if prior else [],
-            )
-        generation = reservation.generation
-        action = request.candidate_action.model_dump() if request.candidate_action else None
-        prior = await candidates.snapshot(identity.subject, plan_id)
-
-        async def finish(projection: dict[str, Any]) -> AgentResponse:
-            cache.put(identity.subject, plan_id, request.event_id, projection)
-            await candidates.resolve_pending(identity.subject, plan_id, request.event_id, projection)
-            return AgentResponse.model_validate(projection)
-
-        try:
-            action_name = action.get("action") if action else None
-            if action_name in {"explore", "reject"}:
-                if prior is None:
-                    raise HTTPException(422, "No current candidate shortlist.")
-                selected = next((item for item in prior.candidates if item.get("candidate_id") == action.get("candidate_id")), None)
-                if selected is None:
-                    raise HTTPException(422, "Candidate is not part of the current shortlist.")
-                if action_name == "reject":
-                    rejected = frozenset((*prior.rejected, str(selected["candidate_id"])))
-                    remaining = [item for item in prior.candidates if item.get("candidate_id") not in rejected]
-                    if not await candidates.publish(identity.subject, plan_id, generation, query=prior.query, run_id=prior.run_id, candidates=remaining, rejected=rejected):
-                        return await finish({"status": "interrupted", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "candidates": list(prior.candidates)})
-                    return await finish({"status": "candidate_action", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "action": action, "candidates": remaining})
-                return await finish({"status": "candidate_action", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "action": action, "candidates": [selected]})
-
-            if action_name == "inspect":
-                if prior is None or not action["evidence_ids"]:
-                    raise HTTPException(422, "Evidence IDs are required for the current shortlist.")
-                known = {str(ref.get("evidence_id")) for item in prior.candidates for ref in item.get("evidence", [])}
-                if not set(action["evidence_ids"]).issubset(known):
-                    raise HTTPException(422, "Evidence is not part of the current shortlist.")
-                result = await adapter.sources(evidence_ids=action["evidence_ids"], traveler_scope=identity.subject, plan_id=plan_id, run_id=prior.run_id, authorization_token=token)
-                evidence = result.get("evidence", []) if isinstance(result, dict) else []
-                if not isinstance(evidence, list):
-                    raise HTTPException(502, "Source results were invalid.")
-                return await finish({"status": "source_detail", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "evidence": evidence[:10]})
-
-            query = request.message.strip()
-            if action_name == "name":
-                query = (action.get("destination") or "").strip()
-                if not query:
-                    raise HTTPException(422, "Destination is required.")
-            if action_name in {"extend", "refresh"} and not query:
-                query = prior.query if prior else ""
-            if action_name in {"extend", "refresh"} and not query:
-                raise HTTPException(422, "A previous research query is required.")
-            state = {"traveler_scope": identity.subject, "authorization_token": token, "plan_id": plan_id, "plan_revision": int(context.get("revision", plan.get("revision", 1))), "conversation_id": context.get("conversation_id"), "brief": context.get("brief", {}), "recent_messages": context.get("messages", []), "event_id": request.event_id, "generation": generation, "message": query, "candidate_action": action}
-            result = await graph.invoke(state)
-            projection = result.get("projection") if isinstance(result, dict) else None
-            if not isinstance(projection, dict):
-                raise HTTPException(502, "Agent response was invalid.")
-            fresh = projection.get("candidates", []) if projection.get("status") == "shortlist_ready" else []
-            if action_name == "extend" and prior:
-                seen = {str(item.get("candidate_id")) for item in prior.candidates}
-                fresh = list(prior.candidates) + [item for item in fresh if str(item.get("candidate_id")) not in seen and str(item.get("candidate_id")) not in prior.rejected]
-                fresh = fresh[:5]
-            if projection.get("status") == "shortlist_ready" and not fresh:
-                projection = {**projection, "status": "unable to continue", "error": "No complete candidates were returned."}
-            if projection.get("status") == "shortlist_ready":
-                run_id = str(result.get("run_id") or projection.get("run_id") or "")
-                if action_name == "extend" and prior:
-                    run_id = prior.run_id
-                if not await candidates.publish(identity.subject, plan_id, generation, query=query, run_id=run_id, candidates=fresh, rejected=prior.rejected if prior else frozenset()):
-                    return await finish({"status": "interrupted", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "candidates": list(prior.candidates) if prior else []})
-                projection = {**projection, "candidates": fresh}
-            elif prior:
-                projection = {**projection, "candidates": list(prior.candidates), "action": action if action_name == "refresh" else projection.get("action")}
-            if context_reader and query:
-                await context_reader.append(request.plan_id, token, event_id=f"{request.event_id}:user", role="user", content=query, generation=generation)
-            if context_reader and projection.get("assistant_text"):
-                await context_reader.append(request.plan_id, token, event_id=f"{request.event_id}:assistant", role="assistant", content=str(projection["assistant_text"]), generation=generation)
-            return await finish(projection)
-        except HTTPException as exc:
-            await candidates.resolve_pending(identity.subject, plan_id, request.event_id, {"status": "unable to continue", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "error": str(exc.detail)})
-            raise
-        except Exception:
-            safe = {"status": "unable to continue", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "error": "Agent provider unavailable."}
-            if prior:
-                safe["candidates"] = list(prior.candidates)
-            await candidates.resolve_pending(identity.subject, plan_id, request.event_id, safe)
-            return AgentResponse.model_validate(safe)
+        return bearer_identity(
+            verifier,
+            authorization,
+            required_scope=required_scope or os.getenv("AGENT_REQUIRED_SCOPE", "travella/agent"),
+        )
 
     router = APIRouter(prefix="/v1/agent")
 
     @router.post("/events", response_model=AgentResponse)
-    async def events(request: AgentRequest, identity: ValidatedIdentity = Depends(identity_dependency), authorization: str | None = Header(default=None)):
-        return await handle(request, identity, authorization)
+    async def events(
+        request: AgentRequest,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+        authorization: str | None = Header(default=None),
+    ) -> AgentResponse:
+        return await turn_service.handle(request, identity.subject, authorization)
 
     @router.post("/plans/{plan_id}/events", response_model=AgentResponse)
-    async def plan_events(plan_id: UUID, request: AgentRequest, identity: ValidatedIdentity = Depends(identity_dependency), authorization: str | None = Header(default=None)):
+    async def plan_events(
+        plan_id: UUID,
+        request: AgentRequest,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+        authorization: str | None = Header(default=None),
+    ) -> AgentResponse:
         if request.plan_id != plan_id:
             raise HTTPException(422, "Plan ID does not match the request path.")
-        return await handle(request, identity, authorization)
+        return await turn_service.handle(request, identity.subject, authorization)
 
     app.include_router(router)
     return app

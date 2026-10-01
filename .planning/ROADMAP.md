@@ -110,7 +110,7 @@ Plans:
 4. Traveler edits and inactive preferences, duplicate events, redirects, candidate rejections and failed refresh retain their documented meaning across requests and processes.
 5. Agent, CRUD and MCP HTTP integration tests establish ownership, persistence and obsolete-run suppression; live provider evidence is reported separately.
 
-**Plans**: 01–06 have implementation summaries but are not phase verification. Corrective plans 07 onward are being authored under `.planning/phases/03b-agentic-conversation/`.
+**Plans**: 01–06 have implementation summaries but are not phase verification. Corrective plans 07–11 are ready under `.planning/phases/03b-agentic-conversation/`.
 
 ### Phase 4: Evidence-backed Destination Discovery
 

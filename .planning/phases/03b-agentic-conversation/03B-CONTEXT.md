@@ -96,6 +96,7 @@ This amendment governs the next corrective plans (03B-07 onward). Plans 01–06 
 - **D-06:** Use the existing private research/map FastMCP servers through AgentCore Gateway. Claude must interpret normalized evidence and produce cited candidate assessments, rather than merely forwarding pre-selected tool calls. One bounded layer owns tool execution; do not add competing SDK and graph tool loops. No silent direct-provider fallback.
 - **D-07:** Persist complete shortlists, stable candidate identity, rejection reasons, event receipts and run ordering sufficiently to resume safely. New input supersedes obsolete work; failed refresh preserves the last complete shortlist; duplicate events must not duplicate publication or Plan changes. A restart must not silently restart unfinished provider research.
 - **D-08:** Complete backend verification through real FastAPI handlers, an isolated migrated database, the real SDK request construction and authenticated MCP protocol path. Distinguish deterministic tests from live model/provider checks; skipped live checks are not completion. Fix the known Gateway ownership callback blocker before claiming the live path works.
+- **D-09:** Keep the agent microservice organized by responsibility: FastAPI composition and HTTP contracts, application turn orchestration, LangGraph assembly, one file per meaningful graph node, isolated Claude SDK/MCP adapters, and separate state/persistence modules. Avoid growing root-level catch-all modules.
 
 ### Planning decisions locked — 2026-10-01
 
