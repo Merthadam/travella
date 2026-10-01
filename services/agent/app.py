@@ -49,6 +49,7 @@ class AgentResponse(BaseModel):
     evidence: list[dict[str, Any]] = Field(default_factory=list)
     action: dict[str, Any] | None = None
     error: str | None = None
+    assistant_text: str | None = None
 
 
 class CrudPlanReader:
@@ -68,7 +69,25 @@ class CrudPlanReader:
         return data
 
 
-def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, plan_reader: Callable[..., Any] | None = None, graph: AgentGraph | None = None, adapter: Any | None = None, required_scope: str | None = None, cache_size: int = 256) -> FastAPI:
+class CrudContextReader:
+    def __init__(self, base_url: str) -> None:
+        self.base_url = base_url.rstrip("/")
+
+    async def context(self, plan_id: UUID, token: str) -> dict[str, Any]:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(f"{self.base_url}/v1/plans/{plan_id}/agent-context", headers={"Authorization": f"Bearer {token}"})
+        if response.status_code >= 400:
+            raise HTTPException(503, "Plan context unavailable.")
+        return response.json()
+
+    async def append(self, plan_id: UUID, token: str, *, event_id: str, role: str, content: str, generation: int) -> None:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(f"{self.base_url}/v1/plans/{plan_id}/conversation/messages", headers={"Authorization": f"Bearer {token}"}, json={"event_id": event_id, "role": role, "content": content, "generation": generation})
+        if response.status_code >= 400:
+            raise HTTPException(503, "Conversation persistence unavailable.")
+
+
+def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, plan_reader: Callable[..., Any] | None = None, context_reader: CrudContextReader | None = None, graph: AgentGraph | None = None, adapter: Any | None = None, required_scope: str | None = None, cache_size: int = 256) -> FastAPI:
     """Create the agent app. Production startup must provide a verifier and reader."""
     if verifier is None and os.getenv("COGNITO_USER_POOL_ID"):
         verifier = CognitoJwtVerifier(CognitoConfig.from_env())
@@ -76,6 +95,7 @@ def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, pl
         base_url = os.getenv("CRUD_BASE_URL")
         if base_url:
             plan_reader = CrudPlanReader(base_url)
+            context_reader = context_reader or CrudContextReader(base_url)
     if verifier is None or plan_reader is None:
         # Keep import/test factories usable, but never silently authorize requests.
         async def unavailable_reader(*args: Any, **kwargs: Any) -> None:
@@ -125,6 +145,7 @@ def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, pl
         token = (authorization or "")[7:].strip()
         plan = await read_plan(identity.subject, request.plan_id, token)
         plan_id = str(request.plan_id)
+        context = await context_reader.context(request.plan_id, token) if context_reader else {}
         reservation = await candidates.reserve(identity.subject, plan_id, request.event_id)
         if not reservation.owner:
             if reservation.future.done():
@@ -181,7 +202,7 @@ def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, pl
                 query = prior.query if prior else ""
             if action_name in {"extend", "refresh"} and not query:
                 raise HTTPException(422, "A previous research query is required.")
-            state = {"traveler_scope": identity.subject, "authorization_token": token, "plan_id": plan_id, "plan_revision": int(plan.get("revision", 1)), "event_id": request.event_id, "generation": generation, "message": query, "candidate_action": action}
+            state = {"traveler_scope": identity.subject, "authorization_token": token, "plan_id": plan_id, "plan_revision": int(context.get("revision", plan.get("revision", 1))), "conversation_id": context.get("conversation_id"), "brief": context.get("brief", {}), "recent_messages": context.get("messages", []), "event_id": request.event_id, "generation": generation, "message": query, "candidate_action": action}
             result = await graph.invoke(state)
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
@@ -202,6 +223,10 @@ def create_app(*, verifier: Callable[[str], ValidatedIdentity] | None = None, pl
                 projection = {**projection, "candidates": fresh}
             elif prior:
                 projection = {**projection, "candidates": list(prior.candidates), "action": action if action_name == "refresh" else projection.get("action")}
+            if context_reader and query:
+                await context_reader.append(request.plan_id, token, event_id=f"{request.event_id}:user", role="user", content=query, generation=generation)
+            if context_reader and projection.get("assistant_text"):
+                await context_reader.append(request.plan_id, token, event_id=f"{request.event_id}:assistant", role="assistant", content=str(projection["assistant_text"]), generation=generation)
             return await finish(projection)
         except HTTPException as exc:
             await candidates.resolve_pending(identity.subject, plan_id, request.event_id, {"status": "unable to continue", "plan_id": plan_id, "event_id": request.event_id, "generation": generation, "error": str(exc.detail)})
