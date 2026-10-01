@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     DateTime,
     Enum,
@@ -14,14 +15,12 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
-    String,
-    JSON,
     Numeric,
+    String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
-
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 JSON_OBJECT = JSON().with_variant(JSONB, "postgresql")
 

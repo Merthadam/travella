@@ -23,7 +23,7 @@ def _bounded_candidates(value: Any) -> list[dict[str, Any]]:
 
 
 class AgentGraph:
-    def __init__(self, adapter: AgentAdapter) -> None:
+    def __init__(self, adapter: AgentAdapter, *, checkpointer: Any | None = None) -> None:
         self.adapter = adapter
         flow = StateGraph(AgentState)
         flow.add_node("conversation", self.conversation)
@@ -33,7 +33,7 @@ class AgentGraph:
         flow.add_conditional_edges("conversation", self.route, {"research": "research", "projection": "projection"})
         flow.add_edge("research", "projection")
         flow.add_edge("projection", END)
-        self.compiled = flow.compile()
+        self.compiled = flow.compile(checkpointer=checkpointer)
 
     def route(self, state: AgentState) -> str:
         return "research" if state.get("turn_decision") == "research" or str(state.get("message", "")).strip() else "projection"

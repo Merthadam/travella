@@ -12,7 +12,19 @@ from fastapi import APIRouter, Depends, Header, Query
 from .auth import identity_dependency
 from .contracts import LifecycleProblem
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
-from .schemas import BriefInput, BriefMutationOutput, BriefOutput, ChallengeInput, ChallengeOutput, DestinationInput, DestinationMutationOutput, DestinationOutput, PlanOutput, PlanPage, TitleInput
+from .schemas import (
+    BriefInput,
+    BriefMutationOutput,
+    BriefOutput,
+    ChallengeInput,
+    ChallengeOutput,
+    DestinationInput,
+    DestinationMutationOutput,
+    DestinationOutput,
+    PlanOutput,
+    PlanPage,
+    TitleInput,
+)
 
 WriteId = Annotated[str, Header(alias="Idempotency-Key", max_length=100)]
 Revision = Annotated[int, Header(alias="If-Match", ge=1)]

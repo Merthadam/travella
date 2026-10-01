@@ -7,9 +7,11 @@ traveler or Plan supplied in tool arguments.
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
+from urllib.request import Request, urlopen
 
 import jwt
 
@@ -38,7 +40,7 @@ class GatewayRequestInterceptor:
         jwt_key: str | bytes,
         issuer: str,
         client_id: str,
-        plan_owner: Callable[[str, str], bool],
+        plan_owner: Callable[..., bool],
         required_scope: str = "travella/agent",
     ) -> None:
         self.jwt_key = jwt_key
@@ -83,7 +85,12 @@ class GatewayRequestInterceptor:
         if not isinstance(arguments, Mapping):
             raise AuthenticationError("invalid tool arguments")
         plan_id = str(arguments.get("plan_id") or "").strip()
-        if not plan_id or not self.plan_owner(str(claims["sub"]), plan_id):
+        token = str((request.headers.get("authorization") or request.headers.get("Authorization"))[7:]).strip()
+        try:
+            owned = self.plan_owner(str(claims["sub"]), plan_id, token)
+        except TypeError:
+            owned = self.plan_owner(str(claims["sub"]), plan_id)
+        if not plan_id or not owned:
             raise AuthenticationError("Plan is not owned by traveler")
         assertion = issue_scope_assertion(str(claims["sub"]), plan_id)
         transformed_arguments = dict(arguments)
@@ -137,13 +144,26 @@ def lambda_handler(event: Mapping[str, Any], _context: object = None) -> dict[st
         client_id = os.getenv("COGNITO_CLIENT_ID", "")
         if not jwt_key or not issuer or not client_id:
             raise AuthenticationError("interceptor authentication is not configured")
+        crud_url = os.getenv("CRUD_PRIVATE_URL", "").rstrip("/")
+        if not crud_url:
+            raise AuthenticationError("private CRUD ownership reader is not configured")
+
+        def plan_owner(subject: str, plan_id: str, token: str) -> bool:
+            request = Request(f"{crud_url}/v1/plans/{plan_id}", headers={"Authorization": f"Bearer {token}", "X-Travella-Subject": subject})
+            try:
+                with urlopen(request, timeout=5) as response:
+                    if response.status != 200:
+                        return False
+                    data = json.loads(response.read().decode("utf-8"))
+                    return data.get("lifecycle") == "active"
+            except Exception:
+                return False
+
         interceptor = GatewayRequestInterceptor(
             jwt_key=jwt_key,
             issuer=issuer,
             client_id=client_id,
-            # The deployed adapter must replace this with the CRUD ownership
-            # reader; fail closed when the Lambda has not been wired to CRUD.
-            plan_owner=lambda _subject, _plan: False,
+            plan_owner=plan_owner,
         )
         return agentcore_response(intercept_request(interceptor, request))
     except AuthenticationError as exc:
