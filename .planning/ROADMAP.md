@@ -92,6 +92,26 @@ Plans:
 **UI hint**: yes
 **Research flag**: yes — define the AG-UI event/input schemas, LangGraph interrupt and single-active-session behavior, checkpoint reconciliation, and Brief precedence rules.
 
+### Phase 03b: Agentic conversation — conversational redesign
+
+**Goal**: An authenticated traveler can hold a coherent, resumable Plan conversation with real Claude system prompts, bounded evidence-backed research and a small LangGraph workflow.
+**Depends on**: Phase 2, Phase 02.1 schema foundation, existing Phase 3B MCP/Gateway implementation
+**Requirements**: DISC-01, DISC-02, DISC-04, DISC-05, DISC-06, DISC-07, DISC-08, DISC-10, TRUST-03, TRUST-04
+**Scope**: Backend delivery slice of Phases 3 and 4. It does not independently complete those product requirements or include frontend design.
+**Status**: Planning corrective work; historical verification remains gaps_found.
+**UI hint**: no
+**Research flag**: yes — verify installed Claude/MCP protocol, minimal graph stages, persistent checkpoint compatibility and state reconciliation.
+
+**Success Criteria**:
+
+1. Versioned system prompts and bounded conversation/Brief context reach Claude; relevant replies and one useful question replace fixed message-length routing.
+2. A small LangGraph controls conversation and research, with one bounded tool-execution owner and validated cited shortlists.
+3. Versioned, encrypted, traveler/Plan-scoped checkpoints resume after restart only after reconciliation with CRUD; credentials and raw provider output are never checkpointed.
+4. Traveler edits and inactive preferences, duplicate events, redirects, candidate rejections and failed refresh retain their documented meaning across requests and processes.
+5. Agent, CRUD and MCP HTTP integration tests establish ownership, persistence and obsolete-run suppression; live provider evidence is reported separately.
+
+**Plans**: 01–06 have implementation summaries but are not phase verification. Corrective plans 07 onward are being authored under `.planning/phases/03b-agentic-conversation/`.
+
 ### Phase 4: Evidence-backed Destination Discovery
 
 **Goal**: Travelers can inspect compact, uncertainty-aware destination research and control which candidates remain in scope for the Plan.

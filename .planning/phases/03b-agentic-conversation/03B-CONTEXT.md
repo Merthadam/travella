@@ -80,3 +80,36 @@ AGENTCORE_MEMORY_NAMESPACE_TEMPLATE=traveler/{actorId}
 - Whether map resolution uses Places Text Search, Geocoding, or both for candidate names.
 - The Claude SDK adapter contract and LangGraph node/state boundaries.
 - Checkpoint backing store and reconciliation details; AgentCore remains outside this first slice.
+
+## Conversational redesign — 2026-09-29
+
+This amendment governs the next corrective plans (03B-07 onward). Plans 01–06 and their summaries remain historical records. The user asked to retain LangGraph, remove unnecessary workflow fragmentation, introduce real system prompts and conversational context, and plan this through GSD before implementation. The original stateless first-slice deferral is superseded for this corrective work. The phase remains unverified; the old verification report predates several implemented fixes and is evidence to re-check, not a current code inventory.
+
+<decisions>
+### Agreed direction
+
+- **D-01:** Retain one LangGraph workflow per authenticated traveler/Plan. Use a small number of meaningful execution stages; status initialization, fixed questions, map lookup, and response formatting do not each require a graph node. Start from two stages, conversation and research, and justify any added node with a distinct branching/retry/resume need.
+- **D-02:** Add discoverable, versioned system prompts under `services/agent/prompts/`, sent through the SDK's system field. Ground them in `docs/user-stories/agentic-plan-research/README.md` and `docs/planning/mvp-phase-1-service-contracts.md`. Preserve useful assistant replies; never treat an exact-tool-call user message as the conversational policy.
+- **D-03:** Give Claude bounded conversation history, the latest CRUD planning context, and compact research state. Ask at most one useful question; accept early answers, skips and redirects; start low-risk research before all preferences are collected. Replace message-length routing.
+- **D-04:** Add actual persistent LangGraph checkpoint integration and restore/reconciliation. CRUD owns conversation records and durable Plan/Brief data; agent checkpoint storage owns resumable working state. Scope every read/write by verified traveler and Plan. Keep credentials, raw MCP blocks and raw web payloads out of checkpoints and browser projections.
+- **D-05:** Preserve current/manual traveler brief values over tentative inference. Deleted entries remain inactive and must not affect ranking. A checkpoint must not overwrite a newer CRUD revision. Separate conversational progress from confirmed requirements, destinations and saved pins.
+- **D-06:** Use the existing private research/map FastMCP servers through AgentCore Gateway. Claude must interpret normalized evidence and produce cited candidate assessments, rather than merely forwarding pre-selected tool calls. One bounded layer owns tool execution; do not add competing SDK and graph tool loops. No silent direct-provider fallback.
+- **D-07:** Persist complete shortlists, stable candidate identity, rejection reasons, event receipts and run ordering sufficiently to resume safely. New input supersedes obsolete work; failed refresh preserves the last complete shortlist; duplicate events must not duplicate publication or Plan changes. A restart must not silently restart unfinished provider research.
+- **D-08:** Complete backend verification through real FastAPI handlers, an isolated migrated database, the real SDK request construction and authenticated MCP protocol path. Distinguish deterministic tests from live model/provider checks; skipped live checks are not completion. Fix the known Gateway ownership callback blocker before claiming the live path works.
+
+### Planning decisions locked — 2026-10-01
+
+The user selected the existing Anthropic Python Messages SDK with LangGraph managing the workflow, and PostgreSQL checkpoints with AgentCore reserved for long-term traveler memory. AgentCore-backed checkpointing remains a researched alternative to compare, but is not the selected implementation. No switch to Claude Agent SDK is assumed.
+
+### Discretion
+
+Exact prompt file names, typed turn contracts, checkpoint adapter implementation, compatible package versions, bounded call budgets and plan decomposition may be chosen from research. Prefer existing installed dependencies and narrow additive contracts. Keep one coherent source of conversational working state; retire process-local production state once durable state is wired.
+</decisions>
+
+### Scope and deferred work
+
+- This is backend agent planning: prompts, conversation/context contracts, checkpoint persistence, a minimal LangGraph, MCP integration and behavior verification. There is no frontend design or implementation in this corrective slice; the Travella prototype offer applies when that work is planned.
+- AgentCore long-term memory remains a bounded, disabled adapter until its own activation/retention feature. Do not silently enable it as part of checkpoint work.
+- Requirement/workspace confirmation, bookings, supplier search, new A2UI components and public AWS deployment are deferred. Preserve direct manual Plan/destination CRUD behavior.
+- Add only the CRUD conversation/context persistence needed for the documented agent journey, with HTTP persistence/ownership/lifecycle tests. Agent checkpoints are not authoritative Plan records.
+- Original roadmap requirements retain their product-level status until frontend and live verification gates pass. No completion claim for Phase 02.1's skipped PostgreSQL checks or existing Phase 3B gaps is implied.
