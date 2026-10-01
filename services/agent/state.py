@@ -27,6 +27,13 @@ class AgentState(TypedDict, total=False):
     evidence: list[dict[str, Any]]
     error: str | None
     projection: dict[str, Any]
+    conversation_id: str
+    brief: dict[str, Any]
+    tentative_inferences: dict[str, Any]
+    recent_messages: list[dict[str, str]]
+    research_state: dict[str, Any]
+    assistant_text: str
+    turn_decision: str
 
 
 @dataclass(frozen=True)

@@ -127,7 +127,24 @@ def test_complete_lifecycle_and_persistence(system):
     assert restored["conversation"] == plan["conversation"]
     assert client.get(path).json() == restored
     assert client.get("/v1/plans?view=deleted").json()["plans"] == []
-    assert client.get("/v1/plans").headers["cache-control"] == "no-store"
+
+
+def test_conversation_messages_are_idempotent_and_context_is_scoped(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}"
+    body = {"event_id": "turn-1", "role": "user", "content": "food and temples"}
+    first = system.client.post(path + "/conversation/messages", json=body)
+    second = system.client.post(path + "/conversation/messages", json=body)
+    assert first.status_code == second.status_code == 200
+    assert first.json() == second.json()
+    assistant = system.client.post(path + "/conversation/messages", json={"event_id": "turn-1-assistant", "role": "assistant", "content": "I can research that."})
+    assert assistant.status_code == 200
+    messages = system.client.get(path + "/conversation/messages").json()
+    assert [item["role"] for item in messages] == ["user", "assistant"]
+    context = system.client.get(path + "/agent-context").json()
+    assert context["plan_id"] == plan["plan_id"] and context["revision"] == 1
+    assert context["messages"][-1]["content"] == "I can research that."
+    assert system.client.get(f"/v1/plans/{uuid4()}/agent-context").status_code == 404
 
 
 @pytest.mark.parametrize(

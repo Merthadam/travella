@@ -8,6 +8,7 @@ from langgraph.graph import END, START, StateGraph
 
 from .claude import AgentAdapter
 from .state import AgentState
+from .turn import TurnContext
 
 
 def _bounded_candidates(value: Any) -> list[dict[str, Any]]:
@@ -25,28 +26,43 @@ class AgentGraph:
     def __init__(self, adapter: AgentAdapter) -> None:
         self.adapter = adapter
         flow = StateGraph(AgentState)
-        flow.add_node("entry", self.entry)
-        flow.add_node("focused_question", self.focused_question)
+        flow.add_node("conversation", self.conversation)
         flow.add_node("research", self.research)
-        flow.add_node("map_resolution", self.map_resolution)
         flow.add_node("projection", self.projection)
-        flow.add_edge(START, "entry")
-        flow.add_conditional_edges("entry", self.route, {"focused_question": "focused_question", "research": "research"})
-        flow.add_edge("focused_question", "projection")
-        flow.add_edge("research", "map_resolution")
-        flow.add_edge("map_resolution", "projection")
+        flow.add_edge(START, "conversation")
+        flow.add_conditional_edges("conversation", self.route, {"research": "research", "projection": "projection"})
+        flow.add_edge("research", "projection")
         flow.add_edge("projection", END)
         self.compiled = flow.compile()
 
-    async def entry(self, state: AgentState) -> dict[str, Any]:
-        return {"status": "preparing", "error": None}
-
     def route(self, state: AgentState) -> str:
-        message = str(state.get("message", "")).strip()
-        return "focused_question" if len(message) < 3 else "research"
+        return "research" if state.get("turn_decision") == "research" or str(state.get("message", "")).strip() else "projection"
 
-    async def focused_question(self, state: AgentState) -> dict[str, Any]:
-        return {"status": "needs your input", "question": "What kind of trip or destination would you like to explore?"}
+    async def conversation(self, state: AgentState) -> dict[str, Any]:
+        message = str(state.get("message", "")).strip()
+        if not message:
+            return {"status": "needs your input", "question": "What kind of trip or destination would you like to explore?", "turn_decision": "respond"}
+        complete = getattr(self.adapter, "complete_conversation", None)
+        if complete is None:
+            return {"status": "preparing", "turn_decision": "research"}
+        context = TurnContext(
+            traveler_scope=str(state["traveler_scope"]), plan_id=str(state["plan_id"]),
+            conversation_id=state.get("conversation_id"), plan_revision=int(state.get("plan_revision", 1)),
+            brief=state.get("brief", {}), tentative_inferences=state.get("tentative_inferences", {}),
+            recent_messages=tuple(state.get("recent_messages", [])), research_state=state.get("research_state", {}),
+            generation=int(state.get("generation", 0)),
+        )
+        result = await complete(message=message, context=context, authorization_token=state.get("authorization_token", ""))
+        if not isinstance(result, dict):
+            return {"status": "unable to continue", "error": "Conversation response was invalid.", "turn_decision": "respond"}
+        decision = result.get("decision") if result.get("decision") in {"question", "research", "respond"} else "research"
+        question = str(result.get("question"))[:500] if result.get("question") else None
+        output = {"turn_decision": decision, "assistant_text": str(result.get("assistant_text", ""))[:2000]}
+        if decision == "question" or question:
+            output.update({"status": "needs your input", "question": question or "What matters most for this trip?", "turn_decision": "respond"})
+        elif decision == "respond":
+            output["status"] = "in_progress"
+        return output
 
     async def research(self, state: AgentState) -> dict[str, Any]:
         action = state.get("candidate_action") or {}
@@ -93,6 +109,8 @@ class AgentGraph:
                 projection["run_id"] = state["run_id"]
         if state.get("question"):
             projection["question"] = state["question"]
+        if state.get("assistant_text"):
+            projection["assistant_text"] = str(state["assistant_text"])[:2000]
         if state.get("error"):
             projection["error"] = state["error"]
         return {"projection": projection, "status": status}

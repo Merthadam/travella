@@ -88,7 +88,7 @@ def test_fresh_postgres_plan_http_round_trip(migrated_database):
 
 
 def test_migration_script_has_single_head():
-    assert migration_heads() == {"0006"}
+    assert migration_heads() == {"0007"}
 
 
 def test_unmigrated_database_is_rejected(tmp_path):

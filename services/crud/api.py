@@ -101,6 +101,18 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
         brief = repo.update_brief(me.subject, plan_id, request_id, if_match, data.model_dump())
         return BriefMutationOutput(plan_id=brief.plan_id, revision=brief.revision, **brief.payload)
 
+    @router.get("/{plan_id}/conversation/messages", response_model=list[dict])
+    def conversation_messages(plan_id: UUID, repo: Repo, me=Depends(identity), limit: int = Query(12, ge=1, le=50)):
+        return repo.conversation_messages(me.subject, plan_id, limit)
+
+    @router.post("/{plan_id}/conversation/messages", response_model=dict)
+    def append_conversation_message(plan_id: UUID, data: dict, repo: Repo, me=Depends(identity)):
+        return repo.append_conversation_message(me.subject, plan_id, str(data.get("event_id", "")), str(data.get("role", "")), str(data.get("content", "")), generation=int(data.get("generation", 0)), status=str(data.get("status", "complete")))
+
+    @router.get("/{plan_id}/agent-context", response_model=dict)
+    def agent_context(plan_id: UUID, repo: Repo, me=Depends(identity), limit: int = Query(12, ge=1, le=50)):
+        return repo.agent_context(me.subject, plan_id, limit)
+
     @router.get("/{plan_id}/destinations", response_model=list[DestinationOutput])
     def destinations(plan_id: UUID, repo: Repo, me=Depends(identity)):
         return [DestinationOutput(destination_id=d.destination_id, plan_id=d.plan_id, place_id=d.place_id, name=d.name, address=d.address, latitude=d.latitude, longitude=d.longitude, granularity=d.granularity) for d in repo.destinations(me.subject, plan_id)]

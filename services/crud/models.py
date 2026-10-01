@@ -112,6 +112,28 @@ class Conversation(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     plan: Mapped[Plan] = relationship(back_populates="conversation")
+    messages: Mapped[list["ConversationMessage"]] = relationship(
+        back_populates="conversation", cascade="all, delete-orphan", order_by="ConversationMessage.sequence"
+    )
+
+
+class ConversationMessage(Base):
+    __tablename__ = "conversation_messages"
+    __table_args__ = (
+        UniqueConstraint("conversation_id", "event_id", name="uq_conversation_messages_event"),
+        Index("ix_conversation_messages_conversation_sequence", "conversation_id", "sequence"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[str] = mapped_column(String(2000), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="complete")
+    generation: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
 
 class DestinationPin(Base):
@@ -142,6 +164,8 @@ class PlanningBrief(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("plans.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     payload: Mapped[dict[str, object]] = mapped_column(JSON_OBJECT, nullable=False, default=dict)
+    provenance: Mapped[dict[str, object]] = mapped_column(JSON_OBJECT, nullable=False, default=dict)
+    inactive: Mapped[dict[str, object]] = mapped_column(JSON_OBJECT, nullable=False, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

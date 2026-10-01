@@ -10,6 +10,8 @@ from typing import Any, Protocol
 import httpx
 from anthropic import AsyncAnthropic
 
+from .turn import TurnContext, load_prompt
+
 RESEARCH_TOOL = "research_destination_candidates"
 MAP_TOOL = "resolve_candidate_locations"
 SOURCE_TOOL = "get_candidate_sources"
@@ -94,15 +96,31 @@ class ClaudeGatewayAdapter:
     def mcp_server_config(self, token: str) -> dict[str, Any]:
         return {"type": "url", "name": "travella-gateway", "url": self.gateway_url, "authorization_token": token, "tool_configuration": {"enabled": True, "allowed_tools": list(ALLOWED_TOOLS)}}
 
-    async def complete(self, *, message: str, authorization_token: str) -> Any:
+    async def complete(self, *, message: str, authorization_token: str, system: str | None = None, messages: list[dict[str, str]] | None = None) -> Any:
         client = self.anthropic_client or AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
         return await client.beta.messages.create(
             model=self.model,
             max_tokens=1200,
-            messages=[{"role": "user", "content": message}],
+            system=system or load_prompt("research-v1"),
+            messages=messages or [{"role": "user", "content": message}],
             mcp_servers=[self.mcp_server_config(authorization_token)],
             tools=[{"type": "mcp_toolset", "mcp_server_name": "travella-gateway", "default_config": {"enabled": True}, "configs": {}}],
         )
+
+    async def complete_conversation(self, *, message: str, context: TurnContext, authorization_token: str) -> dict[str, Any]:
+        response = await self.complete(
+            message=message,
+            authorization_token=authorization_token,
+            system=load_prompt("conversation-v1"),
+            messages=context.messages(message),
+        )
+        texts = [self._value(block, "text", "") for block in self._blocks(response) if self._value(block, "type") == "text"]
+        text = "\n".join(str(value) for value in texts if value).strip()
+        decision = "research" if any(token in text.lower() for token in ("research", "shortlist", "destination")) else "respond"
+        question = None
+        if "?" in text:
+            question = text.rsplit("?", 1)[0].split("\n")[-1].strip() + "?"
+        return {"decision": decision, "assistant_text": text[:2000], "question": question}
 
     @staticmethod
     def _blocks(response: Any) -> list[Any]:

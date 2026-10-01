@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session, joinedload
 from .contracts import BriefRef, ConversationRef, DestinationRef, LifecycleProblem, PlanRef
 from .models import (
     Conversation,
+    ConversationMessage,
     DestinationPin,
     Plan,
     PlanActionReceipt,
@@ -352,6 +353,44 @@ class PlanRepository:
         payload = row.payload if row else {}
         return BriefRef(plan_id, payload, plan.revision)
 
+    @staticmethod
+    def _message_projection(row: ConversationMessage) -> dict:
+        return {"message_id": str(row.id), "conversation_id": str(row.conversation_id), "event_id": row.event_id, "role": row.role, "content": row.content, "status": row.status, "generation": row.generation, "sequence": row.sequence, "created_at": as_utc(row.created_at).isoformat()}
+
+    def append_conversation_message(self, subject: str, plan_id: UUID, event_id: str, role: str, content: str, *, generation: int = 0, status: str = "complete") -> dict:
+        if role not in {"user", "assistant"} or not event_id or len(content) > 2000:
+            raise LifecycleProblem("invalid_request", "Request could not be processed.")
+        plan = self._locked_plan(subject, plan_id)
+        if plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
+            raise LifecycleProblem("not_found")
+        existing = self.session.scalar(select(ConversationMessage).where(ConversationMessage.conversation_id == plan.conversation.id, ConversationMessage.event_id == event_id))
+        if existing:
+            return self._message_projection(existing)
+        sequence = int(self.session.scalar(select(ConversationMessage.sequence).where(ConversationMessage.conversation_id == plan.conversation.id).order_by(ConversationMessage.sequence.desc()).limit(1)) or 0) + 1
+        row = ConversationMessage(conversation_id=plan.conversation.id, event_id=event_id, role=role, content=content, generation=generation, status=status, sequence=sequence, created_at=self.clock())
+        self.session.add(row)
+        self.session.flush()
+        self.session.commit()
+        return self._message_projection(row)
+
+    def conversation_messages(self, subject: str, plan_id: UUID, limit: int = 12) -> list[dict]:
+        plan = self.session.scalar(select(Plan).where(Plan.id == plan_id, Plan.traveler_subject == subject))
+        if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
+            raise LifecycleProblem("not_found")
+        rows = self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == plan.conversation.id).order_by(ConversationMessage.sequence.desc()).limit(max(1, min(limit, 50)))).all()
+        return [self._message_projection(row) for row in reversed(rows)]
+
+    def agent_context(self, subject: str, plan_id: UUID, limit: int = 12) -> dict:
+        plan = self.session.scalar(select(Plan).options(joinedload(Plan.conversation)).where(Plan.id == plan_id, Plan.traveler_subject == subject))
+        if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
+            raise LifecycleProblem("not_found")
+        brief = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
+        payload = brief.payload if brief else {}
+        provenance = brief.provenance if brief else {}
+        inactive = brief.inactive if brief else {}
+        brief_entries = {key: {"value": value, "origin": provenance.get(key, "traveler_stated"), "active": key not in inactive} for key, value in payload.items()}
+        return {"plan_id": str(plan.id), "conversation_id": str(plan.conversation.id), "revision": plan.revision, "brief": brief_entries, "inactive": inactive, "messages": self.conversation_messages(subject, plan_id, limit)}
+
     def update_brief(self, subject: str, plan_id: UUID, request_id: str, expected_revision: int, data: dict) -> BriefRef:
         now = self.clock(); validate_request_id(request_id, now)
         payload = {"operation": "brief_update", "plan_id": str(plan_id), **data}
@@ -363,9 +402,9 @@ class PlanRepository:
             raise LifecycleProblem("revision_conflict")
         row = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
         if row:
-            row.payload = dict(data); row.updated_at = now
+            row.payload = dict(data); row.provenance = {key: "traveler_stated" for key in data}; row.inactive = {}; row.updated_at = now
         else:
-            self.session.add(PlanningBrief(plan_id=plan_id, payload=dict(data), updated_at=now))
+            self.session.add(PlanningBrief(plan_id=plan_id, payload=dict(data), provenance={key: "traveler_stated" for key in data}, inactive={}, updated_at=now))
         plan.revision += 1; plan.last_activity_at = now; plan.updated_at = now
         self.session.add(self._success_receipt(subject, request_id, "brief_update", payload, plan_id, now))
         self.session.commit()
