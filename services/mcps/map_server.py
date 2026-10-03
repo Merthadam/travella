@@ -2,19 +2,36 @@
 
 from __future__ import annotations
 
+import os
+
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from .config import McpSettings, required_secret
 from .transport import authenticated_mcp_app, require_tool_context
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
-map_mcp = FastMCP("travella-map-mcp")
 
 
-async def _resolve_candidate_locations(
-    candidate_names: list[str], plan_id: str
-) -> dict:
+def _transport_security() -> TransportSecuritySettings:
+    configured_hosts = os.getenv("MCP_ALLOWED_HOSTS", "")
+    allowed_hosts = [host.strip() for host in configured_hosts.split(",") if host.strip()]
+    if not allowed_hosts:
+        allowed_hosts = ["map-mcp:8001", "localhost:8001", "127.0.0.1:8001"]
+    return TransportSecuritySettings(allowed_hosts=allowed_hosts)
+
+
+map_mcp = FastMCP(
+    "travella-map-mcp",
+    port=8001,
+    json_response=True,
+    stateless_http=True,
+    transport_security=_transport_security(),
+)
+
+
+async def _resolve_candidate_locations(candidate_names: list[str], plan_id: str) -> dict:
     """Resolve temporary candidate names into map-ready projections.
 
     This tool never creates or updates a Plan record. Saved destinations remain
@@ -73,9 +90,7 @@ async def _resolve_candidate_locations(
 
 
 @map_mcp.tool()
-async def resolve_candidate_locations(
-    candidate_names: list[str], plan_id: str
-) -> dict:
+async def resolve_candidate_locations(candidate_names: list[str], plan_id: str) -> dict:
     """Resolve temporary candidate names into map-ready projections."""
     return await _resolve_candidate_locations(candidate_names, plan_id)
 
@@ -87,7 +102,6 @@ async def get_candidate_map_projection(candidate_names: list[str], plan_id: str)
 
 
 if __name__ == "__main__":
-    import os
-
     import uvicorn
+
     uvicorn.run(authenticated_mcp_app(map_mcp), host="0.0.0.0", port=int(os.getenv("PORT", "8001")))

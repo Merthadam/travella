@@ -4,19 +4,26 @@ These private FastMCP servers expose the first Phase 3B capability boundary:
 
 - `research_server.py` calls Tavily and returns at most five compact destination candidates with source references.
 - `map_server.py` resolves candidate names through Google Geocoding and returns temporary map projections.
-- `memory.py` holds the AgentCore Memory namespace boundary until the authenticated LangGraph runtime owns reads and writes.
+- `services/agent/memory.py` currently disables long-term memory. No AgentCore Memory calls are made in the local setup; a local persistent-memory adapter is a separate follow-up.
 
 Copy `.env.example` to `.env` and fill in the provider keys. The keys are read only by these server processes and are never returned by a tool. Keep the Google server key separate from the browser key used by the frontend.
 
-Run each server locally from the repository root:
+The default local stack runs the Agent and both MCP servers in Docker without
+provisioning AgentCore. `bash scripts/start-local.sh` creates an ignored,
+permission-restricted service-auth file, then starts the stack. The Agent uses the
+official MCP client to call the local Streamable HTTP servers. Their service-token
+and signed Plan-scope checks remain enabled. Provider keys are still needed for
+Tavily and Google Maps and are read only by the MCP containers.
+
+For target development, run each server manually from the repository root:
 
 ```bash
 uv run python -m services.mcps.research_server
 uv run python -m services.mcps.map_server
 ```
 
-The servers use Streamable HTTP. Every target call must arrive through the
-Gateway with both an OAuth client-credentials service token and a short-lived
+The servers use Streamable HTTP. In a deployed AgentCore setup, every target call
+must arrive through the Gateway with both an OAuth client-credentials service token and a short-lived
 signed actor/Plan assertion. `tools/list` is allowed for catalog
 synchronization; direct `tools/call` requests are rejected before provider
 work. Set `MCP_ASSERTION_SIGNING_SECRET`, `MCP_GATEWAY_OAUTH_ISSUER`,

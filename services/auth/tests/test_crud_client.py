@@ -72,6 +72,17 @@ def test_cookie_forwards_only_server_token_and_lifecycle_persists(gateway, caplo
     assert response.status_code == 200
     plan = response.json()
     assert client.get(f"/v1/plans/{plan['plan_id']}").json() == plan
+    conversation_path = f"/v1/plans/{plan['plan_id']}/conversation/messages"
+    assert (
+        gateway.system.client.post(
+            conversation_path,
+            json={"event_id": "turn-1:user", "role": "user", "content": "Quiet coast"},
+        ).status_code
+        == 200
+    )
+    history = client.get(conversation_path)
+    assert history.status_code == 200
+    assert [message["content"] for message in history.json()] == ["Quiet coast"]
     sent = gateway.captured[0]
     assert sent.headers["authorization"] == f"Bearer {gateway.system.token}"
     assert "cookie" not in sent.headers and "x-traveler-id" not in sent.headers

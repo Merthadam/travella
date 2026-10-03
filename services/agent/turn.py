@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -25,12 +26,16 @@ class TurnContext:
 
     def bounded(self) -> "TurnContext":
         history = tuple(
-            {"role": str(item.get("role", "user")), "content": str(item.get("content", ""))[:MAX_TEXT]}
+            {
+                "role": str(item.get("role", "user")),
+                "content": str(item.get("content", ""))[:MAX_TEXT],
+            }
             for item in self.recent_messages[-MAX_HISTORY:]
             if isinstance(item, dict) and str(item.get("content", "")).strip()
         )
         active_brief = {
-            str(key): value for key, value in self.brief.items()
+            str(key): value
+            for key, value in self.brief.items()
             if isinstance(value, dict) and value.get("active", True)
         }
         return TurnContext(
@@ -47,17 +52,24 @@ class TurnContext:
 
     def messages(self, user_message: str) -> list[dict[str, str]]:
         context = self.bounded()
-        context_blob = {
-            "plan_id": context.plan_id,
-            "plan_revision": context.plan_revision,
-            "brief": context.brief,
-            "tentative_inferences": context.tentative_inferences,
-            "research_state": context.research_state,
-            "generation": context.generation,
-        }
+        context_blob = json.dumps(
+            {
+                "plan_id": context.plan_id,
+                "plan_revision": context.plan_revision,
+                "brief": context.brief,
+                "tentative_inferences": context.tentative_inferences,
+                "research_state": context.research_state,
+                "generation": context.generation,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
         return [
             *list(context.recent_messages),
-            {"role": "user", "content": f"Plan context (JSON): {context_blob}\nTraveler message: {user_message[:MAX_TEXT]}"},
+            {
+                "role": "user",
+                "content": f"Plan context (JSON): {context_blob}\nTraveler message: {user_message[:MAX_TEXT]}",
+            },
         ]
 
 

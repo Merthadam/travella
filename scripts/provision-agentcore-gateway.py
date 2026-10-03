@@ -56,13 +56,25 @@ class GatewayConfig:
             cognito_discovery_url=value("COGNITO_DISCOVERY_URL"),
             cognito_client_id=value("COGNITO_CLIENT_ID"),
             cognito_audience=value("COGNITO_AUDIENCE"),
-            cognito_scope=value("COGNITO_REQUIRED_SCOPE", "travella/agent"),
+            cognito_scope=value("COGNITO_REQUIRED_SCOPE", "aws.cognito.signin.user.admin"),
             interceptor_lambda_arn=value("AGENTCORE_INTERCEPTOR_LAMBDA_ARN"),
             oauth_provider_arn=value("AGENTCORE_OAUTH_PROVIDER_ARN"),
-            oauth_issuer=_required_value("AGENTCORE_OAUTH_ISSUER", os.getenv("AGENTCORE_OAUTH_ISSUER") or os.getenv("MCP_GATEWAY_OAUTH_ISSUER")),
-            oauth_audience=_required_value("AGENTCORE_OAUTH_AUDIENCE", os.getenv("AGENTCORE_OAUTH_AUDIENCE") or os.getenv("MCP_GATEWAY_OAUTH_AUDIENCE")),
-            oauth_client_id=_required_value("AGENTCORE_OAUTH_CLIENT_ID", os.getenv("AGENTCORE_OAUTH_CLIENT_ID") or os.getenv("MCP_GATEWAY_OAUTH_CLIENT_ID")),
-            oauth_scope=_required_value("AGENTCORE_OAUTH_SCOPE", os.getenv("AGENTCORE_OAUTH_SCOPE") or os.getenv("MCP_GATEWAY_OAUTH_SCOPE")),
+            oauth_issuer=_required_value(
+                "AGENTCORE_OAUTH_ISSUER",
+                os.getenv("AGENTCORE_OAUTH_ISSUER") or os.getenv("MCP_GATEWAY_OAUTH_ISSUER"),
+            ),
+            oauth_audience=_required_value(
+                "AGENTCORE_OAUTH_AUDIENCE",
+                os.getenv("AGENTCORE_OAUTH_AUDIENCE") or os.getenv("MCP_GATEWAY_OAUTH_AUDIENCE"),
+            ),
+            oauth_client_id=_required_value(
+                "AGENTCORE_OAUTH_CLIENT_ID",
+                os.getenv("AGENTCORE_OAUTH_CLIENT_ID") or os.getenv("MCP_GATEWAY_OAUTH_CLIENT_ID"),
+            ),
+            oauth_scope=_required_value(
+                "AGENTCORE_OAUTH_SCOPE",
+                os.getenv("AGENTCORE_OAUTH_SCOPE") or os.getenv("MCP_GATEWAY_OAUTH_SCOPE"),
+            ),
             research_endpoint=value("RESEARCH_MCP_ENDPOINT"),
             map_endpoint=value("MAP_MCP_ENDPOINT"),
             protocol_version=value("AGENTCORE_MCP_PROTOCOL_VERSION", "2025-03-26"),
@@ -98,12 +110,17 @@ def validate_config(config: GatewayConfig) -> None:
         ("MCP_GATEWAY_OAUTH_CLIENT_ID", os.getenv("MCP_GATEWAY_OAUTH_CLIENT_ID")),
         ("MCP_GATEWAY_OAUTH_SCOPE", os.getenv("MCP_GATEWAY_OAUTH_SCOPE")),
     ):
-        if value and value.strip() and value.strip() != {
-            "MCP_GATEWAY_OAUTH_ISSUER": config.oauth_issuer,
-            "MCP_GATEWAY_OAUTH_AUDIENCE": config.oauth_audience,
-            "MCP_GATEWAY_OAUTH_CLIENT_ID": config.oauth_client_id,
-            "MCP_GATEWAY_OAUTH_SCOPE": config.oauth_scope,
-        }[name]:
+        if (
+            value
+            and value.strip()
+            and value.strip()
+            != {
+                "MCP_GATEWAY_OAUTH_ISSUER": config.oauth_issuer,
+                "MCP_GATEWAY_OAUTH_AUDIENCE": config.oauth_audience,
+                "MCP_GATEWAY_OAUTH_CLIENT_ID": config.oauth_client_id,
+                "MCP_GATEWAY_OAUTH_SCOPE": config.oauth_scope,
+            }[name]
+        ):
             raise ProvisioningError(f"outbound OAuth configuration does not match {name}")
 
 
@@ -128,17 +145,21 @@ def gateway_contract(config: GatewayConfig) -> dict[str, Any]:
         "protocolType": "MCP",
         "roleArn": config.role_arn,
         "authorizerType": "CUSTOM_JWT",
-        "authorizerConfiguration": {"customJWTAuthorizer": {
-            "discoveryUrl": config.cognito_discovery_url,
-            "allowedAudience": [config.cognito_audience],
-            "allowedClients": [config.cognito_client_id],
-            "allowedScopes": [config.cognito_scope],
-        }},
-        "interceptorConfigurations": [{
-            "interceptor": {"lambda": {"arn": config.interceptor_lambda_arn}},
-            "interceptionPoints": ["REQUEST"],
-            "inputConfiguration": {"passRequestHeaders": True},
-        }],
+        "authorizerConfiguration": {
+            "customJWTAuthorizer": {
+                "discoveryUrl": config.cognito_discovery_url,
+                "allowedAudience": [config.cognito_audience],
+                "allowedClients": [config.cognito_client_id],
+                "allowedScopes": [config.cognito_scope],
+            }
+        },
+        "interceptorConfigurations": [
+            {
+                "interceptor": {"lambda": {"arn": config.interceptor_lambda_arn}},
+                "interceptionPoints": ["REQUEST"],
+                "inputConfiguration": {"passRequestHeaders": True},
+            }
+        ],
         "targets": [
             _target_contract(config, "travella-research-mcp", config.research_endpoint),
             _target_contract(config, "travella-map-mcp", config.map_endpoint),
@@ -162,18 +183,26 @@ def _gateway_request(config: GatewayConfig) -> dict[str, Any]:
 def _target_request(config: GatewayConfig, name: str, endpoint: str) -> dict[str, Any]:
     return {
         "name": name,
-        "targetConfiguration": {"mcp": {"mcpServer": {
-            "endpoint": endpoint,
-            "listingMode": "DYNAMIC",
-        }}},
-        "credentialProviderConfigurations": [{
-            "credentialProviderType": "OAUTH",
-            "credentialProvider": {"oauthCredentialProvider": {
-                "providerArn": config.oauth_provider_arn,
-                "scopes": [config.oauth_scope],
-                "grantType": "CLIENT_CREDENTIALS",
-            }},
-        }],
+        "targetConfiguration": {
+            "mcp": {
+                "mcpServer": {
+                    "endpoint": endpoint,
+                    "listingMode": "DYNAMIC",
+                }
+            }
+        },
+        "credentialProviderConfigurations": [
+            {
+                "credentialProviderType": "OAUTH",
+                "credentialProvider": {
+                    "oauthCredentialProvider": {
+                        "providerArn": config.oauth_provider_arn,
+                        "scopes": [config.oauth_scope],
+                        "grantType": "CLIENT_CREDENTIALS",
+                    }
+                },
+            }
+        ],
     }
 
 
@@ -192,18 +221,36 @@ def _items(client: Any, operation: str, **kwargs: Any) -> list[dict[str, Any]]:
 
 
 def _gateway_matches(actual: Mapping[str, Any], desired: Mapping[str, Any]) -> bool:
-    return all(actual.get(key) == desired[key] for key in (
-        "name", "roleArn", "protocolType", "authorizerType",
-        "authorizerConfiguration", "interceptorConfigurations",
-    ))
+    return all(
+        actual.get(key) == desired[key]
+        for key in (
+            "name",
+            "roleArn",
+            "protocolType",
+            "authorizerType",
+            "authorizerConfiguration",
+            "interceptorConfigurations",
+        )
+    )
 
 
 def _target_matches(actual: Mapping[str, Any], desired: Mapping[str, Any]) -> bool:
-    return actual.get("name") == desired["name"] and actual.get("targetConfiguration") == desired["targetConfiguration"] and actual.get("credentialProviderConfigurations") == desired["credentialProviderConfigurations"]
+    return (
+        actual.get("name") == desired["name"]
+        and actual.get("targetConfiguration") == desired["targetConfiguration"]
+        and actual.get("credentialProviderConfigurations")
+        == desired["credentialProviderConfigurations"]
+    )
 
 
 def _status_ok(status: Any) -> bool:
-    return str(status or "").upper() in {"ACTIVE", "AVAILABLE", "READY", "SYNCHRONIZED", "SYNCHRONIZED_WITH_WARNINGS"}
+    return str(status or "").upper() in {
+        "ACTIVE",
+        "AVAILABLE",
+        "READY",
+        "SYNCHRONIZED",
+        "SYNCHRONIZED_WITH_WARNINGS",
+    }
 
 
 def _require_id(response: Mapping[str, Any], key: str) -> str:
@@ -217,31 +264,58 @@ def _describe_gateway(client: Any, gateway_id: str, desired: Mapping[str, Any]) 
     for attempt in range(12):
         described = client.get_gateway(gatewayIdentifier=gateway_id)
         if not _gateway_matches(described, desired):
-            raise ProvisioningError("Gateway describe does not match the requested authorizer/interceptor contract")
+            raise ProvisioningError(
+                "Gateway describe does not match the requested authorizer/interceptor contract"
+            )
         if _status_ok(described.get("status")):
             return described
         status = str(described.get("status", "unknown")).upper()
         if status in {"CREATING", "UPDATING", "DELETING"} and attempt < 11:
             time.sleep(1)
             continue
-        raise ProvisioningError(f"Gateway is not ready (status={described.get('status', 'unknown')})")
+        raise ProvisioningError(
+            f"Gateway is not ready (status={described.get('status', 'unknown')})"
+        )
     raise ProvisioningError("Gateway describe did not reach a ready state")
 
 
 def _catalog_check(config: GatewayConfig) -> dict[str, Any]:
     if not config.gateway_url or not config.gateway_access_token:
-        raise ProvisioningError("AGENTCORE_GATEWAY_URL and AGENTCORE_GATEWAY_ACCESS_TOKEN are required for catalog verification")
+        raise ProvisioningError(
+            "AGENTCORE_GATEWAY_URL and AGENTCORE_GATEWAY_ACCESS_TOKEN are required for catalog verification"
+        )
     import httpx
 
     endpoint = config.gateway_url.rstrip("/")
     if not endpoint.endswith("/mcp"):
         endpoint += "/mcp"
-    headers = {"Authorization": f"Bearer {config.gateway_access_token}", "Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
+    headers = {
+        "Authorization": f"Bearer {config.gateway_access_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
     with httpx.Client(timeout=20.0) as http:
-        for request_id, method, params in ((1, "initialize", {"protocolVersion": config.protocol_version, "capabilities": {}, "clientInfo": {"name": "travella-provisioner", "version": "1"}}), (2, "tools/list", {})):
-            response = http.post(endpoint, headers=headers, json={"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
+        for request_id, method, params in (
+            (
+                1,
+                "initialize",
+                {
+                    "protocolVersion": config.protocol_version,
+                    "capabilities": {},
+                    "clientInfo": {"name": "travella-provisioner", "version": "1"},
+                },
+            ),
+            (2, "tools/list", {}),
+        ):
+            response = http.post(
+                endpoint,
+                headers=headers,
+                json={"jsonrpc": "2.0", "id": request_id, "method": method, "params": params},
+            )
             if response.status_code >= 400:
-                raise ProvisioningError(f"Gateway catalog request failed with HTTP {response.status_code}")
+                raise ProvisioningError(
+                    f"Gateway catalog request failed with HTTP {response.status_code}"
+                )
             data = response.json()
             if data.get("error"):
                 raise ProvisioningError("Gateway catalog returned an MCP error")
@@ -250,7 +324,12 @@ def _catalog_check(config: GatewayConfig) -> dict[str, Any]:
                 if not isinstance(tools, list):
                     raise ProvisioningError("Gateway tools/list response omitted tools")
                 names = {tool.get("name") for tool in tools if isinstance(tool, Mapping)}
-                expected = {"research_destination_candidates", "get_candidate_sources", "resolve_candidate_locations", "get_candidate_map_projection"}
+                expected = {
+                    "research_destination_candidates",
+                    "get_candidate_sources",
+                    "resolve_candidate_locations",
+                    "get_candidate_map_projection",
+                }
                 missing = expected - names
                 if missing:
                     raise ProvisioningError("Gateway catalog is missing expected tools")
@@ -258,15 +337,22 @@ def _catalog_check(config: GatewayConfig) -> dict[str, Any]:
     raise ProvisioningError("Gateway catalog verification did not complete")
 
 
-def provision(config: GatewayConfig, *, client: Any = None, verify_catalog: bool = True) -> dict[str, Any]:
+def provision(
+    config: GatewayConfig, *, client: Any = None, verify_catalog: bool = True
+) -> dict[str, Any]:
     validate_config(config)
     if client is None:
         import boto3
+
         client = boto3.client("bedrock-agentcore-control", region_name=config.region)
     gateway_payload = _gateway_request(config)
     gateways = _items(client, "list_gateways", maxResults=100)
     existing = next((item for item in gateways if item.get("name") == config.name), None)
-    if config.gateway_id and existing and existing.get("gatewayId") not in {None, config.gateway_id}:
+    if (
+        config.gateway_id
+        and existing
+        and existing.get("gatewayId") not in {None, config.gateway_id}
+    ):
         raise ProvisioningError("AGENTCORE_GATEWAY_ID does not match the named Gateway")
     if existing:
         gateway_id = str(existing.get("gatewayId") or existing.get("id") or "")
@@ -280,7 +366,10 @@ def provision(config: GatewayConfig, *, client: Any = None, verify_catalog: bool
         gateway_id = _require_id(response, "gatewayId")
     gateway = _describe_gateway(client, gateway_id, gateway_payload)
 
-    desired_targets = {"travella-research-mcp": config.research_endpoint, "travella-map-mcp": config.map_endpoint}
+    desired_targets = {
+        "travella-research-mcp": config.research_endpoint,
+        "travella-map-mcp": config.map_endpoint,
+    }
     targets = _items(client, "list_gateway_targets", gatewayIdentifier=gateway_id, maxResults=100)
     target_ids: dict[str, str] = {}
     for name, endpoint in desired_targets.items():
@@ -292,13 +381,17 @@ def provision(config: GatewayConfig, *, client: Any = None, verify_catalog: bool
                 raise ProvisioningError(f"existing target {name} omitted its identifier")
             current = client.get_gateway_target(gatewayIdentifier=gateway_id, targetId=target_id)
             if not _target_matches(current, desired):
-                client.update_gateway_target(gatewayIdentifier=gateway_id, targetId=target_id, **desired)
+                client.update_gateway_target(
+                    gatewayIdentifier=gateway_id, targetId=target_id, **desired
+                )
         else:
             response = client.create_gateway_target(gatewayIdentifier=gateway_id, **desired)
             target_id = _require_id(response, "targetId")
         target_ids[name] = target_id
 
-    sync_response = client.synchronize_gateway_targets(gatewayIdentifier=gateway_id, targetIdList=list(target_ids.values()))
+    sync_response = client.synchronize_gateway_targets(
+        gatewayIdentifier=gateway_id, targetIdList=list(target_ids.values())
+    )
     if not sync_response.get("targets"):
         raise ProvisioningError("AWS did not return synchronized targets")
     described_targets: dict[str, dict[str, Any]] = {}
@@ -306,30 +399,54 @@ def provision(config: GatewayConfig, *, client: Any = None, verify_catalog: bool
         for attempt in range(12):
             target = client.get_gateway_target(gatewayIdentifier=gateway_id, targetId=target_id)
             if not _target_matches(target, _target_request(config, name, desired_targets[name])):
-                raise ProvisioningError(f"target {name} describe does not match endpoint/auth configuration")
+                raise ProvisioningError(
+                    f"target {name} describe does not match endpoint/auth configuration"
+                )
             if _status_ok(target.get("status")):
                 break
             status = str(target.get("status", "unknown")).upper()
             if status in {"CREATING", "UPDATING", "SYNCHRONIZING", "SYNCING"} and attempt < 11:
                 time.sleep(1)
                 continue
-            raise ProvisioningError(f"target {name} is not ready (status={target.get('status', 'unknown')})")
+            raise ProvisioningError(
+                f"target {name} is not ready (status={target.get('status', 'unknown')})"
+            )
         else:
             raise ProvisioningError(f"target {name} did not reach a ready state")
         described_targets[name] = {"target_id": target_id, "status": target.get("status")}
-    catalog = _catalog_check(config) if verify_catalog else {"status": "skipped", "reason": "offline control-plane verification"}
-    return {"status": "verified", "gateway_id": gateway_id, "gateway_status": gateway.get("status"), "targets": described_targets, "catalog": catalog}
+    catalog = (
+        _catalog_check(config)
+        if verify_catalog
+        else {"status": "skipped", "reason": "offline control-plane verification"}
+    )
+    return {
+        "status": "verified",
+        "gateway_id": gateway_id,
+        "gateway_status": gateway.get("status"),
+        "targets": described_targets,
+        "catalog": catalog,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dry-run", action="store_true", help="validate and print desired state without contacting AWS")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="validate and print desired state without contacting AWS",
+    )
     args = parser.parse_args(argv)
     try:
         config = GatewayConfig.from_env()
         validate_config(config)
         if args.dry_run:
-            print(json.dumps({"dry_run": True, "contract": gateway_contract(config)}, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {"dry_run": True, "contract": gateway_contract(config)},
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
             return 0
         print(json.dumps(provision(config), indent=2, sort_keys=True))
         return 0
@@ -337,7 +454,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"provisioning failed: {exc}", file=sys.stderr)
         return 2
     except Exception as exc:
-        print(f"provisioning failed: AWS control-plane operation was unsuccessful ({type(exc).__name__})", file=sys.stderr)
+        print(
+            f"provisioning failed: AWS control-plane operation was unsuccessful ({type(exc).__name__})",
+            file=sys.stderr,
+        )
         return 2
 
 

@@ -65,6 +65,8 @@ AGENTCORE_MEMORY_NAMESPACE_TEMPLATE=traveler/{actorId}
 
 `VITE_GOOGLE_MAPS_API_KEY` remains in the frontend environment only. Secrets are supplied through deployment/runtime configuration and excluded from planning artifacts, browser projections, screenshots, and logs.
 
+The agent runtime uses server-only `AWS_BEARER_TOKEN_BEDROCK` when configured, or the AWS credential chain, with `BEDROCK_REGION` and `BEDROCK_MODEL_ID` for the model endpoint/profile. Local Compose passes these only to the `agent` service. Never expose the Bedrock token through a `VITE_` variable.
+
 ## First verification targets
 
 - Tavily credentials are rejected when absent or invalid without exposing the key.
@@ -100,7 +102,9 @@ This amendment governs the next corrective plans (03B-07 onward). Plans 01–06 
 
 ### Planning decisions locked — 2026-10-01
 
-The user selected the existing Anthropic Python Messages SDK with LangGraph managing the workflow, and PostgreSQL checkpoints with AgentCore reserved for long-term traveler memory. AgentCore-backed checkpointing remains a researched alternative to compare, but is not the selected implementation. No switch to Claude Agent SDK is assumed.
+The user selected LangGraph to manage the workflow, PostgreSQL checkpoints, AgentCore for long-term traveler memory, and the Anthropic Python Messages SDK. A Bedrock Runtime Converse request for Claude Sonnet 4.5 through `global.anthropic.claude-sonnet-4-5-20250929-v1:0` returned once, but subsequent identical CLI and SDK calls returned AWS 404 `Model use case details have not been submitted`. Treat live model access as unresolved until that one-time form is completed and a repeat invocation succeeds. Keep the selected Anthropic SDK using its Bedrock client (`AsyncAnthropicBedrock`) and the Bedrock API key or AWS credential chain; there is no direct Anthropic API fallback. LangGraph remains the application workflow and MCP client, sending the request's verified Cognito bearer token to the AgentCore Gateway so the existing traveler/Plan ownership boundary remains intact. Bedrock's server-side AgentCore connector uses the Responses API and IAM-authenticated gateways, so it does not replace this OAuth-bound client path. The existing selection of a Claude-based assistant is unchanged; only the Bedrock transport is revised based on the account behavior.
+
+AgentCore Gateway is not currently provisioned in the account's Stockholm, Frankfurt, or Ireland regions as of this check. Model invocation is available; live MCP tool calls still require a configured gateway URL and deployed targets.
 
 ### Discretion
 

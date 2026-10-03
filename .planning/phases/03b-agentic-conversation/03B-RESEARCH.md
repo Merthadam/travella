@@ -48,6 +48,14 @@ The Gateway aggregates MCP-server targets and needs a REQUEST interceptor for ca
 
 No `[ASSUMED]` or `[SUS]` package install is planned.
 
+## Bedrock connectivity update — 2026-10-01
+
+- AWS CLI `bedrock-runtime converse` initially returned a response for `global.anthropic.claude-sonnet-4-5-20250929-v1:0` in `eu-north-1`; the base model ID failed because this model requires an inference profile. Subsequent identical CLI and boto3 Converse calls returned `404 Model use case details have not been submitted`, so live model access remains blocked pending the account form and a repeat successful call.
+- `AsyncAnthropicBedrock` against the Bedrock Runtime endpoint also returned that 404. Keep the selected Anthropic Messages SDK via `AsyncAnthropicBedrock`, with `AWS_BEARER_TOKEN_BEDROCK` or the AWS credential chain; the FTU form is an account access prerequisite, not a reason to call Anthropic's API directly.
+- The Bedrock model does not own remote MCP execution in this architecture. LangGraph's adapter calls the OAuth-protected AgentCore Gateway with the verified Cognito bearer token, then the graph validates normalized results. This preserves traveler/Plan authorization.
+- Although Bedrock can connect to an AgentCore Gateway through server-side tools on the Responses API, AWS documents that path for IAM-authenticated gateways. It is not a fit for the existing traveler-token OAuth gateway contract.
+- Live AgentCore Gateway discovery returned no gateways in `eu-north-1`, `eu-central-1`, or `eu-west-1`; code-level MCP integration can be verified locally, but live tool calls require gateway provisioning and targets.
+
 ## Risks and verification boundary
 
 - The published user story has an older sentence saying checkpoint backing remains undecided and mentions NoSQL. The new D-04/user selection governs this corrective phase; use PostgreSQL and agent-owned tables.

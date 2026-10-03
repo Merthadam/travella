@@ -1,4 +1,4 @@
-"""Anthropic Messages SDK client and response decoding."""
+"""Model adapter using Bedrock by default or OpenAI directly."""
 
 from __future__ import annotations
 
@@ -6,74 +6,150 @@ import json
 import os
 from typing import Any
 
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropicBedrock
+from openai import AsyncOpenAI
 
 from ..turn import TurnContext, load_prompt
-from .protocol import ALLOWED_TOOLS, GatewayProtocolError
+
+DEFAULT_MODEL = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
+DEFAULT_PROVIDER = "bedrock"
 
 
 class ClaudeMessagesClient:
-    """Own SDK construction, system prompts, MCP connector config, and block decoding."""
+    """Invoke a model through one explicitly configured provider."""
 
-    def __init__(self, gateway_url: str, *, model: str = "claude-sonnet-4-5", sdk_client: Any | None = None) -> None:
-        self.gateway_url = gateway_url
-        self.model = model
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        provider: str | None = None,
+        sdk_client: Any | None = None,
+    ) -> None:
+        selected_provider = (
+            (provider or os.getenv("AGENT_MODEL_PROVIDER") or DEFAULT_PROVIDER).strip().lower()
+        )
+        if selected_provider not in {"bedrock", "openai"}:
+            raise ValueError("AGENT_MODEL_PROVIDER must be 'bedrock' or 'openai'.")
+
+        self.provider = "amazon-bedrock" if selected_provider == "bedrock" else "openai"
+        self._api_key = (
+            (os.getenv("OPENAI_API_KEY") or "").strip() if selected_provider == "openai" else None
+        )
+        if selected_provider == "openai" and not self._api_key:
+            raise RuntimeError("OPENAI_API_KEY is required when AGENT_MODEL_PROVIDER=openai.")
+
+        if model:
+            self.model = model
+        elif selected_provider == "openai":
+            self.model = (os.getenv("OPENAI_MODEL_ID") or "").strip() or DEFAULT_OPENAI_MODEL
+        else:
+            self.model = (os.getenv("BEDROCK_MODEL_ID") or "").strip() or DEFAULT_MODEL
+        self.region = (
+            os.getenv("BEDROCK_REGION")
+            or os.getenv("AWS_REGION")
+            or os.getenv("AWS_DEFAULT_REGION")
+        )
         self.sdk_client = sdk_client
 
     def _client(self) -> Any:
-        if self.sdk_client is not None:
-            return self.sdk_client
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY is required for the Anthropic API provider")
-        return AsyncAnthropic(api_key=api_key)
+        if self.sdk_client is None:
+            if self.provider == "openai":
+                self.sdk_client = AsyncOpenAI(api_key=self._api_key)
+                return self.sdk_client
 
-    def _mcp_server(self, authorization_token: str) -> dict[str, Any]:
-        return {
-            "type": "url",
-            "name": "travella-gateway",
-            "url": self.gateway_url,
-            "authorization_token": authorization_token,
-            "tool_configuration": {"enabled": True, "allowed_tools": list(ALLOWED_TOOLS)},
-        }
+            api_key = (os.getenv("AWS_BEARER_TOKEN_BEDROCK") or "").strip() or None
+            if api_key is None:
+                # The SDK re-reads this variable when api_key=None; remove an
+                # empty Compose value so it can use the configured AWS profile.
+                os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
+            self.sdk_client = AsyncAnthropicBedrock(
+                api_key=api_key,
+                aws_profile=(os.getenv("AWS_PROFILE") or None) if api_key is None else None,
+                aws_region=self.region,
+            )
+        return self.sdk_client
 
     async def complete(
         self,
         *,
         message: str,
-        authorization_token: str,
         system: str | None = None,
         messages: list[dict[str, str]] | None = None,
+        max_tokens: int = 1200,
     ) -> Any:
-        return await self._client().beta.messages.create(
-            model=self.model,
-            max_tokens=1200,
-            system=system or load_prompt("research-v1"),
-            messages=messages or [{"role": "user", "content": message}],
-            mcp_servers=[self._mcp_server(authorization_token)],
-            tools=[{
-                "type": "mcp_toolset",
-                "mcp_server_name": "travella-gateway",
-                "default_config": {"enabled": True},
-                "configs": {},
-            }],
-        )
+        input_messages = messages or [{"role": "user", "content": message}]
+        if self.provider == "openai":
+            request: dict[str, Any] = {
+                "model": self.model,
+                "max_output_tokens": max_tokens,
+                "input": input_messages,
+                # LangGraph/PostgreSQL own conversation state; don't retain a
+                # second copy in the model provider.
+                "store": False,
+                "text": {
+                    "format": {
+                        "type": "json_schema",
+                        "name": "travella_conversation_decision",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "decision": {
+                                    "type": "string",
+                                    "enum": ["question", "research", "respond"],
+                                },
+                                "assistant_text": {"type": "string"},
+                                "question": {"type": ["string", "null"]},
+                            },
+                            "required": ["decision", "assistant_text", "question"],
+                            "additionalProperties": False,
+                        },
+                    }
+                },
+            }
+            if system:
+                request["instructions"] = system
+            return await self._client().responses.create(**request)
 
-    async def conversation(self, *, message: str, context: TurnContext, authorization_token: str) -> dict[str, Any]:
+        request: dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "messages": input_messages,
+        }
+        if system:
+            request["system"] = system
+        return await self._client().messages.create(**request)
+
+    async def conversation(self, *, message: str, context: TurnContext) -> dict[str, Any]:
         response = await self.complete(
             message=message,
-            authorization_token=authorization_token,
             system=load_prompt("conversation-v1"),
             messages=context.messages(message),
         )
-        text = "\n".join(
-            str(self.value(block, "text", ""))
-            for block in self.blocks(response)
-            if self.value(block, "type") == "text" and self.value(block, "text", "")
-        ).strip()
-        decision = "research" if any(word in text.lower() for word in ("research", "shortlist", "destination")) else "respond"
-        question = text.rsplit("?", 1)[0].split("\n")[-1].strip() + "?" if "?" in text else None
-        return {"decision": decision, "assistant_text": text[:2000], "question": question}
+        if self.provider == "openai":
+            text = str(self.value(response, "output_text", "")).strip()
+        else:
+            text = "\n".join(
+                str(self.value(block, "text", ""))
+                for block in self.blocks(response)
+                if self.value(block, "text", "")
+            ).strip()
+        try:
+            decision = json.loads(text)
+        except (TypeError, ValueError):
+            decision = {}
+        if not isinstance(decision, dict):
+            decision = {}
+        selected = decision.get("decision")
+        if selected not in {"question", "research", "respond"}:
+            selected = "respond"
+        question = decision.get("question")
+        return {
+            "decision": selected,
+            "assistant_text": str(decision.get("assistant_text", text))[:2000],
+            "question": str(question)[:500] if question else None,
+        }
 
     @staticmethod
     def blocks(response: Any) -> list[Any]:
@@ -84,47 +160,6 @@ class ClaudeMessagesClient:
 
     @staticmethod
     def value(value: Any, name: str, default: Any = None) -> Any:
-        return value.get(name, default) if isinstance(value, dict) else getattr(value, name, default)
-
-    @classmethod
-    def decode_payload(cls, value: Any) -> dict[str, Any] | None:
-        if isinstance(value, dict):
-            for field in ("structuredContent", "structured_content"):
-                if isinstance(value.get(field), dict):
-                    return value[field]
-            text = value.get("text")
-            if isinstance(text, str):
-                try:
-                    decoded = json.loads(text)
-                except (TypeError, ValueError):
-                    return None
-                return decoded if isinstance(decoded, dict) else None
-            return value
-        if isinstance(value, str):
-            try:
-                decoded = json.loads(value)
-            except (TypeError, ValueError):
-                return None
-            return decoded if isinstance(decoded, dict) else None
-        return None
-
-    @classmethod
-    def extract_tool_result(cls, response: Any, expected_tool: str) -> dict[str, Any]:
-        for block in cls.blocks(response):
-            if cls.value(block, "type") not in {"mcp_tool_result", "tool_result"}:
-                continue
-            tool_name = cls.value(block, "name") or cls.value(block, "tool_name")
-            if tool_name and tool_name != expected_tool:
-                continue
-            if cls.value(block, "is_error", False) or cls.value(block, "error"):
-                raise GatewayProtocolError("Claude MCP tool returned an error")
-            payload = cls.decode_payload(cls.value(block, "result"))
-            if payload is None:
-                for item in cls.value(block, "content", []):
-                    payload = cls.decode_payload(item)
-                    if payload is not None:
-                        break
-            if isinstance(payload, dict):
-                return payload
-            raise GatewayProtocolError("Claude MCP tool result was malformed")
-        raise GatewayProtocolError("Claude did not invoke the required MCP tool")
+        return (
+            value.get(name, default) if isinstance(value, dict) else getattr(value, name, default)
+        )

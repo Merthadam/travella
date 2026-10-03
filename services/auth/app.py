@@ -9,6 +9,7 @@ from botocore.config import Config
 from services.crud.config import create_crud_engine
 from services.crud.migration import assert_database_at_head
 
+from .agent_client import AgentClient
 from .api import create_app
 from .cognito_adapter import CognitoAdapter
 from .config import CognitoConfig
@@ -53,6 +54,9 @@ def configured_app():
         origin=origin,
         secure_cookies=secure,
         crud_client=CrudClient(os.environ["CRUD_BASE_URL"]) if os.getenv("CRUD_BASE_URL") else None,
+        agent_client=AgentClient(os.environ["AGENT_BASE_URL"])
+        if os.getenv("AGENT_BASE_URL")
+        else None,
     )
 
 

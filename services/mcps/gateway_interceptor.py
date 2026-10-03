@@ -15,6 +15,8 @@ from urllib.request import Request, urlopen
 
 import jwt
 
+from services.crud.auth import DEFAULT_SCOPE
+
 from .transport import AuthenticationError, issue_scope_assertion
 
 
@@ -41,7 +43,7 @@ class GatewayRequestInterceptor:
         issuer: str,
         client_id: str,
         plan_owner: Callable[..., bool],
-        required_scope: str = "travella/agent",
+        required_scope: str = DEFAULT_SCOPE,
     ) -> None:
         self.jwt_key = jwt_key
         self.issuer = issuer
@@ -61,7 +63,10 @@ class GatewayRequestInterceptor:
                 self.jwt_key,
                 algorithms=["RS256", "HS256"],
                 issuer=self.issuer,
-                options={"verify_aud": False, "require": ["exp", "iat", "sub", "iss", "client_id", "token_use"]},
+                options={
+                    "verify_aud": False,
+                    "require": ["exp", "iat", "sub", "iss", "client_id", "token_use"],
+                },
             )
         except jwt.PyJWTError as exc:
             raise AuthenticationError("invalid Cognito access token") from exc
@@ -85,7 +90,9 @@ class GatewayRequestInterceptor:
         if not isinstance(arguments, Mapping):
             raise AuthenticationError("invalid tool arguments")
         plan_id = str(arguments.get("plan_id") or "").strip()
-        token = str((request.headers.get("authorization") or request.headers.get("Authorization"))[7:]).strip()
+        token = str(
+            (request.headers.get("authorization") or request.headers.get("Authorization"))[7:]
+        ).strip()
         try:
             owned = self.plan_owner(str(claims["sub"]), plan_id, token)
         except TypeError:
@@ -103,7 +110,9 @@ class GatewayRequestInterceptor:
         return GatewayDecision(True, result)
 
 
-def intercept_request(interceptor: GatewayRequestInterceptor, request: GatewayRequest) -> GatewayDecision:
+def intercept_request(
+    interceptor: GatewayRequestInterceptor, request: GatewayRequest
+) -> GatewayDecision:
     try:
         return interceptor.intercept(request)
     except AuthenticationError as exc:
@@ -114,7 +123,11 @@ def request_from_agentcore_event(event: Mapping[str, Any]) -> GatewayRequest:
     """Adapt AgentCore's documented MCP interceptor event to the local contract."""
     if event.get("interceptorInputVersion") != "1.0":
         raise AuthenticationError("unsupported interceptor input version")
-    gateway = event.get("mcp", {}).get("gatewayRequest") if isinstance(event.get("mcp"), Mapping) else None
+    gateway = (
+        event.get("mcp", {}).get("gatewayRequest")
+        if isinstance(event.get("mcp"), Mapping)
+        else None
+    )
     if not isinstance(gateway, Mapping) or not isinstance(gateway.get("body"), Mapping):
         raise AuthenticationError("malformed AgentCore MCP request")
     return GatewayRequest(
@@ -130,9 +143,17 @@ def agentcore_response(decision: GatewayDecision) -> dict[str, Any]:
     if not decision.allowed:
         return {
             "interceptorOutputVersion": "1.0",
-            "mcp": {"transformedGatewayResponse": {"statusCode": decision.status_code, "body": decision.body}},
+            "mcp": {
+                "transformedGatewayResponse": {
+                    "statusCode": decision.status_code,
+                    "body": decision.body,
+                }
+            },
         }
-    return {"interceptorOutputVersion": "1.0", "mcp": {"transformedGatewayRequest": {"body": decision.body}}}
+    return {
+        "interceptorOutputVersion": "1.0",
+        "mcp": {"transformedGatewayRequest": {"body": decision.body}},
+    }
 
 
 def lambda_handler(event: Mapping[str, Any], _context: object = None) -> dict[str, Any]:
@@ -149,7 +170,10 @@ def lambda_handler(event: Mapping[str, Any], _context: object = None) -> dict[st
             raise AuthenticationError("private CRUD ownership reader is not configured")
 
         def plan_owner(subject: str, plan_id: str, token: str) -> bool:
-            request = Request(f"{crud_url}/v1/plans/{plan_id}", headers={"Authorization": f"Bearer {token}", "X-Travella-Subject": subject})
+            request = Request(
+                f"{crud_url}/v1/plans/{plan_id}",
+                headers={"Authorization": f"Bearer {token}", "X-Travella-Subject": subject},
+            )
             try:
                 with urlopen(request, timeout=5) as response:
                     if response.status != 200:
@@ -164,6 +188,7 @@ def lambda_handler(event: Mapping[str, Any], _context: object = None) -> dict[st
             issuer=issuer,
             client_id=client_id,
             plan_owner=plan_owner,
+            required_scope=os.getenv("COGNITO_REQUIRED_SCOPE") or DEFAULT_SCOPE,
         )
         return agentcore_response(intercept_request(interceptor, request))
     except AuthenticationError as exc:

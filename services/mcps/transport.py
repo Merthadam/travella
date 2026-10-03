@@ -61,7 +61,9 @@ def _unb64(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 
-def issue_scope_assertion(subject: str, plan_id: str, *, ttl_seconds: int = 60, token_id: str | None = None) -> str:
+def issue_scope_assertion(
+    subject: str, plan_id: str, *, ttl_seconds: int = 60, token_id: str | None = None
+) -> str:
     if not subject or not plan_id or ttl_seconds < 1 or ttl_seconds > 300:
         raise AuthenticationError("invalid scope assertion inputs")
     now = int(time.time())
@@ -78,7 +80,9 @@ def issue_scope_assertion(subject: str, plan_id: str, *, ttl_seconds: int = 60, 
     return f"{encoded}.{_b64(signature)}"
 
 
-def verify_scope_assertion(assertion: str, *, subject: str | None = None, plan_id: str | None = None) -> ScopeAssertion:
+def verify_scope_assertion(
+    assertion: str, *, subject: str | None = None, plan_id: str | None = None
+) -> ScopeAssertion:
     try:
         encoded, provided = assertion.split(".", 1)
         expected = hmac.new(_secret(), encoded.encode(), hashlib.sha256).digest()
@@ -97,7 +101,9 @@ def verify_scope_assertion(assertion: str, *, subject: str | None = None, plan_i
         raise AuthenticationError("scope subject mismatch")
     if plan_id is not None and payload["plan"] != plan_id:
         raise AuthenticationError("scope Plan mismatch")
-    return ScopeAssertion(payload["sub"], payload["plan"], audience, int(payload["exp"]), payload["jti"])
+    return ScopeAssertion(
+        payload["sub"], payload["plan"], audience, int(payload["exp"]), payload["jti"]
+    )
 
 
 def _oauth_claims(headers: Mapping[str, str]) -> dict[str, Any]:
@@ -128,7 +134,9 @@ def _oauth_claims(headers: Mapping[str, str]) -> dict[str, Any]:
     except jwt.PyJWTError as exc:
         raise AuthenticationError("invalid Gateway service credential") from exc
     supplied_client = claims.get("client_id") or claims.get("azp")
-    if supplied_client != client_id or required_scope not in set(str(claims.get("scope", "")).split()):
+    if supplied_client != client_id or required_scope not in set(
+        str(claims.get("scope", "")).split()
+    ):
         raise AuthenticationError("invalid Gateway service credential")
     return claims
 
@@ -138,7 +146,9 @@ def verify_service_credential(headers: Mapping[str, str]) -> dict[str, Any]:
     return _oauth_claims(headers)
 
 
-def authenticate_tool_call(headers: Mapping[str, str], *, assertion: str, plan_id: str) -> ToolAuthContext:
+def authenticate_tool_call(
+    headers: Mapping[str, str], *, assertion: str, plan_id: str
+) -> ToolAuthContext:
     verify_service_credential(headers)
     scope = verify_scope_assertion(assertion, plan_id=plan_id)
     return ToolAuthContext(scope.subject, scope.plan_id, assertion)
@@ -162,7 +172,9 @@ def require_tool_context(*, plan_id: str | None = None) -> ToolAuthContext:
     return context
 
 
-def signed_assertion_from_headers(headers: Mapping[str, str], *, assertion: str, plan_id: str) -> ToolAuthContext:
+def signed_assertion_from_headers(
+    headers: Mapping[str, str], *, assertion: str, plan_id: str
+) -> ToolAuthContext:
     """Target-side entry point used by an HTTP adapter before dispatch."""
     return authenticate_tool_call(headers, assertion=assertion, plan_id=plan_id)
 
@@ -199,11 +211,23 @@ class AuthenticatedMcpASGI:
         self.app = app
         self.path = path
 
-    async def __call__(self, scope: dict[str, Any], receive: Callable[..., Awaitable[dict[str, Any]]], send: Callable[..., Awaitable[None]]) -> None:
-        if scope.get("type") != "http" or scope.get("path") != self.path or scope.get("method") != "POST":
+    async def __call__(
+        self,
+        scope: dict[str, Any],
+        receive: Callable[..., Awaitable[dict[str, Any]]],
+        send: Callable[..., Awaitable[None]],
+    ) -> None:
+        if (
+            scope.get("type") != "http"
+            or scope.get("path") != self.path
+            or scope.get("method") != "POST"
+        ):
             await self.app(scope, receive, send)
             return
-        headers = {key.decode("latin-1"): value.decode("latin-1") for key, value in scope.get("headers", [])}
+        headers = {
+            key.decode("latin-1"): value.decode("latin-1")
+            for key, value in scope.get("headers", [])
+        }
         chunks: list[bytes] = []
         more = True
         while more:
@@ -216,7 +240,13 @@ class AuthenticatedMcpASGI:
             if not isinstance(body, dict) or body.get("jsonrpc") != "2.0" or "method" not in body:
                 raise AuthenticationError("malformed MCP JSON-RPC envelope")
             method = body["method"]
-            if method not in {"initialize", "tools/list", "tools/call"}:
+            if method not in {
+                "initialize",
+                "notifications/initialized",
+                "ping",
+                "tools/list",
+                "tools/call",
+            }:
                 raise AuthenticationError("unsupported MCP operation")
             if method == "tools/call":
                 params = body.get("params")
@@ -237,21 +267,40 @@ class AuthenticatedMcpASGI:
             else:
                 verify_service_credential(headers)
                 context = None
-        except (AuthenticationError, json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
-            response = json.dumps(_jsonrpc_error(body.get("id") if isinstance(body, dict) else None, "MCP request denied")).encode()
-            await send({"type": "http.response.start", "status": 403, "headers": [(b"content-type", b"application/json")]})
+        except (
+            AuthenticationError,
+            json.JSONDecodeError,
+            UnicodeDecodeError,
+            TypeError,
+            ValueError,
+        ):
+            response = json.dumps(
+                _jsonrpc_error(
+                    body.get("id") if isinstance(body, dict) else None, "MCP request denied"
+                )
+            ).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 403,
+                    "headers": [(b"content-type", b"application/json")],
+                }
+            )
             await send({"type": "http.response.body", "body": response})
             return
 
+        sent = False
+
         async def replay() -> dict[str, Any]:
-            sent = False
-            async def next_message() -> dict[str, Any]:
-                nonlocal sent
-                if sent:
-                    return {"type": "http.disconnect"}
-                sent = True
-                return {"type": "http.request", "body": json.dumps(body).encode(), "more_body": False}
-            return await next_message()
+            nonlocal sent
+            if sent:
+                return await receive()
+            sent = True
+            return {
+                "type": "http.request",
+                "body": json.dumps(body).encode(),
+                "more_body": False,
+            }
 
         token = _AUTH_CONTEXT.set(context) if context is not None else None
         try:

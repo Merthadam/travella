@@ -18,6 +18,8 @@ function makeApi(initial = []) {
     get: vi.fn(async id => plans.find(item => item.plan_id === id) || Promise.reject(Object.assign(new Error('missing'), { status: 404 }))),
     create: vi.fn(async () => { const created = plan(`new-${plans.length}`, 'Untitled plan'); plans = [...plans, created]; return created; }),
     activity: vi.fn(async item => ({ ...item, revision: item.revision + 1 })),
+    conversationMessages: vi.fn(async () => []),
+    agentTurn: vi.fn(async (item, message, eventId) => ({ status: 'shortlist_ready', plan_id: item.plan_id, event_id: eventId, assistant_text: `Ideas for ${message}`, candidates: [{ candidate_id: 'crete', name: 'Crete', summary: 'A relaxed island stay' }] })),
     brief: vi.fn(async item => ({ plan_id: item.plan_id, revision: item.revision, interests: '', start_date: '', end_date: '', travelers: 1, budget: '', transport_tolerance: '', accessibility_needs: '' })),
     updateBrief: vi.fn(async (item, data) => ({ plan_id: item.plan_id, revision: item.revision + 1, ...data })),
     prepare: vi.fn(async (item, operation, title) => ({ challenge: 'challenge', operation, revision: item.revision, title })),
@@ -92,4 +94,35 @@ test('trip details save through the plan-scoped brief CRUD', async () => {
   await waitFor(() => expect(api.updateBrief).toHaveBeenCalled());
   expect(api.updateBrief.mock.calls[0][1]).toMatchObject({ interests: 'Food and museums', travelers: 2 });
   expect(await screen.findByText('Trip details updated.')).toBeTruthy();
+});
+
+test('Copilot loads plan history and sends a turn through the plan agent API', async () => {
+  const api = makeApi([plan('a', 'Island break')]); const user = userEvent.setup();
+  api.conversationMessages.mockResolvedValue([{ message_id: 'old-1', role: 'assistant', content: 'Welcome back.' }]);
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('link', { name: 'Island break' }));
+  await user.click(await screen.findByRole('button', { name: 'Copilot' }));
+  expect(await screen.findByText('Welcome back.')).toBeTruthy();
+  const input = screen.getByRole('textbox', { name: 'Message Copilot' });
+  await user.type(input, 'A calm island trip');
+  await user.click(screen.getByRole('button', { name: 'Send' }));
+  expect(await screen.findByText('Ideas for A calm island trip')).toBeTruthy();
+  expect(screen.getByText('Crete')).toBeTruthy();
+  expect(api.agentTurn).toHaveBeenCalledWith(expect.objectContaining({ plan_id: 'a' }), 'A calm island trip', expect.any(String));
+});
+
+test('Copilot reports a conversation-history failure and keeps the composer disabled while loading', async () => {
+  const api = makeApi([plan('a', 'Island break')]); const user = userEvent.setup();
+  let finishHistory;
+  api.conversationMessages.mockReturnValue(new Promise(resolve => { finishHistory = resolve; }));
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('link', { name: 'Island break' }));
+  await user.click(await screen.findByRole('button', { name: 'Copilot' }));
+  expect(screen.getByText('Loading conversation…')).toBeTruthy();
+  finishHistory([]);
+  await screen.findByRole('textbox', { name: 'Message Copilot' });
+  api.conversationMessages.mockRejectedValueOnce(new Error('Conversation unavailable.'));
+  await user.click(screen.getByText('Close', { selector: 'button' }));
+  await user.click(screen.getByRole('button', { name: 'Copilot' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('Conversation unavailable.');
 });

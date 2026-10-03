@@ -8,7 +8,15 @@ from fastapi import HTTPException
 from pydantic import TypeAdapter, ValidationError
 
 from services.crud.contracts import PROBLEMS
-from services.crud.schemas import BriefMutationOutput, BriefOutput, ChallengeOutput, DestinationMutationOutput, DestinationOutput, PlanOutput, PlanPage
+from services.crud.schemas import (
+    BriefMutationOutput,
+    BriefOutput,
+    ChallengeOutput,
+    DestinationMutationOutput,
+    DestinationOutput,
+    PlanOutput,
+    PlanPage,
+)
 
 SAFE_ERRORS = {code: message for code, (_, message) in PROBLEMS.items()} | {
     "not_found": "Plan unavailable.",
@@ -24,7 +32,10 @@ class CrudClient:
         self.transport = transport
 
     def request(self, method: str, path: str, *, token: str, headers, params, body: bytes):
-        match = re.fullmatch(r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|destinations)(?:/([0-9a-fA-F-]{36}))?)?)?", path)
+        match = re.fullmatch(
+            r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|destinations|conversation/messages)(?:/([0-9a-fA-F-]{36}))?)?)?",
+            path,
+        )
         if not match:
             raise HTTPException(404, "Plan unavailable.")
         plan_id, action, destination_id = match.groups()
@@ -47,6 +58,7 @@ class CrudClient:
                 "challenges": {"POST"},
                 "brief": {"GET", "PATCH"},
                 "destinations": {"GET", "POST"},
+                "conversation/messages": {"GET"},
             }[action]
             if plan_id
             else {"GET", "POST"}
@@ -89,6 +101,8 @@ class CrudClient:
                 if action == "brief" and method == "PATCH"
                 else TypeAdapter(list[DestinationOutput])
                 if action == "destinations" and method == "GET" and not destination_id
+                else TypeAdapter(list[dict])
+                if action == "conversation/messages" and method == "GET"
                 else DestinationOutput
                 if action == "destinations" and method == "GET" and destination_id
                 else DestinationMutationOutput

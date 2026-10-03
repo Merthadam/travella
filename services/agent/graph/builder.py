@@ -6,6 +6,7 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
+from ..request_context import bind_authorization_token, reset_authorization_token
 from ..state import AgentState
 from .nodes import ConversationNode, ResearchNode
 
@@ -28,8 +29,14 @@ class AgentGraph:
         flow.add_edge("research", END)
         self.compiled = flow.compile(checkpointer=checkpointer)
 
-    async def invoke(self, state: AgentState) -> dict[str, Any]:
-        result = await self.compiled.ainvoke(state)
+    async def invoke(
+        self, state: AgentState, *, authorization_token: str | None = None
+    ) -> dict[str, Any]:
+        context_token = bind_authorization_token(authorization_token)
+        try:
+            result = await self.compiled.ainvoke(state)
+        finally:
+            reset_authorization_token(context_token)
         status = result.get("status", "unable to continue")
         projection: dict[str, Any] = {
             "status": status,

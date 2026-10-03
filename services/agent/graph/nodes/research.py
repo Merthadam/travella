@@ -4,14 +4,19 @@ from __future__ import annotations
 
 from typing import Any
 
+from ...request_context import current_authorization_token
 from ...state import AgentState
 
 _CANDIDATE_FIELDS = (
-    "candidate_id", "name", "status", "confidence", "fit_summary", "caveats", "evidence"
+    "candidate_id",
+    "name",
+    "status",
+    "confidence",
+    "fit_summary",
+    "caveats",
+    "evidence",
 )
-_MAP_FIELDS = (
-    "place_id", "label", "city", "country", "location", "temporary", "attribution"
-)
+_MAP_FIELDS = ("place_id", "label", "city", "country", "location", "temporary", "attribution")
 
 
 def _bounded_candidates(value: Any) -> list[dict[str, Any]]:
@@ -44,7 +49,7 @@ class ResearchNode:
             traveler_scope=state["traveler_scope"],
             plan_id=state["plan_id"],
             event_id=state["event_id"],
-            authorization_token=state.get("authorization_token"),
+            authorization_token=current_authorization_token(),
         )
         status = result.get("status") if isinstance(result, dict) else None
         if status in {"question", "needs your input"}:
@@ -60,15 +65,20 @@ class ResearchNode:
         except ValueError:
             return {"status": "unable to continue", "error": "Research results were invalid."}
         if not candidates:
-            return {"status": "unable to continue", "error": "No complete candidates were returned."}
+            return {
+                "status": "unable to continue",
+                "error": "No complete candidates were returned.",
+            }
 
         locations_result = await self.tools.resolve_map(
             names=[candidate["name"] for candidate in candidates],
             traveler_scope=state["traveler_scope"],
             plan_id=state["plan_id"],
-            authorization_token=state.get("authorization_token"),
+            authorization_token=current_authorization_token(),
         )
-        locations = locations_result.get("locations", []) if isinstance(locations_result, dict) else []
+        locations = (
+            locations_result.get("locations", []) if isinstance(locations_result, dict) else []
+        )
         if isinstance(locations, list):
             by_name = {
                 str(item.get("candidate_name")): item

@@ -329,7 +329,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       {cursor && <button disabled={loading || busy} onClick={() => load(view, cursor)}>Load more plans</button>}
       {view === 'active' && <section className="plan-panel recently-deleted"><h2>Recently deleted</h2><p>Restore deleted plans for up to seven days.</p><a href="/plans/deleted" onClick={e => link(e, () => load('deleted'))}>View recently deleted →</a></section>}</>}
     </main>
-    {conversationOpen && <ConversationDrawer selected={selected} onClose={() => setConversationOpen(false)} />}
+    {conversationOpen && <ConversationDrawer selected={selected} api={api} onExpired={onExpired} onClose={() => setConversationOpen(false)} />}
     {dialog && <ActionDialog value={dialog} onClose={() => setDialog(null)} onDone={completed} onExpired={onExpired} api={api} />}
   </div>;
 }

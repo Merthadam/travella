@@ -2,11 +2,11 @@
 gsd_state_version: "1.0"
 current_phase: 03b
 current_phase_name: agentic-conversation
-status: planning
-stopped_at: Phase 3A map workspace, destination CRUD, and compact Planning Brief CRUD verified
-last_updated: "2026-09-29T07:30:59.174Z"
-last_activity: 2026-09-28
-last_activity_desc: Phase 2 backend, frontend lifecycle, purge, security, and automated verification complete; authenticated browser UAT is blocked by local auth configuration.
+status: executing
+stopped_at: Phase 03B plan 10 partial execution; local MCP transport is running, full authenticated provider turn remains unverified
+last_updated: "2026-10-03T10:06:02Z"
+last_activity: 2026-10-03
+last_activity_desc: Local FastMCP transport added and started in Docker; long-term memory stays disabled by user choice.
 state_head: 8a04735da445beb6a68593f044408702b6a88fb7
 progress:
   total_phases: 9
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-26)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 3A — Map-first workspace and destination CRUD
+**Current focus:** Phase 3B — Agentic conversation and authenticated research MCP
 
 ## Current Position
 
-Phase: 03b (agentic-conversation) — READY TO EXECUTE
-Plan: 03A map workspace and destination CRUD implemented and browser verified
-Status: ready to plan
-Last activity: 2026-09-28 — Phase 3A map/search/destination and Plan context slices verified; billing linked for Places autocomplete.
+Phase: 03b (agentic-conversation)
+Plan: 03B-10 partial — local MCP transport and LangGraph-owned tools
+Status: executing; see 03B-10-EXECUTION-CHECKPOINT.md for phase work and the quick-task verification artifact for local transport
+Last activity: 2026-10-03 — local agent and MCP containers run with the configured OpenAI model; a live authenticated research turn remains unverified.
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
@@ -100,3 +100,9 @@ Resume file: .planning/phases/02-draft-plans-durable-lifecycle/02-03-PLAN.md
 - Plans frontend work is being decomposed under `frontend/src/features/plans/` instead of growing `PlansApp.jsx` as a monolith.
 - Tailwind CSS is the styling system for new frontend components, with Travella theme tokens in `frontend/src/tailwind.css`; existing global styles will be migrated incrementally.
 - Full rationale: `docs/adr/0002-frontend-feature-structure-and-tailwind.md`.
+
+## Quick Tasks Completed
+
+| Date | Task | Outcome |
+|------|------|---------|
+| 2026-10-03 | local-agent-without-agentcore | Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. |

@@ -23,7 +23,7 @@ def config(**overrides: str) -> gateway.GatewayConfig:
         "cognito_discovery_url": "https://cognito.example/.well-known/openid-configuration",
         "cognito_client_id": "travella-client",
         "cognito_audience": "travella-audience",
-        "cognito_scope": "travella/agent",
+        "cognito_scope": "aws.cognito.signin.user.admin",
         "interceptor_lambda_arn": "arn:aws:lambda:eu-north-1:123456789012:function:travella-interceptor",
         "oauth_provider_arn": "arn:aws:bedrock-agentcore:eu-north-1:123456789012:oauth2credentialprovider/provider",
         "oauth_issuer": "https://service.example",
@@ -41,15 +41,29 @@ class FakeControlPlane:
     def __init__(self, cfg: gateway.GatewayConfig, *, existing: bool = False) -> None:
         self.cfg = cfg
         self.calls: list[tuple[str, dict]] = []
-        self.gateway = gateway._gateway_request(cfg) | {"gatewayId": "gw-1", "status": "ACTIVE"} if existing else None
+        self.gateway = (
+            gateway._gateway_request(cfg) | {"gatewayId": "gw-1", "status": "ACTIVE"}
+            if existing
+            else None
+        )
         self.targets: dict[str, dict] = {}
         if existing:
-            for name, endpoint in (("travella-research-mcp", cfg.research_endpoint), ("travella-map-mcp", cfg.map_endpoint)):
-                self.targets[name] = gateway._target_request(cfg, name, endpoint) | {"targetId": f"target-{name.split('-')[1]}", "status": "READY"}
+            for name, endpoint in (
+                ("travella-research-mcp", cfg.research_endpoint),
+                ("travella-map-mcp", cfg.map_endpoint),
+            ):
+                self.targets[name] = gateway._target_request(cfg, name, endpoint) | {
+                    "targetId": f"target-{name.split('-')[1]}",
+                    "status": "READY",
+                }
 
     def list_gateways(self, **kwargs: object) -> dict:
         self.calls.append(("list_gateways", kwargs))
-        return {"items": [{"name": self.gateway["name"], "gatewayId": "gw-1"}]} if self.gateway else {"items": []}
+        return (
+            {"items": [{"name": self.gateway["name"], "gatewayId": "gw-1"}]}
+            if self.gateway
+            else {"items": []}
+        )
 
     def get_gateway(self, **kwargs: object) -> dict:
         self.calls.append(("get_gateway", kwargs))
@@ -68,11 +82,24 @@ class FakeControlPlane:
 
     def list_gateway_targets(self, **kwargs: object) -> dict:
         self.calls.append(("list_gateway_targets", kwargs))
-        return {"items": [{"name": name, "targetId": target["targetId"]} for name, target in self.targets.items()]}
+        return {
+            "items": [
+                {"name": name, "targetId": target["targetId"]}
+                for name, target in self.targets.items()
+            ]
+        }
 
     def get_gateway_target(self, **kwargs: object) -> dict:
         self.calls.append(("get_gateway_target", kwargs))
-        return self.targets[kwargs["targetId"] if kwargs["targetId"] in self.targets else next(name for name, target in self.targets.items() if target["targetId"] == kwargs["targetId"])]
+        return self.targets[
+            kwargs["targetId"]
+            if kwargs["targetId"] in self.targets
+            else next(
+                name
+                for name, target in self.targets.items()
+                if target["targetId"] == kwargs["targetId"]
+            )
+        ]
 
     def create_gateway_target(self, **kwargs: object) -> dict:
         self.calls.append(("create_gateway_target", kwargs))
@@ -90,7 +117,11 @@ class FakeControlPlane:
 
     def synchronize_gateway_targets(self, **kwargs: object) -> dict:
         self.calls.append(("synchronize_gateway_targets", kwargs))
-        return {"targets": [{"targetId": target_id, "status": "READY"} for target_id in kwargs["targetIdList"]]}
+        return {
+            "targets": [
+                {"targetId": target_id, "status": "READY"} for target_id in kwargs["targetIdList"]
+            ]
+        }
 
 
 def test_preflight_rejects_insecure_endpoint_before_control_plane() -> None:
@@ -107,15 +138,24 @@ def test_provision_constructs_authenticated_gateway_and_two_mcp_targets() -> Non
     assert result["status"] == "verified"
     create_gateway = next(args for name, args in client.calls if name == "create_gateway")
     assert create_gateway["authorizerType"] == "CUSTOM_JWT"
-    assert create_gateway["interceptorConfigurations"][0]["inputConfiguration"]["passRequestHeaders"] is True
+    assert (
+        create_gateway["interceptorConfigurations"][0]["inputConfiguration"]["passRequestHeaders"]
+        is True
+    )
     assert create_gateway["interceptorConfigurations"][0]["interceptionPoints"] == ["REQUEST"]
     create_targets = [args for name, args in client.calls if name == "create_gateway_target"]
-    assert {args["name"] for args in create_targets} == {"travella-research-mcp", "travella-map-mcp"}
+    assert {args["name"] for args in create_targets} == {
+        "travella-research-mcp",
+        "travella-map-mcp",
+    }
     for args in create_targets:
         assert args["targetConfiguration"]["mcp"]["mcpServer"]["listingMode"] == "DYNAMIC"
         provider = args["credentialProviderConfigurations"][0]
         assert provider["credentialProviderType"] == "OAUTH"
-        assert provider["credentialProvider"]["oauthCredentialProvider"]["grantType"] == "CLIENT_CREDENTIALS"
+        assert (
+            provider["credentialProvider"]["oauthCredentialProvider"]["grantType"]
+            == "CLIENT_CREDENTIALS"
+        )
 
 
 def test_requests_match_installed_botocore_operation_models() -> None:
@@ -124,11 +164,20 @@ def test_requests_match_installed_botocore_operation_models() -> None:
 
     cfg = config()
     client = boto3.client("bedrock-agentcore-control", region_name=cfg.region)
-    validate_parameters(gateway._gateway_request(cfg), client.meta.service_model.operation_model("CreateGateway").input_shape)
-    for name, endpoint in (("travella-research-mcp", cfg.research_endpoint), ("travella-map-mcp", cfg.map_endpoint)):
+    validate_parameters(
+        gateway._gateway_request(cfg),
+        client.meta.service_model.operation_model("CreateGateway").input_shape,
+    )
+    for name, endpoint in (
+        ("travella-research-mcp", cfg.research_endpoint),
+        ("travella-map-mcp", cfg.map_endpoint),
+    ):
         request = gateway._target_request(cfg, name, endpoint)
         request_with_id = {"gatewayIdentifier": "gw-1", **request}
-        validate_parameters(request_with_id, client.meta.service_model.operation_model("CreateGatewayTarget").input_shape)
+        validate_parameters(
+            request_with_id,
+            client.meta.service_model.operation_model("CreateGatewayTarget").input_shape,
+        )
 
 
 def test_second_run_converges_and_updates_changed_endpoint() -> None:
@@ -140,7 +189,10 @@ def test_second_run_converges_and_updates_changed_endpoint() -> None:
     updates = [args for name, args in client.calls if name == "update_gateway_target"]
     assert len(updates) == 1
     assert updates[0]["name"] == "travella-research-mcp"
-    assert updates[0]["targetConfiguration"]["mcp"]["mcpServer"]["endpoint"] == changed.research_endpoint
+    assert (
+        updates[0]["targetConfiguration"]["mcp"]["mcpServer"]["endpoint"]
+        == changed.research_endpoint
+    )
 
 
 def test_oauth_verifier_mismatch_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -149,13 +201,17 @@ def test_oauth_verifier_mismatch_is_rejected(monkeypatch: pytest.MonkeyPatch) ->
         gateway.validate_config(config())
 
 
-def test_missing_configuration_is_reported_without_aws_mutation(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_configuration_is_reported_without_aws_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("AGENTCORE_GATEWAY_ROLE_ARN", raising=False)
     with pytest.raises(gateway.ProvisioningError, match="AGENTCORE_GATEWAY_ROLE_ARN"):
         gateway.GatewayConfig.from_env()
 
 
-def test_partial_control_plane_failure_is_sanitized(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_partial_control_plane_failure_is_sanitized(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     class FailingClient(FakeControlPlane):
         def create_gateway(self, **kwargs: object) -> dict:
             raise RuntimeError("provider secret should never be printed")

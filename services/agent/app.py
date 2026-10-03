@@ -12,9 +12,9 @@ from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
 from services.auth.config import CognitoConfig
 from services.auth.contracts import ValidatedIdentity
 from services.auth.jwt_verifier import CognitoJwtVerifier
-from services.crud.auth import bearer_identity
+from services.crud.auth import DEFAULT_SCOPE, bearer_identity
 
-from .claude import ClaudeGatewayAdapter
+from .claude import ClaudeGatewayAdapter, LocalMcpAdapter
 from .crud_client import CrudContextReader, CrudPlanReader
 from .graph import AgentGraph
 from .http_contracts import AgentRequest, AgentResponse
@@ -42,13 +42,27 @@ def create_app(
             plan_reader = CrudPlanReader(base_url)
             context_reader = context_reader or CrudContextReader(base_url)
     if plan_reader is None:
+
         async def unavailable_reader(*args: Any, **kwargs: Any) -> None:
             return None
+
         plan_reader = unavailable_reader
 
-    adapter = adapter or ClaudeGatewayAdapter(
-        os.getenv("AGENTCORE_GATEWAY_URL", "https://gateway.invalid/mcp")
-    )
+    if adapter is None:
+        app_env = (os.getenv("APP_ENV") or "development").strip().lower()
+        default_transport = "local" if app_env in {"development", "test"} else "agentcore"
+        transport = (os.getenv("AGENT_MCP_TRANSPORT") or default_transport).strip().lower()
+        if transport == "local":
+            if app_env not in {"development", "test"}:
+                raise RuntimeError("Local MCP transport is only available in development or test.")
+            adapter = LocalMcpAdapter(
+                research_url=os.getenv("LOCAL_RESEARCH_MCP_URL", "http://research-mcp:8000/mcp"),
+                map_url=os.getenv("LOCAL_MAP_MCP_URL", "http://map-mcp:8001/mcp"),
+            )
+        elif transport == "agentcore":
+            adapter = ClaudeGatewayAdapter(os.getenv("AGENTCORE_GATEWAY_URL", ""))
+        else:
+            raise ValueError("AGENT_MCP_TRANSPORT must be 'agentcore' or 'local'.")
     workflow = graph or AgentGraph(adapter)
     candidates = PlanCandidateStore(max_receipts=cache_size)
     turn_service = AgentTurnService(
@@ -71,7 +85,20 @@ def create_app(
 
     @app.get("/health")
     def health() -> dict[str, Any]:
-        return {"status": "ok", "auth_configured": verifier is not None, "memory_enabled": memory.enabled}
+        messages = getattr(adapter, "messages", None)
+        tool_transport = getattr(adapter, "transport", "agentcore")
+        return {
+            "status": "ok",
+            "auth_configured": verifier is not None,
+            "memory_enabled": memory.enabled,
+            "model_provider": getattr(messages, "provider", "amazon-bedrock"),
+            "model_id": getattr(messages, "model", None),
+            "tool_transport": tool_transport,
+            "gateway_configured": bool(getattr(adapter, "gateway_url", "")),
+            "local_mcp_configured": (
+                bool(getattr(adapter, "local_mcp", None)) if tool_transport == "local" else None
+            ),
+        }
 
     def identity_dependency(authorization: str | None = Header(default=None)) -> ValidatedIdentity:
         if verifier is None:
@@ -79,7 +106,7 @@ def create_app(
         return bearer_identity(
             verifier,
             authorization,
-            required_scope=required_scope or os.getenv("AGENT_REQUIRED_SCOPE", "travella/agent"),
+            required_scope=(required_scope or os.getenv("AGENT_REQUIRED_SCOPE") or DEFAULT_SCOPE),
         )
 
     router = APIRouter(prefix="/v1/agent")

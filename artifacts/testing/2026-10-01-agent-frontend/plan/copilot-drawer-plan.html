@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travella Copilot drawer — implementation sketch</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; color: #eaf2f8; background: #101b29; font: 15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+    .app { min-height: 100vh; background: radial-gradient(ellipse at 40% 12%, #203448, #101b29 55%); }
+    header { height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 38px; border-bottom: 1px solid #ffffff18; }
+    .brand { color: #f6fafc; font-weight: 750; letter-spacing: .02em; font-size: 19px; }
+    nav { display: flex; gap: 12px; }
+    nav span { border: 1px solid #526376; border-radius: 999px; padding: 8px 16px; color: #c8d7e3; }
+    main { padding: 52px 56px; max-width: 1000px; }
+    .eyebrow { color: #79d5c3; font-size: 11px; letter-spacing: .18em; font-weight: 700; }
+    h1 { font-size: 38px; line-height: 1.1; margin: 10px 0; }
+    .sub { max-width: 560px; color: #9eb0be; }
+    .map { height: 430px; margin-top: 28px; border: 1px solid #60748870; border-radius: 22px; background: radial-gradient(ellipse at 50% 50%, #35546a 0, #203648 45%, #172738 74%); display: grid; place-items: center; color: #94b5c6; letter-spacing: .08em; }
+    .drawer { position: fixed; inset: 0 0 0 auto; width: 410px; padding: 26px; display: flex; flex-direction: column; background: #111e2d; border-left: 1px solid #526579; box-shadow: -30px 0 90px #08111dc9; }
+    .drawer-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid #35485b; }
+    h2 { margin: 0; font-size: 20px; }
+    .close { color: #bdd0df; border: 0; background: transparent; font: inherit; }
+    .thread { flex: 1; display: flex; flex-direction: column; gap: 15px; padding: 24px 0; }
+    .bubble { max-width: 91%; padding: 12px 14px; border-radius: 16px; font-size: 14px; }
+    .assistant { background: #1b2c3e; border: 1px solid #35495d; }
+    .user { align-self: end; background: #167b70; color: white; }
+    .candidate { margin-top: 11px; padding: 10px; border: 1px solid #496075; border-radius: 12px; background: #152638; }
+    .candidate small { display: block; color: #a9becd; margin-top: 3px; }
+    form { border-top: 1px solid #35485b; padding-top: 17px; }
+    textarea { width: 100%; min-height: 78px; resize: vertical; border: 1px solid #526579; border-radius: 12px; padding: 12px; color: white; background: #0c1723; font: inherit; }
+    .send-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; color: #9db0bf; font-size: 12px; }
+    button.send { border: 0; border-radius: 999px; padding: 9px 18px; color: white; background: #168879; font: inherit; font-weight: 700; }
+    @media (max-width: 700px) { .drawer { width: min(100vw, 410px); } main { padding: 36px 22px; } header { padding: 0 20px; } nav span:first-child { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header><div class="brand">Travella</div><nav><span>Plans</span><span>Copilot</span><span>Account</span></nav></header>
+    <main><div class="eyebrow">PLAN WORKSPACE</div><h1>Weekend in Portugal</h1><p class="sub">Explore a shortlist of places that fit your pace, budget, and travel dates.</p><div class="map">DESTINATION MAP</div></main>
+    <aside class="drawer" aria-label="Copilot implementation sketch">
+      <div class="drawer-head"><div><div class="eyebrow">COPILOT</div><h2>Weekend in Portugal</h2></div><button class="close">Close</button></div>
+      <section class="thread" aria-label="Conversation preview">
+        <div class="bubble assistant">What kind of weekend are you hoping for: relaxed by the water, food-focused, or a mix?</div>
+        <div class="bubble user">A calm coastal break with good food.</div>
+        <div class="bubble assistant">I’ll look for a few coastal options with an easy pace.<div class="candidate"><strong>Ericeira</strong><small>Coastal town · relaxed pace · seafood</small></div><div class="candidate"><strong>Lagos</strong><small>Algarve coast · beaches · walkable center</small></div></div>
+      </section>
+      <form><textarea aria-label="Message Copilot" placeholder="Describe the trip you have in mind…"></textarea><div class="send-row"><span>For Weekend in Portugal</span><button class="send" type="button">Send</button></div></form>
+    </aside>
+  </div>
+</body>
+</html>
