@@ -20,7 +20,7 @@ function route() {
   const path = window.location.pathname;
   if (path === '/plans/deleted') return { view: 'deleted' };
   const conversation = path.match(/^\/plans\/([0-9a-f-]{36})\/conversation$/i);
-  if (conversation) return { id: conversation[1], conversation: true };
+  if (conversation) return { id: conversation[1] };
   const match = path.match(/^\/plans\/([0-9a-f-]{36})$/i);
   return match ? { id: match[1] } : { view: 'active' };
 }
@@ -198,9 +198,9 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     } catch (err) { fail(err, () => load(nextView, nextCursor), ticket); }
     finally { if (active(ticket)) { setLoading(false); heading.current?.focus(); } }
   }
-  async function open(id, recordActivity = true, restored = false, openConversation = false) {
+  async function open(id, recordActivity = true, restored = false) {
     const ticket = ++generation.current;
-    setLoading(true); setSelected(null); setConversationPage(openConversation); setSavedDestinations([]); setBrief(null); setBriefOpen(false); setBriefError(''); setError(null); setCursor(null); url(openConversation ? `/plans/${id}/conversation` : `/plans/${id}`);
+    setLoading(true); setSelected(null); setConversationPage(true); setSavedDestinations([]); setBrief(null); setBriefOpen(false); setBriefError(''); setError(null); setCursor(null); url(`/plans/${id}`);
     try {
       let plan;
       try { plan = await api.get(id); }
@@ -252,7 +252,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     } finally { setDrawerLoading(false); }
   }
   useEffect(() => {
-    function navigate() { const current = route(); if (current.id) open(current.id, false, false, current.conversation); else load(current.view); }
+    function navigate() { const current = route(); if (current.id) open(current.id, false); else load(current.view); }
     navigate(); window.addEventListener('popstate', navigate);
     return () => { generation.current++; window.removeEventListener('popstate', navigate); };
   }, []);
@@ -269,16 +269,6 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       if (!unknown(err)) createAttempt.current = null;
       fail({ ...err, message: unknown(err) ? 'We couldn’t confirm the result. Retry to check your request.' : err.message }, createPlan, ticket);
     } finally { lock.current = false; if (active(ticket) || createAttempt.current === null) setBusy(false); }
-  }
-  function openConversation() {
-    if (!selected) return;
-    setPlanDrawerOpen(false); setConversationPage(true); setError(null);
-    url(`/plans/${selected.plan_id}/conversation`);
-  }
-  function backToPlan() {
-    if (!selected) return load();
-    setConversationPage(false); setError(null);
-    url(`/plans/${selected.plan_id}`);
   }
   function completed(plan, operation) {
     setDialog(null);
@@ -317,21 +307,18 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   return <div className={`plans-app${conversationPage ? ' chat-app' : ''}`}>
     <a className="skip-link" href={conversationPage ? '#conversation-main' : '#plans-main'}>{conversationPage ? 'Skip to conversation' : 'Skip to plans'}</a>
     <header className={`plans-header${conversationPage ? ' chat-header' : ''}`}><div>
-      {conversationPage ? <>
-        <button className="chat-back" onClick={backToPlan} aria-label="Back to plan workspace">← <span>Plan</span></button>
+      {conversationPage ? <div className="chat-nav-leading">
         <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
         <span className="chat-plan-title">{selected?.title || 'Plan conversation'}</span>
-      </> : <>
-      <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
+      </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}
       <nav className="app-nav" aria-label="Application navigation">
-        <button className="nav-button" aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}>Plans</button>{selected && <button className="nav-button" onClick={openConversation}>Conversation</button>}
+        <button className="nav-button" aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}>Plans</button>
         <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
       </nav>
-      </>}
     </div></header>
     {planDrawerOpen && <PlanDrawer plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={() => setPlanDrawerOpen(false)} onOpen={(event, id) => link(event, () => { setPlanDrawerOpen(false); id ? open(id) : load(); })} onNew={() => { setPlanDrawerOpen(false); createPlan(); }} />}
-    {conversationPage && selected ? <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} onBack={backToPlan} /> : <main id="plans-main" className="plans-main" tabIndex={-1}>
+    {conversationPage && selected ? <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} /> : <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>
         {!selected && view === 'active' && <button className="primary" disabled={busy || loading} onClick={createPlan}>{busy ? 'Creating plan…' : 'New plan'}</button>}</div>
       {notice && <p className="plan-notice" role="status">{notice}</p>}

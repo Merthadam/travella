@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PlansApp } from './PlansApp';
 
@@ -50,14 +50,14 @@ test('renders backend order and the empty active state', async () => {
   expect(await screen.findByText('No plans yet')).toBeTruthy();
 });
 
-test('create uses one request and opens the saved Conversation shell', async () => {
+test('create uses one request and opens the saved Plan chat', async () => {
   const api = makeApi(); const user = userEvent.setup();
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   await screen.findByRole('button', { name: 'New plan' });
   await user.click(screen.getByRole('button', { name: 'New plan' }));
-  await screen.findByRole('heading', { name: 'Untitled plan' });
+  await screen.findByRole('textbox', { name: 'Message Travella' });
   expect(api.create).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('Your draft is saved')).toBeTruthy();
+  expect(screen.getByText('Untitled plan')).toBeTruthy();
 });
 
 test('rename validates exact title and keeps the normalized value', async () => {
@@ -83,33 +83,21 @@ test('delete and restore preserve the authoritative lifecycle', async () => {
   await screen.findByRole('button', { name: /Restore plan Recoverable plan/ });
   await user.click(screen.getByRole('button', { name: /Restore plan Recoverable plan/ }));
   await user.click(screen.getByRole('button', { name: 'Restore plan' }));
-  await screen.findByRole('heading', { name: 'Recoverable plan' });
-  expect(screen.getByText('Your draft is saved')).toBeTruthy();
+  await screen.findByRole('textbox', { name: 'Message Travella' });
+  expect(screen.getByText('Recoverable plan')).toBeTruthy();
 });
 
-test('trip details save through the plan-scoped brief CRUD', async () => {
-  const api = makeApi([plan('a', 'City break')]); const user = userEvent.setup();
-  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
-  await user.click(await screen.findByRole('link', { name: 'City break' }));
-  await screen.findByRole('button', { name: 'Edit details' });
-  await user.click(screen.getByRole('button', { name: 'Edit details' }));
-  await user.clear(screen.getByLabelText('Interests')); await user.type(screen.getByLabelText('Interests'), 'Food and museums');
-  await user.clear(screen.getByLabelText('Travelers')); await user.type(screen.getByLabelText('Travelers'), '2');
-  await user.click(screen.getByRole('button', { name: 'Save details' }));
-  await waitFor(() => expect(api.updateBrief).toHaveBeenCalled());
-  expect(api.updateBrief.mock.calls[0][1]).toMatchObject({ interests: 'Food and museums', travelers: 2 });
-  expect(await screen.findByText('Trip details updated.')).toBeTruthy();
-});
-
-test('conversation opens as a full-page route, loads Plan history, and streams a reply', async () => {
+test('opening a Plan goes straight to full-page chat and streams a reply', async () => {
   const api = makeApi([plan('a', 'Island break')]); const user = userEvent.setup();
   api.conversationMessages.mockResolvedValue([{ message_id: 'old-1', role: 'assistant', content: 'Welcome back.', status: 'complete' }]);
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   await user.click(await screen.findByRole('link', { name: 'Island break' }));
-  await user.click(await screen.findByRole('button', { name: 'Conversation' }));
   expect(await screen.findByText('Welcome back.')).toBeTruthy();
-  expect(window.location.pathname).toBe('/plans/a/conversation');
-  expect(screen.getByRole('button', { name: 'Back to plan workspace' })).toBeTruthy();
+  expect(window.location.pathname).toBe('/plans/a');
+  expect(screen.queryByRole('button', { name: 'Conversation' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Travella' })).toBeTruthy();
+  expect(screen.getByRole('navigation', { name: 'Application navigation' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Plans' })).toBeTruthy();
   const input = screen.getByRole('textbox', { name: 'Message Travella' });
   await user.type(input, 'A calm island trip');
   await user.click(screen.getByRole('button', { name: 'Send' }));
@@ -118,27 +106,45 @@ test('conversation opens as a full-page route, loads Plan history, and streams a
   expect(api.agentTurnStream).toHaveBeenCalledWith(expect.objectContaining({ plan_id: 'a' }), 'A calm island trip', expect.any(String), expect.objectContaining({ signal: expect.any(AbortSignal), onEvent: expect.any(Function) }));
 });
 
+test('Plans drawer switches directly to another Plan chat', async () => {
+  const api = makeApi([plan('a', 'First plan'), plan('b', 'Second plan')]); const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('link', { name: 'First plan' }));
+  await screen.findByRole('textbox', { name: 'Message Travella' });
+  await user.click(screen.getByRole('button', { name: 'Plans', exact: true }));
+  const drawer = screen.getByRole('complementary', { name: 'Your plans' });
+  await user.click(await within(drawer).findByRole('link', { name: /Second plan/ }));
+  await screen.findByRole('textbox', { name: 'Message Travella' });
+  expect(window.location.pathname).toBe('/plans/b');
+  expect(screen.getByText('Second plan')).toBeTruthy();
+});
+
 test('Copilot reports a conversation-history failure and keeps the composer disabled while loading', async () => {
   const api = makeApi([plan('a', 'Island break')]); const user = userEvent.setup();
   let finishHistory;
-  api.conversationMessages.mockReturnValue(new Promise(resolve => { finishHistory = resolve; }));
+  api.conversationMessages.mockReturnValue(new Promise((resolve, reject) => { finishHistory = { resolve, reject }; }));
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   await user.click(await screen.findByRole('link', { name: 'Island break' }));
-  await user.click(await screen.findByRole('button', { name: 'Conversation' }));
   expect(screen.getByText('Loading conversation…')).toBeTruthy();
-  finishHistory([]);
-  await screen.findByRole('textbox', { name: 'Message Travella' });
-  api.conversationMessages.mockRejectedValueOnce(new Error('Conversation unavailable.'));
-  await user.click(screen.getByRole('button', { name: 'Back to plan workspace' }));
-  await user.click(screen.getByRole('button', { name: 'Conversation' }));
+  finishHistory.reject(new Error('Conversation unavailable.'));
   expect((await screen.findByRole('alert')).textContent).toBe('Conversation unavailable.');
+});
+
+test('legacy conversation URL continues to load the Plan chat', async () => {
+  const id = '00000000-0000-0000-0000-000000000124';
+  const api = makeApi([plan(id, 'Legacy chat')]);
+  api.conversationMessages.mockResolvedValue([{ message_id: 'saved-2', role: 'user', content: 'Italy', status: 'complete' }]);
+  window.history.pushState({}, '', `/plans/${id}/conversation`);
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  expect(await screen.findByText('Italy')).toBeTruthy();
+  expect(window.location.pathname).toBe(`/plans/${id}`);
 });
 
 test('direct Plan conversation URL loads the same Plan transcript', async () => {
   const id = '00000000-0000-0000-0000-000000000123';
   const api = makeApi([plan(id, 'Direct chat')]);
   api.conversationMessages.mockResolvedValue([{ message_id: 'saved-1', role: 'user', content: 'Japan', status: 'complete' }]);
-  window.history.pushState({}, '', `/plans/${id}/conversation`);
+  window.history.pushState({}, '', `/plans/${id}`);
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   expect(await screen.findByText('Japan')).toBeTruthy();
   expect(api.conversationMessages).toHaveBeenCalledWith({ plan_id: id });
