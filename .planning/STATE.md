@@ -4,9 +4,9 @@ current_phase: 03b
 current_phase_name: agentic-conversation
 status: executing
 stopped_at: Phase 03B plan 10 partial execution; local MCP transport is running, full authenticated provider turn remains unverified
-last_updated: "2026-10-03T10:06:02Z"
+last_updated: "2026-10-03T19:29:58Z"
 last_activity: 2026-10-03
-last_activity_desc: Local FastMCP transport added and started in Docker; long-term memory stays disabled by user choice.
+last_activity_desc: Plan routes now open the full-page chat directly; the Plans drawer switches between Plan chats.
 state_head: 8a04735da445beb6a68593f044408702b6a88fb7
 progress:
   total_phases: 9
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-26)
 Phase: 03b (agentic-conversation)
 Plan: 03B-10 partial — local MCP transport and LangGraph-owned tools
 Status: executing; see 03B-10-EXECUTION-CHECKPOINT.md for phase work and the quick-task verification artifact for local transport
-Last activity: 2026-10-03 — local agent and MCP containers run with the configured OpenAI model; a live authenticated research turn remains unverified.
+Last activity: 2026-10-03 — Plan chat top navigation adapted with a Plans switcher; see quick-task verification.
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
@@ -106,3 +106,4 @@ Resume file: .planning/phases/02-draft-plans-durable-lifecycle/02-03-PLAN.md
 | Date | Task | Outcome |
 |------|------|---------|
 | 2026-10-03 | local-agent-without-agentcore | Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. |
+| 2026-10-03 | plan-chat-primary | Made Plan chat the primary Plan screen and retained the Plans switcher drawer; see `artifacts/testing/2026-10-03-chat-top-nav/verification.md`. |
