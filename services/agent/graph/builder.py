@@ -6,7 +6,12 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from ..request_context import bind_authorization_token, reset_authorization_token
+from ..request_context import (
+    bind_authorization_token,
+    bind_text_delta_callback,
+    reset_authorization_token,
+    reset_text_delta_callback,
+)
 from ..state import AgentState
 from .nodes import ConversationNode, ResearchNode
 
@@ -30,12 +35,18 @@ class AgentGraph:
         self.compiled = flow.compile(checkpointer=checkpointer)
 
     async def invoke(
-        self, state: AgentState, *, authorization_token: str | None = None
+        self,
+        state: AgentState,
+        *,
+        authorization_token: str | None = None,
+        on_text_delta: Any | None = None,
     ) -> dict[str, Any]:
         context_token = bind_authorization_token(authorization_token)
+        text_token = bind_text_delta_callback(on_text_delta)
         try:
             result = await self.compiled.ainvoke(state)
         finally:
+            reset_text_delta_callback(text_token)
             reset_authorization_token(context_token)
         status = result.get("status", "unable to continue")
         projection: dict[str, Any] = {

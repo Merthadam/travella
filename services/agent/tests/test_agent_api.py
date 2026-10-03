@@ -169,6 +169,43 @@ def test_password_auth_access_token_can_reach_agent(monkeypatch):
     assert response.status_code == 200
 
 
+def test_plan_stream_returns_assistant_text_and_terminal_status():
+    identity = ValidatedIdentity("traveler-1", "client", frozenset({"aws.cognito.signin.user.admin"}), 1, 9999999999)
+    plan = {"plan_id": str(uuid4()), "lifecycle": "active", "revision": 1}
+
+    def verifier(token):
+        assert token == "good"
+        return identity
+
+    def reader(subject, plan_id, token):
+        return plan if subject == identity.subject and str(plan_id) == plan["plan_id"] else None
+
+    class Graph:
+        async def invoke(self, state, *, authorization_token, on_text_delta=None):
+            assert state["message"] == "Plan Kyoto"
+            if on_text_delta:
+                await on_text_delta("Where to?")
+            return {"projection": {
+                "status": "needs your input", "plan_id": state["plan_id"],
+                "event_id": state["event_id"], "generation": state["generation"],
+                "assistant_text": "Where to?",
+            }}
+
+    app = create_app(verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
+    with TestClient(app) as client:
+        response = client.post(
+            f"/v1/agent/plans/{plan['plan_id']}/events/stream",
+            headers={"Authorization": "Bearer good"},
+            json={"plan_id": plan["plan_id"], "event_id": "stream-1", "message": "Plan Kyoto"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert '"type":"TEXT_MESSAGE_CONTENT"' in response.text
+    assert '"delta":"Where to?"' in response.text
+    assert '"type":"TERMINAL","status":"needs your input"' in response.text
+
+
 def test_bedrock_client_uses_local_aws_profile_when_api_key_is_blank(monkeypatch):
     from services.agent.claude.messages import ClaudeMessagesClient
 

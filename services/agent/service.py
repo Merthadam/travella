@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import UUID
@@ -31,6 +34,7 @@ class AgentTurnService:
         self.tools = tools
         self.candidates = candidates
         self.receipts = receipts
+        self._active_streams: dict[tuple[str, str, str], dict[str, Any]] = {}
 
     async def _read_plan(self, subject: str, plan_id: UUID, token: str) -> dict[str, Any]:
         try:
@@ -49,7 +53,12 @@ class AgentTurnService:
         return result
 
     async def handle(
-        self, request: AgentRequest, subject: str, authorization: str | None
+        self,
+        request: AgentRequest,
+        subject: str,
+        authorization: str | None,
+        *,
+        on_text_delta: Callable[[str], Any] | None = None,
     ) -> AgentResponse:
         token = (authorization or "")[7:].strip()
         plan = await self._read_plan(subject, request.plan_id, token)
@@ -186,7 +195,14 @@ class AgentTurnService:
                 "message": query,
                 "candidate_action": action,
             }
-            result = await self.graph.invoke(graph_state, authorization_token=token)
+            if on_text_delta:
+                result = await self.graph.invoke(
+                    graph_state,
+                    authorization_token=token,
+                    on_text_delta=on_text_delta,
+                )
+            else:
+                result = await self.graph.invoke(graph_state, authorization_token=token)
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
                 raise HTTPException(502, "Agent response was invalid.")
@@ -243,13 +259,18 @@ class AgentTurnService:
                     content=query,
                     generation=generation,
                 )
-            if self.context_reader and projection.get("assistant_text"):
+            source_refs = self._source_refs(projection)
+            if source_refs:
+                projection["sources"] = source_refs
+            assistant_content = str(projection.get("assistant_text") or projection.get("question") or "")
+            assistant_content = self._message_with_sources(assistant_content, source_refs)
+            if self.context_reader and assistant_content:
                 await self.context_reader.append(
                     request.plan_id,
                     token,
                     event_id=f"{request.event_id}:assistant",
                     role="assistant",
-                    content=str(projection["assistant_text"]),
+                    content=assistant_content,
                     generation=generation,
                 )
             return await finish(projection)
@@ -279,6 +300,162 @@ class AgentTurnService:
                 safe["candidates"] = list(prior.candidates)
             await self.candidates.resolve_pending(subject, plan_id, request.event_id, safe)
             return AgentResponse.model_validate(safe)
+
+    async def stream(
+        self,
+        request: AgentRequest,
+        subject: str,
+        authorization: str | None,
+        *,
+        is_disconnected: Callable[[], Awaitable[bool]],
+    ):
+        """Yield an allow-listed assistant-text stream and persist partial outcomes."""
+        key = (subject, str(request.plan_id), request.event_id)
+        queue: asyncio.Queue[tuple[str, Any] | None] = asyncio.Queue()
+        emitted: list[str] = []
+        state: dict[str, Any] = {"reason": None, "task": None}
+        message_id = f"{request.event_id}:assistant"
+        self._active_streams[key] = state
+
+        async def on_text_delta(value: str) -> None:
+            if not value or state["reason"]:
+                return
+            emitted.append(value)
+            await queue.put(("content", value))
+
+        async def run_turn() -> None:
+            try:
+                response = await self.handle(
+                    request,
+                    subject,
+                    authorization,
+                    on_text_delta=on_text_delta,
+                )
+                final = response.model_dump(mode="json")
+                if not emitted:
+                    text = response.assistant_text or response.question or ""
+                    for start in range(0, len(text), 28):
+                        await on_text_delta(text[start:start + 28])
+                status = "error" if response.status == "unable to continue" else response.status
+                await queue.put(("terminal", {"status": status, "sources": final.get("sources", [])}))
+            except asyncio.CancelledError:
+                reason = state["reason"] or "interrupted"
+                await self._persist_partial(request, subject, authorization, "".join(emitted), reason)
+                await queue.put(("terminal", {"status": reason, "sources": []}))
+            except HTTPException as exc:
+                await queue.put(("terminal", {"status": "error", "message": str(exc.detail), "sources": []}))
+            except Exception:
+                await queue.put(("terminal", {"status": "error", "message": "The reply could not be completed.", "sources": []}))
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(run_turn())
+        state["task"] = task
+        try:
+            yield self._sse({"type": "TEXT_MESSAGE_START", "messageId": message_id, "role": "assistant"})
+            while True:
+                if await is_disconnected() and not task.done():
+                    state["reason"] = state["reason"] or "interrupted"
+                    task.cancel()
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=0.05)
+                except TimeoutError:
+                    if task.done() and queue.empty():
+                        break
+                    continue
+                if item is None:
+                    break
+                kind, value = item
+                if kind == "content":
+                    yield self._sse({"type": "TEXT_MESSAGE_CONTENT", "messageId": message_id, "delta": value})
+                else:
+                    yield self._sse({"type": "TEXT_MESSAGE_END", "messageId": message_id})
+                    yield self._sse({"type": "TERMINAL", **value})
+        except asyncio.CancelledError:
+            if not task.done():
+                state["reason"] = state["reason"] or "interrupted"
+                task.cancel()
+            raise
+        finally:
+            if not task.done():
+                state["reason"] = state["reason"] or "interrupted"
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            self._active_streams.pop(key, None)
+
+    async def cancel(self, subject: str, plan_id: str, event_id: str) -> bool:
+        state = self._active_streams.get((subject, plan_id, event_id))
+        if not state or not state.get("task") or state["task"].done():
+            return False
+        state["reason"] = "stopped"
+        state["task"].cancel()
+        return True
+
+    async def _persist_partial(
+        self,
+        request: AgentRequest,
+        subject: str,
+        authorization: str | None,
+        text: str,
+        status: str,
+    ) -> None:
+        if not self.context_reader:
+            return
+        token = (authorization or "")[7:].strip()
+        plan_id = request.plan_id
+        try:
+            plan = await self._read_plan(subject, plan_id, token)
+            context = await self.context_reader.context(plan_id, token)
+            generation = int(context.get("revision", plan.get("revision", 1)))
+            if request.message.strip():
+                await self.context_reader.append(
+                    plan_id, token, event_id=f"{request.event_id}:user", role="user",
+                    content=request.message.strip(), generation=generation,
+                )
+            if text:
+                await self.context_reader.append(
+                    plan_id, token, event_id=f"{request.event_id}:assistant", role="assistant",
+                    content=text[:2000], generation=generation, status=status,
+                )
+        except Exception:
+            return
+
+    @staticmethod
+    def _sse(payload: dict[str, Any]) -> str:
+        return f"data: {json.dumps(payload, ensure_ascii=False, separators=(',', ':'))}\n\n"
+
+    @staticmethod
+    def _source_refs(projection: dict[str, Any]) -> list[dict[str, str]]:
+        sources: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for candidate in projection.get("candidates", []):
+            if not isinstance(candidate, dict):
+                continue
+            for evidence in candidate.get("evidence", []):
+                if not isinstance(evidence, dict):
+                    continue
+                title, url = str(evidence.get("title", "")).strip(), str(evidence.get("url", "")).strip()
+                if not title or not url.startswith("https://") or len(url) > 180 or url in seen:
+                    continue
+                title = re.sub(r"[\x00-\x1f\x7f\[\]]", " ", title)[:80].strip()
+                if not title:
+                    continue
+                seen.add(url)
+                sources.append({"title": title, "url": url})
+                if len(sources) == 3:
+                    return sources
+        return sources
+
+    @staticmethod
+    def _message_with_sources(content: str, sources: list[dict[str, str]]) -> str:
+        if not sources:
+            return content[:2000]
+        source_block = "\n\nSources:\n" + "\n".join(f"- [{item['title']}]({item['url']})" for item in sources)
+        while sources and len(source_block) > 700:
+            sources = sources[:-1]
+            source_block = "\n\nSources:\n" + "\n".join(f"- [{item['title']}]({item['url']})" for item in sources)
+        available = max(0, 2000 - len(source_block))
+        return content[:available] + source_block
 
     @staticmethod
     def _interrupted(plan_id: str, event_id: str, generation: int, prior: Any) -> dict[str, Any]:

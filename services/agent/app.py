@@ -7,7 +7,8 @@ from collections.abc import Callable
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 from services.auth.config import CognitoConfig
 from services.auth.contracts import ValidatedIdentity
@@ -129,6 +130,37 @@ def create_app(
         if request.plan_id != plan_id:
             raise HTTPException(422, "Plan ID does not match the request path.")
         return await turn_service.handle(request, identity.subject, authorization)
+
+    @router.post("/plans/{plan_id}/events/stream")
+    async def plan_events_stream(
+        plan_id: UUID,
+        request: AgentRequest,
+        http_request: Request,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+        authorization: str | None = Header(default=None),
+    ):
+        if request.plan_id != plan_id:
+            raise HTTPException(422, "Plan ID does not match the request path.")
+        token = (authorization or "")[7:].strip()
+        await turn_service._read_plan(identity.subject, plan_id, token)
+        return StreamingResponse(
+            turn_service.stream(
+                request,
+                identity.subject,
+                authorization,
+                is_disconnected=http_request.is_disconnected,
+            ),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        )
+
+    @router.post("/plans/{plan_id}/events/{event_id}/cancel")
+    async def cancel_plan_event(
+        plan_id: UUID,
+        event_id: str,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+    ):
+        return {"cancelled": await turn_service.cancel(identity.subject, str(plan_id), event_id)}
 
     app.include_router(router)
     return app

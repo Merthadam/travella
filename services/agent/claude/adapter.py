@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from ..local_mcp import LocalMcpClient, LocalMcpError
+from ..request_context import current_text_delta_callback
 from ..turn import TurnContext
 from .gateway import GatewayToolClient
 from .messages import ClaudeMessagesClient
@@ -59,7 +60,11 @@ class ClaudeGatewayAdapter:
     async def complete_conversation(
         self, *, message: str, context: TurnContext, authorization_token: str
     ) -> dict[str, Any]:
-        return await self.messages.conversation(message=message, context=context)
+        return await self.messages.conversation(
+            message=message,
+            context=context,
+            on_text_delta=current_text_delta_callback(),
+        )
 
     async def _tool(
         self, *, tool: str, arguments: dict[str, Any], authorization_token: str

@@ -128,6 +128,41 @@ def test_openai_provider_uses_responses_api_and_structured_conversation(monkeypa
     }
 
 
+def test_openai_stream_emits_only_assistant_text_after_decision(monkeypatch):
+    class StreamingResponses:
+        async def create(self, **kwargs):
+            assert kwargs["stream"] is True
+
+            async def events():
+                yield SimpleNamespace(type="response.output_text.delta", delta='{"decision":"respond","assistant_text":"Hello, ')
+                yield SimpleNamespace(type="response.output_text.delta", delta='traveler."}')
+
+            return events()
+
+    fake_client = FakeOpenAIClient()
+    fake_client.responses = StreamingResponses()
+    monkeypatch.setenv("AGENT_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-openai-key")
+    monkeypatch.setattr("services.agent.claude.messages.AsyncOpenAI", lambda **kwargs: fake_client)
+    client = ClaudeMessagesClient()
+    deltas = []
+
+    result = asyncio.run(client.conversation(
+        message="Hi", context=SimpleNamespace(messages=lambda message: [{"role": "user", "content": message}]),
+        on_text_delta=deltas.append,
+    ))
+
+    assert result["assistant_text"] == "Hello, traveler."
+    assert "".join(deltas) == "Hello, traveler."
+
+
+def test_json_string_field_parses_escape_sequences_incrementally():
+    from services.agent.claude.messages import _json_string_field
+
+    assert _json_string_field('{"assistant_text":"A \\u263A"}', "assistant_text") == ("A ☺", True)
+    assert _json_string_field('{"assistant_text":"line \\', "assistant_text") == ("line ", False)
+
+
 def test_openai_model_defaults_when_model_override_is_unset(monkeypatch):
     monkeypatch.setenv("AGENT_MODEL_PROVIDER", "openai")
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-openai-key")

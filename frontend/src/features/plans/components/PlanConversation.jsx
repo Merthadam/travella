@@ -6,6 +6,17 @@ const safeSources = values => (Array.isArray(values) ? values : []).filter(item 
   try { return new URL(item.url).protocol === 'https:'; } catch { return false; }
 });
 
+function hydrateMessage(item) {
+  const content = String(item.content || '');
+  const marker = content.lastIndexOf('\n\nSources:\n');
+  if (marker < 0) return item;
+  const sources = content.slice(marker + 11).split('\n').map(line => {
+    const match = line.match(/^- \[(.{1,120})\]\((https:\/\/[^)\s]{1,320})\)$/);
+    return match ? { title: match[1], url: match[2] } : null;
+  }).filter(Boolean);
+  return { ...item, content: content.slice(0, marker), sources: safeSources([...(item.sources || []), ...sources]) };
+}
+
 function SourceLinks({ sources }) {
   const links = safeSources(sources);
   if (!links.length) return null;
@@ -34,7 +45,7 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
     let mounted = true;
     setMessages([]); setError(''); setLoading(true);
     api.conversationMessages({ plan_id: planId }).then(result => {
-      if (mounted) setMessages(Array.isArray(result) ? result : []);
+      if (mounted) setMessages(Array.isArray(result) ? result.map(hydrateMessage) : []);
     }).catch(err => {
       if (!mounted) return;
       if (err.status === 401) onExpiredRef.current();
@@ -51,14 +62,14 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
     setMessages(current => current.map(item => item.client_id === id || item.message_id === id ? { ...item, ...update } : item));
   }
 
-  async function runTurn(message, { retry = false } = {}) {
+  async function runTurn(message) {
     const eventId = requestId();
     const assistantId = `assistant-${eventId}`;
     const timestamp = new Date().toISOString();
     const controller = new AbortController();
     activeRef.current = { eventId, assistantId, controller, stopped: false };
     setActive({ eventId, assistantId }); setError('');
-    if (!retry) setMessages(current => [...current, { client_id: `user-${eventId}`, message_id: `user-${eventId}`, event_id: `${eventId}:user`, role: 'user', content: message, status: 'complete', created_at: timestamp }]);
+    setMessages(current => [...current, { client_id: `user-${eventId}`, message_id: `user-${eventId}`, event_id: `${eventId}:user`, role: 'user', content: message, status: 'complete', created_at: timestamp }]);
     setMessages(current => [...current, { client_id: assistantId, message_id: assistantId, event_id: `${eventId}:assistant`, role: 'assistant', content: '', status: 'streaming', sources: [], created_at: timestamp }]);
     try {
       if (!api.agentTurnStream) throw new Error('Live replies are unavailable. Try again.');
@@ -70,12 +81,13 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
             setMessages(current => current.map(item => item.client_id === assistantId ? { ...item, content: item.content + event.delta } : item));
           } else if (event.type === 'TERMINAL' || event.type === 'RUN_FINISHED') {
             const status = event.status || event.outcome?.type || 'complete';
-            updateMessage(assistantId, { status: status === 'success' ? 'complete' : status, sources: safeSources(event.sources) });
+            updateMessage(assistantId, { status: status === 'success' || ['needs your input', 'shortlist_ready'].includes(status) ? 'complete' : status === 'error' ? 'interrupted' : status, sources: safeSources(event.sources) });
+            if (status === 'error') setError(event.message || 'The reply could not be completed. You can retry.');
           }
         },
       });
       if (result?.sources?.length) updateMessage(assistantId, { sources: safeSources(result.sources) });
-      if (result?.status) updateMessage(assistantId, { status: result.status });
+      if (result?.status) updateMessage(assistantId, { status: ['needs your input', 'shortlist_ready'].includes(result.status) ? 'complete' : result.status });
     } catch (err) {
       const stopped = activeRef.current?.eventId === eventId && activeRef.current.stopped;
       if (err.status === 401) onExpiredRef.current();
@@ -100,17 +112,22 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
     await runTurn(message);
   }
 
-  function stop() {
+  async function stop() {
     const turn = activeRef.current;
     if (!turn) return;
     turn.stopped = true;
     updateMessage(turn.assistantId, { status: 'stopped' });
-    turn.controller.abort();
+    try {
+      if (api.cancelAgentTurn) await api.cancelAgentTurn(selected, turn.eventId);
+      else turn.controller.abort();
+    } catch {
+      turn.controller.abort();
+    }
   }
 
   function retry(message) {
     if (active) return;
-    runTurn(message, { retry: true });
+    runTurn(message);
   }
 
   return <main className="chat-page" id="conversation-main">

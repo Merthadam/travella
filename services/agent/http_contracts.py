@@ -34,6 +34,7 @@ class AgentResponse(BaseModel):
     question: str | None = None
     candidates: list[dict[str, Any]] = Field(default_factory=list)
     evidence: list[dict[str, Any]] = Field(default_factory=list)
+    sources: list[dict[str, str]] = Field(default_factory=list, max_length=5)
     action: dict[str, Any] | None = None
     error: str | None = None
     assistant_text: str | None = None

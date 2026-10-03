@@ -73,6 +73,7 @@ test('connection failure marks partial output interrupted and offers retry with 
   expect(await screen.findByText('It can be rainy')).toBeTruthy();
   expect(api.agentTurnStream).toHaveBeenCalledTimes(2);
   expect(api.agentTurnStream.mock.calls[0][2]).not.toBe(api.agentTurnStream.mock.calls[1][2]);
+  expect(screen.getAllByText('What is spring like?')).toHaveLength(2);
 });
 
 test('Shift+Enter inserts a newline without sending; Enter sends', async () => {

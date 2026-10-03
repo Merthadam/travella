@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from contextvars import ContextVar, Token
+from typing import Any
 
 _AUTHORIZATION_TOKEN: ContextVar[str | None] = ContextVar(
     "travella_agent_authorization_token", default=None
+)
+_TEXT_DELTA_CALLBACK: ContextVar[Callable[[str], Any] | None] = ContextVar(
+    "travella_agent_text_delta_callback", default=None
 )
 
 
@@ -22,3 +27,25 @@ def bind_authorization_token(value: str | None) -> Token[str | None]:
 def reset_authorization_token(context_token: Token[str | None]) -> None:
     """Restore the previous async request context after graph execution."""
     _AUTHORIZATION_TOKEN.reset(context_token)
+
+
+def current_text_delta_callback() -> Callable[[str], Any] | None:
+    """Return the request-local text sink without adding it to graph state."""
+    return _TEXT_DELTA_CALLBACK.get()
+
+
+def bind_text_delta_callback(value: Callable[[str], Any] | None) -> Token[Callable[[str], Any] | None]:
+    return _TEXT_DELTA_CALLBACK.set(value)
+
+
+def reset_text_delta_callback(context_token: Token[Callable[[str], Any] | None]) -> None:
+    _TEXT_DELTA_CALLBACK.reset(context_token)
+
+
+async def emit_text_delta(value: str) -> None:
+    callback = current_text_delta_callback()
+    if callback is None or not value:
+        return
+    result = callback(value)
+    if isinstance(result, Awaitable):
+        await result

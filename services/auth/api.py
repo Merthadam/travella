@@ -12,7 +12,7 @@ from uuid import UUID
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
 from starlette.concurrency import run_in_threadpool
 
@@ -341,6 +341,56 @@ def create_app(
             request.url.path,
             token=token,
             body=body,
+        )
+        return JSONResponse(data, status_code=status)
+
+    @app.post("/v1/agent/plans/{plan_id}/events/stream")
+    async def agent_proxy_stream(plan_id: str, request: Request):
+        ready()
+        body = await request.body()
+
+        def access_token():
+            with store.transaction():
+                _, session, _ = current_session(request)
+                return session["access"]
+
+        token = await run_in_threadpool(access_token)
+        if agent_client is None:
+            raise HTTPException(503, "Copilot is not configured yet.")
+        try:
+            UUID(plan_id)
+        except ValueError:
+            raise HTTPException(404, "Copilot is unavailable.") from None
+        return StreamingResponse(
+            agent_client.stream(
+                f"/v1/agent/plans/{plan_id}/events/stream",
+                token=token,
+                body=body,
+            ),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        )
+
+    @app.post("/v1/agent/plans/{plan_id}/events/{event_id}/cancel")
+    async def agent_proxy_cancel(plan_id: str, event_id: str, request: Request):
+        ready()
+
+        def access_token():
+            with store.transaction():
+                _, session, _ = current_session(request)
+                return session["access"]
+
+        token = await run_in_threadpool(access_token)
+        if agent_client is None:
+            raise HTTPException(503, "Copilot is not configured yet.")
+        try:
+            UUID(plan_id)
+        except ValueError:
+            raise HTTPException(404, "Copilot is unavailable.") from None
+        status, data = await run_in_threadpool(
+            agent_client.cancel,
+            f"/v1/agent/plans/{plan_id}/events/{event_id}/cancel",
+            token=token,
         )
         return JSONResponse(data, status_code=status)
 

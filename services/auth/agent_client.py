@@ -1,5 +1,6 @@
 """Narrow server-to-server adapter for the plan-scoped agent API."""
 
+import json
 import re
 from uuid import UUID
 
@@ -48,6 +49,68 @@ class AgentClient:
             return 200, result.model_dump(mode="json")
         except (httpx.HTTPError, ValueError, TypeError, AttributeError, ValidationError):
             return 503, {"message": "Copilot is temporarily unavailable. Try again."}
+
+    async def stream(self, path: str, *, token: str, body: bytes):
+        match = re.fullmatch(r"/v1/agent/plans/([0-9a-fA-F-]{36})/events/stream", path)
+        if not match:
+            yield self._sse({"type": "TERMINAL", "status": "error", "message": "Copilot is unavailable."})
+            return
+        try:
+            UUID(match.group(1))
+            async with httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=httpx.Timeout(120, connect=10, read=None),
+                follow_redirects=False,
+                transport=self.transport,
+                trust_env=False,
+            ) as client:
+                async with client.stream(
+                    "POST",
+                    path,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                        "Accept": "text/event-stream",
+                    },
+                    content=body,
+                ) as response:
+                    if response.status_code != 200:
+                        yield self._sse({"type": "TERMINAL", "status": "error", "message": self._safe_error(response.status_code)[1]["message"]})
+                        return
+                    async for chunk in response.aiter_bytes():
+                        yield chunk
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+            yield self._sse({"type": "TERMINAL", "status": "error", "message": "Copilot is temporarily unavailable. Try again."})
+
+    def cancel(self, path: str, *, token: str) -> tuple[int, dict]:
+        match = re.fullmatch(r"/v1/agent/plans/([0-9a-fA-F-]{36})/events/([^/]+)/cancel", path)
+        if not match:
+            raise HTTPException(404, "Copilot is unavailable.")
+        try:
+            UUID(match.group(1))
+            with httpx.Client(
+                base_url=self.base_url,
+                timeout=10,
+                follow_redirects=False,
+                transport=self.transport,
+                trust_env=False,
+            ) as client:
+                response = client.post(
+                    path,
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            if response.status_code != 200:
+                return self._safe_error(response.status_code)
+            data = response.json()
+            if not isinstance(data, dict) or not isinstance(data.get("cancelled"), bool):
+                return 503, {"message": "Copilot is temporarily unavailable. Try again."}
+            return 200, data
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+            return 503, {"message": "Copilot is temporarily unavailable. Try again."}
+
+    @staticmethod
+    def _sse(payload: dict) -> str:
+        return f"data: {json.dumps(payload, separators=(',', ':'))}\n\n"
 
     @staticmethod
     def _safe_error(status_code: int) -> tuple[int, dict]:

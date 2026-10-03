@@ -42,12 +42,13 @@ class CrudContextReader:
     async def append(
         self, plan_id: UUID, token: str, *, event_id: str, role: str,
         content: str, generation: int,
+        status: str = "complete",
     ) -> None:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(
                 f"{self.base_url}/v1/plans/{plan_id}/conversation/messages",
                 headers={"Authorization": f"Bearer {token}"},
-                json={"event_id": event_id, "role": role, "content": content, "generation": generation},
+                json={"event_id": event_id, "role": role, "content": content, "generation": generation, "status": status},
             )
         if response.status_code >= 400:
             raise HTTPException(503, "Conversation persistence unavailable.")
