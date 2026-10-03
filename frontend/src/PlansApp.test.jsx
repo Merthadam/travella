@@ -20,6 +20,11 @@ function makeApi(initial = []) {
     activity: vi.fn(async item => ({ ...item, revision: item.revision + 1 })),
     conversationMessages: vi.fn(async () => []),
     agentTurn: vi.fn(async (item, message, eventId) => ({ status: 'shortlist_ready', plan_id: item.plan_id, event_id: eventId, assistant_text: `Ideas for ${message}`, candidates: [{ candidate_id: 'crete', name: 'Crete', summary: 'A relaxed island stay' }] })),
+    agentTurnStream: vi.fn(async (item, message, eventId, { onEvent }) => {
+      onEvent({ type: 'TEXT_MESSAGE_CONTENT', delta: `Ideas for ${message}` });
+      onEvent({ type: 'TERMINAL', status: 'complete' });
+      return { status: 'complete', event_id: eventId };
+    }),
     brief: vi.fn(async item => ({ plan_id: item.plan_id, revision: item.revision, interests: '', start_date: '', end_date: '', travelers: 1, budget: '', transport_tolerance: '', accessibility_needs: '' })),
     updateBrief: vi.fn(async (item, data) => ({ plan_id: item.plan_id, revision: item.revision + 1, ...data })),
     prepare: vi.fn(async (item, operation, title) => ({ challenge: 'challenge', operation, revision: item.revision, title })),
@@ -96,19 +101,21 @@ test('trip details save through the plan-scoped brief CRUD', async () => {
   expect(await screen.findByText('Trip details updated.')).toBeTruthy();
 });
 
-test('Copilot loads plan history and sends a turn through the plan agent API', async () => {
+test('conversation opens as a full-page route, loads Plan history, and streams a reply', async () => {
   const api = makeApi([plan('a', 'Island break')]); const user = userEvent.setup();
-  api.conversationMessages.mockResolvedValue([{ message_id: 'old-1', role: 'assistant', content: 'Welcome back.' }]);
+  api.conversationMessages.mockResolvedValue([{ message_id: 'old-1', role: 'assistant', content: 'Welcome back.', status: 'complete' }]);
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   await user.click(await screen.findByRole('link', { name: 'Island break' }));
-  await user.click(await screen.findByRole('button', { name: 'Copilot' }));
+  await user.click(await screen.findByRole('button', { name: 'Conversation' }));
   expect(await screen.findByText('Welcome back.')).toBeTruthy();
-  const input = screen.getByRole('textbox', { name: 'Message Copilot' });
+  expect(window.location.pathname).toBe('/plans/a/conversation');
+  expect(screen.getByRole('button', { name: 'Back to plan workspace' })).toBeTruthy();
+  const input = screen.getByRole('textbox', { name: 'Message Travella' });
   await user.type(input, 'A calm island trip');
   await user.click(screen.getByRole('button', { name: 'Send' }));
   expect(await screen.findByText('Ideas for A calm island trip')).toBeTruthy();
-  expect(screen.getByText('Crete')).toBeTruthy();
-  expect(api.agentTurn).toHaveBeenCalledWith(expect.objectContaining({ plan_id: 'a' }), 'A calm island trip', expect.any(String));
+  expect(screen.queryByText('Crete')).toBeNull();
+  expect(api.agentTurnStream).toHaveBeenCalledWith(expect.objectContaining({ plan_id: 'a' }), 'A calm island trip', expect.any(String), expect.objectContaining({ signal: expect.any(AbortSignal), onEvent: expect.any(Function) }));
 });
 
 test('Copilot reports a conversation-history failure and keeps the composer disabled while loading', async () => {
@@ -117,12 +124,22 @@ test('Copilot reports a conversation-history failure and keeps the composer disa
   api.conversationMessages.mockReturnValue(new Promise(resolve => { finishHistory = resolve; }));
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   await user.click(await screen.findByRole('link', { name: 'Island break' }));
-  await user.click(await screen.findByRole('button', { name: 'Copilot' }));
+  await user.click(await screen.findByRole('button', { name: 'Conversation' }));
   expect(screen.getByText('Loading conversation…')).toBeTruthy();
   finishHistory([]);
-  await screen.findByRole('textbox', { name: 'Message Copilot' });
+  await screen.findByRole('textbox', { name: 'Message Travella' });
   api.conversationMessages.mockRejectedValueOnce(new Error('Conversation unavailable.'));
-  await user.click(screen.getByText('Close', { selector: 'button' }));
-  await user.click(screen.getByRole('button', { name: 'Copilot' }));
+  await user.click(screen.getByRole('button', { name: 'Back to plan workspace' }));
+  await user.click(screen.getByRole('button', { name: 'Conversation' }));
   expect((await screen.findByRole('alert')).textContent).toBe('Conversation unavailable.');
+});
+
+test('direct Plan conversation URL loads the same Plan transcript', async () => {
+  const id = '00000000-0000-0000-0000-000000000123';
+  const api = makeApi([plan(id, 'Direct chat')]);
+  api.conversationMessages.mockResolvedValue([{ message_id: 'saved-1', role: 'user', content: 'Japan', status: 'complete' }]);
+  window.history.pushState({}, '', `/plans/${id}/conversation`);
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  expect(await screen.findByText('Japan')).toBeTruthy();
+  expect(api.conversationMessages).toHaveBeenCalledWith({ plan_id: id });
 });
