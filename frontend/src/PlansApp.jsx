@@ -309,10 +309,10 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     <header className={`plans-header${conversationPage ? ' chat-header' : ''}`}><div>
       {conversationPage ? <div className="chat-nav-leading">
         <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
-        <span className="chat-plan-title">{selected?.title || 'Plan conversation'}</span>
+        <button className="nav-button plan-switcher" aria-label="Plans" aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}>Plans <span aria-hidden="true">⌄</span></button>
       </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}
       <nav className="app-nav" aria-label="Application navigation">
-        <button className="nav-button" aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}>Plans</button>
+        {conversationPage && selected && <button className="nav-button chat-plan-selector" aria-label={`Select plan: ${selected.title}`} aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}><span>{selected.title}</span><span aria-hidden="true">⌄</span></button>}
         <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
       </nav>
