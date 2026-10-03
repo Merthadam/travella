@@ -4,7 +4,7 @@
 
 - Opening, creating, or restoring a Plan takes the traveler directly to its chat.
 - The chat lives at `/plans/{id}`; the old `/plans/{id}/conversation` route remains compatible.
-- Chat header contains Travella, Plan title, Plans switcher, Account, and Sign out.
+- Chat header anchors Travella at the far left, groups a Plans chevron beside it, and shows a compact current-Plan selector at the right before Account and Sign out.
 - The Plans drawer stays closed on entry and opens on demand to choose a Plan.
 - Plan workspace components remain available in source for later use.
 
@@ -16,8 +16,9 @@
 - Rebuilt the local app using `docker-compose -p travella-local-single -f compose.local-single.yaml up -d --build app` — completed.
 - In Chrome, opened `http://localhost:5174/plans/ccca3184-cf0b-42cd-bcfb-1df7f0a41726`. The saved conversation rendered directly at the main Plan URL, and the header showed Travella, the Plan title, Plans, Account, and Sign out with no Back to Plan control.
 - Opened the Plans switcher. The drawer loaded the Plans list, including the current Plan, and closed again when the switcher was selected.
+- Opened the drawer from the right-side current-Plan selector as well as the left-side Plans chevron.
 - Added an automated flow with two Plans that selects another Plan from the drawer and confirms its chat and main Plan URL load.
-- Chrome DevTools inspected the live page and confirmed Plan, destinations, conversation history, brief, and drawer list requests returned HTTP 200. A stale `/auth/session` request returned 500 immediately after container recreation; signing in succeeded and subsequent session and Plan requests returned 200.
+- Chrome DevTools inspected the live page and confirmed Plan, destinations, conversation history, brief, and drawer list requests returned HTTP 200. After the container recreation, an initial `/auth/session` request returned 500; the local chat still loaded in the browser. This session-refresh issue is unrelated to the header changes.
 - Visually inspected the current browser viewport (~735 px wide). The header and chat controls fit without overlap.
 
 ## Evidence limitation

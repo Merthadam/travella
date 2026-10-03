@@ -8,7 +8,8 @@ Make the chat the primary screen when a traveler opens or creates a Plan. Keep t
 
 - Opening a Plan from the Plans list loads its full-page chat directly at `/plans/{id}`.
 - Creating or restoring a Plan opens its full-page chat.
-- The chat header includes Travella, the Plan title, Plans, Account, and Sign out. It has no control that routes to the old Plan workspace.
+- The chat header anchors Travella at the far left, groups the Plans chevron beside it, and styles the current Plan selector on the right before Account and Sign out.
+- The header has no control that routes to the old Plan workspace.
 - The Plans drawer is closed on entry and opens only when Plans is selected, allowing another Plan to be opened.
 - The `/plans/{id}/conversation` route continues to load chat and normalizes to `/plans/{id}`.
 - Frontend tests and production build pass; verify the running route in Chrome.
