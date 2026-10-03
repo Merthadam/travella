@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 from collections.abc import Callable
 from threading import Lock
 from typing import Annotated
+from uuid import UUID
 
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -15,6 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
 from starlette.concurrency import run_in_threadpool
 
+from .agent_client import AgentClient
 from .authorization import traveler_key
 from .cognito_adapter import CognitoAdapter
 from .contracts import ValidatedIdentity
@@ -74,6 +76,7 @@ def create_app(
     secure_cookies: bool = True,
     clock: Callable[[], float] = time.time,
     crud_client: CrudClient | None = None,
+    agent_client: AgentClient | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Travella account access", docs_url=None, redoc_url=None)
     cookie = "__Host-travella" if secure_cookies else "travella_local"
@@ -315,6 +318,31 @@ def create_app(
                 return response
 
         return await run_in_threadpool(forward)
+
+    @app.post("/v1/agent/plans/{plan_id}/events")
+    async def agent_proxy(plan_id: str, request: Request):
+        ready()
+        body = await request.body()
+
+        def access_token():
+            with store.transaction():
+                _, session, _ = current_session(request)
+                return session["access"]
+
+        token = await run_in_threadpool(access_token)
+        if agent_client is None:
+            raise HTTPException(503, "Copilot is not configured yet.")
+        try:
+            UUID(plan_id)
+        except ValueError:
+            raise HTTPException(404, "Copilot is unavailable.") from None
+        status, data = await run_in_threadpool(
+            agent_client.turn,
+            request.url.path,
+            token=token,
+            body=body,
+        )
+        return JSONResponse(data, status_code=status)
 
     @app.get("/private/probe")
     def private_probe(request: Request):

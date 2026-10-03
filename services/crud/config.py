@@ -22,10 +22,17 @@ class CrudSettings:
 
 
 def create_crud_engine(database_url: str | None = None) -> Engine:
-    """Create a CRUD engine; unlike auth's local store this is independently configured."""
+    """Create a CRUD engine.
+
+    The serving path rejects SQLite; retaining its lightweight engine support keeps
+    repository and auth-client unit tests isolated while PostgreSQL integration tests
+    exercise the real deployment boundary.
+    """
 
     url = database_url or CrudSettings.from_env().database_url
     kwargs: dict[str, object] = {"future": True, "pool_pre_ping": True}
     if url.startswith("sqlite"):
         kwargs["connect_args"] = {"check_same_thread": False}
+    elif not url.startswith("postgresql+psycopg://"):
+        raise RuntimeError("CRUD_DATABASE_URL must use the postgresql+psycopg scheme")
     return create_engine(url, **kwargs)

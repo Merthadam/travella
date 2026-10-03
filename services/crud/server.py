@@ -1,7 +1,6 @@
 """Explicit local-only CRUD startup; production migration/deployment remains gated."""
 
 import os
-from pathlib import Path
 
 from sqlalchemy.orm import sessionmaker
 
@@ -11,17 +10,17 @@ from services.auth.jwt_verifier import CognitoJwtVerifier
 from .app import create_app
 from .auth import DEFAULT_SCOPE
 from .config import create_crud_engine
-from .models import Base
+from .migration import assert_database_at_head
 
 
 def configured_app():
     if os.getenv("APP_ENV", "development") != "development":
         raise RuntimeError("Production CRUD deployment requires managed migrations and validation")
-    url = os.environ["CRUD_DATABASE_URL"]
-    if url.startswith("sqlite:///"):
-        Path(url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
+    url = os.environ.get("CRUD_DATABASE_URL", "")
+    if not url.startswith("postgresql+psycopg://"):
+        raise RuntimeError("CRUD_DATABASE_URL must use the postgresql+psycopg scheme")
     engine = create_crud_engine(url)
-    Base.metadata.create_all(engine)
+    assert_database_at_head(engine)
     verifier = (
         CognitoJwtVerifier(CognitoConfig.from_env()) if os.getenv("COGNITO_USER_POOL_ID") else None
     )

@@ -1,0 +1,134 @@
+"""FastAPI composition root for the Plan-scoped agent microservice."""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Callable
+from typing import Any
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
+
+from services.auth.config import CognitoConfig
+from services.auth.contracts import ValidatedIdentity
+from services.auth.jwt_verifier import CognitoJwtVerifier
+from services.crud.auth import DEFAULT_SCOPE, bearer_identity
+
+from .claude import ClaudeGatewayAdapter, LocalMcpAdapter
+from .crud_client import CrudContextReader, CrudPlanReader
+from .graph import AgentGraph
+from .http_contracts import AgentRequest, AgentResponse
+from .memory import create_memory_adapter
+from .service import AgentTurnService
+from .state import PlanCandidateStore, ProcessReceiptCache
+
+
+def create_app(
+    *,
+    verifier: Callable[[str], ValidatedIdentity] | None = None,
+    plan_reader: Callable[..., Any] | None = None,
+    context_reader: CrudContextReader | None = None,
+    graph: AgentGraph | None = None,
+    adapter: Any | None = None,
+    required_scope: str | None = None,
+    cache_size: int = 256,
+) -> FastAPI:
+    """Compose HTTP, authorization, workflow, and adapters for one deployment."""
+    if verifier is None and os.getenv("COGNITO_USER_POOL_ID"):
+        verifier = CognitoJwtVerifier(CognitoConfig.from_env())
+    if plan_reader is None:
+        base_url = os.getenv("CRUD_BASE_URL")
+        if base_url:
+            plan_reader = CrudPlanReader(base_url)
+            context_reader = context_reader or CrudContextReader(base_url)
+    if plan_reader is None:
+
+        async def unavailable_reader(*args: Any, **kwargs: Any) -> None:
+            return None
+
+        plan_reader = unavailable_reader
+
+    if adapter is None:
+        app_env = (os.getenv("APP_ENV") or "development").strip().lower()
+        default_transport = "local" if app_env in {"development", "test"} else "agentcore"
+        transport = (os.getenv("AGENT_MCP_TRANSPORT") or default_transport).strip().lower()
+        if transport == "local":
+            if app_env not in {"development", "test"}:
+                raise RuntimeError("Local MCP transport is only available in development or test.")
+            adapter = LocalMcpAdapter(
+                research_url=os.getenv("LOCAL_RESEARCH_MCP_URL", "http://research-mcp:8000/mcp"),
+                map_url=os.getenv("LOCAL_MAP_MCP_URL", "http://map-mcp:8001/mcp"),
+            )
+        elif transport == "agentcore":
+            adapter = ClaudeGatewayAdapter(os.getenv("AGENTCORE_GATEWAY_URL", ""))
+        else:
+            raise ValueError("AGENT_MCP_TRANSPORT must be 'agentcore' or 'local'.")
+    workflow = graph or AgentGraph(adapter)
+    candidates = PlanCandidateStore(max_receipts=cache_size)
+    turn_service = AgentTurnService(
+        plan_reader=plan_reader,
+        context_reader=context_reader,
+        graph=workflow,
+        tools=adapter,
+        candidates=candidates,
+        receipts=ProcessReceiptCache(cache_size),
+    )
+    memory = create_memory_adapter()
+    app = FastAPI(title="Travella agent service", docs_url=None, redoc_url=None)
+
+    @app.middleware("http")
+    async def protection(request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @app.get("/health")
+    def health() -> dict[str, Any]:
+        messages = getattr(adapter, "messages", None)
+        tool_transport = getattr(adapter, "transport", "agentcore")
+        return {
+            "status": "ok",
+            "auth_configured": verifier is not None,
+            "memory_enabled": memory.enabled,
+            "model_provider": getattr(messages, "provider", "amazon-bedrock"),
+            "model_id": getattr(messages, "model", None),
+            "tool_transport": tool_transport,
+            "gateway_configured": bool(getattr(adapter, "gateway_url", "")),
+            "local_mcp_configured": (
+                bool(getattr(adapter, "local_mcp", None)) if tool_transport == "local" else None
+            ),
+        }
+
+    def identity_dependency(authorization: str | None = Header(default=None)) -> ValidatedIdentity:
+        if verifier is None:
+            raise HTTPException(503, "Agent authentication is not configured.")
+        return bearer_identity(
+            verifier,
+            authorization,
+            required_scope=(required_scope or os.getenv("AGENT_REQUIRED_SCOPE") or DEFAULT_SCOPE),
+        )
+
+    router = APIRouter(prefix="/v1/agent")
+
+    @router.post("/events", response_model=AgentResponse)
+    async def events(
+        request: AgentRequest,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+        authorization: str | None = Header(default=None),
+    ) -> AgentResponse:
+        return await turn_service.handle(request, identity.subject, authorization)
+
+    @router.post("/plans/{plan_id}/events", response_model=AgentResponse)
+    async def plan_events(
+        plan_id: UUID,
+        request: AgentRequest,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+        authorization: str | None = Header(default=None),
+    ) -> AgentResponse:
+        if request.plan_id != plan_id:
+            raise HTTPException(422, "Plan ID does not match the request path.")
+        return await turn_service.handle(request, identity.subject, authorization)
+
+    app.include_router(router)
+    return app

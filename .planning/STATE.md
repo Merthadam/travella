@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 2
-current_phase_name: Draft Plans & Durable Lifecycle
+current_phase: 03b
+current_phase_name: agentic-conversation
 status: executing
-stopped_at: "Phase 2 implementation complete; Plan 02-03 browser UAT persisted and blocked by unavailable Cognito"
-last_updated: "2026-09-28T15:35:00Z"
-last_activity: 2026-09-28
-last_activity_desc: Phase 2 backend, frontend lifecycle, purge, security, and automated verification complete; authenticated browser UAT is blocked by local auth configuration.
-state_head: 3e4b27a6bc983b9884013fa4e61c0daceebefc90
+stopped_at: Phase 03B plan 10 partial execution; local MCP transport is running, full authenticated provider turn remains unverified
+last_updated: "2026-10-03T10:06:02Z"
+last_activity: 2026-10-03
+last_activity_desc: Local FastMCP transport added and started in Docker; long-term memory stays disabled by user choice.
+state_head: 8a04735da445beb6a68593f044408702b6a88fb7
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 0
   total_plans: 7
-  completed_plans: 0
+  completed_plans: 3
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-26)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 2 — Draft Plans & Durable Lifecycle
+**Current focus:** Phase 3B — Agentic conversation and authenticated research MCP
 
 ## Current Position
 
-Phase: 2 (Draft Plans & Durable Lifecycle) — EXECUTING
-Plan: 02-01, 02-02, and 02-04 implementation complete; 02-03 implementation complete with browser UAT blocked
-Status: Executing — backend and UI implementation verified locally; authenticated browser UAT remains blocked by unavailable Cognito
-Last activity: 2026-09-28 — lifecycle UI, retention purge, security checks, and local verification completed.
+Phase: 03b (agentic-conversation)
+Plan: 03B-10 partial — local MCP transport and LangGraph-owned tools
+Status: executing; see 03B-10-EXECUTION-CHECKPOINT.md for phase work and the quick-task verification artifact for local transport
+Last activity: 2026-10-03 — local agent and MCP containers run with the configured OpenAI model; a live authenticated research turn remains unverified.
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
@@ -77,6 +77,10 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 - AWS provisioning remains deferred by the user. Offline verification is available through `bash scripts/check.sh`.
 - Missing security workflows above are implementation gaps, not merely missing credentials. Phase 1 remains incomplete.
 
+### Roadmap Evolution
+
+- Phase 02.1 inserted after Phase 2: Local PostgreSQL data foundation and typed CRUD schema (URGENT)
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
@@ -90,3 +94,15 @@ Items acknowledged and deferred at milestone close, most recent first:
 Last session: 2026-09-28T15:35:00Z
 Stopped at: Phase 2 implementation complete; resume at 02-UAT.md when Cognito-backed browser auth is available
 Resume file: .planning/phases/02-draft-plans-durable-lifecycle/02-03-PLAN.md
+
+### Frontend structure decision (2026-09-28)
+
+- Plans frontend work is being decomposed under `frontend/src/features/plans/` instead of growing `PlansApp.jsx` as a monolith.
+- Tailwind CSS is the styling system for new frontend components, with Travella theme tokens in `frontend/src/tailwind.css`; existing global styles will be migrated incrementally.
+- Full rationale: `docs/adr/0002-frontend-feature-structure-and-tailwind.md`.
+
+## Quick Tasks Completed
+
+| Date | Task | Outcome |
+|------|------|---------|
+| 2026-10-03 | local-agent-without-agentcore | Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. |

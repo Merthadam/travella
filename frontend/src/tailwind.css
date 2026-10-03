@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@theme {
+  --color-travella-ink: #18333a;
+  --color-travella-teal: #146b5e;
+  --color-travella-mist: #f4f7f6;
+}

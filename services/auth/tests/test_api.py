@@ -3,11 +3,13 @@ import json
 import time
 from unittest.mock import Mock
 
+import httpx
 import pytest
 from botocore.exceptions import ClientError
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
+from services.auth.agent_client import AgentClient
 from services.auth.api import MAX_AGE, RECOVERY_MESSAGE, create_app
 from services.auth.contracts import ValidatedIdentity
 from services.auth.session_store import SessionStore
@@ -72,6 +74,84 @@ def test_login_cookie_is_opaque_and_tokens_are_encrypted(system):
     assert client.get("/auth/session").status_code == 200
 
 
+def test_agent_proxy_uses_server_session_and_never_forwards_browser_headers(system):
+    _, provider, verifier, store, now = system
+    captured = []
+    plan_id = "00000000-0000-0000-0000-000000000123"
+
+    def upstream(request):
+        captured.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "status": "needs your input",
+                "plan_id": plan_id,
+                "event_id": "event-1",
+                "assistant_text": "What kind of pace would you like?",
+            },
+        )
+
+    client_adapter = AgentClient("http://agent.test", transport=httpx.MockTransport(upstream))
+    app = create_app(
+        provider, verifier, store, origin=ORIGIN, clock=lambda: now[0], agent_client=client_adapter
+    )
+    with TestClient(app, base_url=ORIGIN, headers=HEADERS) as client:
+        assert (
+            client.post(
+                f"/v1/agent/plans/{plan_id}/events",
+                json={"plan_id": plan_id, "event_id": "event-1", "message": "A quiet coastal trip"},
+            ).status_code
+            == 401
+        )
+        assert captured == []
+
+        assert client.post("/auth/sign-in", json=CREDENTIALS).status_code == 200
+        response = client.post(
+            f"/v1/agent/plans/{plan_id}/events",
+            json={"plan_id": plan_id, "event_id": "event-1", "message": "A quiet coastal trip"},
+            headers={"Authorization": "Bearer browser-spoof"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["assistant_text"] == "What kind of pace would you like?"
+    assert len(captured) == 1
+    assert captured[0].headers["authorization"] == "Bearer secret-access"
+    assert "cookie" not in captured[0].headers
+    assert "browser-spoof" not in captured[0].headers["authorization"]
+    assert "secret-access" not in response.text
+
+
+def test_agent_proxy_rejects_upstream_scope_errors_without_clearing_session(system):
+    _, provider, verifier, store, now = system
+    app = create_app(
+        provider,
+        verifier,
+        store,
+        origin=ORIGIN,
+        clock=lambda: now[0],
+        agent_client=AgentClient(
+            "http://agent.test",
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(403, json={"detail": "private"})
+            ),
+        ),
+    )
+    with TestClient(app, base_url=ORIGIN, headers=HEADERS) as client:
+        assert client.post("/auth/sign-in", json=CREDENTIALS).status_code == 200
+        response = client.post(
+            "/v1/agent/plans/00000000-0000-0000-0000-000000000123/events",
+            json={
+                "plan_id": "00000000-0000-0000-0000-000000000123",
+                "event_id": "event-1",
+                "message": "A quiet coastal trip",
+            },
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"message": "Copilot access is not enabled for this account."}
+    assert "set-cookie" not in response.headers
+
+
 @pytest.mark.parametrize("case", ["signature", "email", "subject", "credentials"])
 def test_untrusted_login_cannot_create_session(system, case):
     client, provider, verifier, store, now = system
@@ -132,7 +212,9 @@ def test_refresh_rotation_preserves_original_maximum_age(system):
     response = client.post("/auth/refresh", json={})
     assert response.status_code == 200
     assert "set-cookie" not in response.headers
-    assert store.db.execute("SELECT expires FROM sessions").fetchone()[0] == start + MAX_AGE
+    assert store.db.execute("SELECT expires FROM sessions").fetchone()[0] == pytest.approx(
+        start + MAX_AGE
+    )
     now[0] = start + MAX_AGE
     assert client.post("/auth/refresh", json={}).status_code == 401
     assert provider.refresh.call_count == 1

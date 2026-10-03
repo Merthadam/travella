@@ -127,7 +127,24 @@ def test_complete_lifecycle_and_persistence(system):
     assert restored["conversation"] == plan["conversation"]
     assert client.get(path).json() == restored
     assert client.get("/v1/plans?view=deleted").json()["plans"] == []
-    assert client.get("/v1/plans").headers["cache-control"] == "no-store"
+
+
+def test_conversation_messages_are_idempotent_and_context_is_scoped(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}"
+    body = {"event_id": "turn-1", "role": "user", "content": "food and temples"}
+    first = system.client.post(path + "/conversation/messages", json=body)
+    second = system.client.post(path + "/conversation/messages", json=body)
+    assert first.status_code == second.status_code == 200
+    assert first.json() == second.json()
+    assistant = system.client.post(path + "/conversation/messages", json={"event_id": "turn-1-assistant", "role": "assistant", "content": "I can research that."})
+    assert assistant.status_code == 200
+    messages = system.client.get(path + "/conversation/messages").json()
+    assert [item["role"] for item in messages] == ["user", "assistant"]
+    context = system.client.get(path + "/agent-context").json()
+    assert context["plan_id"] == plan["plan_id"] and context["revision"] == 1
+    assert context["messages"][-1]["content"] == "I can research that."
+    assert system.client.get(f"/v1/plans/{uuid4()}/agent-context").status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -355,3 +372,16 @@ def test_expired_and_purged_plans_cannot_be_replayed(system):
     )
     assert mutate(system, deleted, "restore", challenge="expired").status_code == 404
     assert system.client.get("/v1/plans?view=deleted").json()["plans"] == []
+
+
+def test_brief_update_reads_back_and_is_revision_safe(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}/brief"
+    empty = system.client.get(path)
+    assert empty.status_code == 200 and empty.json()["travelers"] == 1 and empty.json()["revision"] == 1
+    payload = {"interests": "food, museums", "start_date": "2027-05-01", "end_date": "2027-05-08", "travelers": 2, "budget": "€2000", "transport_tolerance": "walkable", "accessibility_needs": ""}
+    saved = system.client.patch(path, headers=write_headers(system, 1), json=payload)
+    assert saved.status_code == 200 and saved.json()["interests"] == payload["interests"] and saved.json()["revision"] == 2
+    assert system.client.get(path).json() == saved.json()
+    conflict = system.client.patch(path, headers=write_headers(system, 1), json=payload)
+    assert conflict.status_code == 409

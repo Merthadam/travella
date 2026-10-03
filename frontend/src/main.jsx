@@ -2,5 +2,6 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { AccountApp } from './AccountApp';
 import './styles.css';
+import './tailwind.css';
 
 createRoot(document.getElementById('root')).render(<AccountApp />);

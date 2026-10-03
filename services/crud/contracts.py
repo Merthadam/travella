@@ -30,6 +30,25 @@ class PlanRef:
     conversation: ConversationRef
 
 
+@dataclass(frozen=True)
+class DestinationRef:
+    destination_id: UUID
+    plan_id: UUID
+    place_id: str
+    name: str
+    address: str
+    latitude: float
+    longitude: float
+    granularity: str
+
+
+@dataclass(frozen=True)
+class BriefRef:
+    plan_id: UUID
+    payload: dict
+    revision: int
+
+
 class LifecycleProblem(Exception):
     def __init__(self, code: str, message: str = "Plan unavailable.") -> None:
         super().__init__(message)

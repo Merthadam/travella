@@ -70,3 +70,54 @@ class ChallengeOutput(BaseModel):
     revision: int
     title: str | None
     expires_in: int = 300
+
+
+class BriefInput(Input):
+    interests: str = Field(default="", max_length=1000)
+    start_date: str = Field(default="", max_length=10)
+    end_date: str = Field(default="", max_length=10)
+    travelers: int = Field(default=1, ge=1, le=50)
+    budget: str = Field(default="", max_length=64)
+    transport_tolerance: str = Field(default="", max_length=64)
+    accessibility_needs: str = Field(default="", max_length=1000)
+
+
+class BriefOutput(BaseModel):
+    plan_id: UUID
+    revision: int
+    interests: str
+    start_date: str
+    end_date: str
+    travelers: int
+    budget: str
+    transport_tolerance: str
+    accessibility_needs: str
+
+
+class BriefMutationOutput(BriefOutput):
+    pass
+
+
+class DestinationInput(Input):
+    place_id: str = Field(min_length=1, max_length=255)
+    name: str = Field(min_length=1, max_length=255)
+    address: str = Field(default="", max_length=512)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    granularity: Literal["city", "country"] = "city"
+
+
+class DestinationOutput(BaseModel):
+    destination_id: UUID
+    plan_id: UUID
+    place_id: str
+    name: str
+    address: str
+    latitude: float
+    longitude: float
+    granularity: Literal["city", "country"]
+
+
+class DestinationMutationOutput(BaseModel):
+    destination: DestinationOutput
+    plan_revision: int

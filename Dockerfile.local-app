@@ -1,0 +1,26 @@
+FROM node:22-bookworm-slim AS frontend-dependencies
+
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /app
+ENV UV_LINK_MODE=copy \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+COPY --from=frontend-dependencies /usr/local/bin/node /usr/local/bin/node
+COPY pyproject.toml uv.lock ./
+RUN uv sync --locked --no-dev
+
+COPY services ./services
+COPY frontend ./frontend
+COPY --from=frontend-dependencies /frontend/node_modules ./frontend/node_modules
+COPY scripts/start-local-single-container.sh ./scripts/start-local-single-container.sh
+COPY scripts/local-app-healthcheck.py ./scripts/local-app-healthcheck.py
+RUN chmod +x /app/scripts/start-local-single-container.sh
+
+EXPOSE 5173 8000 8002
+CMD ["bash", "/app/scripts/start-local-single-container.sh"]

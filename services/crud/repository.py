@@ -18,12 +18,15 @@ from uuid import UUID
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from .contracts import ConversationRef, LifecycleProblem, PlanRef
+from .contracts import BriefRef, ConversationRef, DestinationRef, LifecycleProblem, PlanRef
 from .models import (
     Conversation,
+    ConversationMessage,
+    DestinationPin,
     Plan,
     PlanActionReceipt,
     PlanChallenge,
+    PlanningBrief,
     PlanLifecycle,
     ReceiptStatus,
     TitleSource,
@@ -97,6 +100,20 @@ def _ref(plan: Plan) -> PlanRef:
     )
 
 
+def _destination_ref(row: DestinationPin) -> DestinationRef:
+    """Project PostgreSQL Decimal coordinates back to the public float contract."""
+    return DestinationRef(
+        row.id,
+        row.plan_id,
+        row.place_id,
+        row.name,
+        row.address,
+        float(row.latitude),
+        float(row.longitude),
+        row.granularity,
+    )
+
+
 class PlanRepository:
     def __init__(self, session: Session, *, clock=utc_now) -> None:
         self.session = session
@@ -156,7 +173,7 @@ class PlanRepository:
                 plan_id=plan.id,
                 result_status=ReceiptStatus.SUCCEEDED,
                 result_ref=str(plan.id),
-                result_json="{}",
+                result_json={},
                 created_at=now,
                 expires_at=now + RECEIPT_RETENTION,
             )
@@ -239,7 +256,7 @@ class PlanRepository:
                 plan_id=plan.id,
                 result_status=ReceiptStatus.SUCCEEDED,
                 result_ref=str(plan.id),
-                result_json="{}",
+                result_json={},
                 created_at=now,
                 expires_at=now + RECEIPT_RETENTION,
             )
@@ -327,6 +344,118 @@ class PlanRepository:
         if not plan:
             raise LifecycleProblem("not_found")
         return plan
+
+    def get_brief(self, subject: str, plan_id: UUID) -> BriefRef:
+        plan = self.session.scalar(select(Plan).where(Plan.id == plan_id, Plan.traveler_subject == subject))
+        if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE:
+            raise LifecycleProblem("plan_unavailable")
+        row = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
+        payload = row.payload if row else {}
+        return BriefRef(plan_id, payload, plan.revision)
+
+    @staticmethod
+    def _message_projection(row: ConversationMessage) -> dict:
+        return {"message_id": str(row.id), "conversation_id": str(row.conversation_id), "event_id": row.event_id, "role": row.role, "content": row.content, "status": row.status, "generation": row.generation, "sequence": row.sequence, "created_at": as_utc(row.created_at).isoformat()}
+
+    def append_conversation_message(self, subject: str, plan_id: UUID, event_id: str, role: str, content: str, *, generation: int = 0, status: str = "complete") -> dict:
+        if role not in {"user", "assistant"} or not event_id or len(content) > 2000:
+            raise LifecycleProblem("invalid_request", "Request could not be processed.")
+        plan = self._locked_plan(subject, plan_id)
+        if plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
+            raise LifecycleProblem("not_found")
+        existing = self.session.scalar(select(ConversationMessage).where(ConversationMessage.conversation_id == plan.conversation.id, ConversationMessage.event_id == event_id))
+        if existing:
+            return self._message_projection(existing)
+        sequence = int(self.session.scalar(select(ConversationMessage.sequence).where(ConversationMessage.conversation_id == plan.conversation.id).order_by(ConversationMessage.sequence.desc()).limit(1)) or 0) + 1
+        row = ConversationMessage(conversation_id=plan.conversation.id, event_id=event_id, role=role, content=content, generation=generation, status=status, sequence=sequence, created_at=self.clock())
+        self.session.add(row)
+        self.session.flush()
+        self.session.commit()
+        return self._message_projection(row)
+
+    def conversation_messages(self, subject: str, plan_id: UUID, limit: int = 12) -> list[dict]:
+        plan = self.session.scalar(select(Plan).where(Plan.id == plan_id, Plan.traveler_subject == subject))
+        if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
+            raise LifecycleProblem("not_found")
+        rows = self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == plan.conversation.id).order_by(ConversationMessage.sequence.desc()).limit(max(1, min(limit, 50)))).all()
+        return [self._message_projection(row) for row in reversed(rows)]
+
+    def agent_context(self, subject: str, plan_id: UUID, limit: int = 12) -> dict:
+        plan = self.session.scalar(select(Plan).options(joinedload(Plan.conversation)).where(Plan.id == plan_id, Plan.traveler_subject == subject))
+        if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
+            raise LifecycleProblem("not_found")
+        brief = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
+        payload = brief.payload if brief else {}
+        provenance = brief.provenance if brief else {}
+        inactive = brief.inactive if brief else {}
+        brief_entries = {key: {"value": value, "origin": provenance.get(key, "traveler_stated"), "active": key not in inactive} for key, value in payload.items()}
+        return {"plan_id": str(plan.id), "conversation_id": str(plan.conversation.id), "revision": plan.revision, "brief": brief_entries, "inactive": inactive, "messages": self.conversation_messages(subject, plan_id, limit)}
+
+    def update_brief(self, subject: str, plan_id: UUID, request_id: str, expected_revision: int, data: dict) -> BriefRef:
+        now = self.clock(); validate_request_id(request_id, now)
+        payload = {"operation": "brief_update", "plan_id": str(plan_id), **data}
+        existing = self._receipt(subject, request_id, "brief_update", payload)
+        plan = self._locked_plan(subject, plan_id)
+        if existing:
+            return self.get_brief(subject, plan_id)
+        if plan.lifecycle is not PlanLifecycle.ACTIVE or plan.revision != expected_revision:
+            raise LifecycleProblem("revision_conflict")
+        row = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
+        if row:
+            row.payload = dict(data); row.provenance = {key: "traveler_stated" for key in data}; row.inactive = {}; row.updated_at = now
+        else:
+            self.session.add(PlanningBrief(plan_id=plan_id, payload=dict(data), provenance={key: "traveler_stated" for key in data}, inactive={}, updated_at=now))
+        plan.revision += 1; plan.last_activity_at = now; plan.updated_at = now
+        self.session.add(self._success_receipt(subject, request_id, "brief_update", payload, plan_id, now))
+        self.session.commit()
+        return BriefRef(plan_id, data, plan.revision)
+
+    def destinations(self, subject: str, plan_id: UUID) -> list[DestinationRef]:
+        plan = self.session.scalar(select(Plan).where(Plan.id == plan_id, Plan.traveler_subject == subject))
+        if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE:
+            raise LifecycleProblem("plan_unavailable")
+        rows = self.session.scalars(
+            select(DestinationPin).where(DestinationPin.plan_id == plan_id).order_by(DestinationPin.created_at, DestinationPin.id)
+        ).all()
+        return [_destination_ref(row) for row in rows]
+
+    def add_destination(self, subject: str, plan_id: UUID, request_id: str, expected_revision: int, data: dict) -> tuple[DestinationRef, int]:
+        now = self.clock()
+        validate_request_id(request_id, now)
+        payload = {"operation": "destination_add", "plan_id": str(plan_id), **data}
+        existing = self._receipt(subject, request_id, "destination_add", payload)
+        if existing and existing.result_ref:
+            row = self.session.get(DestinationPin, UUID(existing.result_ref))
+            plan = self._locked_plan(subject, plan_id)
+            if row: return _destination_ref(row), plan.revision
+            raise LifecycleProblem("plan_unavailable")
+        plan = self._locked_plan(subject, plan_id)
+        if plan.revision != expected_revision:
+            raise LifecycleProblem("revision_conflict")
+        duplicate = self.session.scalar(select(DestinationPin).where(DestinationPin.plan_id == plan_id, DestinationPin.place_id == data["place_id"]))
+        if duplicate:
+            return _destination_ref(duplicate), plan.revision
+        row = DestinationPin(plan_id=plan_id, place_id=data["place_id"], name=data["name"], address=data["address"], latitude=data["latitude"], longitude=data["longitude"], granularity=data["granularity"], created_at=now)
+        self.session.add(row)
+        plan.revision += 1; plan.last_activity_at = now; plan.updated_at = now
+        self.session.add(self._success_receipt(subject, request_id, "destination_add", payload, plan_id, now, result_ref=row.id))
+        self.session.flush()
+        self.session.commit()
+        return _destination_ref(row), plan.revision
+
+    def remove_destination(self, subject: str, plan_id: UUID, destination_id: UUID, request_id: str, expected_revision: int) -> int:
+        now = self.clock(); validate_request_id(request_id, now)
+        payload = {"operation": "destination_remove", "plan_id": str(plan_id), "destination_id": str(destination_id)}
+        existing = self._receipt(subject, request_id, "destination_remove", payload)
+        plan = self._locked_plan(subject, plan_id)
+        if existing: return plan.revision
+        if plan.revision != expected_revision: raise LifecycleProblem("revision_conflict")
+        row = self.session.scalar(select(DestinationPin).where(DestinationPin.id == destination_id, DestinationPin.plan_id == plan_id))
+        if not row: raise LifecycleProblem("plan_unavailable")
+        self.session.delete(row); plan.revision += 1; plan.last_activity_at = now; plan.updated_at = now
+        self.session.add(self._success_receipt(subject, request_id, "destination_remove", payload, destination_id, now))
+        self.session.commit()
+        return plan.revision
 
     def rename(
         self,
@@ -459,6 +588,7 @@ class PlanRepository:
         payload: object,
         plan_id: UUID,
         now: datetime,
+        result_ref: UUID | None = None,
     ) -> PlanActionReceipt:
         return PlanActionReceipt(
             traveler_subject=subject,
@@ -467,8 +597,8 @@ class PlanRepository:
             payload_digest=payload_digest(payload),
             plan_id=plan_id,
             result_status=ReceiptStatus.SUCCEEDED,
-            result_ref=str(plan_id),
-            result_json="{}",
+            result_ref=str(result_ref or plan_id),
+            result_json={},
             created_at=now,
             expires_at=now + RECEIPT_RETENTION,
         )

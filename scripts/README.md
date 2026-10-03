@@ -2,17 +2,69 @@
 
 ## Start local services
 
-With Docker and Colima installed, start the auth gateway, CRUD service, and frontend together:
+With Docker and Colima installed, start the frontend, auth gateway, CRUD API, and agent
+inside one local app container. PostgreSQL runs in its own container with a named data
+volume so app image rebuilds do not remove database data:
 
 ```bash
 bash scripts/start-local.sh
 ```
 
-The script starts Colima when it is installed but not running, builds the images,
-and opens the services at `http://localhost:5173` and `http://localhost:8000`.
+The script starts Colima when it is installed but not running, builds the app image,
+runs database migrations, and opens the frontend at `http://localhost:5174` and the
+auth gateway at `http://localhost:8003`. The agent health endpoint is available at
+`http://localhost:8103`; CRUD stays private inside the app container. These defaults
+avoid the existing local service tunnels on ports 5173, 8000, and 8002.
+The frontend reads `VITE_GOOGLE_MAPS_API_KEY` from `frontend/.env.local`, mounted
+read-only at runtime so the key is not included in the image build context. The
+local stack runs the Agent and MCP servers without provisioning AgentCore. Its
+default model provider is OpenAI; Tavily and Google Maps remain external provider
+APIs, with keys loaded only into the local MCP containers from `services/mcps/.env`.
+The local auth process still talks to your existing Cognito user pool, so the
+container mounts `~/.aws` read-only for its AWS SDK configuration.
+
+The Agent uses OpenAI's direct Responses API. Create a key in the
+[OpenAI Platform API Keys page](https://platform.openai.com/api-keys). API billing
+is managed separately from ChatGPT subscriptions. The ignored project-root `.env`
+has a provider block; paste the token after `OPENAI_API_KEY=` and leave the model
+line at its default unless you want another model. Keep this key out of
+`frontend/.env.local`.
+
+Alternatively, enter the key at a hidden prompt in the shell that starts the local
+services, without writing it to a file:
+
+```bash
+export OPENAI_API_KEY="$(python3 -c 'import getpass; print(getpass.getpass("OpenAI API key: "))')"
+export AGENT_MODEL_PROVIDER=openai
+export OPENAI_MODEL_ID=gpt-5.4-mini # optional; this is the default
+bash scripts/start-local.sh
+```
+
+The key is used by the server-side agent only. In the combined local app container,
+Docker stores it in that container's environment; the launcher gives it to the agent,
+then removes it before starting auth, CRUD, and Vite. The browser build and configuration
+never receive it. For stricter container isolation, use the separate-service Compose
+setup, which injects the key only into the agent container. Direct calls require an
+OpenAI API key with API billing enabled and access to the selected model; failures are
+returned as errors and do not switch providers automatically. The OpenAI Responses API
+call is stateless, and model-side tool execution is disabled so LangGraph continues to
+own research and map tools through the local FastMCP servers. `/health` reports the
+selected provider and model ID but never credentials.
+
+To use Bedrock instead, set `AGENT_MODEL_PROVIDER=bedrock` and configure AWS
+credentials for the local app before restarting. OpenAI remains the local default.
+
 Pass standard `docker compose up` options when needed, for example
 `bash scripts/start-local.sh -d` for detached mode. Stop detached services with
-`docker compose down`.
+`docker-compose -p travella-local-single -f compose.local-single.yaml down` (or use
+`docker compose` if that is the installed command). The PostgreSQL named volume remains
+after stopping; add `-v` to `down` only when intentionally removing local database data.
+
+To keep using the separate-service Compose setup, run
+`TRAVELLA_COMPOSE_FILE=compose.yaml bash scripts/start-local.sh`.
+If the local defaults are occupied, set `TRAVELLA_FRONTEND_PORT`,
+`TRAVELLA_AUTH_PORT`, and `TRAVELLA_AGENT_PORT`; also set `FRONTEND_ORIGIN` to the
+matching frontend origin.
 
 Run `bash scripts/check.sh` from the checkout. It installs only locked Python and
 JavaScript dependencies, checks Python lint/formatting, runs the API/security and

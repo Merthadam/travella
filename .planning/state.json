@@ -1,0 +1,53 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Account Access",
+      "status": "pending"
+    },
+    {
+      "number": "2",
+      "name": "Draft Plans & Durable Lifecycle",
+      "status": "in_progress"
+    },
+    {
+      "number": "3",
+      "name": "Conversation & Planning Brief",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Evidence-backed Destination Discovery",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Requirements & Adaptive Workspace",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Provider Search & Comparison",
+      "status": "pending"
+    },
+    {
+      "number": "7",
+      "name": "Planning Canvas & Saved Choices",
+      "status": "pending"
+    },
+    {
+      "number": "8",
+      "name": "Verified Supplier Handoff",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 03b of 8 · 0% · executing"
+  },
+  "updated_at": "2026-09-29T07:30:41.696Z"
+}

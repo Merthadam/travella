@@ -12,7 +12,19 @@ from fastapi import APIRouter, Depends, Header, Query
 from .auth import identity_dependency
 from .contracts import LifecycleProblem
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
-from .schemas import ChallengeInput, ChallengeOutput, PlanOutput, PlanPage, TitleInput
+from .schemas import (
+    BriefInput,
+    BriefMutationOutput,
+    BriefOutput,
+    ChallengeInput,
+    ChallengeOutput,
+    DestinationInput,
+    DestinationMutationOutput,
+    DestinationOutput,
+    PlanOutput,
+    PlanPage,
+    TitleInput,
+)
 
 WriteId = Annotated[str, Header(alias="Idempotency-Key", max_length=100)]
 Revision = Annotated[int, Header(alias="If-Match", ge=1)]
@@ -90,6 +102,41 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
         view: Literal["active", "deleted"] = "active",
     ):
         return PlanOutput.from_ref(repo.get(me.subject, plan_id, include_deleted=view == "deleted"))
+
+    @router.get("/{plan_id}/brief", response_model=BriefOutput)
+    def get_brief(plan_id: UUID, repo: Repo, me=Depends(identity)):
+        brief = repo.get_brief(me.subject, plan_id)
+        return BriefOutput(plan_id=brief.plan_id, revision=brief.revision, **{k: brief.payload.get(k, BriefInput().model_dump()[k]) for k in BriefInput.model_fields})
+
+    @router.patch("/{plan_id}/brief", response_model=BriefMutationOutput)
+    def update_brief(plan_id: UUID, data: BriefInput, request_id: WriteId, if_match: Revision, repo: Repo, me=Depends(identity)):
+        brief = repo.update_brief(me.subject, plan_id, request_id, if_match, data.model_dump())
+        return BriefMutationOutput(plan_id=brief.plan_id, revision=brief.revision, **brief.payload)
+
+    @router.get("/{plan_id}/conversation/messages", response_model=list[dict])
+    def conversation_messages(plan_id: UUID, repo: Repo, me=Depends(identity), limit: int = Query(12, ge=1, le=50)):
+        return repo.conversation_messages(me.subject, plan_id, limit)
+
+    @router.post("/{plan_id}/conversation/messages", response_model=dict)
+    def append_conversation_message(plan_id: UUID, data: dict, repo: Repo, me=Depends(identity)):
+        return repo.append_conversation_message(me.subject, plan_id, str(data.get("event_id", "")), str(data.get("role", "")), str(data.get("content", "")), generation=int(data.get("generation", 0)), status=str(data.get("status", "complete")))
+
+    @router.get("/{plan_id}/agent-context", response_model=dict)
+    def agent_context(plan_id: UUID, repo: Repo, me=Depends(identity), limit: int = Query(12, ge=1, le=50)):
+        return repo.agent_context(me.subject, plan_id, limit)
+
+    @router.get("/{plan_id}/destinations", response_model=list[DestinationOutput])
+    def destinations(plan_id: UUID, repo: Repo, me=Depends(identity)):
+        return [DestinationOutput(destination_id=d.destination_id, plan_id=d.plan_id, place_id=d.place_id, name=d.name, address=d.address, latitude=d.latitude, longitude=d.longitude, granularity=d.granularity) for d in repo.destinations(me.subject, plan_id)]
+
+    @router.post("/{plan_id}/destinations", response_model=DestinationMutationOutput)
+    def add_destination(plan_id: UUID, data: DestinationInput, request_id: WriteId, if_match: Revision, repo: Repo, me=Depends(identity)):
+        destination, revision = repo.add_destination(me.subject, plan_id, request_id, if_match, data.model_dump())
+        return DestinationMutationOutput(destination=DestinationOutput(destination_id=destination.destination_id, plan_id=destination.plan_id, place_id=destination.place_id, name=destination.name, address=destination.address, latitude=destination.latitude, longitude=destination.longitude, granularity=destination.granularity), plan_revision=revision)
+
+    @router.delete("/{plan_id}/destinations/{destination_id}", response_model=dict)
+    def remove_destination(plan_id: UUID, destination_id: UUID, request_id: WriteId, if_match: Revision, repo: Repo, me=Depends(identity)):
+        return {"plan_revision": repo.remove_destination(me.subject, plan_id, destination_id, request_id, if_match)}
 
     @router.post("/{plan_id}/activity", response_model=PlanOutput)
     def activity(

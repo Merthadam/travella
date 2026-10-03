@@ -1,8 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { normalizeTitle, plansApi, requestId } from './plansApi';
+import { ConversationDrawer, PlanDrawer } from './features/plans/components/PlanDrawers';
+import { PlanWorkspace } from './features/plans/components/PlanWorkspace';
+import { emptyBrief } from './features/plans/components/PlanDetails';
 
 const unknown = error => !error.status || error.status >= 500 || error.code === 'request_pending';
 const date = value => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'long' });
+const configuredMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+const mapsKeyIsPlaceholder = !configuredMapsKey || configuredMapsKey === 'VITE_GOOGLE_MAPS_API_KEY' || configuredMapsKey.includes('replace-with');
 export function remaining(value, now = Date.now()) {
   const hours = Math.max(0, (new Date(value).getTime() - now) / 3600000);
   if (hours < 1) return 'Less than 1 hour remaining';
@@ -93,7 +98,81 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const [view, setView] = useState('active'), [plans, setPlans] = useState([]), [selected, setSelected] = useState(null);
   const [cursor, setCursor] = useState(null), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [notice, setNotice] = useState(''), [dialog, setDialog] = useState(null);
+  const [destinationView, setDestinationView] = useState('map');
+  const mapsApiKey = mapsKeyIsPlaceholder ? '' : configuredMapsKey;
+  const [mapsStatus, setMapsStatus] = useState('');
+  const [candidate, setCandidate] = useState(null);
+  const [savingDestination, setSavingDestination] = useState(false);
+  const [savedDestinations, setSavedDestinations] = useState([]);
+  const [brief, setBrief] = useState(null), [briefOpen, setBriefOpen] = useState(false), [briefSaving, setBriefSaving] = useState(false), [briefError, setBriefError] = useState('');
+  const mapCanvas = useRef(null);
+  const placeSearch = useRef(null);
+  const mapInstance = useRef(null);
+  const markerInstances = useRef([]);
+  const [conversationOpen, setConversationOpen] = useState(false);
+  const [planDrawerOpen, setPlanDrawerOpen] = useState(false);
+  const [drawerPlans, setDrawerPlans] = useState([]);
+  const [drawerLoading, setDrawerLoading] = useState(false);
   const generation = useRef(0), lock = useRef(false), createAttempt = useRef(null), heading = useRef(null);
+  useEffect(() => {
+    if (!selected || selected.lifecycle !== 'active' || destinationView !== 'map' || !mapsApiKey || !mapCanvas.current) return undefined;
+    let cancelled = false;
+    const scriptId = 'travella-google-maps';
+    const loadMap = async () => {
+      try {
+        if (!window.google?.maps) {
+          await new Promise((resolve, reject) => {
+            const existing = document.getElementById(scriptId);
+            if (existing) { existing.addEventListener('load', resolve, { once: true }); existing.addEventListener('error', reject, { once: true }); return; }
+            const script = document.createElement('script');
+            script.id = scriptId; script.async = true; script.defer = true;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(mapsApiKey)}&v=weekly&libraries=places,marker`;
+            script.onload = resolve; script.onerror = reject; document.head.appendChild(script);
+          });
+        }
+        if (cancelled || !window.google?.maps) return;
+        const { Map } = await window.google.maps.importLibrary('maps');
+        if (cancelled) return;
+        mapInstance.current = new Map(mapCanvas.current, { center: { lat: 42.5, lng: 12.5 }, zoom: 4, mapId: 'DEMO_MAP_ID', fullscreenControl: false, streetViewControl: false, mapTypeControl: false });
+        mapInstance.current.addListener('click', event => {
+          const location = event.latLng?.toJSON?.();
+          if (!location) return;
+          const placeId = `pin:${location.lat.toFixed(5)},${location.lng.toFixed(5)}`;
+          setCandidate({ place_id: placeId, name: 'Dropped map pin', address: `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`, location, types: [] });
+        });
+        await window.google.maps.importLibrary('places');
+        const input = placeSearch.current?.querySelector('input');
+        if (input && !input.dataset.autocompleteReady) {
+          const autocomplete = new window.google.maps.places.Autocomplete(input, { types: ['(regions)'] });
+          autocomplete.setFields(['place_id', 'name', 'formatted_address', 'geometry', 'types']);
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            const location = place.geometry?.location?.toJSON?.() || place.geometry?.location;
+            if (!location || !place.place_id) return;
+            const next = { place_id: place.place_id, name: place.name || 'Selected destination', address: place.formatted_address || '', location, types: place.types || [] };
+            setCandidate(next);
+            if (place.geometry?.viewport) mapInstance.current?.fitBounds(place.geometry.viewport);
+            else mapInstance.current?.setCenter(location);
+            mapInstance.current?.setZoom(7);
+          });
+          input.dataset.autocompleteReady = 'true';
+        }
+        setMapsStatus('Google Maps is connected.');
+      } catch {
+        if (!cancelled) setMapsStatus('Google Maps could not load. Check the key restrictions and try again.');
+      }
+    };
+    loadMap();
+    return () => { cancelled = true; };
+  }, [selected, destinationView, mapsApiKey]);
+  useEffect(() => {
+    markerInstances.current.forEach(marker => { marker.map = null; });
+    markerInstances.current = [];
+    if (!mapInstance.current || !window.google?.maps || !savedDestinations.length) return;
+    window.google.maps.importLibrary('marker').then(({ AdvancedMarkerElement }) => {
+      markerInstances.current = savedDestinations.map(destination => new AdvancedMarkerElement({ map: mapInstance.current, position: destination.location || { lat: destination.latitude, lng: destination.longitude }, title: destination.name }));
+    });
+  }, [savedDestinations]);
   const active = ticket => generation.current === ticket;
   function fail(err, retry, ticket) {
     if (!active(ticket)) return;
@@ -118,13 +197,21 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   }
   async function open(id, recordActivity = true, restored = false) {
     const ticket = ++generation.current;
-    setLoading(true); setSelected(null); setPlans([]); setError(null); setCursor(null); url(`/plans/${id}`);
+    setLoading(true); setSelected(null); setSavedDestinations([]); setBrief(null); setBriefOpen(false); setBriefError(''); setError(null); setCursor(null); url(`/plans/${id}`);
     try {
       let plan;
       try { plan = await api.get(id); }
       catch (err) { if (err.status !== 404) throw err; plan = await api.get(id, 'deleted'); }
       if (!active(ticket)) return;
       setSelected(plan); setView('detail');
+      if (api.destinations) {
+        try { setSavedDestinations(await api.destinations(plan)); }
+        catch (destinationError) { if (destinationError.status === 401) { fail(destinationError, null, ticket); return; } if (active(ticket)) setError({ message: 'Your plan opened, but its destinations could not be loaded.', retry: () => open(id, false) }); }
+      }
+      if (api.brief) {
+        try { setBrief(await api.brief(plan)); }
+        catch (briefErrorValue) { if (briefErrorValue.status === 401) { fail(briefErrorValue, null, ticket); return; } if (active(ticket)) setBriefError('Trip details could not be loaded.'); }
+      }
       if (recordActivity && plan.lifecycle === 'active') {
         const activityId = requestId();
         const updateActivity = async () => {
@@ -137,6 +224,29 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       if (restored && err.status !== 401 && active(ticket)) setError({ message: 'Your plan was restored, but we couldn’t open it. Choose Open plan to try again.', retry: () => open(id) });
       else fail({ ...err, message: 'This plan isn’t available. Return to My plans.' }, () => open(id), ticket);
     } finally { if (active(ticket)) { setLoading(false); heading.current?.focus(); } }
+  }
+  async function saveBrief(nextBrief) {
+    if (!selected || !api.updateBrief || briefSaving) return;
+    setBriefSaving(true); setBriefError('');
+    try {
+      const data = Object.fromEntries(Object.keys(emptyBrief).map(key => [key, nextBrief[key] ?? emptyBrief[key]]));
+      data.travelers = Math.min(50, Math.max(1, Number(data.travelers) || 1));
+      const saved = await api.updateBrief(selected, data, requestId());
+      setBrief(saved); setSelected(current => current ? { ...current, revision: saved.revision } : current); setBriefOpen(false); setNotice('Trip details updated.');
+    } catch (err) { if (err.status === 401) onExpired(); else setBriefError(err.status === 409 ? 'This plan changed. Refresh and try again.' : (err.message || 'Could not save trip details.')); }
+    finally { setBriefSaving(false); }
+  }
+  async function togglePlanDrawer() {
+    const next = !planDrawerOpen;
+    setPlanDrawerOpen(next);
+    if (!next || drawerLoading) return;
+    setDrawerLoading(true);
+    try {
+      const result = await api.list('active');
+      setDrawerPlans(Array.isArray(result?.plans) ? result.plans : []);
+    } catch (err) {
+      if (err.status === 401) onExpired();
+    } finally { setDrawerLoading(false); }
   }
   useEffect(() => {
     function navigate() { const current = route(); if (current.id) open(current.id, false); else load(current.view); }
@@ -169,20 +279,47 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       <button onClick={() => setDialog({ operation: 'rename', plan })}>Rename<span className="sr-only"> {plan.title}</span></button>
       <button className="danger" onClick={() => setDialog({ operation: 'delete', plan })}>Delete<span className="sr-only"> {plan.title}</span></button></>;
   }
+  async function saveCandidate() {
+    if (!candidate || savingDestination || savedDestinations.some(destination => destination.place_id === candidate.place_id)) return;
+    setSavingDestination(true);
+    try {
+      if (api.addDestination && selected) {
+        const result = await api.addDestination(selected, { place_id: candidate.place_id, name: candidate.name, address: candidate.address, latitude: candidate.location.lat, longitude: candidate.location.lng, granularity: candidate.types?.includes('country') ? 'country' : 'city' }, requestId());
+        setSavedDestinations(current => [...current, result.destination]);
+        setSelected(current => ({ ...current, revision: result.plan_revision }));
+      } else setSavedDestinations(current => [...current, candidate]);
+      setCandidate(null);
+    } catch (err) { if (err.status === 401) onExpired(); else setError({ message: err.message || 'Could not save this destination.', retry: saveCandidate }); }
+    finally { setSavingDestination(false); }
+  }
+  async function removeDestination(destination) {
+    try {
+      if (api.removeDestination && selected) {
+        const result = await api.removeDestination(selected, destination.destination_id, requestId());
+        setSelected(current => ({ ...current, revision: result.plan_revision }));
+      }
+      setSavedDestinations(current => current.filter(item => item.place_id !== destination.place_id));
+    } catch (err) { if (err.status === 401) onExpired(); else setError({ message: err.message || 'Could not remove this destination.' }); }
+  }
   return <div className="plans-app">
     <a className="skip-link" href="#plans-main">Skip to plans</a>
-    <header className="plans-header"><div><a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a><nav aria-label="Account"><button disabled={accountBusy || busy} onClick={onAccount}>Set up authenticator</button><button disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button></nav></div></header>
+    <header className="plans-header"><div>
+      <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
+      <nav className="app-nav" aria-label="Application navigation">
+        <button className="nav-button" aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}>Plans</button>{selected && <button className="nav-button" aria-expanded={conversationOpen} onClick={() => setConversationOpen(true)}>Copilot</button>}
+        <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
+        <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
+      </nav>
+    </div></header>
+    {planDrawerOpen && <PlanDrawer plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={() => setPlanDrawerOpen(false)} onOpen={(event, id) => link(event, () => { setPlanDrawerOpen(false); id ? open(id) : load(); })} onNew={() => { setPlanDrawerOpen(false); createPlan(); }} />}
     <main id="plans-main" className="plans-main" tabIndex={-1}>
-      {(view !== 'active' || window.location.pathname !== '/plans') && <a href="/plans" onClick={e => link(e, () => load())}>← Back to My plans</a>}
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>
         {!selected && view === 'active' && <button className="primary" disabled={busy || loading} onClick={createPlan}>{busy ? 'Creating plan…' : 'New plan'}</button>}</div>
       {notice && <p className="plan-notice" role="status">{notice}</p>}
       {accountError && <p role="alert" className="error">{accountError.message}</p>}
       {error && <div role="alert" className="error"><p>{error.message}</p>{error.retry && <button onClick={error.retry} disabled={busy || loading}>{error.message.startsWith('Your plan was restored') ? 'Open plan' : 'Retry'}</button>}</div>}
       {loading && <p role="status">{selected ? 'Opening plan…' : view === 'deleted' ? 'Loading recently deleted plans…' : 'Loading your plans…'}</p>}
-      {selected && <section className="plan-panel" aria-label="Saved plan"><span className="plan-badge">Draft plan</span>
-        {selected.lifecycle === 'deleted' ? <><h2>This plan is in Recently deleted</h2><p>Restore before {date(selected.recovery_deadline)} to open it.</p>{actions(selected)}</> : <><div className="plan-actions">{actions(selected)}</div><h2>Conversation</h2><h3>Your draft is saved</h3><p>This plan has its own Conversation. Conversation research isn’t available yet. You can rename your plan or return to My plans.</p></>}
-      </section>}
+      {selected && <PlanWorkspace selected={selected} actions={actions} brief={brief} briefOpen={briefOpen} setBriefOpen={setBriefOpen} saveBrief={saveBrief} briefSaving={briefSaving} briefError={briefError} destinationView={destinationView} setDestinationView={setDestinationView} mapCanvas={mapCanvas} placeSearch={placeSearch} mapsApiKey={mapsApiKey} mapsStatus={mapsStatus} candidate={candidate} setCandidate={setCandidate} savedDestinations={savedDestinations} saveCandidate={saveCandidate} savingDestination={savingDestination} removeDestination={removeDestination} />}
       {!selected && <><ul className="plan-grid" aria-label={view === 'deleted' ? 'Deleted plans' : 'Active plans'} aria-busy={loading}>
         {plans.map(plan => <li key={plan.plan_id} className="plan-card"><span className="plan-badge">Draft plan</span>
           <h2>{view === 'deleted' ? plan.title : <a href={`/plans/${plan.plan_id}`} onClick={e => link(e, () => open(plan.plan_id))}>{plan.title}</a>}</h2>
@@ -192,6 +329,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       {cursor && <button disabled={loading || busy} onClick={() => load(view, cursor)}>Load more plans</button>}
       {view === 'active' && <section className="plan-panel recently-deleted"><h2>Recently deleted</h2><p>Restore deleted plans for up to seven days.</p><a href="/plans/deleted" onClick={e => link(e, () => load('deleted'))}>View recently deleted →</a></section>}</>}
     </main>
+    {conversationOpen && <ConversationDrawer selected={selected} api={api} onExpired={onExpired} onClose={() => setConversationOpen(false)} />}
     {dialog && <ActionDialog value={dialog} onClose={() => setDialog(null)} onDone={completed} onExpired={onExpired} api={api} />}
   </div>;
 }

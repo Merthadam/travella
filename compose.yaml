@@ -1,4 +1,30 @@
 services:
+  postgres:
+    image: postgres:17.6
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-travella}
+      POSTGRES_USER: ${POSTGRES_USER:-travella}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-travella-local-only}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  crud-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    working_dir: /app
+    command: ["uv", "run", "--frozen", "--no-sync", "alembic", "-c", "/app/services/crud/alembic.ini", "upgrade", "head"]
+    environment:
+      CRUD_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@postgres:5432/${POSTGRES_DB:-travella}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   auth:
     build:
       context: .
@@ -7,8 +33,9 @@ services:
       APP_ENV: ${APP_ENV:-development}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       CRUD_BASE_URL: http://crud:8001
-      SESSION_DB_PATH: /var/lib/travella/auth.sqlite3
-      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      AGENT_BASE_URL: http://agent:8002
+      SESSION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@postgres:5432/${POSTGRES_DB:-travella}
+      AWS_REGION: ${AWS_REGION:-eu-north-1}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-}
       COGNITO_ISSUER: ${COGNITO_ISSUER:-}
@@ -17,10 +44,10 @@ services:
     depends_on:
       crud:
         condition: service_healthy
+      agent:
+        condition: service_healthy
     ports:
       - "8000:8000"
-    volumes:
-      - auth-data:/var/lib/travella
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 5s
@@ -31,20 +58,88 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.auth
-    command: ["uv", "run", "--frozen", "uvicorn", "services.crud.server:app", "--host", "0.0.0.0", "--port", "8001", "--no-access-log"]
+    command: ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.crud.server:app", "--host", "0.0.0.0", "--port", "8001", "--no-access-log"]
     environment:
       APP_ENV: ${APP_ENV:-development}
-      CRUD_DATABASE_URL: sqlite:////var/lib/travella/plans.sqlite3
+      CRUD_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@postgres:5432/${POSTGRES_DB:-travella}
       CRUD_REQUIRED_SCOPE: ${CRUD_REQUIRED_SCOPE:-aws.cognito.signin.user.admin}
-      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      AWS_REGION: ${AWS_REGION:-eu-north-1}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-}
       COGNITO_ISSUER: ${COGNITO_ISSUER:-}
       COGNITO_JWKS_URL: ${COGNITO_JWKS_URL:-}
-    volumes:
-      - plan-data:/var/lib/travella
+    depends_on:
+      crud-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  research-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    command: ["uv", "run", "--frozen", "--no-sync", "python", "-m", "services.mcps.research_server"]
+    env_file:
+      - ./services/mcps/.env
+      - ./services/mcps/.env.local-auth
+    environment:
+      PORT: "8000"
+      MCP_ALLOWED_HOSTS: research-mcp:8000,localhost:8000,127.0.0.1:8000
+      MCP_EVIDENCE_REGISTRY_PATH: /data/evidence.json
+    volumes:
+      - research-evidence:/data
+
+  map-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    command: ["uv", "run", "--frozen", "--no-sync", "python", "-m", "services.mcps.map_server"]
+    env_file:
+      - ./services/mcps/.env
+      - ./services/mcps/.env.local-auth
+    environment:
+      PORT: "8001"
+      MCP_ALLOWED_HOSTS: map-mcp:8001,localhost:8001,127.0.0.1:8001
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    command: ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.agent.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8002", "--no-access-log"]
+    env_file:
+      - ./services/mcps/.env.local-auth
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      CRUD_BASE_URL: http://crud:8001
+      AWS_REGION: ${AWS_REGION:-eu-north-1}
+      BEDROCK_REGION: ${BEDROCK_REGION:-eu-north-1}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-global.anthropic.claude-sonnet-4-5-20250929-v1:0}
+      AWS_BEARER_TOKEN_BEDROCK: ${AWS_BEARER_TOKEN_BEDROCK:-}
+      AGENT_MODEL_PROVIDER: ${AGENT_MODEL_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL_ID: ${OPENAI_MODEL_ID:-gpt-5.4-mini}
+      AGENT_MCP_TRANSPORT: local
+      LOCAL_RESEARCH_MCP_URL: http://research-mcp:8000/mcp
+      LOCAL_MAP_MCP_URL: http://map-mcp:8001/mcp
+      AGENT_REQUIRED_SCOPE: ${AGENT_REQUIRED_SCOPE:-aws.cognito.signin.user.admin}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-}
+      COGNITO_ISSUER: ${COGNITO_ISSUER:-}
+      COGNITO_JWKS_URL: ${COGNITO_JWKS_URL:-}
+    depends_on:
+      crud:
+        condition: service_healthy
+      research-mcp:
+        condition: service_started
+      map-mcp:
+        condition: service_started
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health')"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -55,6 +150,8 @@ services:
       dockerfile: Dockerfile.frontend
     environment:
       VITE_API_TARGET: http://auth:8000
+    volumes:
+      - ./frontend/.env.local:/app/.env.local:ro
     ports:
       - "5173:5173"
     depends_on:
@@ -62,5 +159,5 @@ services:
         condition: service_healthy
 
 volumes:
-  auth-data:
-  plan-data:
+  postgres-data:
+  research-evidence:
