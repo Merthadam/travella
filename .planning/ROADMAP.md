@@ -9,7 +9,7 @@ Travella's full documented MVP moves a traveler from secure account access throu
 - [ ] **Phase 1: Account Access** - Travelers securely register, verify, recover, sign in, and sign out of a private account.
 - [ ] **Phase 2: Draft Plans & Durable Lifecycle** - Travelers own multiple recoverable Draft Plans with idempotent, revision-safe durable state.
 - [ ] **Phase 3: Conversation & Planning Brief** - Travelers shape one Plan through focused, interruptible conversation and editable constraints.
-- [ ] **Phase 4: Evidence-backed Destination Discovery** - Travelers inspect compact, uncertain destination candidates and choose what to pursue.
+- [ ] **Phase 4: Full-Screen Plan Chat** - Travelers research an active Plan in a full-page conversation that streams assistant text and keeps agent context private.
 - [ ] **Phase 5: Requirements & Adaptive Workspace** - Confirmed requirements compose a permanent map and only relevant validated planning surfaces.
 - [ ] **Phase 6: Provider Search & Comparison** - Travelers search and compare honest provider-backed options with refresh, retry, and recheck semantics.
 - [ ] **Phase 7: Planning Canvas & Saved Choices** - Travelers explicitly manage Selected Options and categorized Map Pins in a consistent map/list Canvas.
@@ -112,23 +112,23 @@ Plans:
 
 **Plans**: 01–06 have implementation summaries but are not phase verification. Corrective plans 07–11 are ready under `.planning/phases/03b-agentic-conversation/`.
 
-### Phase 4: Evidence-backed Destination Discovery
+### Phase 4: Full-Screen Plan Chat
 
-**Goal**: Travelers can inspect compact, uncertainty-aware destination research and control which candidates remain in scope for the Plan.
+**Goal**: A traveler can research and shape an active Plan through a full-screen conversation that loads existing history, streams assistant text as it is generated, and keeps agent context and progress private.
 **Mode:** mvp
-**Depends on**: Phase 3
+**Depends on**: Phase 3, Phase 03b agent conversation service
 **Requirements**: DISC-06, DISC-07, DISC-08, DISC-09, DISC-10, TRUST-04
 **Success Criteria** (what must be TRUE):
 
-  1. Travella presents a completed shortlist of no more than five destination candidates with status, fit/confidence, caveats, compact evidence references, and on-demand source details in an in-app panel.
-  2. A traveler can explore, reject, extend, refresh, inspect evidence for, or directly name a candidate, with rejected candidates suppressed only within the current Plan.
-  3. Refresh and interruption show concise research status and uncertainty while preserving the prior complete shortlist; partial or obsolete research never appears as current results.
-  4. Only compact candidate assessments and evidence references are checkpointed as Plan-scoped research; full unselected research payloads and source bundles are not durable Plan data.
-  5. External web/provider content is treated as untrusted typed evidence and cannot issue instructions, invoke tools, or mutate the Plan without server-side interpretation and explicit traveler confirmation.
+  1. Opening a Plan replaces its conversation drawer with a responsive, full-page chat route that loads and displays that Plan's existing conversation history.
+  2. Sending a message creates a visible user turn and an assistant reply whose text appears incrementally; the composer disables while the reply is active, Enter sends, and Shift+Enter inserts a newline.
+  3. A traveler can stop an active reply; streamed text stays visible with a stopped marker. A disconnected reply keeps its partial text, is marked interrupted, and offers Retry without presenting it as complete.
+  4. Assistant source references, when present in the allow-listed response, render inline with the relevant reply. Agent context, memory contents, tool activity, research progress, internal reasoning, and raw provider payloads are not streamed to the browser.
+  5. Authentication, Plan ownership, existing Plan-scoped agent context, message persistence, and idempotent event handling remain enforced through current service boundaries; streaming is limited to assistant-visible text and a terminal outcome.
 
-**Plans**: TBD
+**Plans**: 1 plan in 1 vertical slice
 **UI hint**: yes
-**Research flag**: yes — validate evidence/source normalization, attribution and freshness semantics, prompt/tool-injection defenses, and destination-evaluation quality before locking the graph contract.
+**Research flag**: yes — inspect the installed model SDK streaming interfaces, AG-UI text event contract, authenticated proxy behavior, and existing conversation persistence/cancellation boundaries before implementation.
 
 ### Phase 5: Requirements & Adaptive Workspace
 
@@ -209,7 +209,7 @@ Plans:
 | Phase 1: Account Access | AUTH-01–AUTH-08 | 8 |
 | Phase 2: Draft Plans & Durable Lifecycle | PLAN-01–PLAN-08, TRUST-01, TRUST-02, TRUST-05 | 11 |
 | Phase 3: Conversation & Planning Brief | DISC-01–DISC-05, TRUST-03 | 6 |
-| Phase 4: Evidence-backed Destination Discovery | DISC-06–DISC-10, TRUST-04 | 6 |
+| Phase 4: Full-Screen Plan Chat | DISC-06–DISC-10, TRUST-04 | 6 |
 | Phase 5: Requirements & Adaptive Workspace | WORK-01–WORK-06 | 6 |
 | Phase 6: Provider Search & Comparison | SEARCH-01–SEARCH-09 | 9 |
 | Phase 7: Planning Canvas & Saved Choices | CANVAS-01–CANVAS-07 | 7 |
@@ -228,7 +228,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Account Access | 0/TBD | Not started | - |
 | 2. Draft Plans & Durable Lifecycle | 2/4 | In progress | - |
 | 3. Conversation & Planning Brief | 0/TBD | Not started | - |
-| 4. Evidence-backed Destination Discovery | 0/TBD | Not started | - |
+| 4. Full-Screen Plan Chat | 0/1 | Not started | - |
 | 5. Requirements & Adaptive Workspace | 0/TBD | Not started | - |
 | 6. Provider Search & Comparison | 0/TBD | Not started | - |
 | 7. Planning Canvas & Saved Choices | 0/TBD | Not started | - |

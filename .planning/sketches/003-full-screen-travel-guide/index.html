@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travella · Full-screen Travel Guide Prototype</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../themes/research-chat.css">
+  <style>
+    * { box-sizing: border-box; }
+    :root { font-family: var(--font-sans); color: var(--color-text); background: var(--color-bg); font-synthesis: none; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--color-bg); }
+    button, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #78bca2; outline-offset: 2px; }
+    .prototype-canvas { min-height: 100vh; max-width: 100%; margin: 0 auto; padding-bottom: 64px; background: var(--color-surface); transition: max-width .2s ease; }
+    .variant { display: none; min-height: 100vh; }
+    .variant.active { display: block; }
+    .app { display: flex; min-height: 100vh; background: var(--color-surface); }
+    .brand { display: flex; align-items: center; gap: 9px; color: var(--color-text); font-size: 15px; font-weight: 700; letter-spacing: -.03em; }
+    .brand-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 9px; color: #174b3b; background: #dcefe8; font-size: 14px; }
+    .nav-rail { display: flex; flex: 0 0 230px; flex-direction: column; padding: 20px 14px; border-right: 1px solid var(--color-border); background: #fafafa; }
+    .nav-head { display: flex; align-items: center; justify-content: space-between; padding: 1px 5px 23px; }
+    .icon-btn, .plain-btn { border: 1px solid transparent; border-radius: 9px; color: #555b63; background: transparent; transition: all .15s ease; }
+    .icon-btn { width: 34px; height: 34px; }
+    .plain-btn { min-height: 36px; padding: 7px 10px; font-size: 13px; }
+    .icon-btn:hover, .plain-btn:hover { border-color: var(--color-border); background: #f0f1f2; }
+    .new-chat { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid #dedfe2; border-radius: 10px; color: #292b2f; background: #fff; text-align: left; box-shadow: var(--shadow-sm); transition: all .15s ease; }
+    .new-chat:hover { background: #f5f6f6; }
+    .rail-label { margin: 26px 8px 9px; color: #8a8e95; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .history-list { display: grid; gap: 3px; padding: 0; margin: 0; list-style: none; }
+    .history-list button { width: 100%; overflow: hidden; padding: 9px 10px; border: 0; border-radius: 8px; color: #646970; background: transparent; text-align: left; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; transition: background .15s ease; }
+    .history-list button:hover, .history-list button.current { color: #25272b; background: #edeeef; }
+    .rail-bottom { margin-top: auto; padding: 14px 8px 2px; border-top: 1px solid var(--color-border); color: #878c93; font-size: 11px; line-height: 1.5; }
+    .chat-page { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+    .chat-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; min-height: 62px; padding: 0 26px; border-bottom: 1px solid #f0f0f1; background: rgb(255 255 255 / 96%); }
+    .chat-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .chat-title strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-title small { color: var(--color-muted); font-size: 11px; }
+    .header-tag { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #e5e8e7; border-radius: var(--radius-full); color: #59736b; background: #fbfdfc; font-size: 10px; white-space: nowrap; }
+    .header-tag::before { width: 6px; height: 6px; border-radius: 50%; background: #70ad91; content: ''; }
+    .chat-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+    .thread { width: min(760px, calc(100% - 48px)); margin: 0 auto; padding: 36px 0 24px; }
+    .thread-intro { margin-bottom: 25px; }
+    .thread-intro h1 { margin: 0; font-size: 21px; font-weight: 650; letter-spacing: -.045em; }
+    .thread-intro p { margin: 7px 0 0; color: var(--color-muted); font-size: 13px; }
+    .message { display: flex; align-items: flex-start; gap: 11px; margin: 0 0 22px; }
+    .avatar { display: grid; flex: 0 0 27px; place-items: center; width: 27px; height: 27px; border: 1px solid #e7e9e9; border-radius: 50%; color: #4e6258; background: #f2f7f4; font-size: 12px; }
+    .message-body { min-width: 0; max-width: 680px; }
+    .message-meta { display: flex; align-items: center; gap: 8px; margin: 2px 0 7px; color: #858991; font-size: 10px; }
+    .message-meta strong { color: #4a4e54; font-weight: 650; }
+    .message p { margin: 0 0 9px; color: #31343a; font-size: 13px; line-height: 1.7; }
+    .message.user { justify-content: flex-end; }
+    .message.user .message-body { max-width: min(76%, 530px); padding: 12px 15px; border: 1px solid #eceeef; border-radius: 16px 16px 5px 16px; background: #f4f5f6; }
+    .message.user .message-meta { justify-content: flex-end; }
+    .message.user p { margin: 0; color: #363940; }
+    .source-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; }
+    .source-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 25px; padding: 4px 8px; border: 1px solid #e7e9e8; border-radius: 7px; color: #5d6268; background: #fff; font-size: 10px; transition: all .15s ease; }
+    .source-chip:hover { border-color: #bad4c8; color: #284b3c; background: #f4faf6; }
+    .citation { display: inline-grid; place-items: center; min-width: 17px; height: 17px; margin: 0 2px; border: 1px solid #dce8e2; border-radius: 50%; color: #3e7056; background: #f2f8f4; font-size: 9px; vertical-align: middle; }
+    .memory-note, .state-note { display: flex; align-items: flex-start; gap: 8px; margin: 9px 0 0; padding: 9px 11px; border: 1px solid #e6e9e7; border-radius: 9px; color: #616870; background: #fbfcfc; font-size: 10px; line-height: 1.45; }
+    .state-note { border-color: #dcebe3; color: #456755; background: #f5faf7; }
+    .note-icon { flex: 0 0 auto; font-size: 12px; }
+    .suggestion-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 15px 0 0 38px; }
+    .suggestion { min-height: 31px; padding: 6px 10px; border: 1px solid #e6e8ea; border-radius: var(--radius-full); color: #555b63; background: #fff; font-size: 11px; transition: all .15s ease; }
+    .suggestion:hover { border-color: #b7d3c6; color: #254e3c; background: #f6fbf8; }
+    .composer-zone { flex: 0 0 auto; padding: 12px 20px 13px; background: linear-gradient(180deg, rgb(255 255 255 / 0%), #fff 16%); }
+    .composer { display: flex; align-items: flex-end; gap: 10px; width: min(760px, calc(100% - 24px)); margin: 0 auto; padding: 11px 12px 8px 15px; border: 1px solid #dfe1e4; border-radius: 18px; background: #fff; box-shadow: 0 4px 14px rgb(0 0 0 / 6%); transition: border-color .15s ease, box-shadow .15s ease; }
+    .composer:focus-within { border-color: #b8cfc3; box-shadow: 0 4px 18px rgb(42 87 64 / 8%); }
+    .composer textarea { flex: 1; min-height: 27px; max-height: 100px; resize: none; border: 0; outline: 0; color: #292c30; background: transparent; font-size: 13px; line-height: 1.45; }
+    .composer textarea::placeholder { color: #999da3; }
+    .send-btn { display: grid; flex: 0 0 29px; place-items: center; width: 29px; height: 29px; border: 0; border-radius: 50%; color: #fff; background: #303238; font-size: 15px; transition: all .15s ease; }
+    .send-btn:hover { background: #121316; transform: translateY(-1px); }
+    .send-btn:disabled { opacity: .45; cursor: default; transform: none; }
+    .composer-caption { width: min(760px, calc(100% - 24px)); margin: 8px auto 0; color: #999da3; text-align: center; font-size: 9px; }
+    .loading-line { display: none; align-items: center; gap: 7px; margin: 8px 0 0 38px; color: #778079; font-size: 10px; }
+    .loading-line.visible { display: flex; }
+    .dots { width: 6px; height: 6px; border-radius: 50%; background: #74aa8c; box-shadow: 10px 0 #acd1bb, 20px 0 #d0e4d8; margin-right: 20px; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .35; } }
+
+    /* Variant B places evidence and research summaries inside the conversation. */
+    .research-block { margin: 9px 0 0; overflow: hidden; border: 1px solid #e7e9ea; border-radius: 13px; background: #fff; box-shadow: var(--shadow-sm); }
+    .research-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border-bottom: 1px solid #eff0f1; }
+    .research-block-head strong { color: #34383d; font-size: 11px; }
+    .research-badge { padding: 4px 7px; border: 1px solid #e5eae7; border-radius: var(--radius-full); color: #62806e; background: #fbfdfb; font-size: 9px; }
+    .research-points { display: grid; gap: 0; padding: 0; margin: 0; list-style: none; }
+    .research-points li { padding: 10px 13px; border-bottom: 1px solid #f0f1f2; color: #555b62; font-size: 11px; line-height: 1.55; }
+    .research-points li:last-child { border-bottom: 0; }
+    .research-points b { color: #35393f; }
+    .research-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-top: 1px solid #f0f1f2; color: #898e94; font-size: 9px; }
+    .search-stamp { display: flex; align-items: center; gap: 6px; color: #65806f; }
+
+    /* Variant C keeps research progress and context updates inline in the chat. */
+    .research-steps { display: grid; gap: 6px; margin: 9px 0 0; padding: 10px 11px; border: 1px solid #e7e9ea; border-radius: 10px; background: #fcfcfc; }
+    .research-steps strong { color: #535960; font-size: 10px; }
+    .research-step { display: flex; align-items: center; gap: 7px; color: #70767d; font-size: 10px; }
+    .research-step i { display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; color: #4d775e; background: #eaf4ee; font-size: 9px; font-style: normal; }
+    .source-detail-inline { margin-top: 8px; padding: 9px 11px; border-left: 2px solid #cbded2; color: #737981; background: #fafcfb; font-size: 10px; line-height: 1.5; }
+    .source-detail-inline strong { display: block; margin-bottom: 3px; color: #50565d; font-size: 10px; }
+    .prototype-note { position: fixed; z-index: 9998; left: 12px; bottom: 14px; padding: 6px 8px; border: 1px solid #e4e5e7; border-radius: 7px; color: #7d8288; background: rgb(255 255 255 / 92%); font-size: 8px; box-shadow: var(--shadow-sm); }
+    .variant-switcher { position: fixed; z-index: 9999; bottom: 13px; left: 50%; display: flex; align-items: center; gap: 7px; padding: 5px 7px; border: 1px solid #dadcdf; border-radius: 999px; background: rgb(255 255 255 / 97%); box-shadow: 0 5px 18px rgb(0 0 0 / 12%); transform: translateX(-50%); }
+    .variant-switcher button { min-width: 27px; height: 27px; padding: 3px 9px; border: 0; border-radius: 999px; color: #5d6268; background: transparent; font-size: 10px; transition: all .15s ease; }
+    .variant-switcher button:hover { background: #f0f1f2; }
+    .variant-switcher button.active { color: #21392c; background: #deeee5; font-weight: 700; }
+    .variant-label { min-width: 134px; color: #666b72; text-align: center; font-size: 9px; white-space: nowrap; }
+    #sketch-tools { position: fixed; z-index: 9998; right: 12px; bottom: 14px; display: flex; align-items: center; gap: 4px; padding: 6px; border: 1px solid #41454c; border-radius: 10px; color: #f3f4f5; background: rgb(33 35 39 / 91%); box-shadow: var(--shadow-md); opacity: .74; transition: opacity .15s ease; font-size: 9px; }
+    #sketch-tools:hover, #sketch-tools:focus-within { opacity: 1; }
+    #sketch-tools button, #sketch-tools select { min-height: 25px; padding: 4px 6px; border: 0; border-radius: 6px; color: #f3f4f5; background: transparent; font-size: 9px; }
+    #sketch-tools button:hover, #sketch-tools select:hover { background: #484b51; }
+    #sketch-tools select option { color: #222; }
+    .annotate [data-annotatable]:hover { outline: 2px dashed #e3a954; outline-offset: 2px; }
+    .hidden { display: none !important; }
+
+    @media (max-width: 900px) {
+      .nav-rail { flex-basis: 190px; }
+      .thread { width: min(720px, calc(100% - 36px)); }
+    }
+    @media (max-width: 700px) {
+      .nav-rail { display: none; }
+      .chat-header { min-height: 56px; padding: 0 14px; }
+      .thread { width: calc(100% - 28px); padding-top: 22px; }
+      .thread-intro h1 { font-size: 19px; }
+      .chat-title small, .header-tag { display: none; }
+      .composer-zone { padding: 10px 4px 12px; }
+      .composer { width: calc(100% - 20px); }
+      .composer-caption { width: calc(100% - 24px); }
+      .message.user .message-body { max-width: 88%; }
+      .suggestion-row { margin-left: 38px; }
+      .variant-switcher { bottom: 9px; gap: 2px; padding: 4px; }
+      .variant-switcher button { padding: 3px 7px; }
+      .variant-label { min-width: 96px; font-size: 8px; }
+      #sketch-tools { display: none; }
+      .prototype-note { bottom: 11px; left: 7px; max-width: 72px; line-height: 1.2; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <main class="prototype-canvas" id="prototype-canvas">
+    <section class="variant" id="variant-a" aria-label="Variant A: Clean Chat">
+      <div class="app">
+        <div class="chat-page">
+          <header class="chat-header">
+            <div class="chat-title"><span class="brand-mark" aria-hidden="true">✦</span><div><strong>Travel guide</strong><br><small>New research</small></div></div>
+            <div class="header-tag">Full chat</div>
+          </header>
+          <div class="chat-scroll"><div class="thread" data-annotatable>
+            <div class="thread-intro"><h1>Travel guide</h1><p>Ask about a country or place. I’ll research the details and learn what matters to you as we talk.</p></div>
+            <article class="message">
+              <span class="avatar" aria-hidden="true">✦</span><div class="message-body"><div class="message-meta"><strong>Travel guide</strong><span>· using sample memory</span></div>
+                <p>Hi. I can look into regions, culture, food, entry guidance, getting around, cost, or anything else about a place. In this example, I also have a simulated memory that you tend to prefer quieter stays.</p>
+                <div class="memory-note"><span class="note-icon">↳</span><span>Example memory in use: prefers quiet places. You can correct or ignore it.</span></div>
+              </div>
+            </article>
+            <article class="message user"><div class="message-body"><div class="message-meta"><strong>You</strong><span>· just now</span></div><p>I’m considering Portugal for September. I’d fly, prefer a small coastal guesthouse, and want to stay near €150 a night.</p></div></article>
+            <article class="message">
+              <span class="avatar" aria-hidden="true">✦</span><div class="message-body"><div class="message-meta"><strong>Travel guide</strong><span>· sample reply · simulated</span></div>
+                <p>Got it — I’ll use Portugal, September, flying, a coastal guesthouse, and about €150 per night as this chat’s travel context. Portugal has distinct mainland regions and Atlantic islands; the feel and connections vary by region. Since you usually lean toward quieter stays, I can focus on less busy areas when you want location ideas.</p>
+                <p>What should I look into first: regional differences, food, getting around, or typical costs?</p>
+                <div class="source-row"><button class="source-chip" data-source="regions" aria-expanded="false"><span class="citation">1</span> Tourism overview</button><button class="source-chip" data-source="transport" aria-expanded="false"><span class="citation">2</span> Regional transport</button></div>
+                <div class="source-detail-inline hidden" data-source-detail="regions"><strong>Source 1 · simulated</strong>Illustrative tourism overview. No live source was queried.</div>
+                <div class="source-detail-inline hidden" data-source-detail="transport"><strong>Source 2 · simulated</strong>Illustrative regional transport reference. Current routes and schedules would need live verification.</div>
+                <div class="state-note" aria-live="polite"><span class="note-icon">✓</span><span>This chat’s travel context was updated from what you shared.</span></div>
+              </div>
+            </article>
+            <div class="suggestion-row"><button class="suggestion" data-prompt="Compare Portugal’s regions for a quiet coastal stay">Compare regions</button><button class="suggestion" data-prompt="What should I know about getting around Portugal?">Getting around</button><button class="suggestion" data-prompt="Research typical lodging costs in Portugal in September">Costs in September</button></div>
+            <div class="loading-line" data-loading><span class="dots"></span><span>Researching current sources…</span></div>
+            <div data-dynamic-messages></div>
+          </div></div>
+          <div class="composer-zone"><form class="composer" data-chat="a"><textarea name="message" aria-label="Message the travel guide" rows="1" placeholder="Ask anything about a country or place…"></textarea><button class="send-btn" aria-label="Send message">↑</button></form><p class="composer-caption">Answers use current sources. Trip details are updated as you share them.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="variant" id="variant-b" aria-label="Variant B: Research Replies">
+      <div class="app">
+        <aside class="nav-rail">
+          <div class="nav-head"><span class="brand"><span class="brand-mark" aria-hidden="true">✦</span>travella</span><button class="icon-btn" aria-label="Collapse navigation">☰</button></div>
+          <button class="new-chat" data-reset><span aria-hidden="true">＋</span>New chat</button>
+          <p class="rail-label">Recent research</p>
+          <ul class="history-list"><li><button class="current">Portugal · first look</button></li><li><button>Best month for Japan?</button></li><li><button>Getting around Iceland</button></li></ul>
+          <div class="rail-bottom">Travel guide<br>Research is shown with its sources.</div>
+        </aside>
+        <div class="chat-page">
+          <header class="chat-header"><div class="chat-title"><strong>Portugal · first look</strong></div><div class="header-tag">Research mode</div></header>
+          <div class="chat-scroll"><div class="thread" data-annotatable>
+            <article class="message">
+              <span class="avatar" aria-hidden="true">✦</span><div class="message-body"><div class="message-meta"><strong>Travel guide</strong><span>· sample memory available</span></div>
+                <p>I can research any part of a country, then ask a focused follow-up. I’m using a simulated memory of your preference for quieter stays as a hint, not a rule.</p>
+                <div class="memory-note"><span class="note-icon">↳</span><span>Memory is advisory. You can correct it in the chat.</span></div>
+              </div>
+            </article>
+            <article class="message user"><div class="message-body"><div class="message-meta"><strong>You</strong><span>· just now</span></div><p>I’m considering Portugal for September. I’d fly, prefer a small coastal guesthouse, and want to stay near €150 a night.</p></div></article>
+            <article class="message">
+              <span class="avatar" aria-hidden="true">✦</span><div class="message-body"><div class="message-meta"><strong>Travel guide</strong><span>· example sources</span></div>
+                <p>I’ve noted those details for this chat. Here’s a quick country-level starting point before we narrow to a region.</p>
+                <section class="research-block" aria-label="Sample research answer">
+                  <div class="research-block-head"><strong>Portugal at a glance</strong><span class="research-badge">General overview</span></div>
+                  <ul class="research-points">
+                    <li><b>Regions:</b> Mainland Portugal and the Atlantic island groups have distinct local character and travel connections. <button class="citation" data-source="regions" aria-label="Show source 1" aria-expanded="false">1</button></li>
+                    <li><b>Getting around:</b> The useful transport mix depends on the region and your arrival point; I can check a specific route next. <button class="citation" data-source="transport" aria-label="Show source 2" aria-expanded="false">2</button></li>
+                    <li><b>Stay style:</b> I’ll use your coastal-guesthouse preference and the quiet-stay hint when comparing areas. <button class="citation" data-source="stay" aria-label="Show source 3" aria-expanded="false">3</button></li>
+                  </ul>
+                  <div class="source-detail-inline hidden" data-source-detail="all"><strong>Sources · simulated</strong>Example tourism, transport, and lodging references. No live Tavily search was performed for this prototype.</div>
+                  <div class="research-foot"><span class="search-stamp">● Sample web research · simulated</span><button class="plain-btn" data-source="all" aria-expanded="false">View sources</button></div>
+                </section>
+                <p>Would you rather start with regional differences, local culture, or transport?</p>
+              </div>
+            </article>
+            <div class="suggestion-row"><button class="suggestion" data-prompt="Start with regional differences in Portugal">Regional differences</button><button class="suggestion" data-prompt="What is local food culture like in Portugal?">Food culture</button><button class="suggestion" data-prompt="Check what transport is useful after flying to Portugal">Transport</button></div>
+            <div class="loading-line" data-loading><span class="dots"></span><span>Searching current sources…</span></div><div data-dynamic-messages></div>
+          </div></div>
+          <div class="composer-zone"><form class="composer" data-chat="b"><textarea name="message" aria-label="Message the travel guide" rows="1" placeholder="Ask a follow-up or name another place…"></textarea><button class="send-btn" aria-label="Send message">↑</button></form><p class="composer-caption">Research cards are examples. Live answers would show the sources used.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="variant" id="variant-c" aria-label="Variant C: Research Thread">
+      <div class="app app-c">
+        <aside class="nav-rail">
+          <div class="nav-head"><span class="brand"><span class="brand-mark" aria-hidden="true">✦</span>travella</span><button class="icon-btn" aria-label="Collapse navigation">☰</button></div>
+          <button class="new-chat" data-reset><span aria-hidden="true">＋</span>New chat</button>
+          <p class="rail-label">Recent</p>
+          <ul class="history-list"><li><button class="current">Portugal research</button></li><li><button>Japan with kids</button></li></ul>
+          <div class="rail-bottom">One chat can explore a country broadly or follow any specific question.</div>
+        </aside>
+        <div class="chat-page">
+          <header class="chat-header"><div class="chat-title"><strong>Portugal research</strong><small>· travel guide</small></div><div class="header-tag">Full chat</div></header>
+          <div class="chat-scroll"><div class="thread" data-annotatable>
+            <div class="thread-intro"><h1>Portugal research</h1><p>One conversation for broad country questions, specific research, and travel details.</p></div>
+            <article class="message">
+              <span class="avatar" aria-hidden="true">✦</span><div class="message-body"><div class="message-meta"><strong>Travel guide</strong><span>· example memory available</span></div>
+                <p>I can look into any question about Portugal. I’ll research it, show where key facts came from, and use preferences as hints. In this sample I have a simulated memory that you often prefer quieter stays.</p>
+                <div class="memory-note"><span class="note-icon">↳</span><span>Example memory · prefers quiet stays. Correct me any time.</span></div>
+              </div>
+            </article>
+            <article class="message user"><div class="message-body"><div class="message-meta"><strong>You</strong><span>· just now</span></div><p>I’m considering Portugal for September. I’d fly, prefer a small coastal guesthouse, and want to stay near €150 a night.</p></div></article>
+            <article class="message">
+              <span class="avatar" aria-hidden="true">✦</span><div class="message-body"><div class="message-meta"><strong>Travel guide</strong><span>· example research flow · simulated</span></div>
+                <div class="research-steps" aria-label="Example research progress"><strong>What I checked · simulated</strong><div class="research-step"><i>✓</i><span>Looked for a country-level overview</span></div><div class="research-step"><i>✓</i><span>Checked how regional connections could affect your arrival</span></div></div>
+                <p>I’ve noted Portugal, September, flying, a small coastal guesthouse, and about €150 per night as this chat’s travel context. Portugal has several distinct regions and Atlantic islands, so it helps to compare by pace and connections before narrowing down.</p>
+                <div class="state-note"><span class="note-icon">✓</span><span>Working chat context updated from your message. The quiet-stay preference is a simulated memory hint.</span></div>
+                <p>Would you like to start with coastal regions, food and culture, or how to get around?</p>
+                <div class="source-row"><button class="source-chip" data-source="regions" aria-expanded="false"><span class="citation">1</span> Regional overview</button><button class="source-chip" data-source="transport" aria-expanded="false"><span class="citation">2</span> Transport context</button></div>
+                <div class="source-detail-inline hidden" data-source-detail="regions"><strong>Source 1 · simulated</strong>Illustrative country and regional overview. No live source was queried.</div>
+                <div class="source-detail-inline hidden" data-source-detail="transport"><strong>Source 2 · simulated</strong>Illustrative transport reference. Arrival routes and schedules would be checked live.</div>
+              </div>
+            </article>
+            <div class="suggestion-row"><button class="suggestion" data-prompt="Compare quieter coastal regions in Portugal">Quieter coastal regions</button><button class="suggestion" data-prompt="Research Portuguese food culture">Food culture</button></div>
+            <div class="loading-line" data-loading><span class="dots"></span><span>Researching current sources…</span></div><div data-dynamic-messages></div>
+          </div></div>
+          <div class="composer-zone"><form class="composer" data-chat="c"><textarea name="message" aria-label="Message the travel guide" rows="1" placeholder="Ask anything about Portugal…"></textarea><button class="send-btn" aria-label="Send message">↑</button></form><p class="composer-caption">Example conversation only · research, memory, and updates are simulated.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="prototype-note">Prototype · simulated research and memory</div>
+  <nav class="variant-switcher" aria-label="Prototype variants">
+    <button type="button" id="previous" aria-label="Previous variant">‹</button>
+    <button type="button" data-variant="a" aria-label="Variant A: Clean Chat">A</button>
+    <button type="button" data-variant="b" aria-label="Variant B: Research Replies">B</button>
+    <button type="button" data-variant="c" aria-label="Variant C: Research Thread">C</button>
+    <span class="variant-label" id="variant-label">A · Clean Chat</span>
+    <button type="button" id="next" aria-label="Next variant">›</button>
+  </nav>
+  <div id="sketch-tools" aria-label="Sketch tools">
+    <select id="theme-switcher" aria-label="Preview theme"><option value="research-chat">Chat</option><option value="default">Travella dark</option></select>
+    <button type="button" data-width="1280">Desktop</button><button type="button" data-width="768">Tablet</button><button type="button" data-width="375">Phone</button>
+    <button type="button" id="annotate">Annotate</button>
+  </div>
+
+  <script>
+    const keys = ['a', 'b', 'c'];
+    const names = { a: 'Clean Chat', b: 'Research Replies', c: 'Research Thread' };
+    let active = 'a';
+    let activeDestination = 'Portugal';
+    const canvas = document.querySelector('#prototype-canvas');
+    function showVariant(key, updateUrl = true) {
+      if (!keys.includes(key)) key = 'a';
+      active = key;
+      document.querySelectorAll('.variant').forEach(node => node.classList.toggle('active', node.id === `variant-${key}`));
+      document.querySelectorAll('[data-variant]').forEach(node => node.classList.toggle('active', node.dataset.variant === key));
+      document.querySelector('#variant-label').textContent = `${key.toUpperCase()} · ${names[key]}`;
+      if (updateUrl) { const url = new URL(location.href); url.searchParams.set('variant', key); history.replaceState({}, '', url); }
+    }
+    function cycle(delta) { const index = keys.indexOf(active); showVariant(keys[(index + delta + keys.length) % keys.length]); }
+    document.querySelectorAll('[data-variant]').forEach(button => button.addEventListener('click', () => showVariant(button.dataset.variant)));
+    document.querySelector('#previous').addEventListener('click', () => cycle(-1));
+    document.querySelector('#next').addEventListener('click', () => cycle(1));
+    document.addEventListener('keydown', event => {
+      if (event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+      if (event.key === 'ArrowLeft') cycle(-1);
+      if (event.key === 'ArrowRight') cycle(1);
+    });
+    document.addEventListener('click', event => {
+      const button = event.target.closest('[data-source]');
+      if (!button) return;
+      const container = button.closest('.message-body, .research-block');
+      const selector = button.dataset.source === 'all' ? '[data-source-detail="all"]' : `[data-source-detail="${button.dataset.source}"]`;
+      const detail = container?.querySelector(selector);
+      if (!detail) return;
+      const isOpen = detail.classList.toggle('hidden') === false;
+      button.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', () => {
+      const form = document.querySelector(`#variant-${active} form[data-chat]`);
+      const input = form.querySelector('textarea'); input.value = button.dataset.prompt; input.focus();
+    }));
+    document.querySelectorAll('[data-reset]').forEach(button => button.addEventListener('click', () => {
+      const area = document.querySelector(`#variant-${active}`);
+      area.querySelectorAll('.thread .message, .thread .suggestion-row, .thread [data-loading]').forEach(node => node.remove());
+      area.querySelector('.thread-intro h1').textContent = 'New travel chat';
+      area.querySelector('.thread-intro p').textContent = 'Ask about any country or place. I’ll research a question and learn the details you choose to share.';
+      activeDestination = 'your destination';
+      area.querySelector('[data-chat] textarea')?.focus();
+    }));
+    function destinationFrom(text) {
+      const match = text.match(/\b(Portugal|Japan|Iceland|Spain|Italy|France|Morocco|Greece|Thailand|Canada)\b/i);
+      if (!match) return { country: activeDestination, changed: false };
+      const country = match[0][0].toUpperCase() + match[0].slice(1).toLowerCase();
+      const changed = country !== activeDestination;
+      activeDestination = country;
+      return { country, changed };
+    }
+    function addDynamicTurn(form, text) {
+      const area = form.closest('.variant');
+      const messages = area.querySelector('[data-dynamic-messages]');
+      const loading = area.querySelector('[data-loading]');
+      const user = document.createElement('article'); user.className = 'message user';
+      user.innerHTML = '<div class="message-body"><div class="message-meta"><strong>You</strong><span>· just now</span></div><p></p></div>';
+      user.querySelector('p').textContent = text; messages.append(user); loading.classList.add('visible');
+      const send = form.querySelector('.send-btn'); send.disabled = true;
+      setTimeout(() => {
+        loading.classList.remove('visible'); send.disabled = false;
+        const { country, changed: destinationChanged } = destinationFrom(text);
+        const answer = document.createElement('article'); answer.className = 'message';
+        const body = document.createElement('div'); body.className = 'message-body';
+        const meta = document.createElement('div'); meta.className = 'message-meta'; meta.innerHTML = '<strong>Travel guide</strong><span>· simulated research reply</span>';
+        const paragraph = document.createElement('p'); paragraph.textContent = `I can look into that for ${country}. I’ll keep your preference for quieter stays in mind as a hint. A live version would search current sources, check publication dates, and separate supported facts from anything uncertain. This sample answer is simulated.`;
+        body.append(meta);
+        if (active === 'c') {
+          const steps = document.createElement('div'); steps.className = 'research-steps'; steps.innerHTML = '<strong>What I checked · simulated</strong><div class="research-step"><i>✓</i><span>Identified the place you mentioned</span></div><div class="research-step"><i>✓</i><span>Would search for current, relevant sources</span></div>';
+          body.append(steps);
+        }
+        body.append(paragraph);
+        if (active === 'b') {
+          const block = document.createElement('section'); block.className = 'research-block'; block.setAttribute('aria-label', 'Sample research answer');
+          block.innerHTML = `<div class="research-block-head"><strong>About ${country}</strong><span class="research-badge">Example answer</span></div><ul class="research-points"><li><b>Next step:</b> I can check a specific place, travel question, or preference you mention. <button class="citation" data-source="regions" aria-label="Show example source" aria-expanded="false">1</button></li></ul><div class="source-detail-inline hidden" data-source-detail="regions"><strong>Example source · simulated</strong>No live search was performed.</div><div class="research-foot"><span class="search-stamp">● Tavily simulated</span></div>`;
+          body.append(block);
+        } else {
+          const sourceRow = document.createElement('div'); sourceRow.className = 'source-row';
+          sourceRow.innerHTML = '<button class="source-chip" data-source="regions" aria-expanded="false"><span class="citation">1</span> Example source</button>';
+          const detail = document.createElement('div'); detail.className = 'source-detail-inline hidden'; detail.dataset.sourceDetail = 'regions'; detail.innerHTML = '<strong>Example source · simulated</strong>No live search was performed for this prototype.';
+          body.append(sourceRow, detail);
+        }
+        const update = document.createElement('div'); update.className = 'state-note'; update.setAttribute('aria-live', 'polite'); update.innerHTML = '<span class="note-icon">✓</span><span></span>';
+        update.querySelector('span:last-child').textContent = destinationChanged ? `Working chat destination updated to ${country}. This is a prototype update.` : `I’ll keep using ${country} as the destination for this question. This sample context is not persisted.`;
+        body.append(update);
+        const followup = document.createElement('p'); followup.textContent = 'What detail would you like me to check next?'; body.append(followup);
+        const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true'); avatar.textContent = '✦';
+        answer.append(avatar, body);
+        messages.append(answer); answer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 500);
+    }
+    document.querySelectorAll('form[data-chat]').forEach(form => form.addEventListener('submit', event => {
+      event.preventDefault(); const input = form.querySelector('textarea'); const text = input.value.trim();
+      if (!text) { input.focus(); return; }
+      input.value = ''; addDynamicTurn(form, text);
+    }));
+    document.querySelector('#theme-switcher').addEventListener('change', event => {
+      document.querySelector('link[href*="themes/"]').href = `../themes/${event.target.value === 'default' ? 'default' : 'research-chat'}.css`;
+    });
+    document.querySelectorAll('[data-width]').forEach(button => button.addEventListener('click', () => {
+      const width = Number(button.dataset.width); canvas.style.maxWidth = width >= 1280 ? '100%' : `${width}px`;
+      document.querySelectorAll('[data-width]').forEach(item => item.classList.toggle('active', item === button));
+    }));
+    document.querySelector('#annotate').addEventListener('click', event => {
+      document.body.classList.toggle('annotate'); event.currentTarget.classList.toggle('active');
+    });
+    const requested = new URL(location.href).searchParams.get('variant') || 'a';
+    showVariant(requested, false);
+  </script>
+</body>
+</html>

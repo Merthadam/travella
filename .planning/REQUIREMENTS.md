@@ -36,11 +36,11 @@ Requirements for the full documented MVP. Each maps to exactly one roadmap phase
 - [ ] **DISC-03**: The traveler can view and edit an active Planning Brief containing preferences and constraints such as interests, dates, party, budget, transport tolerance, and accessibility needs.
 - [ ] **DISC-04**: Traveler-stated or manually edited Brief entries take precedence over conflicting agent inferences; conflicting inferences remain tentative until confirmed.
 - [ ] **DISC-05**: Deleted Brief entries remain only as inactive historical context and do not influence ranking unless the traveler reintroduces them.
-- [ ] **DISC-06**: Travella can research and present a completed shortlist of no more than five destination candidates with status, fit/confidence, caveats, and compact evidence references.
-- [ ] **DISC-07**: A traveler can explore, reject, extend, refresh, inspect evidence for, or directly name a destination candidate; rejected candidates remain suppressed only within the current Plan.
-- [ ] **DISC-08**: The Conversation shows concise research states and uncertainty, preserves the prior complete shortlist during refresh, and never presents partial or obsolete research after interruption.
-- [ ] **DISC-09**: Each material candidate fit claim and caveat exposes a lightweight source indicator whose details load in an in-app source panel on demand.
-- [ ] **DISC-10**: Full unselected research payloads and source bundles are not durable Plan data; only compact candidate assessments and evidence references may be checkpointed.
+- [ ] **DISC-06**: A traveler can research the active Plan through a full-screen conversation that loads the Plan's existing message history.
+- [ ] **DISC-07**: The Plan conversation presents each traveler message and assistant reply in order, with assistant reply text appearing incrementally as it is generated.
+- [ ] **DISC-08**: A traveler can stop an active reply; streamed partial text remains visible and is marked stopped, while a dropped connection leaves partial text marked interrupted with a retry action.
+- [ ] **DISC-09**: Allow-listed source references supplied with an assistant reply appear inline with that reply and do not open a separate context or source drawer.
+- [ ] **DISC-10**: The browser receives only assistant-visible text, approved inline source references, and terminal outcome metadata; Plan context, memory content, tool activity, research progress, internal reasoning, and raw provider payloads remain server-side.
 
 ### Requirements and Workspace
 
@@ -88,7 +88,7 @@ Requirements for the full documented MVP. Each maps to exactly one roadmap phase
 - [ ] **TRUST-01**: Durable Plan mutations use request IDs, expected revisions, and single-use confirmation challenges so retries and replay cannot duplicate or broaden a change.
 - [ ] **TRUST-02**: The CRUD backend is the sole durable-data owner; Agent and Connector services use authenticated service contracts and cannot bypass Plan authorization.
 - [ ] **TRUST-03**: Agent checkpoints are versioned, Plan-scoped, and exposed only through whitelisted projections after reconciliation with the latest CRUD snapshot.
-- [ ] **TRUST-04**: External web/provider content is treated as untrusted evidence and cannot issue instructions, invoke tools, or mutate a Plan without explicit server-side interpretation and traveler confirmation.
+- [ ] **TRUST-04**: External web/provider content is treated as untrusted evidence and cannot issue instructions, invoke tools, or mutate a Plan; only validated assistant-facing text and allow-listed source references may cross the chat streaming boundary.
 - [ ] **TRUST-05**: Tokens, credentials, verification codes, raw provider payloads, personal data, and internal reasoning are excluded or redacted from URLs, logs, checkpoints, and browser projections.
 
 ## v2 Requirements
