@@ -29,6 +29,14 @@ ROOT_KEYS = frozenset(
         "POSTGRES_PASSWORD",
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
+        "ANTHROPIC_API_KEY_SECRET_ARN",
+        "AGENT_RESEARCH_BACKEND",
+        "AGENT_RESEARCH_MODEL",
+        "AGENT_RESEARCH_MAX_TURNS",
+        "AGENT_RESEARCH_TIMEOUT_SECONDS",
+        "AGENT_RESEARCH_MAX_BUDGET_USD",
+        "AGENT_RESEARCH_MAX_SEARCHES",
+        "AGENT_RESEARCH_MAX_FETCHES",
         "OPENAI_MODEL_ID",
         "AGENT_MODEL_PROVIDER",
         "BEDROCK_REGION",
@@ -183,6 +191,10 @@ def run(args, client) -> None:
     }
     if values.get("AGENT_MODEL_PROVIDER", "openai") == "openai":
         required.add("OPENAI_API_KEY")
+    if values.get(
+        "AGENT_RESEARCH_BACKEND", "claude-agent-sdk"
+    ) == "claude-agent-sdk" and not values.get("ANTHROPIC_API_KEY_SECRET_ARN"):
+        required.add("ANTHROPIC_API_KEY")
     missing = sorted(k for k in required if not values.get(k))
     if missing:
         raise SetupError("Shared settings missing: " + ", ".join(missing))

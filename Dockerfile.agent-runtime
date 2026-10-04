@@ -8,7 +8,15 @@ ENV UV_LINK_MODE=copy \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev
 
+# The locked SDK wheel bundles a native CLI for the target architecture.
+RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+
 COPY services ./services
 
+# Research workers get disposable directories under /tmp; application code stays read-only.
+RUN useradd --create-home --uid 10001 travella
+USER travella
+ENV HOME=/home/travella
+
 EXPOSE 8080
-CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.agent.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]
+CMD ["/app/.venv/bin/uvicorn", "services.agent.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]

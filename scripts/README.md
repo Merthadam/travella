@@ -33,8 +33,11 @@ uv run --locked python scripts/local_secrets.py set ANTHROPIC_API_KEY
 The same command supports `TAVILY_API_KEY`, `GOOGLE_MAPS_SERVER_API_KEY`,
 `VITE_GOOGLE_MAPS_API_KEY`, `ANTHROPIC_API_KEY`, Cognito settings, and the
 session encryption key. The key is stored in the shared secret and pulled into
-the ignored root `.env`; application containers do not receive it until a
-provider explicitly needs it.
+the ignored root `.env`; Compose passes it to the agent's research worker.
+The shared secret also supports `AGENT_RESEARCH_BACKEND`, `AGENT_RESEARCH_MODEL`,
+`AGENT_RESEARCH_MAX_TURNS`, `AGENT_RESEARCH_TIMEOUT_SECONDS`,
+`AGENT_RESEARCH_MAX_BUDGET_USD`, `AGENT_RESEARCH_MAX_SEARCHES`,
+`AGENT_RESEARCH_MAX_FETCHES`, and `ANTHROPIC_API_KEY_SECRET_ARN`.
 Restart each running worktree to pick up changes. Fetch without starting Docker:
 
 ```bash
@@ -90,25 +93,30 @@ avoid the existing local service tunnels on ports 5173, 8000, and 8002.
 The frontend reads `VITE_GOOGLE_MAPS_API_KEY` from `frontend/.env.local`, mounted
 read-only at runtime so the key is not included in the image build context. The
 local stack runs the Agent and MCP servers without provisioning AgentCore. Its
-default model provider is OpenAI; Tavily and Google Maps remain external provider
+conversation model provider is OpenAI. Research defaults to the Claude Agent SDK
+with an Anthropic API key; Tavily and Google Maps remain external provider
 APIs, with keys loaded only into the local MCP containers from `services/mcps/.env`.
 The local auth process still talks to your existing Cognito user pool, so the
 container mounts `~/.aws` read-only for its AWS SDK configuration.
 
-The Agent uses OpenAI's direct Responses API. Manage `OPENAI_API_KEY` through the
+The conversation adapter uses OpenAI's direct Responses API. Manage `OPENAI_API_KEY` through the
 shared secret or the hidden-prompt command above. API billing is managed separately
 from ChatGPT subscriptions. Compose shell environment overrides still take precedence
 over `.env`; unset an old exported key if you want the newly fetched shared value.
 
-The key is used by the server-side agent only. In the combined local app container,
-Docker stores it in that container's environment; the launcher gives it to the agent,
-then removes it before starting auth, CRUD, and Vite. The browser build and configuration
-never receive it. For stricter container isolation, use the separate-service Compose
-setup, which injects the key only into the agent container. Direct calls require an
+Provider keys are used by the server-side agent only. In the combined local app container,
+Docker stores them in that container's environment; the launcher gives them to the agent,
+then removes them before starting auth, CRUD, and Vite. The browser build and configuration
+never receive them. For stricter container isolation, use the separate-service Compose
+setup, which injects the keys only into the agent container. Direct OpenAI calls require an
 OpenAI API key with API billing enabled and access to the selected model; failures are
 returned as errors and do not switch providers automatically. The OpenAI Responses API
-call is stateless, and model-side tool execution is disabled so LangGraph continues to
-own research and map tools through the local FastMCP servers. `/health` reports the
+call is stateless, and model-side tool execution is disabled for that adapter.
+The research SDK owns its bounded web-search/read/refinement loop inside LangGraph;
+the graph still owns state and candidate/map tools through the existing connectors.
+Set `AGENT_RESEARCH_BACKEND=legacy` for the previous research adapter.
+See [the Runtime runbook](../docs/runbooks/agentcore-runtime.md) for bounds and secret ARN loading.
+`/health` reports the
 selected provider and model ID but never credentials.
 
 To use Bedrock instead, set `AGENT_MODEL_PROVIDER=bedrock` and configure AWS
