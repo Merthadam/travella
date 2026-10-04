@@ -465,6 +465,7 @@ class AgentTurnService:
                         generation=response.generation,
                     )
                 await queue.put(("terminal", {"status": status, "sources": final.get("sources", []),
+                                               "message": response.error if status == "error" else None,
                                                "trip_context": final.get("trip_context"),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:

@@ -55,23 +55,25 @@ class SdkResearchNode(ResearchProjection):
         discovery: dict[str, Any] = {}
         try:
             if intent == "destination_discovery":
-                discovery = await self.tools.research(
-                    message=message,
-                    traveler_scope=state["traveler_scope"],
-                    plan_id=state["plan_id"],
-                    event_id=state["event_id"],
-                    authorization_token=current_authorization_token(),
-                    research_intent=intent,
-                )
-                if discovery.get("status") in {"question", "needs your input"}:
-                    question = str(discovery.get("question") or "Tell me more about your trip.")[:500]
-                    return {"status": "needs your input", "question": question,
-                            "assistant_text": question, "research_action": "answer"}
-                if discovery.get("status") not in {"ready", "shortlist_ready", "uncertain"}:
-                    raise ValueError("candidate research unavailable")
-                candidates = _bounded_candidates(discovery.get("candidates", []))
-                if not candidates:
-                    raise ValueError("candidate research incomplete")
+                # Legacy candidate cards are optional enrichment. The SDK owns
+                # research and can discover places even when this connector cannot
+                # turn search hits into its older candidate format.
+                try:
+                    discovery = await self.tools.research(
+                        message=message,
+                        traveler_scope=state["traveler_scope"],
+                        plan_id=state["plan_id"],
+                        event_id=state["event_id"],
+                        authorization_token=current_authorization_token(),
+                        research_intent=intent,
+                    )
+                    if isinstance(discovery, dict) and discovery.get("status") in {"ready", "shortlist_ready", "uncertain"}:
+                        candidates = _bounded_candidates(discovery.get("candidates", []))
+                    else:
+                        discovery = {}
+                except Exception:
+                    discovery = {}
+                    candidates = []
             if self.worker is None:
                 from ...claude.research_worker import ClaudeResearchWorker
                 from ...config import ResearchWorkerConfig

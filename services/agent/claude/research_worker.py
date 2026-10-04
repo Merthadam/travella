@@ -310,6 +310,7 @@ class ClaudeResearchWorker:
         transport = self._transport_factory(prompt=prompt, options=options)
         result = None
         text = ""
+        shortened = False
         answer_stream = _AnswerStream(on_text_delta, urls or set())
         try:
             async with aclosing(self._query(prompt=prompt, options=options, transport=transport)) as stream:
@@ -322,10 +323,26 @@ class ClaudeResearchWorker:
                         delta = data.get("delta", {})
                         if data.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
                             part = delta.get("text", "")
-                            if not isinstance(part, str) or len(text) + len(part) > 2000:
+                            if not isinstance(part, str):
                                 raise ResearchWorkerError("research_output_invalid")
-                            text += part
-                            await answer_stream.add(part)
+                            if shortened:
+                                continue
+                            # Model character limits are advisory. Keep a bounded,
+                            # usable reply rather than failing after streaming it.
+                            # The stream holds its last token, so a cut URL/word is
+                            # discarded before the explicit shortening notice.
+                            available = 1800 - len(text)
+                            accepted = part[:available]
+                            text += accepted
+                            await answer_stream.add(accepted)
+                            if len(part) > available:
+                                if answer_stream.pending:
+                                    text = text[:-len(answer_stream.pending)]
+                                    answer_stream.pending = ""
+                                notice = "\n\n[Reply shortened. Ask me to expand on any part.]"
+                                text += notice
+                                await answer_stream.add(notice, final=True)
+                                shortened = True
         finally:
             # The pinned SDK closes its iterator's transport, but raw asyncio
             # cancellation can interrupt that cleanup. A separate shielded task

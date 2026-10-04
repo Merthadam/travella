@@ -96,7 +96,7 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
       });
       if (activeRef.current?.eventId !== eventId) return;
       if (result?.sources?.length) updateMessage(assistantId, { sources: safeSources(result.sources) });
-      if (result?.status) updateMessage(assistantId, { status: ['needs your input', 'shortlist_ready'].includes(result.status) ? 'complete' : result.status });
+      if (result?.status) updateMessage(assistantId, { status: ['needs your input', 'shortlist_ready'].includes(result.status) ? 'complete' : result.status === 'error' ? 'interrupted' : result.status });
     } catch (err) {
       if (activeRef.current?.eventId !== eventId) return;
       const stopped = activeRef.current?.eventId === eventId && activeRef.current.stopped;

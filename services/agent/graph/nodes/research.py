@@ -159,7 +159,7 @@ class ResearchProjection:
                     if location:
                         candidate["map_location"] = {key: location[key] for key in _MAP_FIELDS if key in location}
         return {
-            "status": "shortlist_ready",
+            "status": "shortlist_ready" if candidates or research_intent == "factual_research" else "in_progress",
             "candidates": candidates,
             "run_id": str(result.get("run_id", state.get("run_id", ""))),
             "assistant_text": answer.strip()[:2000],
