@@ -15,7 +15,7 @@ import re
 import shutil
 import socket
 import sys
-from contextlib import aclosing
+from contextlib import aclosing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -216,6 +216,40 @@ class ClaudeResearchWorker:
         self.config = config
         self._query = query_fn or query
         self._transport_factory = transport_factory or SubprocessCLITransport
+
+    @contextmanager
+    def session(self):
+        """One disposable SDK filesystem shared by the calls in a single turn."""
+        with TemporaryDirectory(prefix="travella-sdk-") as directory:
+            root = Path(directory)
+            for name in ("project", "home", "tmp", "config"):
+                (root / name).mkdir(mode=0o700)
+            shutil.copytree(ASSETS / ".claude", root / "project" / ".claude")
+            yield root, _isolated_cli(root)
+
+    async def structured(self, *, session, system: str, payload: dict, schema: dict,
+                         budget: float):
+        """SDK-validated control result; no browser-visible text or external tools."""
+        root, cli = session
+        options = self._options(root, cli, _EvidenceObserver(self.config, []),
+                                answer=True, budget=budget)
+        options.system_prompt = system
+        options.max_turns = 3
+        options.include_partial_messages = False
+        options.output_format = {"type": "json_schema", "schema": schema}
+        result, _ = await self._consume(json.dumps(payload), options)
+        return result.structured_output, result.total_cost_usd
+
+    async def text_reply(self, *, session, system: str, payload: dict, budget: float,
+                         on_text_delta=None) -> str:
+        root, cli = session
+        options = self._options(root, cli, _EvidenceObserver(self.config, []),
+                                answer=True, budget=budget)
+        options.system_prompt = system
+        _, text = await self._consume(json.dumps(payload), options, on_text_delta)
+        if not text.strip():
+            raise ResearchWorkerError("reply_incomplete")
+        return text
 
     def _options(self, root: Path, cli: Path, observer: _EvidenceObserver,
                  *, answer: bool, budget: float) -> ClaudeAgentOptions:

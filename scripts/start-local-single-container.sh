@@ -3,12 +3,11 @@ set -Eeuo pipefail
 
 cd /app
 
-# Hold model keys only in this launcher until the agent is started. Database
+# Hold the Agent SDK key only in this launcher until the agent is started. Database
 # migrations and the other app services do not need provider credentials.
-agent_openai_api_key="${OPENAI_API_KEY:-}"
 agent_anthropic_api_key="${ANTHROPIC_API_KEY:-}"
 agent_anthropic_secret_arn="${ANTHROPIC_API_KEY_SECRET_ARN:-}"
-unset OPENAI_API_KEY ANTHROPIC_API_KEY ANTHROPIC_API_KEY_SECRET_ARN
+unset ANTHROPIC_API_KEY ANTHROPIC_API_KEY_SECRET_ARN
 agent_mcp_issuer="${MCP_GATEWAY_OAUTH_ISSUER:-}"
 agent_mcp_audience="${MCP_GATEWAY_OAUTH_AUDIENCE:-}"
 agent_mcp_client_id="${MCP_GATEWAY_OAUTH_CLIENT_ID:-}"
@@ -46,9 +45,6 @@ start_process() {
 
 # Re-export the key for the agent process only, then remove it before starting
 # auth, CRUD, and Vite.
-if [[ -n "$agent_openai_api_key" ]]; then
-  export OPENAI_API_KEY="$agent_openai_api_key"
-fi
 export ANTHROPIC_API_KEY="$agent_anthropic_api_key"
 export ANTHROPIC_API_KEY_SECRET_ARN="$agent_anthropic_secret_arn"
 export MCP_GATEWAY_OAUTH_ISSUER="$agent_mcp_issuer"
@@ -60,7 +56,6 @@ export MCP_ASSERTION_SIGNING_SECRET="$agent_mcp_assertion_secret"
 export MCP_ASSERTION_AUDIENCE="$agent_mcp_assertion_audience"
 start_process uv run --frozen --no-sync uvicorn services.agent.app:create_app \
   --factory --host 0.0.0.0 --port 8002 --no-access-log
-unset OPENAI_API_KEY agent_openai_api_key
 unset ANTHROPIC_API_KEY ANTHROPIC_API_KEY_SECRET_ARN
 unset agent_anthropic_api_key agent_anthropic_secret_arn
 unset MCP_GATEWAY_OAUTH_ISSUER MCP_GATEWAY_OAUTH_AUDIENCE

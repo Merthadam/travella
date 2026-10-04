@@ -1,15 +1,16 @@
-"""Agent-facing Claude adapter. SDK details stay inside ClaudeMessagesClient."""
+"""Private tool adapter with an injected Claude Agent SDK conversation client."""
 
 from __future__ import annotations
 
 from typing import Any, Protocol
 
+from ..config import ResearchWorkerConfig
 from ..local_mcp import LocalMcpClient, LocalMcpError
 from ..request_context import current_text_delta_callback
 from ..turn import TurnContext
 from .gateway import GatewayToolClient
-from .messages import ClaudeMessagesClient
 from .protocol import ALLOWED_TOOLS, MAP_TOOL, RESEARCH_TOOL, SOURCE_TOOL, GatewayProtocolError
+from .sdk_conversation import ClaudeSdkConversationClient
 
 
 class AgentAdapter(Protocol):
@@ -39,9 +40,6 @@ class AgentAdapter(Protocol):
         authorization_token: str,
         read_content: bool = False,
     ) -> dict[str, Any]: ...
-    async def synthesize_research(
-        self, *, message: str, page_read: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]: ...
 
 
 class ClaudeGatewayAdapter:
@@ -52,12 +50,24 @@ class ClaudeGatewayAdapter:
         gateway_url: str,
         *,
         model: str | None = None,
-        sdk_client: Any | None = None,
+        messages_client: Any | None = None,
         gateway_factory: Any = GatewayToolClient,
     ) -> None:
         self.gateway_url = gateway_url
-        self.messages = ClaudeMessagesClient(model=model, sdk_client=sdk_client)
+        self._messages = messages_client
+        self._model = model
         self.gateway_factory = gateway_factory
+
+    @property
+    def messages(self):
+        if self._messages is None:
+            from dataclasses import replace
+
+            config = ResearchWorkerConfig.from_env()
+            if self._model:
+                config = replace(config, model=self._model)
+            self._messages = ClaudeSdkConversationClient(config)
+        return self._messages
 
     def _gateway(self, token: str) -> GatewayToolClient:
         return self.gateway_factory(self.gateway_url, token)
@@ -185,23 +195,6 @@ class ClaudeGatewayAdapter:
             authorization_token=authorization_token,
         )
 
-    async def synthesize_research(
-        self,
-        *,
-        message: str,
-        page_read: dict[str, Any],
-        context: dict[str, Any],
-        research_intent: str,
-        candidates: list[dict[str, str]],
-    ) -> dict[str, Any]:
-        return await self.messages.research_answer(
-            message=message,
-            page_read=page_read,
-            context=context,
-            research_intent=research_intent,
-            candidates=candidates,
-            on_text_delta=current_text_delta_callback(),
-        )
 
 
 class LocalGatewayAdapter(ClaudeGatewayAdapter):
@@ -221,10 +214,10 @@ class LocalMcpAdapter(ClaudeGatewayAdapter):
         research_url: str,
         map_url: str,
         model: str | None = None,
-        sdk_client: Any | None = None,
         mcp_client: Any | None = None,
+        messages_client: Any | None = None,
     ) -> None:
-        super().__init__("", model=model, sdk_client=sdk_client)
+        super().__init__("", model=model, messages_client=messages_client)
         self.local_mcp = mcp_client or LocalMcpClient(
             tool_urls={
                 RESEARCH_TOOL: research_url,

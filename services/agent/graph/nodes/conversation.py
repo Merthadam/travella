@@ -78,6 +78,9 @@ class ConversationNode:
         }
         if decision == "research":
             output["research_intent"] = research_intent
+            resolved = result.get("resolved_research_message")
+            if isinstance(resolved, str) and resolved.strip():
+                output["resolved_research_message"] = resolved.strip()[:500]
         if decision == "question" or question:
             output.update(
                 status="needs your input",

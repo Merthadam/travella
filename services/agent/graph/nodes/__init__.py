@@ -1,6 +1,6 @@
 """LangGraph node implementations; each file owns one meaningful stage."""
 
 from .conversation import ConversationNode
-from .research import ResearchNode
+from .research import ResearchProjection
 
-__all__ = ["ConversationNode", "ResearchNode"]
+__all__ = ["ConversationNode", "ResearchProjection"]

@@ -21,7 +21,7 @@ rotates them. The secret is a flat JSON object with env variable names as keys.
 To change a shared value, enter it at a hidden terminal prompt:
 
 ```bash
-uv run --locked python scripts/local_secrets.py set OPENAI_API_KEY
+uv run --locked python scripts/local_secrets.py set ANTHROPIC_API_KEY
 ```
 
 For the Claude Agent SDK, use the same hidden prompt for its Anthropic API key:
@@ -34,7 +34,7 @@ The same command supports `TAVILY_API_KEY`, `GOOGLE_MAPS_SERVER_API_KEY`,
 `VITE_GOOGLE_MAPS_API_KEY`, `ANTHROPIC_API_KEY`, Cognito settings, and the
 session encryption key. The key is stored in the shared secret and pulled into
 the ignored root `.env`; Compose passes it to the agent's research worker.
-The shared secret also supports `AGENT_RESEARCH_BACKEND`, `AGENT_RESEARCH_MODEL`,
+The shared secret also supports `ANTHROPIC_MODEL`, `AGENT_RESEARCH_MODEL`,
 `AGENT_RESEARCH_MAX_TURNS`, `AGENT_RESEARCH_TIMEOUT_SECONDS`,
 `AGENT_RESEARCH_MAX_BUDGET_USD`, `AGENT_RESEARCH_MAX_SEARCHES`,
 `AGENT_RESEARCH_MAX_FETCHES`, and `ANTHROPIC_API_KEY_SECRET_ARN`.
@@ -93,36 +93,29 @@ avoid the existing local service tunnels on ports 5173, 8000, and 8002.
 The frontend reads `VITE_GOOGLE_MAPS_API_KEY` from `frontend/.env.local`, mounted
 read-only at runtime so the key is not included in the image build context. The
 local stack runs the Agent and MCP servers without provisioning AgentCore. Its
-conversation model provider is OpenAI. Research defaults to the Claude Agent SDK
+model execution backend is Claude Agent SDK. Conversation, onboarding and research use it
 with an Anthropic API key; Tavily and Google Maps remain external provider
 APIs, with keys loaded only into the local MCP containers from `services/mcps/.env`.
 The local auth process still talks to your existing Cognito user pool, so the
 container mounts `~/.aws` read-only for its AWS SDK configuration.
 
-Local Compose defaults to `AGENT_MODEL_PROVIDER=anthropic` for conversation/onboarding,
-using `ANTHROPIC_API_KEY` (or its secret ARN) and `ANTHROPIC_MODEL`. Research still uses
-Claude Agent SDK. The shared secret supports `ANTHROPIC_MODEL`; `AGENT_RESEARCH_MODEL`
-can override it for research only. Select `AGENT_MODEL_PROVIDER=openai` and provide
-`OPENAI_API_KEY` to keep the direct OpenAI Responses adapter. Compose shell environment
-overrides take precedence over `.env`.
+Conversation, routing, onboarding and research all use Claude Agent SDK.
+`ANTHROPIC_API_KEY` (or `ANTHROPIC_API_KEY_SECRET_ARN`) supplies its credential;
+`ANTHROPIC_MODEL` supplies the default model, and `AGENT_RESEARCH_MODEL` overrides
+that model in the shared SDK configuration. The direct Anthropic/OpenAI/Bedrock
+model clients and backend-selection switches have been removed.
 
-Provider keys are used by the server-side agent only. In the combined local app container,
-Docker stores them in that container's environment; the launcher gives them to the agent,
-then removes them before starting auth, CRUD, and Vite. The browser build and configuration
-never receive them. For stricter container isolation, use the separate-service Compose
-setup, which injects the keys only into the agent container. Direct OpenAI calls require an
-OpenAI API key with API billing enabled and access to the selected model; failures are
-returned as errors and do not switch providers automatically. The OpenAI Responses API
-call is stateless, and model-side tool execution is disabled for that adapter.
-The research SDK owns its bounded web-search/read/refinement loop inside LangGraph;
-the graph still owns state and candidate/map tools through the existing connectors.
-Set `AGENT_RESEARCH_BACKEND=legacy` for the previous research adapter.
-See [the Runtime runbook](../docs/runbooks/agentcore-runtime.md) for bounds and secret ARN loading.
-`/health` reports the
-selected provider and model ID but never credentials.
+The server-side agent receives the SDK key. The combined launcher removes it
+before starting auth, CRUD and Vite. The SDK child gets an isolated environment
+and disposable session directory. LangGraph receives normalized results and owns
+stage routing; saved chat history and relevant preferences are explicitly supplied
+on each turn. The SDK owns research iterations and real answer streaming.
 
-To use Bedrock instead, set `AGENT_MODEL_PROVIDER=bedrock` and configure AWS
-credentials for the local app before restarting. Anthropic is the local Compose default; provider errors do not trigger automatic fallback.
+Old shared-secret names are accepted only for migration compatibility, are not
+copied into local env files, and are not passed to containers. The sync helper does
+not delete their values from AWS. Rollback requires a previous image.
+See [the Runtime runbook](../docs/runbooks/agentcore-runtime.md) for bounds and secret
+ARN loading. `/health` reports `claude-agent-sdk` and the selected model without keys.
 
 Pass standard `docker compose up` options when needed, for example
 `bash scripts/start-local.sh -d` for detached mode. Stop detached services with

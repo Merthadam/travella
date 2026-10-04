@@ -23,9 +23,9 @@ docker buildx build --platform linux/arm64 \
   --push .
 ```
 
-Create the Runtime using the `HTTP` protocol and `CUSTOM_JWT` authorization. Configure its Cognito OIDC discovery URL, access-token client/scope restrictions, and `Authorization` request-header allowlist. Configure the Runtime execution role for ECR image access, outbound CRUD and Gateway access, the required AgentCore Memory operations, and `secretsmanager:GetSecretValue` for the Anthropic API key secret. Supply `CRUD_BASE_URL`, `COGNITO_*`, `AGENTCORE_GATEWAY_URL`, `AGENTCORE_MEMORY_ID`, `AGENT_MCP_TRANSPORT=agentcore`, `AGENT_MODEL_PROVIDER`, and model configuration to the Runtime environment.
+Create the Runtime using the `HTTP` protocol and `CUSTOM_JWT` authorization. Configure its Cognito OIDC discovery URL, access-token client/scope restrictions, and `Authorization` request-header allowlist. Configure the Runtime execution role for ECR image access, outbound CRUD and Gateway access, the required AgentCore Memory operations, and `secretsmanager:GetSecretValue` for the Anthropic API key secret. Supply `CRUD_BASE_URL`, `COGNITO_*`, `AGENTCORE_GATEWAY_URL`, `AGENTCORE_MEMORY_ID`, `AGENT_MCP_TRANSPORT=agentcore`, model configuration to the Runtime environment.
 
-The research stage defaults to `AGENT_RESEARCH_BACKEND=claude-agent-sdk`. Set `ANTHROPIC_API_KEY_SECRET_ARN` to the full ARN of a Secrets Manager secret. At startup, `ResearchWorkerConfig.from_env()` reads that exact secret in the ARN's region. It accepts a raw Anthropic key or a JSON object containing `ANTHROPIC_API_KEY` (including the shared development secret format). Explicit ARN configuration is authoritative: a denied, missing, or malformed secret produces a sanitized configuration failure, without falling back to a local key. The loaded value stays in process memory and the isolated SDK child's environment; it is not written to the image, graph state, health response, or logs. Restart after rotating the secret.
+Claude Agent SDK is the only model execution backend for conversation routing, replies, onboarding and research. Set `ANTHROPIC_API_KEY_SECRET_ARN` to the full ARN of a Secrets Manager secret. At startup, `ResearchWorkerConfig.from_env()` reads that exact secret in the ARN's region. It accepts a raw Anthropic key or a JSON object containing `ANTHROPIC_API_KEY` (including the shared development secret format). Explicit ARN configuration is authoritative: a denied, missing, or malformed secret produces a sanitized configuration failure, without falling back to a local key. The loaded value stays in process memory and the isolated SDK child's environment; it is not written to the image, graph state, health response, or logs. Restart after rotating the secret.
 
 For the Runtime execution role, scope retrieval to the selected secret:
 
@@ -39,7 +39,20 @@ For the Runtime execution role, scope retrieval to the selected secret:
 
 A customer-managed KMS key also requires `kms:Decrypt` on that key. Local secret sync does not grant the Runtime role any access. Use a dedicated production secret to avoid granting access to unrelated development credentials.
 
-Conversation and onboarding support `AGENT_MODEL_PROVIDER=anthropic`, `openai`, or `bedrock`. Local Compose defaults to `anthropic`, using the same Anthropic credential resolver and `ANTHROPIC_MODEL`; production should set its provider explicitly. The OpenAI adapter reads `OPENAI_API_KEY` directly from its server environment; **`OPENAI_API_KEY_SECRET_ARN` is not implemented**. Deployments using OpenAI must provide its key through their existing secure environment injection path, or select the existing Bedrock provider with IAM credentials. The Anthropic secret also configures conversation/onboarding when their provider is `anthropic`.
+All model calls use the isolated Claude Agent SDK runtime. The direct Anthropic,
+OpenAI and Bedrock model adapters and their dependencies have been removed.
+`ANTHROPIC_API_KEY` remains the credential required by Claude Agent SDK; it does
+not select the removed Python Anthropic Messages client. `ANTHROPIC_MODEL` supplies
+the default SDK model, with `AGENT_RESEARCH_MODEL` taking precedence in the shared
+SDK configuration. LangGraph still owns stage routing and Plan-scoped state.
+
+Conversation routing uses the SDK structured-result contract, followed by a tool-free
+SDK query for a normal streamed reply, or by the SDK research stage. Every turn
+receives the latest bounded saved history, active brief and advisory profile.
+Routing resolves short follow-ups into a standalone research request. Onboarding
+uses an SDK structured result with the existing quote/confirmation validation.
+The conversation stage has its own configured time/cost allowance; research has
+its existing separate allowance. There is no second LangGraph research loop.
 
 ## Research worker bounds and local startup
 
@@ -56,7 +69,7 @@ Conversation and onboarding support `AGENT_MODEL_PROVIDER=anthropic`, `openai`, 
 
 All numeric bounds must be positive and finite. Search/read/refinement runs inside one SDK research query, followed by a tool-free SDK query for genuinely streamed final text; LangGraph owns the surrounding flow, checkpoints, and browser projection.
 
-`scripts/start-local-ready.sh` pulls shared credentials into ignored owner-only env files. Both Compose layouts pass research settings to the agent. In the combined app container, the launcher removes the Anthropic and OpenAI keys before migrations and before starting auth, CRUD, or Vite. Local development can use `ANTHROPIC_API_KEY` directly; an explicit secret ARN still takes precedence. Never print expanded Compose configuration or container environments.
+`scripts/start-local-ready.sh` pulls shared credentials into ignored owner-only env files. Both Compose layouts pass research settings to the agent. In the combined app container, the launcher removes the SDK API key before migrations and before starting auth, CRUD, or Vite. Local development can use `ANTHROPIC_API_KEY` directly; an explicit secret ARN still takes precedence. Never print expanded Compose configuration or container environments.
 
 The locked SDK wheel supplies the native CLI, so no global Claude installation or npm install is required. `Dockerfile.agent-runtime` checks CLI startup during the image build, runs as an unprivileged user, and includes the research skill via `COPY services`. Each worker uses its own temporary home/config directory and removes it on completion. Local combined containers retain their existing user to preserve the AWS credential mount; their SDK child still receives only its allowlisted environment.
 
@@ -95,6 +108,9 @@ When `AGENTCORE_RUNTIME_ARN` is unset, `AGENT_BASE_URL` remains the local agent 
 
 For a canary, use a non-production Plan and the ordinary authenticated chat. Ask one factual place question and check that the explanation has supporting citations; ask for destination candidates and check that candidate selection still works. Start a longer research turn, press Stop, and verify no later answer or sidebar mutation appears. Restart/resume the Plan and check its existing context. Compact evidence reuse is supported when the caller supplies research_state; the current HTTP composition does not yet persist or reload that field across process restarts. Exercise an unavailable source and inspect only sanitized outcome logs. Confirm the worker child exits after completion, Stop, and runtime shutdown. Live provider checks incur usage and remain separate from deterministic tests.
 
-To roll research back, set `AGENT_RESEARCH_BACKEND=legacy` and restart/redeploy the same runtime image. Keep existing connector credentials and the configured conversation model available for this path; rollback does not switch them automatically. To roll Runtime routing back, unset the auth service's `AGENTCORE_RUNTIME_ARN` and restore its local `AGENT_BASE_URL`. Preserve Plan storage and memory resources in either rollback.
+Rollback requires redeploying the prior image; no runtime switch to a direct model SDK remains.
+To roll Runtime routing back, unset the auth service's `AGENTCORE_RUNTIME_ARN` and
+restore its local `AGENT_BASE_URL`. Preserve Plan storage and memory resources.
+
 
 The Runtime resource itself is not created by this repository change. Deploy it only after the ECR image, execution role, Cognito authorizer, header allowlist, network path, and secrets are configured.

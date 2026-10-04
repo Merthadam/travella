@@ -15,18 +15,13 @@ from ..request_context import (
     reset_traveler_profile,
 )
 from ..state import AgentState
-from .nodes import ConversationNode, ResearchNode
+from .nodes import ConversationNode
 from .nodes.sdk_research import SdkResearchNode
 
 
 def _after_conversation(state: AgentState) -> str:
     return "research" if state.get("turn_decision") == "research" else "end"
 
-
-def _after_research(state: AgentState) -> str:
-    if state.get("research_action") == "refine" and int(state.get("research_pass_count", 0)) < 3:
-        return "research"
-    return "end"
 
 
 class AgentGraph:
@@ -36,17 +31,12 @@ class AgentGraph:
                  research_worker: Any | None = None) -> None:
         flow = StateGraph(AgentState)
         flow.add_node("conversation", ConversationNode(adapter))
-        flow.add_node("research", SdkResearchNode(adapter, research_worker)
-                      if research_worker is not None else ResearchNode(adapter))
+        flow.add_node("research", SdkResearchNode(adapter, research_worker))
         flow.add_edge(START, "conversation")
         flow.add_conditional_edges(
             "conversation", _after_conversation, {"research": "research", "end": END}
         )
-        if research_worker is not None:
-            # The SDK owns all search/read/refine iterations within this stage.
-            flow.add_edge("research", END)
-        else:
-            flow.add_conditional_edges("research", _after_research, {"research": "research", "end": END})
+        flow.add_edge("research", END)
         self.compiled = flow.compile(checkpointer=checkpointer)
 
     async def invoke(

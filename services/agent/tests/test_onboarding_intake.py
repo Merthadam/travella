@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
-from types import SimpleNamespace
 
-from services.agent.claude.messages import ClaudeMessagesClient
 from services.agent.graph.nodes.onboarding_intake import OnboardingIntakeNode
 from services.agent.graph.onboarding import build_onboarding_intake_graph
 
@@ -159,50 +156,3 @@ def test_intake_finish_drops_candidates_and_graph_ends_after_one_node():
     assert result["action"] == "finish"
     assert result["answer_candidates"] == []
     assert len(model.calls) == 1
-
-
-def test_openai_intake_call_uses_structured_output_without_registering_tools(monkeypatch):
-    class FakeResponses:
-        def __init__(self):
-            self.calls = []
-
-        async def create(self, **kwargs):
-            self.calls.append(kwargs)
-            return SimpleNamespace(output_text=json.dumps({"action": "ask"}))
-
-    fake = SimpleNamespace(responses=FakeResponses())
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    client = ClaudeMessagesClient(provider="openai", model="gpt-6-luna", sdk_client=fake)
-
-    asyncio.run(
-        client.collect_onboarding_answers(messages=[{"role": "user", "content": "I like food"}])
-    )
-
-    request = fake.responses.calls[0]
-    assert request["store"] is False
-    assert "tools" not in request
-    assert request["text"]["format"]["strict"] is True
-    assert "only job is to ask concise questions" in request["instructions"]
-
-
-def test_bedrock_intake_call_does_not_register_tools(monkeypatch):
-    class FakeMessages:
-        def __init__(self):
-            self.calls = []
-
-        async def create(self, **kwargs):
-            self.calls.append(kwargs)
-            return SimpleNamespace(content=[SimpleNamespace(text=json.dumps({"action": "ask"}))])
-
-    fake = SimpleNamespace(messages=FakeMessages())
-    monkeypatch.setenv("AGENT_MODEL_PROVIDER", "bedrock")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    client = ClaudeMessagesClient(provider="bedrock", sdk_client=fake)
-
-    asyncio.run(
-        client.collect_onboarding_answers(messages=[{"role": "user", "content": "I like food"}])
-    )
-
-    request = fake.messages.calls[0]
-    assert "tools" not in request
-    assert "only job is to ask concise questions" in request["system"]

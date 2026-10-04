@@ -156,6 +156,8 @@ def test_local_adapter_requires_verified_user_token_and_uses_local_tools() -> No
 def test_app_selects_local_transport_and_reports_it_without_gateway(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-" + "x" * 24)
+    monkeypatch.delenv("ANTHROPIC_API_KEY_SECRET_ARN", raising=False)
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv("AGENT_MCP_TRANSPORT", "local")
     monkeypatch.delenv("AGENTCORE_GATEWAY_URL", raising=False)
@@ -163,7 +165,6 @@ def test_app_selects_local_transport_and_reports_it_without_gateway(
     monkeypatch.delenv("CRUD_BASE_URL", raising=False)
 
     app = create_app(
-        research_backend="legacy",
         verifier=lambda _token: None,
         plan_reader=lambda *_args: None,
     )
@@ -178,13 +179,15 @@ def test_app_selects_local_transport_and_reports_it_without_gateway(
 def test_development_defaults_to_local_transport_without_agentcore_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-" + "x" * 24)
+    monkeypatch.delenv("ANTHROPIC_API_KEY_SECRET_ARN", raising=False)
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.delenv("AGENT_MCP_TRANSPORT", raising=False)
     monkeypatch.delenv("AGENTCORE_GATEWAY_URL", raising=False)
     monkeypatch.delenv("COGNITO_USER_POOL_ID", raising=False)
     monkeypatch.delenv("CRUD_BASE_URL", raising=False)
 
-    app = create_app(research_backend="legacy", verifier=lambda _token: None, plan_reader=lambda *_args: None)
+    app = create_app(verifier=lambda _token: None, plan_reader=lambda *_args: None)
     with TestClient(app) as client:
         health = client.get("/health").json()
 
@@ -195,6 +198,8 @@ def test_development_defaults_to_local_transport_without_agentcore_configuration
 def test_local_transport_is_refused_outside_development(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-" + "x" * 24)
+    monkeypatch.delenv("ANTHROPIC_API_KEY_SECRET_ARN", raising=False)
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("AGENT_MCP_TRANSPORT", "local")
     monkeypatch.delenv("COGNITO_USER_POOL_ID", raising=False)
@@ -202,7 +207,6 @@ def test_local_transport_is_refused_outside_development(
 
     with pytest.raises(RuntimeError, match="only available in development or test"):
         create_app(
-            research_backend="legacy",
-            verifier=lambda _token: None,
+                verifier=lambda _token: None,
             plan_reader=lambda *_args: None,
         )

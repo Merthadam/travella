@@ -49,3 +49,7 @@ Native WebFetch response normalization is based on the pinned tool contract and 
 ## Local startup follow-up (2026-10-04)
 
 Rebuilt/recreated the local Compose app; source hashes for the worker, router, config, graph node and skill match. Authentication sign-in/session/sign-out passed. Health reports Claude Agent SDK research and direct Anthropic conversation, both configured to claude-opus-4-5, with memory enabled. User approved the router provider switch because shared credentials now contain Anthropic only. Live research, citations and Stop remain manual checks; no cloud deployment occurred.
+
+## SDK-only follow-up (2026-10-04)
+
+Latest user instruction supersedes the earlier direct Anthropic router and legacy rollback. All model execution now uses Claude Agent SDK. The running container confirms both model_provider and research_backend are claude-agent-sdk, with standalone anthropic/openai packages absent. Auth succeeded and six source hashes match. See quick task 261004-u8q for changes, retired legacy coverage and remaining live validation gates.

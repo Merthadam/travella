@@ -27,21 +27,15 @@ ROOT_KEYS = frozenset(
         "COGNITO_JWKS_URL",
         "SESSION_ENCRYPTION_KEY",
         "POSTGRES_PASSWORD",
-        "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
         "ANTHROPIC_MODEL",
         "ANTHROPIC_API_KEY_SECRET_ARN",
-        "AGENT_RESEARCH_BACKEND",
         "AGENT_RESEARCH_MODEL",
         "AGENT_RESEARCH_MAX_TURNS",
         "AGENT_RESEARCH_TIMEOUT_SECONDS",
         "AGENT_RESEARCH_MAX_BUDGET_USD",
         "AGENT_RESEARCH_MAX_SEARCHES",
         "AGENT_RESEARCH_MAX_FETCHES",
-        "OPENAI_MODEL_ID",
-        "AGENT_MODEL_PROVIDER",
-        "BEDROCK_REGION",
-        "BEDROCK_MODEL_ID",
         "AGENTCORE_MEMORY_ID",
         "AGENTCORE_MEMORY_NAMESPACE_TEMPLATE",
     }
@@ -49,6 +43,10 @@ ROOT_KEYS = frozenset(
 MCP_KEYS = frozenset({"TAVILY_API_KEY", "GOOGLE_MAPS_SERVER_API_KEY"})
 FRONTEND_KEYS = frozenset({"VITE_GOOGLE_MAPS_API_KEY"})
 ALLOWED_KEYS = ROOT_KEYS | MCP_KEYS | FRONTEND_KEYS
+# Read old shared secrets without distributing retired model credentials/settings.
+# Remote secret entries remain untouched for other checkouts until explicitly removed.
+RETIRED_KEYS = frozenset({"OPENAI_API_KEY", "OPENAI_MODEL_ID", "AGENT_MODEL_PROVIDER",
+                          "AGENT_RESEARCH_BACKEND", "BEDROCK_REGION", "BEDROCK_MODEL_ID"})
 DESTINATIONS = {
     ".env": ROOT_KEYS,
     "services/mcps/.env": MCP_KEYS,
@@ -62,7 +60,7 @@ class SetupError(Exception):
 
 
 def validate(values: object) -> dict[str, str]:
-    if not isinstance(values, dict) or set(values) - ALLOWED_KEYS:
+    if not isinstance(values, dict) or set(values) - (ALLOWED_KEYS | RETIRED_KEYS):
         raise SetupError("Secret must be a JSON object containing only supported setting names.")
     if any(not isinstance(v, str) or any(c in v for c in "\n\r\0") for v in values.values()):
         raise SetupError("Secret values must be single-line strings.")
@@ -145,7 +143,7 @@ def pull(root: Path, values: dict[str, str]) -> None:
         read_env(path)
     for relative, keys in DESTINATIONS.items():
         # Remove misplaced shared keys (e.g. a backend key in frontend configuration).
-        write_env(root / relative, ALLOWED_KEYS, {k: v for k, v in values.items() if k in keys})
+        write_env(root / relative, ALLOWED_KEYS | RETIRED_KEYS, {k: v for k, v in values.items() if k in keys})
 
 
 def run(args, client) -> None:
@@ -190,14 +188,8 @@ def run(args, client) -> None:
         "GOOGLE_MAPS_SERVER_API_KEY",
         "VITE_GOOGLE_MAPS_API_KEY",
     }
-    provider = values.get("AGENT_MODEL_PROVIDER", "anthropic")
-    if provider == "openai":
-        required.add("OPENAI_API_KEY")
-    if values.get(
-        "AGENT_RESEARCH_BACKEND", "claude-agent-sdk"
-    ) == "claude-agent-sdk" or provider == "anthropic":
-        if not values.get("ANTHROPIC_API_KEY_SECRET_ARN"):
-            required.add("ANTHROPIC_API_KEY")
+    if not values.get("ANTHROPIC_API_KEY_SECRET_ARN"):
+        required.add("ANTHROPIC_API_KEY")
     missing = sorted(k for k in required if not values.get(k))
     if missing:
         raise SetupError("Shared settings missing: " + ", ".join(missing))

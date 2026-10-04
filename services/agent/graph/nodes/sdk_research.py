@@ -12,10 +12,10 @@ from ...request_context import (
 )
 from ...state import AgentState
 from ...turn import TurnContext
-from .research import ResearchNode, _bounded_candidates, _reusable_evidence
+from .research import ResearchProjection, _bounded_candidates, _reusable_evidence
 
 
-class SdkResearchNode(ResearchNode):
+class SdkResearchNode(ResearchProjection):
     """Preserve candidate tools and state projection; delegate research to one worker."""
 
     def __init__(self, tools: Any, worker: Any) -> None:
@@ -30,7 +30,7 @@ class SdkResearchNode(ResearchNode):
                 "question": "Would you like facts about a place, or destination suggestions?",
                 "research_action": "answer",
             }
-        message = str(state.get("message", "")).strip()[:2000]
+        message = str(state.get("resolved_research_message") or state.get("message", "")).strip()[:2000]
         action = (state.get("candidate_action") or {}).get("action")
         if action == "extend":
             message += "; suggest additional options"
@@ -70,6 +70,11 @@ class SdkResearchNode(ResearchNode):
                 candidates = _bounded_candidates(discovery.get("candidates", []))
                 if not candidates:
                     raise ValueError("candidate research incomplete")
+            if self.worker is None:
+                from ...claude.research_worker import ClaudeResearchWorker
+                from ...config import ResearchWorkerConfig
+
+                self.worker = ClaudeResearchWorker(ResearchWorkerConfig.from_env())
             raw = await self.worker.run(
                 message=message,
                 context=context,
@@ -81,7 +86,7 @@ class SdkResearchNode(ResearchNode):
             )
             result = ResearchResult.model_validate(raw)
             return await self._terminal(
-                state=state, candidates=candidates,
+                state={**state, "message": message}, candidates=candidates,
                 evidence=[item.model_dump() for item in result.evidence],
                 result=discovery, answer=result.answer, evidence_ids=result.evidence_ids,
                 uncertainty=result.uncertainty, pass_count=1, queries=[],

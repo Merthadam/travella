@@ -1,4 +1,4 @@
-"""Claude Messages and AgentCore Gateway adapters."""
+"""Claude Agent SDK and private tool adapters."""
 
 from .adapter import AgentAdapter, ClaudeGatewayAdapter, LocalGatewayAdapter, LocalMcpAdapter
 from .gateway import GatewayToolClient

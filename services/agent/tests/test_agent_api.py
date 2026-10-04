@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from dataclasses import dataclass, field
 from uuid import uuid4
 
@@ -18,9 +17,10 @@ from services.auth.contracts import ValidatedIdentity
 
 
 @pytest.fixture(autouse=True)
-def _bedrock_isolated_provider_configuration(monkeypatch):
-    monkeypatch.setenv("AGENT_MODEL_PROVIDER", "bedrock")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+def _sdk_isolated_configuration(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-" + "x" * 24)
+    monkeypatch.delenv("ANTHROPIC_API_KEY_SECRET_ARN", raising=False)
+    monkeypatch.setenv("AGENT_RESEARCH_MODEL", "claude-sonnet-4-6")
 
 
 @dataclass
@@ -98,6 +98,12 @@ class FakeAdapter:
         }
 
 
+class FakeResearchWorker:
+    async def run(self, **kwargs):
+        return {"answer": "I could not read a source page.", "evidence": [],
+                "evidence_ids": [], "uncertainty": ["The selected source page was unavailable."]}
+
+
 def _app(adapter=None, *, plan=None, memory_adapter=None):
     identity = ValidatedIdentity(
         "traveler-1", "client", frozenset({"aws.cognito.signin.user.admin"}), 1, 9999999999
@@ -115,7 +121,7 @@ def _app(adapter=None, *, plan=None, memory_adapter=None):
         return None
 
     return create_app(
-        research_backend="legacy",
+        research_worker=FakeResearchWorker(),
         verifier=verifier,
         plan_reader=reader,
         adapter=adapter or FakeAdapter(),
@@ -175,15 +181,15 @@ def test_owned_plan_research_maps_and_deduplicates():
     assert adapter.research_tokens == ["good"]
 
 
-def test_health_reports_bedrock_provider_and_missing_gateway_without_secrets():
+def test_health_reports_sdk_provider_and_missing_gateway_without_secrets():
     app, _ = _app(ClaudeGatewayAdapter(""))
     with TestClient(app) as client:
         health = client.get("/health").json()
 
-    assert health["model_provider"] == "amazon-bedrock"
-    assert health["model_id"] == "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    assert health["model_provider"] == "claude-agent-sdk"
+    assert health["model_id"] == "claude-sonnet-4-6"
     assert health["gateway_configured"] is False
-    assert "AWS_BEARER_TOKEN_BEDROCK" not in str(health)
+    assert "sk-ant-" not in str(health)
 
 
 def test_invalid_identity_and_foreign_plan_fail_before_adapter():
@@ -225,7 +231,7 @@ def test_password_auth_access_token_can_reach_agent(monkeypatch):
             return plan
         return None
 
-    app = create_app(research_backend="legacy", verifier=verifier, plan_reader=reader, adapter=FakeAdapter())
+    app = create_app(research_worker=FakeResearchWorker(), verifier=verifier, plan_reader=reader, adapter=FakeAdapter())
     with TestClient(app) as client:
         response = client.post(
             f"/v1/agent/plans/{plan['plan_id']}/events",
@@ -258,7 +264,7 @@ def test_plan_stream_returns_assistant_text_and_terminal_status():
                 "assistant_text": "Where to?",
             }}
 
-    app = create_app(research_backend="legacy", verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
+    app = create_app(research_worker=FakeResearchWorker(), verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
     with TestClient(app) as client:
         response = client.post(
             f"/v1/agent/plans/{plan['plan_id']}/events/stream",
@@ -320,7 +326,7 @@ def test_plan_stream_projects_only_cited_read_sources_beneath_the_answer():
                 },
             }
 
-    app = create_app(research_backend="legacy", verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
+    app = create_app(research_worker=FakeResearchWorker(), verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
     with TestClient(app) as client:
         response = client.post(
             f"/v1/agent/plans/{plan['plan_id']}/events/stream",
@@ -349,24 +355,6 @@ def test_research_source_projection_rejects_malformed_urls(url):
     ) == []
 
 
-def test_bedrock_client_uses_local_aws_profile_when_api_key_is_blank(monkeypatch):
-    from services.agent.claude.messages import ClaudeMessagesClient
-
-    captured = {}
-
-    class FakeBedrockClient:
-        def __init__(self, **kwargs):
-            captured.update(kwargs)
-
-    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "")
-    monkeypatch.setenv("AWS_PROFILE", "local-dev")
-    monkeypatch.setattr("services.agent.claude.messages.AsyncAnthropicBedrock", FakeBedrockClient)
-
-    ClaudeMessagesClient()._client()
-
-    assert captured["api_key"] is None
-    assert captured["aws_profile"] == "local-dev"
-    assert "AWS_BEARER_TOKEN_BEDROCK" not in os.environ
 
 
 def test_empty_message_is_one_question_and_unknown_actions_are_rejected():

@@ -56,6 +56,7 @@ class AgentState(TypedDict, total=False):
     assistant_text: str
     turn_decision: str
     research_intent: str
+    resolved_research_message: str
     run_id: str
     research_evidence: list[dict[str, Any]]
     research_pass_count: int

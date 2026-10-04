@@ -39,7 +39,6 @@ def create_app(
     context_reader: CrudContextReader | None = None,
     graph: AgentGraph | None = None,
     research_worker: Any | None = None,
-    research_backend: str | None = None,
     adapter: Any | None = None,
     memory_adapter: Any | None = None,
     required_scope: str | None = None,
@@ -60,6 +59,15 @@ def create_app(
 
         plan_reader = unavailable_reader
 
+    sdk_config = None
+    messages_client = None
+    if adapter is None:
+        from .claude.sdk_conversation import ClaudeSdkConversationClient
+        from .config import ResearchWorkerConfig
+
+        sdk_config = ResearchWorkerConfig.from_env()
+        messages_client = ClaudeSdkConversationClient(sdk_config)
+
     if adapter is None:
         app_env = (os.getenv("APP_ENV") or "development").strip().lower()
         default_transport = "local" if app_env in {"development", "test"} else "agentcore"
@@ -70,19 +78,18 @@ def create_app(
             adapter = LocalMcpAdapter(
                 research_url=os.getenv("LOCAL_RESEARCH_MCP_URL", "http://research-mcp:8000/mcp"),
                 map_url=os.getenv("LOCAL_MAP_MCP_URL", "http://map-mcp:8001/mcp"),
+                messages_client=messages_client,
             )
         elif transport == "agentcore":
-            adapter = ClaudeGatewayAdapter(os.getenv("AGENTCORE_GATEWAY_URL", ""))
+            adapter = ClaudeGatewayAdapter(os.getenv("AGENTCORE_GATEWAY_URL", ""),
+                                           messages_client=messages_client)
         else:
             raise ValueError("AGENT_MCP_TRANSPORT must be 'agentcore' or 'local'.")
-    research_backend = (research_backend or os.getenv("AGENT_RESEARCH_BACKEND") or "claude-agent-sdk").strip().lower()
-    if research_backend not in {"claude-agent-sdk", "legacy"}:
-        raise ValueError("AGENT_RESEARCH_BACKEND must be 'claude-agent-sdk' or 'legacy'.")
-    if graph is None and research_worker is None and research_backend == "claude-agent-sdk":
+    if graph is None and research_worker is None:
         from .claude.research_worker import ClaudeResearchWorker
         from .config import ResearchWorkerConfig
 
-        research_worker = ClaudeResearchWorker(ResearchWorkerConfig.from_env())
+        research_worker = ClaudeResearchWorker(sdk_config or ResearchWorkerConfig.from_env())
     workflow = graph or AgentGraph(adapter, research_worker=research_worker)
     onboarding_graph = build_onboarding_intake_graph(getattr(adapter, "messages", adapter))
     memory = memory_adapter or create_memory_adapter()
@@ -113,9 +120,9 @@ def create_app(
             "status": "ok",
             "auth_configured": verifier is not None,
             "memory_enabled": memory.enabled,
-            "model_provider": getattr(messages, "provider", "amazon-bedrock"),
+            "model_provider": getattr(messages, "provider", "injected"),
             "model_id": getattr(messages, "model", None),
-            "research_backend": "injected" if graph is not None else research_backend,
+            "research_backend": "injected" if graph is not None else "claude-agent-sdk",
             "research_model": getattr(getattr(research_worker, "config", None), "model", None),
             "tool_transport": tool_transport,
             "gateway_configured": bool(getattr(adapter, "gateway_url", "")),

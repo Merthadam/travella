@@ -123,3 +123,5 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 2026-10-04 | support-anthropic-api-key-in-shared-secr | Added hidden-prompt helper support and docs; confirmed the Anthropic key is present in the shared AWS secret without exposing its value. |
 
 | 2026-10-04 | local-sdk-research-startup | Enabled approved Anthropic router and model alias; rebuilt local stack; auth, SDK health and five source hashes passed. |
+
+| 2026-10-04 | pure-agent-sdk-flow | Removed direct model SDKs and legacy engine; all model stages use Agent SDK; rebuilt local app; auth, health, package absence and six hashes passed. Live conversation checks remain open. |

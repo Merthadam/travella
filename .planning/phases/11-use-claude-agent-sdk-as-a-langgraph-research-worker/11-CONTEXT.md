@@ -37,6 +37,8 @@ This phase builds on Phase 10's evidence-grounded iterative research behavior. I
 - **D-14:** No frontend redesign. Reuse current AG-UI/chat response, citations, cancellation, and Plan candidate projections.
 
 ### Execution clarification
+- **D-16 (2026-10-04, latest user instruction):** Conversation, routing, onboarding and research must all use Claude Agent SDK. Remove direct Anthropic/OpenAI model clients, dependencies and legacy backend switches. This supersedes D-13 and prior rollback guidance; LangGraph still owns state and stage routing. Follow-up research requests must be resolved using the saved conversation.
+
 - **D-15 (2026-10-04):** The user explicitly confirmed that Claude Agent SDK owns the complete search/read/refine/finish loop. LangGraph invokes the worker once per research turn; it must not wrap the worker in a second refinement loop. A separate tool-free SDK synthesis call inside the worker provides real final-text streaming without exposing research commentary.
 
 ### the agent's Discretion
