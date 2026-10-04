@@ -234,7 +234,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Provider Search & Comparison | 0/TBD | Not started | - |
 | 7. Planning Canvas & Saved Choices | 0/TBD | Not started | - |
 | 8. Verified Supplier Handoff | 0/TBD | Not started | - |
-| 10. Evidence-grounded iterative agent research | 4/6 | In Progress|  |
+| 10. Evidence-grounded iterative agent research | 5/6 | In Progress|  |
 
 ### Phase 10: Evidence-grounded iterative agent research
 
@@ -251,7 +251,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
   5. Destination-discovery requests preserve structured candidates alongside the explanation, and no destination or other durable Plan data changes without explicit traveler action.
 
 **Research flag:** yes — verify Tavily search/extraction behavior, Claude/MCP tool-loop support, source safety, evidence reuse and freshness, and bounded iteration.
-**Plans:** 4/6 plans executed
+**Plans:** 5/6 plans executed
 
 Plans:
 **Wave 1**
@@ -272,7 +272,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 10-05-PLAN.md
+- [x] 10-05-PLAN.md
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
