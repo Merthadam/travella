@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { A2uiTripBrief } from './A2uiTripBrief';
+import { ChatMarkdown } from './ChatMarkdown';
 import { useTripContext } from '../useTripContext';
 
 const safeSources = values => (Array.isArray(values) ? values : []).filter(item => {
@@ -155,7 +156,8 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
         const previous = messages[index - 1];
         const retryMessage = item.role === 'assistant' && item.status === 'interrupted' && previous?.role === 'user' ? previous.content : '';
         return <article key={messageKey(item)} className={`chat-message chat-message-${item.role}`}>
-          <div className="chat-message-content"><p className="chat-message-author">{item.role === 'user' ? 'You' : 'Travella'}</p><p className="chat-message-text">{item.content}</p>
+          <div className="chat-message-content"><p className="chat-message-author">{item.role === 'user' ? 'You' : 'Travella'}</p>
+            {item.role === 'assistant' ? <ChatMarkdown content={item.content} /> : <p className="chat-message-text">{item.content}</p>}
             <SourceLinks sources={item.sources} />
             {['stopped', 'interrupted'].includes(item.status) && <p className="chat-message-status">{item.status === 'stopped' ? 'Stopped' : 'Interrupted'}</p>}
             {retryMessage && !active && <button className="chat-retry" onClick={() => retry(retryMessage)}>Retry</button>}
