@@ -41,16 +41,23 @@ test('Stop preserves partial text and disables the composer only while active', 
   }));
   render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} />);
   const composer = await screen.findByRole('textbox', { name: 'Message Travella' });
+  const addCandidate = screen.getByRole('button', { name: 'Add', exact: true });
+  expect(addCandidate.disabled).toBe(true);
+  await user.type(screen.getByRole('textbox', { name: 'Add a place' }), 'Sapporo');
+  expect(screen.getByRole('button', { name: 'Add', exact: true }).disabled).toBe(false);
+  await user.clear(screen.getByRole('textbox', { name: 'Add a place' }));
   await user.type(composer, 'Tell me about Hokkaido');
   await user.click(screen.getByRole('button', { name: 'Send' }));
   await waitFor(() => expect(emit).toBeTypeOf('function'));
   emit({ type: 'TEXT_MESSAGE_CONTENT', delta: 'Hokkaido has ' });
   expect(await screen.findByText('Hokkaido has')).toBeTruthy();
   expect(composer.disabled).toBe(true);
+  expect(screen.getByRole('textbox', { name: 'Add a place' }).disabled).toBe(true);
   await user.click(screen.getByRole('button', { name: 'Stop' }));
   expect(await screen.findByText('Stopped')).toBeTruthy();
   expect(screen.getByText('Hokkaido has')).toBeTruthy();
   expect(composer.disabled).toBe(false);
+  expect(screen.getByRole('textbox', { name: 'Add a place' }).disabled).toBe(false);
 });
 
 test('connection failure marks partial output interrupted and offers retry with a fresh event', async () => {

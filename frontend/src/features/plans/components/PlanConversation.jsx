@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
+import { emptyTripContext, TripBrief } from './TripBrief';
 
 const safeSources = values => (Array.isArray(values) ? values : []).filter(item => {
   if (!item?.url || !item?.title) return false;
@@ -33,6 +34,7 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
   const [error, setError] = useState('');
+  const [tripContext, setTripContext] = useState(emptyTripContext);
   const history = useRef(null);
   const composer = useRef(null);
   const activeRef = useRef(null);
@@ -130,7 +132,8 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
     runTurn(message);
   }
 
-  return <main className="chat-page" id="conversation-main">
+  return <div className="chat-layout">
+    <main className="chat-page" id="conversation-main">
     <section className="chat-transcript" aria-label="Plan conversation" aria-busy={loading || Boolean(active)} ref={history} onScroll={event => {
       const node = event.currentTarget;
       nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100;
@@ -159,5 +162,7 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
       {active ? <button className="chat-stop" type="button" onClick={stop}>Stop</button> : <button className="chat-send" type="submit" disabled={loading || !draft.trim()}>Send</button>}
       <p className="chat-composer-hint">Enter to send · Shift+Enter for a new line</p>
     </form>
-  </main>;
+    </main>
+    <TripBrief value={tripContext} onChange={setTripContext} locked={Boolean(active)} />
+  </div>;
 }

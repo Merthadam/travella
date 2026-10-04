@@ -116,3 +116,5 @@ Resume file: .planning/phases/10-evidence-grounded-iterative-agent-research/10-C
 | 2026-10-04 | agentcore-profile-memory | Mirrored canonical traveler preferences to AgentCore and supplied matching snapshots to Plan turns; see `artifacts/testing/2026-10-04-agentcore-profile-memory/verification.md`. |
 | 2026-10-04 | route-langgraph-through-agentcore-runtime | Added Runtime HTTP contract, authenticated invocation routing, ARM64 image, and deployment runbook; AWS resource not deployed. |
 | 2026-10-04 | share-local-worktree-credentials-through | Added shared Secrets Manager credential sync to local startup; verified live AWS fetch into independent worktrees and authenticated app startup. |
+
+| 2026-10-04 | right-trip-brief-ui | Restored right-side editable Trip Brief; 33 frontend tests/build and desktop interactions passed. Screenshot/mobile checks blocked by unresponsive DevTools. |
