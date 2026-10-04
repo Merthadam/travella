@@ -186,12 +186,20 @@ class ClaudeGatewayAdapter:
         )
 
     async def synthesize_research(
-        self, *, message: str, page_read: dict[str, Any], context: dict[str, Any]
+        self,
+        *,
+        message: str,
+        page_read: dict[str, Any],
+        context: dict[str, Any],
+        research_intent: str,
+        candidates: list[dict[str, str]],
     ) -> dict[str, Any]:
         return await self.messages.research_answer(
             message=message,
             page_read=page_read,
             context=context,
+            research_intent=research_intent,
+            candidates=candidates,
             on_text_delta=current_text_delta_callback(),
         )
 

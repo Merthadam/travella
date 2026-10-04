@@ -38,6 +38,12 @@ class ResearchNode:
         self.tools = tools
 
     async def __call__(self, state: AgentState) -> dict[str, Any]:
+        research_intent = state.get("research_intent")
+        if research_intent not in {"factual_research", "destination_discovery"}:
+            return {
+                "status": "needs your input",
+                "question": "Would you like factual information about a place, or suggestions for destinations?",
+            }
         action = state.get("candidate_action") or {}
         message = str(state.get("message", "")).strip()
         if action.get("action") == "extend":
@@ -51,7 +57,7 @@ class ResearchNode:
             plan_id=state["plan_id"],
             event_id=state["event_id"],
             authorization_token=current_authorization_token(),
-            research_intent=state.get("research_intent", "destination_discovery"),
+            research_intent=research_intent,
         )
         status = result.get("status") if isinstance(result, dict) else None
         if status in {"question", "needs your input"}:
@@ -66,7 +72,9 @@ class ResearchNode:
             candidates = _bounded_candidates(result.get("candidates", []))
         except ValueError:
             return {"status": "unable to continue", "error": "Research results were invalid."}
-        if not candidates:
+        if research_intent == "factual_research":
+            candidates = []
+        if research_intent == "destination_discovery" and not candidates:
             return {
                 "status": "unable to continue",
                 "error": "No complete candidates were returned.",
@@ -100,7 +108,18 @@ class ResearchNode:
         synthesis = await synthesize(
             message=message,
             page_read=safe_page_read,
-            context=state.get("brief", {}),
+            context={
+                "brief": {
+                    str(key): value
+                    for key, value in state.get("brief", {}).items()
+                    if isinstance(value, dict) and value.get("active", True)
+                }
+            } if isinstance(state.get("brief", {}), dict) else {},
+            research_intent=research_intent,
+            candidates=[
+                {key: candidate[key] for key in ("candidate_id", "name") if key in candidate}
+                for candidate in candidates
+            ] if research_intent == "destination_discovery" else [],
         )
         if not isinstance(synthesis, dict):
             synthesis = {}
@@ -131,11 +150,15 @@ class ResearchNode:
             else []
         )
 
-        locations_result = await self.tools.resolve_map(
-            names=[candidate["name"] for candidate in candidates],
-            traveler_scope=state["traveler_scope"],
-            plan_id=state["plan_id"],
-            authorization_token=current_authorization_token(),
+        locations_result = (
+            await self.tools.resolve_map(
+                names=[candidate["name"] for candidate in candidates],
+                traveler_scope=state["traveler_scope"],
+                plan_id=state["plan_id"],
+                authorization_token=current_authorization_token(),
+            )
+            if candidates and research_intent == "destination_discovery"
+            else {}
         )
         locations = (
             locations_result.get("locations", []) if isinstance(locations_result, dict) else []
@@ -158,6 +181,7 @@ class ResearchNode:
             "candidates": candidates,
             "run_id": str(result.get("run_id", "")),
             "assistant_text": answer.strip()[:2000],
+            "research_intent": research_intent,
             "research_sources": answer_sources,
             "research_evidence_ids": citations,
         }

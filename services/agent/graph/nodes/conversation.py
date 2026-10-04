@@ -14,6 +14,16 @@ class ConversationNode:
     def __init__(self, model: Any) -> None:
         self.model = model
 
+    @staticmethod
+    def _research_clarification() -> dict[str, Any]:
+        question = "Would you like factual information about a place, or suggestions for destinations?"
+        return {
+            "status": "needs your input",
+            "question": question,
+            "assistant_text": question,
+            "turn_decision": "respond",
+        }
+
     async def __call__(self, state: AgentState) -> dict[str, Any]:
         message = str(state.get("message", "")).strip()
         if not message:
@@ -25,7 +35,7 @@ class ConversationNode:
 
         complete = getattr(self.model, "complete_conversation", None)
         if complete is None:
-            return {"status": "preparing", "turn_decision": "research"}
+            return self._research_clarification()
 
         context = TurnContext(
             traveler_scope=str(state["traveler_scope"]),
@@ -52,12 +62,20 @@ class ConversationNode:
 
         decision = result.get("decision")
         if decision not in {"question", "research", "respond"}:
-            decision = "research"
+            return self._research_clarification()
+        research_intent = result.get("research_intent")
+        if decision == "research" and research_intent not in {
+            "factual_research",
+            "destination_discovery",
+        }:
+            return self._research_clarification()
         question = str(result["question"])[:500] if result.get("question") else None
         output: dict[str, Any] = {
             "turn_decision": decision,
             "assistant_text": str(result.get("assistant_text", ""))[:2000],
         }
+        if decision == "research":
+            output["research_intent"] = research_intent
         if decision == "question" or question:
             output.update(
                 status="needs your input",

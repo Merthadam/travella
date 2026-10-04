@@ -57,6 +57,7 @@ class AgentGraph:
         }
         if status == "shortlist_ready":
             projection["candidates"] = result.get("candidates", [])[:5]
+            projection["research_intent"] = result.get("research_intent")
             if result.get("run_id"):
                 projection["run_id"] = result["run_id"]
             sources = result.get("research_sources", [])

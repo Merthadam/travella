@@ -32,6 +32,7 @@ class AgentState(TypedDict, total=False):
     research_state: dict[str, Any]
     assistant_text: str
     turn_decision: str
+    research_intent: str
 
 
 @dataclass(frozen=True)

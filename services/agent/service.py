@@ -206,11 +206,11 @@ class AgentTurnService:
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
                 raise HTTPException(502, "Agent response was invalid.")
-            fresh = (
-                projection.get("candidates", [])
-                if projection.get("status") == "shortlist_ready"
-                else []
+            is_candidate_research = (
+                projection.get("status") == "shortlist_ready"
+                and projection.get("research_intent") != "factual_research"
             )
+            fresh = projection.get("candidates", []) if is_candidate_research else []
             if action_name == "extend" and prior:
                 seen = {str(item.get("candidate_id")) for item in prior.candidates}
                 fresh = list(prior.candidates) + [
@@ -220,13 +220,13 @@ class AgentTurnService:
                     and str(item.get("candidate_id")) not in prior.rejected
                 ]
                 fresh = fresh[:5]
-            if projection.get("status") == "shortlist_ready" and not fresh:
+            if is_candidate_research and not fresh:
                 projection = {
                     **projection,
                     "status": "unable to continue",
                     "error": "No complete candidates were returned.",
                 }
-            if projection.get("status") == "shortlist_ready":
+            if is_candidate_research:
                 run_id = str(result.get("run_id") or projection.get("run_id") or "")
                 if action_name == "extend" and prior:
                     run_id = prior.run_id

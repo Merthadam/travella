@@ -84,6 +84,29 @@ def test_research_returns_compact_candidates_without_raw_payload(monkeypatch: py
     assert result["sources"][0]["evidence_id"] == result["candidates"][0]["evidence"][0]["evidence_id"]
 
 
+def test_factual_research_uses_question_query_and_returns_generic_sources(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+    monkeypatch.setenv("MCP_EVIDENCE_REGISTRY_PATH", str(tmp_path / "evidence.json"))
+    search_client = FakeClient([FakeResponse({"results": [{
+        "title": "Official travel information",
+        "url": "https://example.test/country",
+        "content": "A search result snippet that is not page evidence.",
+    }]})])
+    monkeypatch.setattr(research_server.httpx, "AsyncClient", lambda **kwargs: search_client)
+
+    with authenticated_context(ToolAuthContext("traveler-1", "plan-1", "assertion")):
+        result = asyncio.run(research_server.research_destination_candidates(
+            "What currency is used in Country X?",
+            "plan-1",
+            request_id="factual-1",
+            research_intent="factual_research",
+        ))
+
+    assert result["candidates"] == []
+    assert len(result["sources"]) == 1
+    assert search_client.requests[0][1]["query"] == "What currency is used in Country X?"
+
+
 def test_map_projection_is_temporary_and_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_MAPS_SERVER_API_KEY", "test-key")
     monkeypatch.setattr(

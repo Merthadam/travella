@@ -25,7 +25,7 @@ class FakeMessages:
             content=[
                 SimpleNamespace(
                     type="text",
-                    text='{"decision":"research","assistant_text":"I can research destinations for food and temples."}',
+                    text='{"decision":"research","research_intent":"destination_discovery","assistant_text":"I can research destinations for food and temples."}',
                 )
             ]
         )
@@ -67,6 +67,7 @@ def test_conversation_uses_versioned_system_prompt_and_bounded_messages():
     assert "food in spring" in call["messages"][-1]["content"]
     assert call["model"].startswith("global.anthropic.claude-sonnet-4-5")
     assert result["assistant_text"]
+    assert result["research_intent"] == "destination_discovery"
     assert "secret" not in str(call["messages"])
 
 

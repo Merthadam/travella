@@ -24,6 +24,13 @@ class FakeAdapter:
     calls: int = 0
     research_tokens: list[str | None] = field(default_factory=list)
 
+    async def complete_conversation(self, **_kwargs):
+        return {
+            "decision": "research",
+            "research_intent": "destination_discovery",
+            "assistant_text": "I’ll find a few places.",
+        }
+
     async def research(self, **kwargs):
         self.calls += 1
         self.research_tokens.append(kwargs.get("authorization_token"))
@@ -71,6 +78,19 @@ class FakeAdapter:
                     "excerpt": "safe",
                 }
             ],
+        }
+
+    async def synthesize_research(self, *, page_read, **_kwargs):
+        if page_read.get("read_status") == "read":
+            return {
+                "answer": "The page provides destination information.",
+                "evidence_ids": [page_read["evidence_id"]],
+                "uncertainty": [],
+            }
+        return {
+            "answer": "I could not read a source page.",
+            "evidence_ids": [],
+            "uncertainty": ["The selected source page was unavailable."],
         }
 
 
@@ -320,6 +340,7 @@ def test_claude_adapter_calls_gateway_with_verified_plan_context():
                 "traveler_scope": "traveler-1",
                 "plan_id": "plan-1",
                 "request_id": "e-1",
+                "research_intent": "destination_discovery",
             },
         )
     ]

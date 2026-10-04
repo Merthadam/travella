@@ -13,7 +13,11 @@ class ResearchAdapter:
         self.events: list[str] = []
 
     async def complete_conversation(self, **_kwargs):
-        return {"decision": "research", "assistant_text": "I will look into options."}
+        return {
+            "decision": "research",
+            "research_intent": "destination_discovery",
+            "assistant_text": "I will look into options.",
+        }
 
     async def research(self, *, authorization_token: str | None, **_kwargs):
         self.events.append("page_read_complete")
@@ -32,7 +36,7 @@ class ResearchAdapter:
             },
         }
 
-    async def synthesize_research(self, *, message, page_read, context):
+    async def synthesize_research(self, *, message, page_read, context, research_intent, candidates):
         self.events.append("claude_synthesis")
         assert self.events[0] == "page_read_complete"
         assert page_read["read_status"] == "read"
@@ -62,7 +66,7 @@ def test_research_graph_passes_request_token_without_putting_it_in_state():
                 "plan_revision": 1,
                 "event_id": "event-1",
                 "generation": 1,
-                "message": "What is Tarifa like?",
+                "message": "Find destinations like Tarifa.",
             },
             authorization_token="verified-access-token",
             on_text_delta=lambda _delta: adapter.events.append("answer_delta"),
@@ -95,7 +99,7 @@ def test_unavailable_page_returns_limit_without_citation():
             }
             return result
 
-        async def synthesize_research(self, *, message, page_read, context):
+        async def synthesize_research(self, *, message, page_read, context, research_intent, candidates):
             assert page_read["read_status"] == "unavailable"
             assert "content" not in page_read
             return {
@@ -129,7 +133,7 @@ def test_unavailable_page_returns_limit_without_citation():
 
 def test_foreign_evidence_id_is_not_accepted_as_citation():
     class ForeignCitationAdapter(ResearchAdapter):
-        async def synthesize_research(self, *, message, page_read, context):
+        async def synthesize_research(self, *, message, page_read, context, research_intent, candidates):
             return {
                 "answer": "Tarifa is a coastal town.",
                 "evidence_ids": ["another-plan-source"],
@@ -155,3 +159,75 @@ def test_foreign_evidence_id_is_not_accepted_as_citation():
     assert result["research_sources"] == []
     assert result["projection"]["sources"] == []
     assert "couldn’t verify" in result["assistant_text"]
+
+
+def test_factual_place_question_does_not_enter_candidate_path():
+    class FactualAdapter(ResearchAdapter):
+        async def complete_conversation(self, **_kwargs):
+            return {
+                "decision": "research",
+                "research_intent": "factual_research",
+                "assistant_text": "I’ll check that.",
+            }
+
+    async def run():
+        adapter = FactualAdapter()
+        graph = AgentGraph(adapter)
+        result = await graph.invoke(
+            {
+                "traveler_scope": "traveler-1",
+                "plan_id": "plan-1",
+                "plan_revision": 1,
+                "event_id": "event-4",
+                "generation": 1,
+                "message": "What is Tarifa like?",
+                "brief": {"dates": {"value": "Spring", "active": True}, "inactive": {"value": "secret", "active": False}},
+            },
+            authorization_token="verified-access-token",
+        )
+        return adapter, result
+
+    adapter, result = asyncio.run(run())
+    assert result["status"] == "shortlist_ready"
+    assert result["candidates"] == []
+    assert result["assistant_text"] == "Tarifa is a coastal town."
+    assert adapter.map_token is None
+
+
+def test_missing_or_unknown_research_intent_asks_one_focused_question():
+    async def run():
+        results = []
+        for invalid_intent in ("browse_everything", None):
+            class InvalidIntentAdapter(ResearchAdapter):
+                async def complete_conversation(self, **_kwargs):
+                    decision = {
+                        "decision": "research",
+                        "assistant_text": "I will look into it.",
+                    }
+                    if invalid_intent is not None:
+                        decision["research_intent"] = invalid_intent
+                    return decision
+
+                async def research(self, **_kwargs):
+                    raise AssertionError("invalid research intent must not reach tools")
+
+            graph = AgentGraph(InvalidIntentAdapter())
+            results.append(await graph.invoke(
+                {
+                    "traveler_scope": "traveler-1",
+                    "plan_id": "plan-1",
+                    "plan_revision": 1,
+                    "event_id": f"event-invalid-{invalid_intent}",
+                    "generation": 1,
+                    "message": "Tell me about Spain",
+                },
+                authorization_token="verified-access-token",
+            ))
+        return results
+
+    results = asyncio.run(run())
+    assert len(results) == 2
+    for result in results:
+        assert result["status"] == "needs your input"
+        assert "factual information" in result["question"]
+        assert "candidates" not in result
