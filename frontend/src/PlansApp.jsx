@@ -4,7 +4,6 @@ import { PlanDrawer } from './features/plans/components/PlanDrawers';
 import { PlanConversation } from './features/plans/components/PlanConversation';
 import { PlanWorkspace } from './features/plans/components/PlanWorkspace';
 import { emptyBrief } from './features/plans/components/PlanDetails';
-import { PlanSelectorPrototype } from './prototypes/PlanSelectorPrototype';
 
 const unknown = error => !error.status || error.status >= 500 || error.code === 'request_pending';
 const date = value => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'long' });
@@ -114,10 +113,6 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const mapInstance = useRef(null);
   const markerInstances = useRef([]);
   const [conversationPage, setConversationPage] = useState(false);
-  const [prototypeVariant, setPrototypeVariant] = useState(() => {
-    const requested = new URLSearchParams(window.location.search).get('variant');
-    return import.meta.env.DEV && ['A', 'B', 'C'].includes(requested) ? requested : null;
-  });
   const [planDrawerOpen, setPlanDrawerOpen] = useState(false);
   const drawerTrigger = useRef(null), drawerCloseButton = useRef(null), planDrawerElement = useRef(null);
   const [drawerPlans, setDrawerPlans] = useState([]);
@@ -282,15 +277,6 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     navigate(); window.addEventListener('popstate', navigate);
     return () => { generation.current++; window.removeEventListener('popstate', navigate); };
   }, []);
-  useEffect(() => {
-    if (!import.meta.env.DEV) return undefined;
-    const syncVariant = () => {
-      const requested = new URLSearchParams(window.location.search).get('variant');
-      setPrototypeVariant(['A', 'B', 'C'].includes(requested) ? requested : null);
-    };
-    window.addEventListener('popstate', syncVariant);
-    return () => window.removeEventListener('popstate', syncVariant);
-  }, []);
   async function createPlan() {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
@@ -312,12 +298,6 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     else { setNotice('Plan name updated.'); if (selected) setSelected(plan); else load('active'); }
   }
   const link = (event, callback) => { event.preventDefault(); if (!busy) callback(); };
-  function updatePrototypeVariant(variant) {
-    const params = new URLSearchParams(window.location.search);
-    params.set('variant', variant);
-    window.history.pushState({}, '', `${window.location.pathname}?${params}${window.location.hash}`);
-    setPrototypeVariant(variant);
-  }
   function actions(plan) {
     return plan.lifecycle === 'deleted' ? <button className="primary" onClick={() => setDialog({ operation: 'restore', plan })}>Restore plan<span className="sr-only"> {plan.title}</span></button> : <>
       <button onClick={() => setDialog({ operation: 'rename', plan })}>Rename<span className="sr-only"> {plan.title}</span></button>
@@ -353,12 +333,10 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
         <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
       </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}
       <nav className="app-nav" aria-label="Application navigation">
-        {conversationPage && selected && prototypeVariant ? <PlanSelectorPrototype variant={prototypeVariant} seedTitle={selected.title} onVariantChange={updatePrototypeVariant} /> : conversationPage && selected && <button className="nav-button chat-plan-selector" aria-label={`Select plan: ${selected.title}`} aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}><span>{selected.title}</span><span aria-hidden="true">⌄</span></button>}
         <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
       </nav>
     </div></header>
-    {prototypeVariant && conversationPage && selected && <div className="prototype-banner" role="status">Prototype — changes are simulated and will not be saved.</div>}
     {planDrawerOpen && <PlanDrawer drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
     {conversationPage && selected ? <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} /> : <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>

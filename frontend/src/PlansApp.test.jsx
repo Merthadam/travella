@@ -98,7 +98,8 @@ test('opening a Plan goes straight to full-page chat and streams a reply', async
   expect(screen.getByRole('link', { name: 'Travella' })).toBeTruthy();
   expect(screen.getByRole('navigation', { name: 'Application navigation' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Plans' })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Select plan: Island break' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Select plan: Island break' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Open plans navigation' })).toBeTruthy();
   const input = screen.getByRole('textbox', { name: 'Message Travella' });
   await user.type(input, 'A calm island trip');
   await user.click(screen.getByRole('button', { name: 'Send' }));
@@ -112,9 +113,9 @@ test('Plans drawer switches directly to another Plan chat', async () => {
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   await user.click(await screen.findByRole('link', { name: 'First plan' }));
   await screen.findByRole('textbox', { name: 'Message Travella' });
-  await user.click(screen.getByRole('button', { name: 'Select plan: First plan' }));
-  expect(await screen.findByRole('complementary', { name: 'Your plans' })).toBeTruthy();
-  const drawer = screen.getByRole('complementary', { name: 'Your plans' });
+  await user.click(screen.getByRole('button', { name: 'Open plans navigation' }));
+  expect(await screen.findByRole('dialog', { name: 'Your plans' })).toBeTruthy();
+  const drawer = screen.getByRole('dialog', { name: 'Your plans' });
   await user.click(await within(drawer).findByRole('link', { name: /Second plan/ }));
   await screen.findByRole('textbox', { name: 'Message Travella' });
   expect(window.location.pathname).toBe('/plans/b');

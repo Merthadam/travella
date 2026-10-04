@@ -8,22 +8,22 @@ description: Put the authenticated conversation's existing Plans list in the ope
 
 ## Goal
 
-In an authenticated Plan Conversation, opening the left sidebar shows the existing Plans list, and the current-plan control opens that same sidebar. Travelers can still switch plans and create a new one.
+In an authenticated Plan Conversation, the left sidebar is the only Plans navigation control. It shows the existing Plans list, and travelers can still switch plans and create a new one.
 
 ## User direction
 
 - Populate the existing left-openable sidebar with Plans.
-- Keep the existing right-side current-plan control as a useful way to open the same drawer.
-- Do not create a second drawer or overlay.
+- Remove the right-side current-plan button completely.
+- Keep one drawer, opened by the menu button beside the Travella brand.
 
 ## Tasks
 
-1. **Unify the conversation drawer.** In `frontend/src/PlansApp.jsx` and `frontend/src/features/plans/components/PlanDrawers.jsx`, render the existing Plans list inside the left sidebar, including loading and empty states, existing plan actions, plan switching, and New plan. Make both the hamburger trigger and the right-side current-plan control open the same drawer and fetch the active plan list; keep one backdrop, close control, Escape behavior, and focus handling. Remove the separate empty-sidebar/Plans-drawer rendering path without changing route-level My Plans or CRUD behavior. Preserve Account, Sign out, conversation, and auth/session flows.
+1. **Keep one Plans entry point.** In `frontend/src/PlansApp.jsx` and `frontend/src/features/plans/components/PlanDrawers.jsx`, render the existing Plans list inside the left sidebar, including loading and empty states, existing plan actions, plan switching, and New plan. Remove the right-side current-plan control so the menu button is the sole drawer trigger. Keep one backdrop, close control, Escape behavior, and focus handling. Preserve route-level My Plans, CRUD behavior, Account, Sign out, conversation, and auth/session flows.
 2. **Match styling and verify the journey.** Update `frontend/src/styles.css` as needed so the populated drawer retains the established left-side motion, focus visibility, reduced-motion handling, and narrow-screen fit. Follow `docs/skills/travella-testing/SKILL.md`: use the local startup skill and example account; capture before and after evidence, then use Chrome DevTools on the authenticated conversation to open from both triggers, switch plans, exercise loading/empty states where available, create a plan, and check close/Escape, responsive layout, console, and network. Record actual outcomes and any blocked checks under `artifacts/testing/2026-10-04-plans-in-left-sidebar/`.
 
 ## Acceptance criteria
 
-- Hamburger and right-side current-plan control open the same left Plans drawer; no second overlay appears.
+- The hamburger opens the left Plans drawer; no right-side plan button or second overlay appears.
 - Existing active Plans, selected-plan actions, loading/empty feedback, switching, and New plan remain available and work.
 - Drawer close button, backdrop, Escape, focus behavior, reduced motion, and narrow layout remain usable.
 - Route-level My Plans, conversation, Account, Sign out, and authenticated session behavior remain intact.
@@ -37,7 +37,11 @@ In an authenticated Plan Conversation, opening the left sidebar shows the existi
 
 ## Output
 
-The authenticated conversation's left sidebar is the single Plans navigation drawer, accessible from both header controls, with existing list actions preserved. Browser evidence and verification limits are recorded in `artifacts/testing/2026-10-04-plans-in-left-sidebar/verification.md`.
+The authenticated conversation has one Plans navigation control: the left menu button. The right-side current-plan button has been removed. Existing list actions remain in the drawer; follow-up verification is recorded separately.
+
+## Follow-up: remove the current-plan header button
+
+Per the user's correction, the current-plan header button is removed completely; the menu button is the only Plans drawer opener. The updated UI was verified in the authenticated local Chrome tab. DevTools Network inspection and saved screenshots remain unavailable because the shared DevTools profile is locked. See `artifacts/testing/2026-10-04-remove-plan-header-button/verification.md`.
 
 
 ## Execution note

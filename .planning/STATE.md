@@ -109,7 +109,7 @@ Resume file: .planning/phases/02-draft-plans-durable-lifecycle/02-03-PLAN.md
 | 2026-10-03 | plan-chat-primary | Made Plan chat the primary Plan screen and retained the Plans switcher drawer; see `artifacts/testing/2026-10-03-chat-top-nav/verification.md`. |
 | 2026-10-04 | travella-local-start | Added health-gated local startup and a one-shot sign-in/session smoke check; see `.planning/quick/261004-di1-add-reliable-local-travella-startup-and-/261004-di1-VERIFICATION.md`. |
 | 2026-10-04 | remove-duplicate-plans-control | Removed the duplicate left-side Plans button; verified the right-side selector remains visible and opens the plan list in Chrome. |
-| 2026-10-04 | plans-in-left-sidebar | Moved the active Plans list into one shared left drawer opened by both header controls; interactive browser checks passed, full evidence verification incomplete. See `artifacts/testing/2026-10-04-plans-in-left-sidebar/verification.md`. |
+| 2026-10-04 | plans-in-left-sidebar | Moved the active Plans list into the left drawer and removed the duplicate current-plan header button; see `artifacts/testing/2026-10-04-plans-in-left-sidebar/verification.md`. |
 | 2026-10-04 | lightweight-onboarding-intake | Added a standalone, single-node LangGraph intake unit; first-login routing and profile persistence remain separate follow-up work. |
 | 2026-10-04 | agentcore-profile-memory | Mirrored canonical traveler preferences to AgentCore and supplied matching snapshots to Plan turns; see `artifacts/testing/2026-10-04-agentcore-profile-memory/verification.md`. |
 | 2026-10-04 | route-langgraph-through-agentcore-runtime | Added Runtime HTTP contract, authenticated invocation routing, ARM64 image, and deployment runbook; AWS resource not deployed. |
