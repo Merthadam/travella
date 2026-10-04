@@ -11,7 +11,9 @@ from fastapi.testclient import TestClient
 
 from services.agent.app import create_app
 from services.agent.claude import ClaudeGatewayAdapter, GatewayProtocolError
+from services.agent.http_contracts import AgentRequest
 from services.agent.service import AgentTurnService
+from services.agent.state import PlanCandidateStore, ProcessReceiptCache
 from services.auth.contracts import ValidatedIdentity
 
 
@@ -374,6 +376,45 @@ def test_source_inspection_is_compact():
     assert response.status_code == 200
     assert response.json()["status"] == "source_detail"
     assert "https://example.test/kyoto" in response.text
+
+
+def test_superseded_research_cannot_emit_late_text_or_sources():
+    async def run():
+        plan_id = str(uuid4())
+        started = asyncio.Event()
+        release = asyncio.Event()
+        deltas = []
+
+        class LateGraph:
+            async def invoke(self, state, *, authorization_token, on_text_delta=None):
+                started.set()
+                await release.wait()
+                if on_text_delta:
+                    await on_text_delta("obsolete answer")
+                return {"projection": {
+                    "status": "shortlist_ready", "plan_id": state["plan_id"],
+                    "event_id": state["event_id"], "generation": state["generation"],
+                    "assistant_text": "obsolete answer",
+                    "sources": [{"title": "Old source", "url": "https://example.test/old"}],
+                }, "research_evidence": [], "research_evidence_ids": []}
+
+        service = AgentTurnService(
+            plan_reader=lambda *_args: {"plan_id": plan_id, "lifecycle": "active"},
+            context_reader=None, graph=LateGraph(), tools=FakeAdapter(),
+            candidates=PlanCandidateStore(), receipts=ProcessReceiptCache(),
+        )
+        request = AgentRequest(plan_id=plan_id, event_id="slow-event", message="Old question")
+        task = asyncio.create_task(service.handle(request, "traveler-1", "Bearer good", on_text_delta=deltas.append))
+        await started.wait()
+        await service.candidates.reserve("traveler-1", plan_id, "newer-event")
+        release.set()
+        response = await task
+        return response, deltas
+
+    response, deltas = asyncio.run(run())
+    assert response.status == "interrupted"
+    assert response.sources == []
+    assert deltas == []
 
 
 class _FakeGateway:

@@ -86,9 +86,17 @@ class AgentTurnService:
         prior = await self.candidates.snapshot(subject, plan_id)
 
         async def finish(projection: dict[str, Any]) -> AgentResponse:
+            if not await self.candidates.generation_current(subject, plan_id, generation):
+                projection = self._interrupted(plan_id, request.event_id, generation, prior)
             self.receipts.put(subject, plan_id, request.event_id, projection)
             await self.candidates.resolve_pending(subject, plan_id, request.event_id, projection)
             return AgentResponse.model_validate(projection)
+
+        async def emit_if_current(delta: str) -> None:
+            if on_text_delta and await self.candidates.generation_current(subject, plan_id, generation):
+                value = on_text_delta(delta)
+                if isinstance(value, Awaitable):
+                    await value
 
         try:
             action_name = action.get("action") if action else None
@@ -201,10 +209,12 @@ class AgentTurnService:
                 result = await self.graph.invoke(
                     graph_state,
                     authorization_token=token,
-                    on_text_delta=on_text_delta,
+                    on_text_delta=emit_if_current if on_text_delta else None,
                 )
             else:
                 result = await self.graph.invoke(graph_state, authorization_token=token)
+            if not await self.candidates.generation_current(subject, plan_id, generation):
+                return await finish(self._interrupted(plan_id, request.event_id, generation, prior))
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
                 raise HTTPException(502, "Agent response was invalid.")
