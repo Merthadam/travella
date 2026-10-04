@@ -194,7 +194,7 @@ def test_openai_provider_health_reports_model_without_credentials(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-openai-key")
     monkeypatch.setenv("OPENAI_MODEL_ID", "gpt-test")
     adapter = ClaudeGatewayAdapter("", sdk_client=FakeOpenAIClient())
-    app = create_app(adapter=adapter)
+    app = create_app(research_backend="legacy", adapter=adapter)
 
     with TestClient(app) as client:
         health = client.get("/health").json()

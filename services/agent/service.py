@@ -389,14 +389,21 @@ class AgentTurnService:
                     for start in range(0, len(text), 28):
                         await on_text_delta(text[start:start + 28])
                 status = "error" if response.status == "unable to continue" else response.status
+                if status == "error" and emitted:
+                    await self._persist_partial(
+                        request, subject, authorization, "".join(emitted), "interrupted",
+                        generation=response.generation,
+                    )
                 await queue.put(("terminal", {"status": status, "sources": final.get("sources", [])}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"
                 await self._persist_partial(request, subject, authorization, "".join(emitted), reason)
                 await queue.put(("terminal", {"status": reason, "sources": []}))
             except HTTPException as exc:
+                await self._persist_partial(request, subject, authorization, "".join(emitted), "interrupted")
                 await queue.put(("terminal", {"status": "error", "message": str(exc.detail), "sources": []}))
             except Exception:
+                await self._persist_partial(request, subject, authorization, "".join(emitted), "interrupted")
                 await queue.put(("terminal", {"status": "error", "message": "The reply could not be completed.", "sources": []}))
             finally:
                 await queue.put(None)
@@ -450,6 +457,8 @@ class AgentTurnService:
         authorization: str | None,
         text: str,
         status: str,
+        *,
+        generation: int | None = None,
     ) -> None:
         if not self.context_reader:
             return
@@ -458,7 +467,8 @@ class AgentTurnService:
         try:
             plan = await self._read_plan(subject, plan_id, token)
             context = await self.context_reader.context(plan_id, token)
-            generation = int(context.get("revision", plan.get("revision", 1)))
+            if generation is None:
+                generation = int(context.get("revision", plan.get("revision", 1)))
             if request.message.strip():
                 await self.context_reader.append(
                     plan_id, token, event_id=f"{request.event_id}:user", role="user",

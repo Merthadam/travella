@@ -163,6 +163,7 @@ def test_app_selects_local_transport_and_reports_it_without_gateway(
     monkeypatch.delenv("CRUD_BASE_URL", raising=False)
 
     app = create_app(
+        research_backend="legacy",
         verifier=lambda _token: None,
         plan_reader=lambda *_args: None,
     )
@@ -183,7 +184,7 @@ def test_development_defaults_to_local_transport_without_agentcore_configuration
     monkeypatch.delenv("COGNITO_USER_POOL_ID", raising=False)
     monkeypatch.delenv("CRUD_BASE_URL", raising=False)
 
-    app = create_app(verifier=lambda _token: None, plan_reader=lambda *_args: None)
+    app = create_app(research_backend="legacy", verifier=lambda _token: None, plan_reader=lambda *_args: None)
     with TestClient(app) as client:
         health = client.get("/health").json()
 
@@ -201,6 +202,7 @@ def test_local_transport_is_refused_outside_development(
 
     with pytest.raises(RuntimeError, match="only available in development or test"):
         create_app(
+            research_backend="legacy",
             verifier=lambda _token: None,
             plan_reader=lambda *_args: None,
         )

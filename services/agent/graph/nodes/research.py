@@ -449,12 +449,17 @@ class ResearchNode:
         merged_reuse = {str(item.get("evidence_id")): item for item in [*prior_reuse, *reusable_entries] if isinstance(item, dict) and item.get("evidence_id")}
         research_intent = state.get("research_intent")
         if candidates and research_intent == "destination_discovery":
-            locations_result = await self.tools.resolve_map(
-                names=[candidate["name"] for candidate in candidates],
-                traveler_scope=state["traveler_scope"],
-                plan_id=state["plan_id"],
-                authorization_token=current_authorization_token(),
-            )
+            try:
+                locations_result = await self.tools.resolve_map(
+                    names=[candidate["name"] for candidate in candidates],
+                    traveler_scope=state["traveler_scope"],
+                    plan_id=state["plan_id"],
+                    authorization_token=current_authorization_token(),
+                )
+            except Exception:
+                # A missing optional map must not discard a completed research answer.
+                locations_result = {}
+                uncertainty = [*uncertainty, "Map locations are temporarily unavailable."]
             locations = locations_result.get("locations", []) if isinstance(locations_result, dict) else []
             if isinstance(locations, list):
                 by_name = {

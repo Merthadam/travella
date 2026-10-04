@@ -115,6 +115,7 @@ def _app(adapter=None, *, plan=None, memory_adapter=None):
         return None
 
     return create_app(
+        research_backend="legacy",
         verifier=verifier,
         plan_reader=reader,
         adapter=adapter or FakeAdapter(),
@@ -224,7 +225,7 @@ def test_password_auth_access_token_can_reach_agent(monkeypatch):
             return plan
         return None
 
-    app = create_app(verifier=verifier, plan_reader=reader, adapter=FakeAdapter())
+    app = create_app(research_backend="legacy", verifier=verifier, plan_reader=reader, adapter=FakeAdapter())
     with TestClient(app) as client:
         response = client.post(
             f"/v1/agent/plans/{plan['plan_id']}/events",
@@ -257,7 +258,7 @@ def test_plan_stream_returns_assistant_text_and_terminal_status():
                 "assistant_text": "Where to?",
             }}
 
-    app = create_app(verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
+    app = create_app(research_backend="legacy", verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
     with TestClient(app) as client:
         response = client.post(
             f"/v1/agent/plans/{plan['plan_id']}/events/stream",
@@ -319,7 +320,7 @@ def test_plan_stream_projects_only_cited_read_sources_beneath_the_answer():
                 },
             }
 
-    app = create_app(verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
+    app = create_app(research_backend="legacy", verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
     with TestClient(app) as client:
         response = client.post(
             f"/v1/agent/plans/{plan['plan_id']}/events/stream",

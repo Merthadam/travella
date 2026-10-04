@@ -16,6 +16,7 @@ from ..request_context import (
 )
 from ..state import AgentState
 from .nodes import ConversationNode, ResearchNode
+from .nodes.sdk_research import SdkResearchNode
 
 
 def _after_conversation(state: AgentState) -> str:
@@ -31,15 +32,21 @@ def _after_research(state: AgentState) -> str:
 class AgentGraph:
     """Stable graph interface: inject adapters, invoke with one Plan turn."""
 
-    def __init__(self, adapter: Any, *, checkpointer: Any | None = None) -> None:
+    def __init__(self, adapter: Any, *, checkpointer: Any | None = None,
+                 research_worker: Any | None = None) -> None:
         flow = StateGraph(AgentState)
         flow.add_node("conversation", ConversationNode(adapter))
-        flow.add_node("research", ResearchNode(adapter))
+        flow.add_node("research", SdkResearchNode(adapter, research_worker)
+                      if research_worker is not None else ResearchNode(adapter))
         flow.add_edge(START, "conversation")
         flow.add_conditional_edges(
             "conversation", _after_conversation, {"research": "research", "end": END}
         )
-        flow.add_conditional_edges("research", _after_research, {"research": "research", "end": END})
+        if research_worker is not None:
+            # The SDK owns all search/read/refine iterations within this stage.
+            flow.add_edge("research", END)
+        else:
+            flow.add_conditional_edges("research", _after_research, {"research": "research", "end": END})
         self.compiled = flow.compile(checkpointer=checkpointer)
 
     async def invoke(

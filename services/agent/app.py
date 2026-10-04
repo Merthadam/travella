@@ -38,6 +38,8 @@ def create_app(
     plan_reader: Callable[..., Any] | None = None,
     context_reader: CrudContextReader | None = None,
     graph: AgentGraph | None = None,
+    research_worker: Any | None = None,
+    research_backend: str | None = None,
     adapter: Any | None = None,
     memory_adapter: Any | None = None,
     required_scope: str | None = None,
@@ -73,7 +75,15 @@ def create_app(
             adapter = ClaudeGatewayAdapter(os.getenv("AGENTCORE_GATEWAY_URL", ""))
         else:
             raise ValueError("AGENT_MCP_TRANSPORT must be 'agentcore' or 'local'.")
-    workflow = graph or AgentGraph(adapter)
+    research_backend = (research_backend or os.getenv("AGENT_RESEARCH_BACKEND") or "claude-agent-sdk").strip().lower()
+    if research_backend not in {"claude-agent-sdk", "legacy"}:
+        raise ValueError("AGENT_RESEARCH_BACKEND must be 'claude-agent-sdk' or 'legacy'.")
+    if graph is None and research_worker is None and research_backend == "claude-agent-sdk":
+        from .claude.research_worker import ClaudeResearchWorker
+        from .config import ResearchWorkerConfig
+
+        research_worker = ClaudeResearchWorker(ResearchWorkerConfig.from_env())
+    workflow = graph or AgentGraph(adapter, research_worker=research_worker)
     onboarding_graph = build_onboarding_intake_graph(getattr(adapter, "messages", adapter))
     memory = memory_adapter or create_memory_adapter()
     candidates = PlanCandidateStore(max_receipts=cache_size)
@@ -105,6 +115,8 @@ def create_app(
             "memory_enabled": memory.enabled,
             "model_provider": getattr(messages, "provider", "amazon-bedrock"),
             "model_id": getattr(messages, "model", None),
+            "research_backend": "injected" if graph is not None else research_backend,
+            "research_model": getattr(getattr(research_worker, "config", None), "model", None),
             "tool_transport": tool_transport,
             "gateway_configured": bool(getattr(adapter, "gateway_url", "")),
             "local_mcp_configured": (
