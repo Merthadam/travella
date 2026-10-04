@@ -118,3 +118,4 @@ Resume file: .planning/phases/10-evidence-grounded-iterative-agent-research/10-C
 | 2026-10-04 | share-local-worktree-credentials-through | Added shared Secrets Manager credential sync to local startup; verified live AWS fetch into independent worktrees and authenticated app startup. |
 
 | 2026-10-04 | right-trip-brief-ui | Restored right-side editable Trip Brief; 33 frontend tests/build and desktop interactions passed. Screenshot/mobile checks blocked by unresponsive DevTools. |
+| 2026-10-04 | local-rebuild-freshness | Updated startup skill; rebuild/auth checks passed and three frontend source hashes matched the running container. |

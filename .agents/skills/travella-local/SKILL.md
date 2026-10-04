@@ -7,6 +7,16 @@ description: Start Travella's local Docker stack and verify example-account auth
 
 Use the repository's single-container stack and verify the authenticated flow before handing the browser to the user.
 
+## Rebuild after code changes
+
+Run from the user's intended checkout. Check `git status --short --branch` and `git log -1 --oneline` first; preserve uncommitted work and do not switch branches or pull changes unless requested.
+
+Follow the Cognito precheck below, then run `bash scripts/start-local-ready.sh`. Its launcher uses Compose `up --build` to rebuild from this checkout and recreate services when their images or settings change. A plain `docker restart` does not copy source changes into the image. Normal Docker build caching is appropriate; use a cache-free rebuild only when diagnosing a demonstrated cache problem.
+
+After health and the authentication check pass, resolve the running app container with Compose `ps -q app` using the same project and Compose file as the launcher. Compare SHA-256 hashes of representative changed, non-secret source files in this checkout with their copies under `/app/` in that container (for example, the changed React component and stylesheet). Print only file paths and match/mismatch results. If they differ, check the Compose build context and selected worktree, rebuild, and repeat the comparison before reporting the changes as available.
+
+Keep database volumes intact. Tell the user the canonical URL and to refresh their existing tab. A successful rebuild proves the checked code is loaded; it does not establish that optional integrations such as AgentCore Runtime are configured.
+
 ## Start and verify
 
 From the repository root, first discover and validate Travella's existing local Cognito pool with the AWS `default` profile in `eu-north-1`. This is read-only: do not create or modify AWS resources. The expected pool is named `User pool - travela-local` and its public app client is named `travella-local-phase2`.
