@@ -35,5 +35,16 @@ fi
 echo "Starting Travella at http://localhost:${TRAVELLA_FRONTEND_PORT:-5174}"
 echo "Auth gateway: http://localhost:${TRAVELLA_AUTH_PORT:-8003}"
 echo "Agent service: http://localhost:${TRAVELLA_AGENT_PORT:-8103}"
-echo "Press Ctrl-C to stop the foreground services."
+detached=false
+for argument in "$@"; do
+  if [[ "$argument" == "-d" || "$argument" == "--detach" ]]; then
+    detached=true
+    break
+  fi
+done
+if [[ "$detached" == true ]]; then
+  echo "Services will run in the background. Stop them with: docker-compose -p ${COMPOSE_PROJECT_NAME} -f ${compose_file} down"
+else
+  echo "Press Ctrl-C to stop the foreground services."
+fi
 "${compose[@]}" -f "$compose_file" up --build "$@"

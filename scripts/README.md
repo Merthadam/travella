@@ -10,6 +10,17 @@ volume so app image rebuilds do not remove database data:
 bash scripts/start-local.sh
 ```
 
+For an authenticated browser check, use the readiness launcher instead:
+
+```bash
+bash scripts/start-local-ready.sh
+```
+
+It starts the stack detached, waits for configured auth health, then verifies one
+example-account sign-in/session/sign-out cycle. The test-account password and tokens
+are never printed. The app remains running for browser inspection. See the
+[local startup skill](../.agents/skills/travella-local/SKILL.md) for recovery steps.
+
 The script starts Colima when it is installed but not running, builds the app image,
 runs database migrations, and opens the frontend at `http://localhost:5174` and the
 auth gateway at `http://localhost:8003`. The agent health endpoint is available at
