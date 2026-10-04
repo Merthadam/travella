@@ -16,6 +16,7 @@ dependencies = [
   "alembic>=1.14,<2",
   "mcp>=1.6,<2",
   "anthropic>=0.68,<1",
+  "claude-agent-sdk==0.2.163",
   "langgraph>=0.6,<1",
   "langgraph-checkpoint-postgres==3.0.4",
   "openai>=1.99,<3",
