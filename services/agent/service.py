@@ -27,6 +27,7 @@ class AgentTurnService:
         tools: Any,
         candidates: PlanCandidateStore,
         receipts: ProcessReceiptCache,
+        memory: Any | None = None,
     ) -> None:
         self.plan_reader = plan_reader
         self.context_reader = context_reader
@@ -34,6 +35,7 @@ class AgentTurnService:
         self.tools = tools
         self.candidates = candidates
         self.receipts = receipts
+        self.memory = memory
         self._active_streams: dict[tuple[str, str, str], dict[str, Any]] = {}
 
     async def _read_plan(self, subject: str, plan_id: UUID, token: str) -> dict[str, Any]:
@@ -66,6 +68,36 @@ class AgentTurnService:
         context = (
             await self.context_reader.context(request.plan_id, token) if self.context_reader else {}
         )
+        traveler_profile: dict[str, Any] = {}
+        if self.context_reader and hasattr(self.context_reader, "profile"):
+            try:
+                current = await self.context_reader.profile(token)
+            except Exception:
+                # Profile context is advisory; an unavailable profile service must
+                # not break an otherwise valid Plan turn.
+                current = None
+            keys = (
+                "departure_base", "citizenships", "food_needs",
+                "accessibility_needs", "travel_interests",
+            )
+            if isinstance(current, dict):
+                traveler_profile = {key: current.get(key) for key in keys if current.get(key)}
+                if self.memory is not None and self.memory.enabled:
+                    try:
+                        remembered = await self.memory.retrieve_relevant_memory(
+                            subject, "traveler profile"
+                        )
+                    except Exception:
+                        remembered = None
+                    # Use the AgentCore copy only when it still exactly matches CRUD.
+                    if (
+                        remembered
+                        and remembered.get("updated_at") == current.get("updated_at")
+                        and all(remembered.get(key) == current.get(key) for key in keys)
+                    ):
+                        traveler_profile = {
+                            key: remembered.get(key) for key in keys if remembered.get(key)
+                        }
         reservation = await self.candidates.reserve(subject, plan_id, request.event_id)
         if not reservation.owner:
             if reservation.future.done():
@@ -199,10 +231,15 @@ class AgentTurnService:
                 result = await self.graph.invoke(
                     graph_state,
                     authorization_token=token,
+                    traveler_profile=traveler_profile,
                     on_text_delta=on_text_delta,
                 )
             else:
-                result = await self.graph.invoke(graph_state, authorization_token=token)
+                result = await self.graph.invoke(
+                    graph_state,
+                    authorization_token=token,
+                    traveler_profile=traveler_profile,
+                )
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
                 raise HTTPException(502, "Agent response was invalid.")

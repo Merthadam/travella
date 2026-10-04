@@ -63,3 +63,13 @@ class OnboardingResponse(BaseModel):
     action: Literal["ask", "candidate", "finish"]
     assistant_text: str = Field(min_length=1, max_length=2000)
     answer_candidates: list[OnboardingCandidate] = Field(default_factory=list, max_length=5)
+
+
+class TravelerProfileMemoryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    departure_base: str = Field(default="", max_length=120)
+    citizenships: list[str] = Field(default_factory=list, max_length=10)
+    food_needs: str = Field(default="", max_length=1000)
+    accessibility_needs: str = Field(default="", max_length=1000)
+    travel_interests: str = Field(default="", max_length=1000)
+    updated_at: str | None = Field(default=None, max_length=64)

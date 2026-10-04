@@ -19,7 +19,13 @@ from .claude import ClaudeGatewayAdapter, LocalMcpAdapter
 from .crud_client import CrudContextReader, CrudPlanReader
 from .graph import AgentGraph
 from .graph.onboarding import build_onboarding_intake_graph
-from .http_contracts import AgentRequest, AgentResponse, OnboardingRequest, OnboardingResponse
+from .http_contracts import (
+    AgentRequest,
+    AgentResponse,
+    OnboardingRequest,
+    OnboardingResponse,
+    TravelerProfileMemoryRequest,
+)
 from .memory import create_memory_adapter
 from .service import AgentTurnService
 from .state import PlanCandidateStore, ProcessReceiptCache
@@ -32,6 +38,7 @@ def create_app(
     context_reader: CrudContextReader | None = None,
     graph: AgentGraph | None = None,
     adapter: Any | None = None,
+    memory_adapter: Any | None = None,
     required_scope: str | None = None,
     cache_size: int = 256,
 ) -> FastAPI:
@@ -67,6 +74,7 @@ def create_app(
             raise ValueError("AGENT_MCP_TRANSPORT must be 'agentcore' or 'local'.")
     workflow = graph or AgentGraph(adapter)
     onboarding_graph = build_onboarding_intake_graph(getattr(adapter, "messages", adapter))
+    memory = memory_adapter or create_memory_adapter()
     candidates = PlanCandidateStore(max_receipts=cache_size)
     turn_service = AgentTurnService(
         plan_reader=plan_reader,
@@ -75,8 +83,8 @@ def create_app(
         tools=adapter,
         candidates=candidates,
         receipts=ProcessReceiptCache(cache_size),
+        memory=memory,
     )
-    memory = create_memory_adapter()
     app = FastAPI(title="Travella agent service", docs_url=None, redoc_url=None)
 
     @app.middleware("http")
@@ -139,6 +147,22 @@ def create_app(
                 for item in result["answer_candidates"]
             ],
         )
+
+    @router.put("/traveler-profile/memory")
+    async def sync_traveler_profile(
+        request: TravelerProfileMemoryRequest,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+    ) -> dict[str, str]:
+        if not memory.enabled:
+            return {"status": "disabled"}
+        try:
+            synced = await memory.sync_profile(
+                identity.subject, request.model_dump(mode="json")
+            )
+        except Exception:
+            # AgentCore availability must never roll back the CRUD-owned profile.
+            synced = False
+        return {"status": "synced" if synced else "unavailable"}
 
     @router.post("/plans/{plan_id}/events", response_model=AgentResponse)
     async def plan_events(

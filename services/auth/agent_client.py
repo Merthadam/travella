@@ -72,6 +72,35 @@ class AgentClient:
         except (httpx.HTTPError, ValueError, TypeError, AttributeError, ValidationError):
             return 503, {"message": "Onboarding is temporarily unavailable. Try again."}
 
+    def sync_profile(self, *, token: str, profile: dict) -> str:
+        """Mirror an already-saved CRUD profile; return only a safe status."""
+        allowed = {
+            key: profile.get(key)
+            for key in (
+                "departure_base", "citizenships", "food_needs",
+                "accessibility_needs", "travel_interests", "updated_at",
+            )
+        }
+        try:
+            with httpx.Client(
+                base_url=self.base_url,
+                timeout=10,
+                follow_redirects=False,
+                transport=self.transport,
+                trust_env=False,
+            ) as client:
+                response = client.put(
+                    "/v1/agent/traveler-profile/memory",
+                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                    json=allowed,
+                )
+            if response.status_code != 200:
+                return "unavailable"
+            status = response.json().get("status")
+            return status if status in {"synced", "disabled"} else "unavailable"
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+            return "unavailable"
+
     async def stream(self, path: str, *, token: str, body: bytes):
         match = re.fullmatch(r"/v1/agent/plans/([0-9a-fA-F-]{36})/events/stream", path)
         if not match:

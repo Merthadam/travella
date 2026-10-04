@@ -4,9 +4,9 @@ current_phase: 03b
 current_phase_name: agentic-conversation
 status: executing
 stopped_at: Phase 03B plan 10 partial execution; local MCP transport is running, full authenticated provider turn remains unverified
-last_updated: "2026-10-04T07:58:45Z"
+last_updated: "2026-10-04T11:18:52Z"
 last_activity: 2026-10-04
-last_activity_desc: Added local stack readiness and example-account authentication verification for browser checks.
+last_activity_desc: Wired AgentCore Memory to saved traveler profiles and Plan context; see quick task 261004-i07.
 state_head: 8a04735da445beb6a68593f044408702b6a88fb7
 progress:
   total_phases: 9
@@ -109,3 +109,4 @@ Resume file: .planning/phases/02-draft-plans-durable-lifecycle/02-03-PLAN.md
 | 2026-10-03 | plan-chat-primary | Made Plan chat the primary Plan screen and retained the Plans switcher drawer; see `artifacts/testing/2026-10-03-chat-top-nav/verification.md`. |
 | 2026-10-04 | travella-local-start | Added health-gated local startup and a one-shot sign-in/session smoke check; see `.planning/quick/261004-di1-add-reliable-local-travella-startup-and-/261004-di1-VERIFICATION.md`. |
 | 2026-10-04 | lightweight-onboarding-intake | Added a standalone, single-node LangGraph intake unit; first-login routing and profile persistence remain separate follow-up work. |
+| 2026-10-04 | agentcore-profile-memory | Mirrored canonical traveler preferences to AgentCore and supplied matching snapshots to Plan turns; see `artifacts/testing/2026-10-04-agentcore-profile-memory/verification.md`. |

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ...request_context import current_traveler_profile
 from ...state import AgentState
 from ...turn import TurnContext
 
@@ -33,6 +34,7 @@ class ConversationNode:
             conversation_id=state.get("conversation_id"),
             plan_revision=int(state.get("plan_revision", 1)),
             brief=state.get("brief", {}),
+            traveler_profile=current_traveler_profile(),
             tentative_inferences=state.get("tentative_inferences", {}),
             recent_messages=tuple(state.get("recent_messages", [])),
             research_state=state.get("research_state", {}),

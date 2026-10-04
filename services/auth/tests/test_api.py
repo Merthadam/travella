@@ -131,13 +131,20 @@ def test_onboarding_and_profile_proxies_keep_identity_server_side(system):
         if request.method == "GET":
             payload = {"exists": False, "onboarding_complete": False}
         else:
-            payload = {"exists": True, "onboarding_complete": True}
+            payload = {
+                **json.loads(request.content),
+                "exists": True,
+                "onboarding_complete": True,
+                "updated_at": "2026-10-04T10:00:00Z",
+            }
         return httpx.Response(200, json=payload)
 
     crud = CrudClient("http://crud.test", transport=httpx.MockTransport(crud_upstream))
 
     def agent_upstream(request):
         seen.append(request)
+        if request.url.path == "/v1/agent/traveler-profile/memory":
+            return httpx.Response(200, json={"status": "synced"})
         return httpx.Response(
             200,
             json={"action": "ask", "assistant_text": "What city do you usually leave from?", "answer_candidates": []},
@@ -155,13 +162,18 @@ def test_onboarding_and_profile_proxies_keep_identity_server_side(system):
         assert profile.status_code == 200 and profile.json()["exists"] is False
         saved = signed_client.put("/v1/traveler-profile", json={"departure_base": "Budapest", "onboarding_complete": True})
         assert saved.status_code == 200 and saved.json()["onboarding_complete"] is True
+        assert saved.json()["memory_sync"] == "synced"
         onboarding = signed_client.post("/v1/agent/onboarding/events", json={"messages": []})
         assert onboarding.status_code == 200
         assert onboarding.json()["action"] == "ask"
-    assert len(seen) == 3
+    assert len(seen) == 4
     assert all(request.headers["authorization"] == "Bearer secret-access" for request in seen)
     assert all("cookie" not in request.headers for request in seen)
     assert all(request.headers.get("x-travella-request") is None for request in seen)
+    memory_request = next(item for item in seen if item.url.path == "/v1/agent/traveler-profile/memory")
+    memory_payload = json.loads(memory_request.content)
+    assert memory_payload["departure_base"] == "Budapest"
+    assert "traveler_subject" not in memory_payload
 
 
 def test_agent_proxy_rejects_upstream_scope_errors_without_clearing_session(system):

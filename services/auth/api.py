@@ -337,6 +337,12 @@ def create_app(
                     params=request.query_params,
                     body=body,
                 )
+                if request.method == "PUT" and status == 200 and isinstance(data, dict):
+                    data["memory_sync"] = (
+                        agent_client.sync_profile(token=session["access"], profile=data)
+                        if agent_client is not None
+                        else "not_configured"
+                    )
                 response = JSONResponse(data, status_code=status)
                 if status == 401:
                     clear(response)

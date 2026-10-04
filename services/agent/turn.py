@@ -19,6 +19,7 @@ class TurnContext:
     conversation_id: str | None = None
     plan_revision: int = 1
     brief: dict[str, Any] = field(default_factory=dict)
+    traveler_profile: dict[str, Any] = field(default_factory=dict)
     tentative_inferences: dict[str, Any] = field(default_factory=dict)
     recent_messages: tuple[dict[str, str], ...] = ()
     research_state: dict[str, Any] = field(default_factory=dict)
@@ -44,6 +45,14 @@ class TurnContext:
             conversation_id=self.conversation_id,
             plan_revision=self.plan_revision,
             brief=active_brief,
+            traveler_profile={
+                key: self.traveler_profile.get(key)
+                for key in (
+                    "departure_base", "citizenships", "food_needs",
+                    "accessibility_needs", "travel_interests",
+                )
+                if self.traveler_profile.get(key)
+            },
             tentative_inferences=dict(self.tentative_inferences),
             recent_messages=history,
             research_state=dict(self.research_state),
@@ -57,6 +66,7 @@ class TurnContext:
                 "plan_id": context.plan_id,
                 "plan_revision": context.plan_revision,
                 "brief": context.brief,
+                "traveler_profile": context.traveler_profile,
                 "tentative_inferences": context.tentative_inferences,
                 "research_state": context.research_state,
                 "generation": context.generation,

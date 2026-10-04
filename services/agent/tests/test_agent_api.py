@@ -74,7 +74,7 @@ class FakeAdapter:
         }
 
 
-def _app(adapter=None, *, plan=None):
+def _app(adapter=None, *, plan=None, memory_adapter=None):
     identity = ValidatedIdentity(
         "traveler-1", "client", frozenset({"aws.cognito.signin.user.admin"}), 1, 9999999999
     )
@@ -90,7 +90,49 @@ def _app(adapter=None, *, plan=None):
             return plan
         return None
 
-    return create_app(verifier=verifier, plan_reader=reader, adapter=adapter or FakeAdapter()), plan
+    return create_app(
+        verifier=verifier,
+        plan_reader=reader,
+        adapter=adapter or FakeAdapter(),
+        memory_adapter=memory_adapter,
+    ), plan
+
+
+def test_profile_memory_sync_uses_verified_identity_and_safe_status():
+    class Memory:
+        enabled = True
+
+        def __init__(self):
+            self.calls = []
+
+        async def sync_profile(self, subject, profile):
+            self.calls.append((subject, profile))
+            return True
+
+        async def retrieve_relevant_memory(self, subject, topic):
+            return None
+
+    memory = Memory()
+    app, _ = _app(memory_adapter=memory)
+    payload = {
+        "departure_base": "Budapest",
+        "citizenships": ["Hungarian"],
+        "food_needs": "Peanut allergy",
+        "accessibility_needs": "",
+        "travel_interests": "Museums",
+        "updated_at": "2026-10-04T10:00:00Z",
+    }
+    with TestClient(app) as client:
+        assert client.put("/v1/agent/traveler-profile/memory", json=payload).status_code == 401
+        response = client.put(
+            "/v1/agent/traveler-profile/memory",
+            headers={"Authorization": "Bearer good"},
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "synced"}
+    assert memory.calls == [("traveler-1", payload)]
 
 
 def test_owned_plan_research_maps_and_deduplicates():
@@ -181,7 +223,7 @@ def test_plan_stream_returns_assistant_text_and_terminal_status():
         return plan if subject == identity.subject and str(plan_id) == plan["plan_id"] else None
 
     class Graph:
-        async def invoke(self, state, *, authorization_token, on_text_delta=None):
+        async def invoke(self, state, *, authorization_token, traveler_profile=None, on_text_delta=None):
             assert state["message"] == "Plan Kyoto"
             if on_text_delta:
                 await on_text_delta("Where to?")
