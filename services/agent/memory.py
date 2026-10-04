@@ -10,6 +10,7 @@ import asyncio
 import hashlib
 import json
 import os
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
@@ -92,39 +93,25 @@ class AgentCoreMemory:
 
     def _upsert_profile(self, record: dict[str, Any]) -> bool:
         namespace = record["namespaces"][0]
-        response = self.client.list_memory_records(
-            memoryId=self.memory_id, namespace=namespace, maxResults=100
-        )
-        summaries = response.get("memoryRecordSummaries", [])
-        records = [
-            item for item in summaries
-            if self._is_profile_record(item)
-        ]
-        while response.get("nextToken"):
-            response = self.client.list_memory_records(
-                memoryId=self.memory_id,
-                namespace=namespace,
-                maxResults=100,
-                nextToken=response["nextToken"],
-            )
-            records.extend(
-                item for item in response.get("memoryRecordSummaries", [])
-                if self._is_profile_record(item)
-            )
+        records = self._list_profile_records(namespace)
 
         if records:
-            record_id = records[0]["memoryRecordId"]
             result = self.client.batch_update_memory_records(
                 memoryId=self.memory_id,
-                records=[{
-                    "memoryRecordId": record_id,
-                    "content": record["content"],
-                    "timestamp": record["timestamp"],
-                    "namespaces": record["namespaces"],
-                    "metadata": record["metadata"],
-                }],
+                records=[
+                    {
+                        "memoryRecordId": existing["memoryRecordId"],
+                        "content": record["content"],
+                        "timestamp": record["timestamp"],
+                        "namespaces": existing.get("namespaces", record["namespaces"]),
+                        "metadata": record["metadata"],
+                    }
+                    for existing in records
+                ],
             )
-            return bool(result.get("successfulRecords")) and not result.get("failedRecords")
+            if len(result.get("successfulRecords", [])) != len(records) or result.get("failedRecords"):
+                return False
+            return self._confirm_profile(namespace, record["content"]["text"])
 
         result = self.client.batch_create_memory_records(
             memoryId=self.memory_id,
@@ -135,7 +122,11 @@ class AgentCoreMemory:
                 ).hexdigest()[:64],
             }],
         )
-        return bool(result.get("successfulRecords")) and not result.get("failedRecords")
+        if not result.get("successfulRecords") or result.get("failedRecords"):
+            return False
+        # AgentCore record listing is eventually consistent. Confirm the new
+        # snapshot is readable before telling the auth service that sync worked.
+        return self._confirm_profile(namespace, record["content"]["text"])
 
     async def retrieve_relevant_memory(
         self, traveler_scope: str, topic: str
@@ -151,6 +142,23 @@ class AgentCoreMemory:
         return marker == "traveler_profile"
 
     def _read_profile(self, namespace: str) -> dict[str, Any] | None:
+        records = self._list_profile_records(namespace)
+        candidates = []
+        for item in records:
+            try:
+                value = json.loads(item["content"]["text"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if isinstance(value, dict):
+                candidates.append(value)
+        if not candidates:
+            return None
+        # Concurrent first saves can briefly create duplicate records; prefer
+        # the newest canonical profile revision until the next sync reconciles them.
+        value = max(candidates, key=lambda profile: str(profile.get("updated_at") or ""))
+        return {key: value.get(key) for key in self.PROFILE_FIELDS}
+
+    def _list_profile_records(self, namespace: str) -> list[dict[str, Any]]:
         response = self.client.list_memory_records(
             memoryId=self.memory_id, namespace=namespace, maxResults=100
         )
@@ -163,19 +171,18 @@ class AgentCoreMemory:
                 nextToken=response["nextToken"],
             )
             summaries.extend(response.get("memoryRecordSummaries", []))
-        records = [
-            item for item in summaries
-            if self._is_profile_record(item)
-        ]
-        if not records:
-            return None
-        try:
-            value = json.loads(records[0]["content"]["text"])
-        except (KeyError, TypeError, ValueError):
-            return None
-        if not isinstance(value, dict):
-            return None
-        return {key: value.get(key) for key in self.PROFILE_FIELDS}
+        return [item for item in summaries if self._is_profile_record(item)]
+
+    def _confirm_profile(self, namespace: str, expected_text: str) -> bool:
+        for attempt in range(10):
+            if any(
+                item.get("content", {}).get("text") == expected_text
+                for item in self._list_profile_records(namespace)
+            ):
+                return True
+            if attempt < 9:
+                time.sleep(0.5)
+        return False
 
 
 def create_memory_adapter() -> MemoryAdapter:

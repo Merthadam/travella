@@ -2,7 +2,7 @@
 
 ## Scope
 
-This change connects authenticated profile saves to AgentCore Memory and supplies a validated profile snapshot to Plan turns outside the onboarding intake graph. CRUD remains canonical. No frontend files were changed, and no live AWS Memory records were created or modified.
+This change connects authenticated profile saves to AgentCore Memory and supplies a validated profile snapshot to Plan turns outside the onboarding intake graph. CRUD remains canonical. No frontend files were changed. A synthetic profile record was used for the live AWS check and then deleted; no traveler data was written.
 
 ## Checks
 
@@ -11,8 +11,8 @@ This change connects authenticated profile saves to AgentCore Memory and supplie
 - `docker-compose config` — passed; Compose configuration resolves.
 - `git diff --check` — passed.
 - One auth refresh-expiry test failed once in the combined run, then passed on its isolated rerun and the next full run; the failure was unrelated to these changes.
-- AgentCore integration is intentionally not exercised against AWS. Tests use a local stub; no profile data was sent to the configured AWS account. The existing active Memory resource is configured in the ignored local `.env`, but no traveler profile records were created or changed.
+- Live AWS check against the configured Memory resource — synthetic create, update, and readback passed. The first check exposed eventual consistency and a namespace normalization requirement for delete; the adapter now waits for readable state. Synthetic records were deleted with the normalized namespace and a subsequent namespace scan confirmed they were absent.
 
 ## Limits
 
-The local Compose runtime now has `AGENTCORE_MEMORY_ID` and `AWS_REGION` configured through the ignored `.env`. Other deployments must set those values and grant the Agent service role the three scoped operations documented in `docs/runbooks/agentcore-memory.md`. Browser verification was not applicable because this change does not alter frontend code or UI behavior.
+The local Compose runtime has `AGENTCORE_MEMORY_ID` and `AWS_REGION` configured through the ignored `.env`. Other deployments must set those values and grant the Agent service role the three scoped operations documented in `docs/runbooks/agentcore-memory.md`. Browser verification was not applicable because this change does not alter frontend code or UI behavior.
