@@ -144,10 +144,11 @@ def test_local_adapter_requires_verified_user_token_and_uses_local_tools() -> No
             "research_destination_candidates",
             {
                 "theme": "surf",
-                "traveler_scope": "traveler-7",
-                "plan_id": "plan-123",
-                "request_id": "event-1",
-            },
+                    "traveler_scope": "traveler-7",
+                    "plan_id": "plan-123",
+                    "request_id": "event-1",
+                    "research_intent": "destination_discovery",
+                },
         )
     ]
 

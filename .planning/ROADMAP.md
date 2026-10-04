@@ -14,6 +14,7 @@ Travella's full documented MVP moves a traveler from secure account access throu
 - [ ] **Phase 6: Provider Search & Comparison** - Travelers search and compare honest provider-backed options with refresh, retry, and recheck semantics.
 - [ ] **Phase 7: Planning Canvas & Saved Choices** - Travelers explicitly manage Selected Options and categorized Map Pins in a consistent map/list Canvas.
 - [ ] **Phase 8: Verified Supplier Handoff** - Travelers safely open an eligible provider offer while Travella records only an unknown booking outcome.
+- [ ] **Phase 10: Evidence-grounded iterative agent research** - Travelers ask about any country or place and get source-grounded answers with useful explanations, citations, and honest uncertainty.
 
 ## Phase Details
 
@@ -221,7 +222,7 @@ All 60 v1 requirements map to exactly one phase. No v1 requirements are orphaned
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -233,3 +234,46 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 6. Provider Search & Comparison | 0/TBD | Not started | - |
 | 7. Planning Canvas & Saved Choices | 0/TBD | Not started | - |
 | 8. Verified Supplier Handoff | 0/TBD | Not started | - |
+| 10. Evidence-grounded iterative agent research | 6/6 | In Progress|  |
+
+### Phase 10: Evidence-grounded iterative agent research
+
+**Goal:** A traveler can ask about any country or place and get a useful answer grounded in retrieved source content, with bounded iterative research, clear citations, and remaining uncertainty stated.
+**Requirements**: Supports DISC-06, DISC-07, DISC-09, DISC-10, TRUST-04
+**Depends on:** Phase 03b
+**Scope:** The agent researches factual questions about countries and places, reads relevant source content, and gives a conversational explanation. Destination-discovery requests also return the existing structured candidate results. No personal-memory RAG, new chat interface, autonomous Plan mutation, or booking behavior is included.
+**Success Criteria** (what must be TRUE):
+
+  1. Factual country/place questions trigger research; relevant recent evidence may be reused across a resumed Plan chat, while time-sensitive facts are refreshed.
+  2. Research reads relevant linked-page content where available; inaccessible pages are identified, and answer claims are grounded in evidence actually retrieved.
+  3. Claude evaluates retrieved evidence and can make a bounded number of targeted follow-up searches before answering; source disagreements are explained with both sources cited.
+  4. Replies stream as natural-language answers with supporting source links beneath the relevant reply; when evidence remains incomplete, the answer states what is uncertain.
+  5. Destination-discovery requests preserve structured candidates alongside the explanation, and no destination or other durable Plan data changes without explicit traveler action.
+
+**Research flag:** yes — verify Tavily search/extraction behavior, Claude/MCP tool-loop support, source safety, evidence reuse and freshness, and bounded iteration.
+**Plans:** 6/6 plans executed
+
+Plans:
+**Wave 1**
+
+- [x] 10-01-PLAN.md
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 10-02-PLAN.md
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 10-03-PLAN.md
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 10-04-PLAN.md
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] 10-05-PLAN.md
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] 10-06-PLAN.md

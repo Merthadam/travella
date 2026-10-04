@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from dataclasses import dataclass, field
 from uuid import uuid4
@@ -10,6 +11,9 @@ from fastapi.testclient import TestClient
 
 from services.agent.app import create_app
 from services.agent.claude import ClaudeGatewayAdapter, GatewayProtocolError
+from services.agent.http_contracts import AgentRequest
+from services.agent.service import AgentTurnService
+from services.agent.state import PlanCandidateStore, ProcessReceiptCache
 from services.auth.contracts import ValidatedIdentity
 
 
@@ -23,6 +27,13 @@ def _bedrock_isolated_provider_configuration(monkeypatch):
 class FakeAdapter:
     calls: int = 0
     research_tokens: list[str | None] = field(default_factory=list)
+
+    async def complete_conversation(self, **_kwargs):
+        return {
+            "decision": "research",
+            "research_intent": "destination_discovery",
+            "assistant_text": "I’ll find a few places.",
+        }
 
     async def research(self, **kwargs):
         self.calls += 1
@@ -71,6 +82,19 @@ class FakeAdapter:
                     "excerpt": "safe",
                 }
             ],
+        }
+
+    async def synthesize_research(self, *, page_read, **_kwargs):
+        if page_read.get("read_status") == "read":
+            return {
+                "answer": "The page provides destination information.",
+                "evidence_ids": [page_read["evidence_id"]],
+                "uncertainty": [],
+            }
+        return {
+            "answer": "I could not read a source page.",
+            "evidence_ids": [],
+            "uncertainty": ["The selected source page was unavailable."],
         }
 
 
@@ -206,6 +230,80 @@ def test_plan_stream_returns_assistant_text_and_terminal_status():
     assert '"type":"TERMINAL","status":"needs your input"' in response.text
 
 
+def test_plan_stream_projects_only_cited_read_sources_beneath_the_answer():
+    identity = ValidatedIdentity("traveler-1", "client", frozenset({"aws.cognito.signin.user.admin"}), 1, 9999999999)
+    plan = {"plan_id": str(uuid4()), "lifecycle": "active", "revision": 1}
+
+    def verifier(token):
+        assert token == "good"
+        return identity
+
+    def reader(subject, plan_id, token):
+        return plan if subject == identity.subject and str(plan_id) == plan["plan_id"] else None
+
+    class Graph:
+        async def invoke(self, state, *, authorization_token, on_text_delta=None):
+            if on_text_delta:
+                await on_text_delta("Valencia has several central markets.")
+            evidence = [
+                {"evidence_id": "read-1", "read_status": "read", "title": "Market guide", "url": "https://example.test/market", "content": "private page body"},
+                {"evidence_id": "expired-1", "read_status": "read", "title": "Expired", "url": "https://example.test/expired", "expires_at": 1, "content": "expired body"},
+                {"evidence_id": "malformed-1", "read_status": "read", "title": "Malformed", "url": "https://user:pass@example.test:bad/page"},
+                {"evidence_id": "unread-1", "read_status": "unavailable", "title": "Unread", "url": "https://example.test/unread"},
+            ]
+            refs = [
+                {"evidence_id": evidence_id, "title": title, "url": url}
+                for evidence_id, title, url in [
+                    ("read-1", "Market guide", "https://attacker.test/replaced"),
+                    ("expired-1", "Expired", "https://example.test/expired"),
+                    ("malformed-1", "Malformed", "https://example.test/malformed"),
+                    ("unread-1", "Unread", "https://example.test/unread"),
+                    ("foreign-1", "Foreign", "https://example.test/foreign"),
+                ]
+            ]
+            return {
+                "research_evidence": evidence,
+                "research_evidence_ids": ["read-1", "expired-1", "malformed-1", "unread-1"],
+                "projection": {
+                    "status": "shortlist_ready",
+                    "plan_id": state["plan_id"],
+                    "event_id": state["event_id"],
+                    "generation": state["generation"],
+                    "assistant_text": "Valencia has several central markets.",
+                    "candidates": [{"candidate_id": "candidate-1", "name": "Valencia"}],
+                    "sources": refs,
+                },
+            }
+
+    app = create_app(verifier=verifier, plan_reader=reader, adapter=FakeAdapter(), graph=Graph())
+    with TestClient(app) as client:
+        response = client.post(
+            f"/v1/agent/plans/{plan['plan_id']}/events/stream",
+            headers={"Authorization": "Bearer good"},
+            json={"plan_id": plan["plan_id"], "event_id": "source-stream", "message": "Markets in Valencia?"},
+        )
+
+    assert response.status_code == 200
+    events = [json.loads(line.removeprefix("data: ")) for line in response.text.splitlines() if line.startswith("data: ")]
+    content_index = next(index for index, event in enumerate(events) if event["type"] == "TEXT_MESSAGE_CONTENT")
+    end_index = next(index for index, event in enumerate(events) if event["type"] == "TEXT_MESSAGE_END")
+    terminal_index = next(index for index, event in enumerate(events) if event["type"] == "TERMINAL")
+    assert content_index < end_index < terminal_index
+    assert events[terminal_index]["sources"] == [{"title": "Market guide", "url": "https://example.test/market"}]
+    assert "private page body" not in response.text
+    assert "foreign-1" not in response.text
+
+
+@pytest.mark.parametrize("url", ["https://", "https://user@example.test/path", "https://example.test:bad/path", "https://example.test/a b"])
+def test_research_source_projection_rejects_malformed_urls(url):
+    sources = [{"evidence_id": "source-1", "title": "A source", "url": url}]
+    evidence = [{"evidence_id": "source-1", "read_status": "read", "title": "A source", "url": url}]
+
+    assert AgentTurnService._validated_research_sources(
+        sources, evidence=evidence, evidence_ids=["source-1"]
+    ) == []
+
+
 def test_bedrock_client_uses_local_aws_profile_when_api_key_is_blank(monkeypatch):
     from services.agent.claude.messages import ClaudeMessagesClient
 
@@ -280,6 +378,45 @@ def test_source_inspection_is_compact():
     assert "https://example.test/kyoto" in response.text
 
 
+def test_superseded_research_cannot_emit_late_text_or_sources():
+    async def run():
+        plan_id = str(uuid4())
+        started = asyncio.Event()
+        release = asyncio.Event()
+        deltas = []
+
+        class LateGraph:
+            async def invoke(self, state, *, authorization_token, on_text_delta=None):
+                started.set()
+                await release.wait()
+                if on_text_delta:
+                    await on_text_delta("obsolete answer")
+                return {"projection": {
+                    "status": "shortlist_ready", "plan_id": state["plan_id"],
+                    "event_id": state["event_id"], "generation": state["generation"],
+                    "assistant_text": "obsolete answer",
+                    "sources": [{"title": "Old source", "url": "https://example.test/old"}],
+                }, "research_evidence": [], "research_evidence_ids": []}
+
+        service = AgentTurnService(
+            plan_reader=lambda *_args: {"plan_id": plan_id, "lifecycle": "active"},
+            context_reader=None, graph=LateGraph(), tools=FakeAdapter(),
+            candidates=PlanCandidateStore(), receipts=ProcessReceiptCache(),
+        )
+        request = AgentRequest(plan_id=plan_id, event_id="slow-event", message="Old question")
+        task = asyncio.create_task(service.handle(request, "traveler-1", "Bearer good", on_text_delta=deltas.append))
+        await started.wait()
+        await service.candidates.reserve("traveler-1", plan_id, "newer-event")
+        release.set()
+        response = await task
+        return response, deltas
+
+    response, deltas = asyncio.run(run())
+    assert response.status == "interrupted"
+    assert response.sources == []
+    assert deltas == []
+
+
 class _FakeGateway:
     def __init__(self, payload: dict | Exception):
         self.calls = []
@@ -320,6 +457,7 @@ def test_claude_adapter_calls_gateway_with_verified_plan_context():
                 "traveler_scope": "traveler-1",
                 "plan_id": "plan-1",
                 "request_id": "e-1",
+                "research_intent": "destination_discovery",
             },
         )
     ]

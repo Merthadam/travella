@@ -125,6 +125,7 @@ def test_openai_provider_uses_responses_api_and_structured_conversation(monkeypa
         "decision": "question",
         "assistant_text": "Which month?",
         "question": "Which month?",
+        "research_intent": None,
     }
 
 
