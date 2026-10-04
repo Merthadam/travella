@@ -4,10 +4,10 @@ current_phase: 11
 current_phase_name: Use Claude Agent SDK as a LangGraph research worker
 status: executing
 stopped_at: Phase 11 implementation committed; validation pending
-last_updated: "2026-10-04T21:19:59.423Z"
+last_updated: "2026-10-04T21:37:20.817Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 11 SDK implementation committed; live validation pending
-state_head: b85c0355789873470548f3f0c8492a2880f039fc
+state_head: fa0b983afc7d3f51ef8f68c767a34b3b462a4ba4
 progress:
   total_phases: 12
   completed_phases: 0
@@ -128,3 +128,4 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 261004-urd | Refresh local Sonnet 5.5 container; remove disabled-thinking override; startup/auth and source hashes passed, live chat pending | 2026-10-04 | bda69a2 | — | [261004-urd-refresh-local-sonnet-5-5-container-and-u](./quick/261004-urd-refresh-local-sonnet-5-5-container-and-u/) |
 | 261004-v3f | Implemented structured trip context with editable A2UI over AG-UI; local build/startup passed; manual acceptance and CRUD verification pending | 2026-10-04 | f182db7 | — | [261004-v3f-connect-structured-chat-answers-to-valid](./quick/261004-v3f-connect-structured-chat-answers-to-valid/) |
 | 261004-wcj | Removed Tavily chat discovery; stable destination ideas use knowledge, current or uncertain details use SDK research; startup passed, live routing pending | 2026-10-04 | b85c035 | — | [261004-wcj-remove-tavily-from-chat-research-and-use](./quick/261004-wcj-remove-tavily-from-chat-research-and-use/) |
+| 261004-wq7 | Added assistant Markdown rendering; build/startup and existing browser history passed; live streaming and screenshot acceptance pending | 2026-10-04 | fa0b983 | — | [261004-wq7-render-streamed-assistant-chat-replies-a](./quick/261004-wq7-render-streamed-assistant-chat-replies-a/) |
