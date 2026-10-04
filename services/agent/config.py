@@ -85,7 +85,8 @@ class ResearchWorkerConfig:
 
     @classmethod
     def from_env(cls, *, secrets_client: Any = None) -> ResearchWorkerConfig:
-        model = os.getenv("AGENT_RESEARCH_MODEL", "").strip() or "claude-sonnet-4-6"
+        model = (os.getenv("AGENT_RESEARCH_MODEL", "").strip()
+                 or os.getenv("ANTHROPIC_MODEL", "").strip() or "claude-sonnet-4-6")
         if not re.fullmatch(r"claude-[a-z0-9.-]+", model):
             raise ResearchConfigurationError("AGENT_RESEARCH_MODEL must name a Claude model.")
         return cls(

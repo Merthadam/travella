@@ -45,3 +45,7 @@ The HTTP composition currently constructs AgentGraph without a durable checkpoin
 ## Runtime caveats
 
 Native WebFetch response normalization is based on the pinned tool contract and requires live validation. DNS/public-URL checks plus SDK tool permissions do not replace a deployment-level outbound network boundary. SDK subprocess cancellation uses a pinned private transport class; upgrades require lifecycle validation.
+
+## Local startup follow-up (2026-10-04)
+
+Rebuilt/recreated the local Compose app; source hashes for the worker, router, config, graph node and skill match. Authentication sign-in/session/sign-out passed. Health reports Claude Agent SDK research and direct Anthropic conversation, both configured to claude-opus-4-5, with memory enabled. User approved the router provider switch because shared credentials now contain Anthropic only. Live research, citations and Stop remain manual checks; no cloud deployment occurred.

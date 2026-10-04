@@ -1,4 +1,4 @@
-"""Model adapter using Bedrock by default or OpenAI directly."""
+"""Model adapter for explicitly configured Bedrock, OpenAI or Anthropic calls."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import os
 import re
 from typing import Any
 
-from anthropic import AsyncAnthropicBedrock
+from anthropic import AsyncAnthropic, AsyncAnthropicBedrock
 from openai import AsyncOpenAI
 
 from ..state.contracts import ResearchDecision
@@ -103,20 +103,27 @@ class ClaudeMessagesClient:
         selected_provider = (
             (provider or os.getenv("AGENT_MODEL_PROVIDER") or DEFAULT_PROVIDER).strip().lower()
         )
-        if selected_provider not in {"bedrock", "openai"}:
-            raise ValueError("AGENT_MODEL_PROVIDER must be 'bedrock' or 'openai'.")
+        if selected_provider not in {"bedrock", "openai", "anthropic"}:
+            raise ValueError("AGENT_MODEL_PROVIDER must be 'bedrock', 'openai' or 'anthropic'.")
 
-        self.provider = "amazon-bedrock" if selected_provider == "bedrock" else "openai"
+        self.provider = "amazon-bedrock" if selected_provider == "bedrock" else selected_provider
         self._api_key = (
             (os.getenv("OPENAI_API_KEY") or "").strip() if selected_provider == "openai" else None
         )
         if selected_provider == "openai" and not self._api_key:
             raise RuntimeError("OPENAI_API_KEY is required when AGENT_MODEL_PROVIDER=openai.")
+        if selected_provider == "anthropic":
+            from ..config import ResearchWorkerConfig
+
+            # Use the same authoritative secret resolver as the SDK research worker.
+            self._api_key = ResearchWorkerConfig.from_env().api_key
 
         if model:
             self.model = model
         elif selected_provider == "openai":
             self.model = (os.getenv("OPENAI_MODEL_ID") or "").strip() or DEFAULT_OPENAI_MODEL
+        elif selected_provider == "anthropic":
+            self.model = (os.getenv("ANTHROPIC_MODEL") or "").strip() or "claude-sonnet-4-6"
         else:
             self.model = (os.getenv("BEDROCK_MODEL_ID") or "").strip() or DEFAULT_MODEL
         self.region = (
@@ -130,6 +137,9 @@ class ClaudeMessagesClient:
         if self.sdk_client is None:
             if self.provider == "openai":
                 self.sdk_client = AsyncOpenAI(api_key=self._api_key)
+                return self.sdk_client
+            if self.provider == "anthropic":
+                self.sdk_client = AsyncAnthropic(api_key=self._api_key)
                 return self.sdk_client
 
             api_key = (os.getenv("AWS_BEARER_TOKEN_BEDROCK") or "").strip() or None

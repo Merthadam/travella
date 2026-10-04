@@ -99,10 +99,12 @@ APIs, with keys loaded only into the local MCP containers from `services/mcps/.e
 The local auth process still talks to your existing Cognito user pool, so the
 container mounts `~/.aws` read-only for its AWS SDK configuration.
 
-The conversation adapter uses OpenAI's direct Responses API. Manage `OPENAI_API_KEY` through the
-shared secret or the hidden-prompt command above. API billing is managed separately
-from ChatGPT subscriptions. Compose shell environment overrides still take precedence
-over `.env`; unset an old exported key if you want the newly fetched shared value.
+Local Compose defaults to `AGENT_MODEL_PROVIDER=anthropic` for conversation/onboarding,
+using `ANTHROPIC_API_KEY` (or its secret ARN) and `ANTHROPIC_MODEL`. Research still uses
+Claude Agent SDK. The shared secret supports `ANTHROPIC_MODEL`; `AGENT_RESEARCH_MODEL`
+can override it for research only. Select `AGENT_MODEL_PROVIDER=openai` and provide
+`OPENAI_API_KEY` to keep the direct OpenAI Responses adapter. Compose shell environment
+overrides take precedence over `.env`.
 
 Provider keys are used by the server-side agent only. In the combined local app container,
 Docker stores them in that container's environment; the launcher gives them to the agent,
@@ -120,7 +122,7 @@ See [the Runtime runbook](../docs/runbooks/agentcore-runtime.md) for bounds and 
 selected provider and model ID but never credentials.
 
 To use Bedrock instead, set `AGENT_MODEL_PROVIDER=bedrock` and configure AWS
-credentials for the local app before restarting. OpenAI remains the local default.
+credentials for the local app before restarting. Anthropic is the local Compose default; provider errors do not trigger automatic fallback.
 
 Pass standard `docker compose up` options when needed, for example
 `bash scripts/start-local.sh -d` for detached mode. Stop detached services with

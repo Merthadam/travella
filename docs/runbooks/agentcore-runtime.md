@@ -39,7 +39,7 @@ For the Runtime execution role, scope retrieval to the selected secret:
 
 A customer-managed KMS key also requires `kms:Decrypt` on that key. Local secret sync does not grant the Runtime role any access. Use a dedicated production secret to avoid granting access to unrelated development credentials.
 
-Other model calls retain `AGENT_MODEL_PROVIDER` and their existing configuration. The OpenAI adapter reads `OPENAI_API_KEY` directly from its server environment; **`OPENAI_API_KEY_SECRET_ARN` is not implemented**. Deployments using OpenAI must provide its key through their existing secure environment injection path, or select the existing Bedrock provider with IAM credentials. Configuring the Anthropic secret does not configure these other calls.
+Conversation and onboarding support `AGENT_MODEL_PROVIDER=anthropic`, `openai`, or `bedrock`. Local Compose defaults to `anthropic`, using the same Anthropic credential resolver and `ANTHROPIC_MODEL`; production should set its provider explicitly. The OpenAI adapter reads `OPENAI_API_KEY` directly from its server environment; **`OPENAI_API_KEY_SECRET_ARN` is not implemented**. Deployments using OpenAI must provide its key through their existing secure environment injection path, or select the existing Bedrock provider with IAM credentials. The Anthropic secret also configures conversation/onboarding when their provider is `anthropic`.
 
 ## Research worker bounds and local startup
 
@@ -51,6 +51,8 @@ Other model calls retain `AGENT_MODEL_PROVIDER` and their existing configuration
 | `AGENT_RESEARCH_MAX_BUDGET_USD` | 0.5 | 10 |
 | `AGENT_RESEARCH_MAX_SEARCHES` | 3 | 10 |
 | `AGENT_RESEARCH_MAX_FETCHES` | 6 | 20 |
+
+`ANTHROPIC_MODEL` is accepted as a compatibility alias when `AGENT_RESEARCH_MODEL` is unset; the explicit research setting takes precedence.
 
 All numeric bounds must be positive and finite. Search/read/refinement runs inside one SDK research query, followed by a tool-free SDK query for genuinely streamed final text; LangGraph owns the surrounding flow, checkpoints, and browser projection.
 

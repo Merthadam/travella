@@ -121,3 +121,5 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 2026-10-04 | right-trip-brief-ui | Restored right-side editable Trip Brief; 33 frontend tests/build and desktop interactions passed. Screenshot/mobile checks blocked by unresponsive DevTools. |
 | 2026-10-04 | local-rebuild-freshness | Updated startup skill; rebuild/auth checks passed and three frontend source hashes matched the running container. |
 | 2026-10-04 | support-anthropic-api-key-in-shared-secr | Added hidden-prompt helper support and docs; confirmed the Anthropic key is present in the shared AWS secret without exposing its value. |
+
+| 2026-10-04 | local-sdk-research-startup | Enabled approved Anthropic router and model alias; rebuilt local stack; auth, SDK health and five source hashes passed. |

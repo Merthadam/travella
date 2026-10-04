@@ -29,6 +29,7 @@ ROOT_KEYS = frozenset(
         "POSTGRES_PASSWORD",
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
+        "ANTHROPIC_MODEL",
         "ANTHROPIC_API_KEY_SECRET_ARN",
         "AGENT_RESEARCH_BACKEND",
         "AGENT_RESEARCH_MODEL",
@@ -189,12 +190,14 @@ def run(args, client) -> None:
         "GOOGLE_MAPS_SERVER_API_KEY",
         "VITE_GOOGLE_MAPS_API_KEY",
     }
-    if values.get("AGENT_MODEL_PROVIDER", "openai") == "openai":
+    provider = values.get("AGENT_MODEL_PROVIDER", "anthropic")
+    if provider == "openai":
         required.add("OPENAI_API_KEY")
     if values.get(
         "AGENT_RESEARCH_BACKEND", "claude-agent-sdk"
-    ) == "claude-agent-sdk" and not values.get("ANTHROPIC_API_KEY_SECRET_ARN"):
-        required.add("ANTHROPIC_API_KEY")
+    ) == "claude-agent-sdk" or provider == "anthropic":
+        if not values.get("ANTHROPIC_API_KEY_SECRET_ARN"):
+            required.add("ANTHROPIC_API_KEY")
     missing = sorted(k for k in required if not values.get(k))
     if missing:
         raise SetupError("Shared settings missing: " + ", ".join(missing))
