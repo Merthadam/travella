@@ -66,8 +66,28 @@ class AgentGraph:
             projection["research_intent"] = result.get("research_intent")
             if result.get("run_id"):
                 projection["run_id"] = result["run_id"]
+            # Preserve the citation identity for the API to validate against this
+            # turn's successfully read evidence before reducing it to browser refs.
             sources = result.get("research_sources", [])
-            projection["sources"] = sources[:3] if isinstance(sources, list) else []
+            evidence = {
+                str(item.get("evidence_id")): item
+                for item in result.get("research_evidence", [])
+                if isinstance(item, dict)
+                and item.get("read_status") == "read"
+                and item.get("evidence_id")
+            }
+            cited_ids = set(result.get("research_evidence_ids", []))
+            projection["sources"] = [
+                {
+                    "evidence_id": str(source.get("evidence_id")),
+                    "title": source.get("title", ""),
+                    "url": source.get("url", ""),
+                }
+                for source in sources[:3]
+                if isinstance(source, dict)
+                and str(source.get("evidence_id", "")) in cited_ids
+                and str(source.get("evidence_id", "")) in evidence
+            ] if isinstance(sources, list) else []
         for field in ("question", "assistant_text", "error"):
             if result.get(field):
                 projection[field] = result[field]

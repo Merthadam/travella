@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -259,11 +261,12 @@ class AgentTurnService:
                     content=query,
                     generation=generation,
                 )
-            source_refs = self._validated_research_sources(projection.get("sources"))
-            if "sources" not in projection:
-                source_refs = self._source_refs(projection)
-            if source_refs:
-                projection["sources"] = source_refs
+            source_refs = self._validated_research_sources(
+                projection.get("sources"),
+                evidence=result.get("research_evidence"),
+                evidence_ids=result.get("research_evidence_ids"),
+            )
+            projection["sources"] = source_refs
             assistant_content = str(projection.get("assistant_text") or projection.get("question") or "")
             assistant_content = self._message_with_sources(assistant_content, source_refs)
             if self.context_reader and assistant_content:
@@ -427,43 +430,59 @@ class AgentTurnService:
         return f"data: {json.dumps(payload, ensure_ascii=False, separators=(',', ':'))}\n\n"
 
     @staticmethod
-    def _validated_research_sources(value: Any) -> list[dict[str, str]]:
-        """Prefer sources tied to Claude's validated, successfully read citations."""
-        if not isinstance(value, list):
+    def _validated_research_sources(
+        value: Any, *, evidence: Any, evidence_ids: Any
+    ) -> list[dict[str, str]]:
+        """Project only cited, successfully read evidence from the current graph turn."""
+        if not isinstance(value, list) or not isinstance(evidence, list) or not isinstance(evidence_ids, list):
             return []
+        cited_ids = {
+            item for item in evidence_ids
+            if isinstance(item, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,180}", item)
+        }
+        read_by_id = {
+            str(item.get("evidence_id")): item
+            for item in evidence
+            if isinstance(item, dict)
+            and item.get("read_status") == "read"
+            and isinstance(item.get("evidence_id"), str)
+            and item.get("evidence_id") in cited_ids
+            and (
+                not item.get("expires_at")
+                or (
+                    isinstance(item.get("expires_at"), (int, float))
+                    and item["expires_at"] > time.time()
+                )
+            )
+        }
         sources: list[dict[str, str]] = []
         seen: set[str] = set()
         for item in value[:3]:
             if not isinstance(item, dict):
                 continue
-            title = re.sub(r"[\x00-\x1f\x7f\[\]]", " ", str(item.get("title", "")))[:80].strip()
-            url = str(item.get("url", "")).strip()
-            if not title or not url.startswith("https://") or len(url) > 2048 or url in seen:
+            evidence_id = item.get("evidence_id")
+            read_item = read_by_id.get(evidence_id) if isinstance(evidence_id, str) else None
+            if not read_item:
+                continue
+            title = re.sub(r"[\x00-\x1f\x7f\[\]]", " ", str(read_item.get("title", "")))[:80].strip()
+            url = str(read_item.get("url", "")).strip()
+            try:
+                parsed = urlsplit(url)
+                valid_https = (
+                    parsed.scheme == "https"
+                    and bool(parsed.hostname)
+                    and parsed.username is None
+                    and parsed.password is None
+                    and not any(character.isspace() or ord(character) < 32 for character in url)
+                )
+                # Accessing port validates malformed port syntax.
+                _ = parsed.port
+            except ValueError:
+                valid_https = False
+            if not title or not valid_https or len(url) > 2048 or url in seen:
                 continue
             seen.add(url)
             sources.append({"title": title, "url": url})
-        return sources
-
-    @staticmethod
-    def _source_refs(projection: dict[str, Any]) -> list[dict[str, str]]:
-        sources: list[dict[str, str]] = []
-        seen: set[str] = set()
-        for candidate in projection.get("candidates", []):
-            if not isinstance(candidate, dict):
-                continue
-            for evidence in candidate.get("evidence", []):
-                if not isinstance(evidence, dict):
-                    continue
-                title, url = str(evidence.get("title", "")).strip(), str(evidence.get("url", "")).strip()
-                if not title or not url.startswith("https://") or len(url) > 180 or url in seen:
-                    continue
-                title = re.sub(r"[\x00-\x1f\x7f\[\]]", " ", title)[:80].strip()
-                if not title:
-                    continue
-                seen.add(url)
-                sources.append({"title": title, "url": url})
-                if len(sources) == 3:
-                    return sources
         return sources
 
     @staticmethod
