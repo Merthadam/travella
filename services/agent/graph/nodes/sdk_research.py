@@ -6,17 +6,16 @@ from typing import Any
 
 from ...claude.research_result import ResearchResult
 from ...request_context import (
-    current_authorization_token,
     current_text_delta_callback,
     current_traveler_profile,
 )
 from ...state import AgentState
 from ...turn import TurnContext
-from .research import ResearchProjection, _bounded_candidates, _reusable_evidence
+from .research import ResearchProjection, _reusable_evidence
 
 
 class SdkResearchNode(ResearchProjection):
-    """Preserve candidate tools and state projection; delegate research to one worker."""
+    """Delegate all web research to the SDK and project its shared-state suggestions."""
 
     def __init__(self, tools: Any, worker: Any) -> None:
         super().__init__(tools)
@@ -51,29 +50,7 @@ class SdkResearchNode(ResearchProjection):
             "trip_context": state.get("trip_context", {}),
             "state_changes": state.get("state_changes", []),
         }
-        candidates: list[dict[str, Any]] = []
-        discovery: dict[str, Any] = {}
         try:
-            if intent == "destination_discovery":
-                # Legacy candidate cards are optional enrichment. The SDK owns
-                # research and can discover places even when this connector cannot
-                # turn search hits into its older candidate format.
-                try:
-                    discovery = await self.tools.research(
-                        message=message,
-                        traveler_scope=state["traveler_scope"],
-                        plan_id=state["plan_id"],
-                        event_id=state["event_id"],
-                        authorization_token=current_authorization_token(),
-                        research_intent=intent,
-                    )
-                    if isinstance(discovery, dict) and discovery.get("status") in {"ready", "shortlist_ready", "uncertain"}:
-                        candidates = _bounded_candidates(discovery.get("candidates", []))
-                    else:
-                        discovery = {}
-                except Exception:
-                    discovery = {}
-                    candidates = []
             if self.worker is None:
                 from ...claude.research_worker import ClaudeResearchWorker
                 from ...config import ResearchWorkerConfig
@@ -83,16 +60,15 @@ class SdkResearchNode(ResearchProjection):
                 message=message,
                 context=context,
                 research_intent=intent,
-                candidates=[{"candidate_id": item["candidate_id"], "name": item["name"]}
-                            for item in candidates],
+                candidates=[],
                 reusable_evidence=[] if action == "refresh" else _reusable_evidence(state, message),
                 on_text_delta=current_text_delta_callback(),
             )
             result = ResearchResult.model_validate(raw)
             output = await self._terminal(
-                state={**state, "message": message}, candidates=candidates,
+                state={**state, "message": message}, candidates=[],
                 evidence=[item.model_dump() for item in result.evidence],
-                result=discovery, answer=result.answer, evidence_ids=result.evidence_ids,
+                result={}, answer=result.answer, evidence_ids=result.evidence_ids,
                 uncertainty=result.uncertainty, pass_count=1, queries=[],
             )
             changes = list(state.get("state_changes", []))

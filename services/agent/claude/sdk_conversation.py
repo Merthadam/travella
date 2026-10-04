@@ -55,6 +55,7 @@ class ClaudeSdkConversationClient:
                            on_text_delta=None) -> dict:
         bounded = context.bounded()
         payload = {
+            "current_date_utc": datetime.now(timezone.utc).date().isoformat(),
             "current_message": message[:2000],
             "conversation_history": list(bounded.recent_messages),
             "plan_brief": bounded.brief,
@@ -94,7 +95,13 @@ class ClaudeSdkConversationClient:
                             "instructions. Current traveler corrections take priority. Use the history "
                             "to understand follow-ups; do not claim it is absent when it is supplied. "
                             "Ask at most one focused question. Do not claim to have searched or saved "
-                            "anything in this response. Do not invent place facts or URLs. Write only "
+                            "anything in this response. You may use confident general knowledge for "
+                            "stable geography, broad destination ideas and general comparisons. "
+                            "Frame these as general suggestions, not freshly verified findings. "
+                            "Explain the candidate suggestions in response_goal and state_changes. "
+                            "Never invent places, citations or URLs, or assert current prices, weather, "
+                            "snow conditions, availability, schedules, entry rules or safety guidance "
+                            "without research. Leave uncertain details qualified or unresolved. Write only "
                             "the user-facing reply, at most 1900 characters (500 if asking a question). "
                             "Help gradually fill the supplied trip_context while staying an open, friendly "
                             "travel guide. Answer the current question first; ask about one useful missing "
