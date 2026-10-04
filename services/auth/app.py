@@ -54,9 +54,15 @@ def configured_app():
         origin=origin,
         secure_cookies=secure,
         crud_client=CrudClient(os.environ["CRUD_BASE_URL"]) if os.getenv("CRUD_BASE_URL") else None,
-        agent_client=AgentClient(os.environ["AGENT_BASE_URL"])
-        if os.getenv("AGENT_BASE_URL")
-        else None,
+        agent_client=(
+            AgentClient(
+                os.getenv("AGENT_BASE_URL", "http://agent:8002"),
+                runtime_arn=os.getenv("AGENTCORE_RUNTIME_ARN"),
+                runtime_region=os.getenv("AGENTCORE_RUNTIME_REGION") or config.region,
+            )
+            if os.getenv("AGENT_BASE_URL") or os.getenv("AGENTCORE_RUNTIME_ARN")
+            else None
+        ),
     )
 
 

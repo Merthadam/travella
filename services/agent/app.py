@@ -24,6 +24,7 @@ from .http_contracts import (
     AgentResponse,
     OnboardingRequest,
     OnboardingResponse,
+    RuntimeInvocationRequest,
     TravelerProfileMemoryRequest,
 )
 from .memory import create_memory_adapter
@@ -119,6 +120,71 @@ def create_app(
             authorization,
             required_scope=(required_scope or os.getenv("AGENT_REQUIRED_SCOPE") or DEFAULT_SCOPE),
         )
+
+    @app.get("/ping")
+    async def runtime_ping() -> dict[str, str]:
+        """Health endpoint required by AgentCore Runtime's HTTP protocol."""
+        return {"status": "Healthy"}
+
+    @app.post("/invocations")
+    async def runtime_invocations(
+        envelope: RuntimeInvocationRequest,
+        http_request: Request,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+        authorization: str | None = Header(default=None),
+    ):
+        """Invoke the existing use cases through AgentCore Runtime."""
+        payload = envelope.payload
+        if envelope.operation == "turn":
+            request = AgentRequest.model_validate(payload)
+            return await turn_service.handle(request, identity.subject, authorization)
+        if envelope.operation == "stream":
+            request = AgentRequest.model_validate(payload)
+            token = (authorization or "")[7:].strip()
+            await turn_service._read_plan(identity.subject, request.plan_id, token)
+            return StreamingResponse(
+                turn_service.stream(
+                    request,
+                    identity.subject,
+                    authorization,
+                    is_disconnected=http_request.is_disconnected,
+                ),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+            )
+        if envelope.operation == "onboarding":
+            request = OnboardingRequest.model_validate(payload)
+            result = await onboarding_graph.ainvoke(
+                {"messages": [message.model_dump() for message in request.messages]}
+            )
+            return OnboardingResponse(
+                action=result["action"],
+                assistant_text=result["assistant_text"],
+                answer_candidates=[
+                    {"topic": item["topic"], "value": item["value"]}
+                    for item in result["answer_candidates"]
+                ],
+            )
+        if envelope.operation == "profile_sync":
+            request = TravelerProfileMemoryRequest.model_validate(payload)
+            if not memory.enabled:
+                return {"status": "disabled"}
+            try:
+                synced = await memory.sync_profile(
+                    identity.subject, request.model_dump(mode="json")
+                )
+            except Exception:
+                synced = False
+            return {"status": "synced" if synced else "unavailable"}
+        if envelope.operation == "cancel":
+            plan_id = str(payload.get("plan_id", ""))
+            event_id = str(payload.get("event_id", ""))
+            if not plan_id or not event_id:
+                raise HTTPException(422, "Plan and event IDs are required.")
+            return {
+                "cancelled": await turn_service.cancel(identity.subject, plan_id, event_id)
+            }
+        raise HTTPException(422, "Unsupported runtime operation.")
 
     router = APIRouter(prefix="/v1/agent")
 

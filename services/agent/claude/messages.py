@@ -8,6 +8,7 @@ import os
 import re
 from typing import Any
 
+import boto3
 from anthropic import AsyncAnthropicBedrock
 from openai import AsyncOpenAI
 
@@ -16,6 +17,29 @@ from ..turn import TurnContext, load_prompt
 DEFAULT_MODEL = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
 DEFAULT_PROVIDER = "bedrock"
+
+
+def _openai_api_key() -> str:
+    secret_arn = (os.getenv("OPENAI_API_KEY_SECRET_ARN") or "").strip()
+    if secret_arn:
+        try:
+            response = boto3.client(
+                "secretsmanager",
+                region_name=os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION"),
+            ).get_secret_value(SecretId=secret_arn)
+            secret = response.get("SecretString") or ""
+            try:
+                parsed = json.loads(secret)
+            except json.JSONDecodeError:
+                parsed = secret
+            if isinstance(parsed, dict):
+                secret = parsed.get("OPENAI_API_KEY") or parsed.get("api_key") or ""
+            if isinstance(secret, str) and secret.strip():
+                return secret.strip()
+        except Exception:
+            raise RuntimeError("Unable to load the configured OpenAI API key secret.") from None
+        raise RuntimeError("The configured OpenAI API key secret is empty or invalid.")
+    return (os.getenv("OPENAI_API_KEY") or "").strip()
 
 
 def _json_string_field(raw: str, key: str) -> tuple[str, bool] | None:
@@ -107,7 +131,7 @@ class ClaudeMessagesClient:
 
         self.provider = "amazon-bedrock" if selected_provider == "bedrock" else "openai"
         self._api_key = (
-            (os.getenv("OPENAI_API_KEY") or "").strip() if selected_provider == "openai" else None
+            _openai_api_key() if selected_provider == "openai" else None
         )
         if selected_provider == "openai" and not self._api_key:
             raise RuntimeError("OPENAI_API_KEY is required when AGENT_MODEL_PROVIDER=openai.")

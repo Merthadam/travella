@@ -73,3 +73,11 @@ class TravelerProfileMemoryRequest(BaseModel):
     accessibility_needs: str = Field(default="", max_length=1000)
     travel_interests: str = Field(default="", max_length=1000)
     updated_at: str | None = Field(default=None, max_length=64)
+
+
+class RuntimeInvocationRequest(BaseModel):
+    """Private envelope accepted by the AgentCore Runtime HTTP protocol."""
+
+    model_config = ConfigDict(extra="forbid")
+    operation: Literal["turn", "stream", "onboarding", "profile_sync", "cancel"]
+    payload: dict[str, Any]

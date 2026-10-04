@@ -34,6 +34,8 @@ services:
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       CRUD_BASE_URL: http://crud:8001
       AGENT_BASE_URL: http://agent:8002
+      AGENTCORE_RUNTIME_ARN: ${AGENTCORE_RUNTIME_ARN:-}
+      AGENTCORE_RUNTIME_REGION: ${AGENTCORE_RUNTIME_REGION:-${AWS_REGION:-eu-north-1}}
       SESSION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@postgres:5432/${POSTGRES_DB:-travella}
       AWS_REGION: ${AWS_REGION:-eu-north-1}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
