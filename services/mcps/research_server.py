@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -10,6 +11,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -22,6 +24,8 @@ MAX_CANDIDATES = 5
 MAX_SOURCES = 10
 MAX_EXCERPT = 700
 MAX_CLAIM = 420
+MAX_EXTRACT_URLS = 3
+MAX_PAGE_CONTENT = 1_800
 MAX_READ_CONTENT = 10_000
 EVIDENCE_TTL_SECONDS = 60 * 60
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
@@ -74,14 +78,66 @@ def _clean_page_text(value: object) -> str:
     """Bound extracted page text without treating its content as instructions."""
     text = str(value or "")
     text = re.sub(r"\x00|[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]", " ", text)
-    return text[:MAX_READ_CONTENT].strip()
+    return text.strip()
 
 
 def _canonical_url(value: object) -> str | None:
-    url = str(value or "").strip()
-    if not url.lower().startswith("https://") or len(url) > 2048:
+    raw_url = str(value or "").strip()
+    if not raw_url.lower().startswith("https://") or len(raw_url) > 2048:
         return None
-    return url.split("#", 1)[0]
+    try:
+        parsed = urlsplit(raw_url)
+        hostname = (parsed.hostname or "").rstrip(".").lower()
+        if (
+            parsed.scheme.lower() != "https"
+            or not hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or hostname == "localhost"
+            or hostname.endswith((".localhost", ".local", ".internal", ".lan"))
+        ):
+            return None
+        try:
+            address = ipaddress.ip_address(hostname)
+        except ValueError:
+            address = None
+        if address is not None and not address.is_global:
+            return None
+        port = parsed.port
+        if port not in (None, 443):
+            return None
+        netloc = hostname
+        return urlunsplit(("https", netloc, parsed.path or "/", parsed.query, ""))
+    except (ValueError, UnicodeError):
+        return None
+
+
+_OFFICIAL_SOURCE_DOMAINS = {
+    "europa.eu", "gov.uk", "gov.au", "govt.nz", "gc.ca", "gouv.fr", "go.jp", "go.kr",
+    "japan.travel", "visitbritain.com", "france.fr", "spain.info", "italia.it",
+}
+_REPUTABLE_TRAVEL_DOMAINS = {
+    "lonelyplanet.com", "roughguides.com", "ricksteves.com", "nationalgeographic.com",
+    "cntraveler.com", "fodors.com", "frommers.com", "timeout.com", "bbc.com", "bbc.co.uk",
+}
+
+
+def _domain_matches(hostname: str, domain: str) -> bool:
+    return hostname == domain or hostname.endswith(f".{domain}")
+
+
+def _source_metadata(title: str, url: str) -> dict[str, str]:
+    """Return advisory source labels derived from the validated URL host."""
+    hostname = urlsplit(url).hostname or ""
+    if hostname.endswith(".gov") or any(
+        _domain_matches(hostname, domain) for domain in _OFFICIAL_SOURCE_DOMAINS
+    ):
+        quality = "official"
+    elif any(_domain_matches(hostname, domain) for domain in _REPUTABLE_TRAVEL_DOMAINS):
+        quality = "reputable_travel"
+    else:
+        quality = "general"
+    return {"publisher": _clean_text(title, 180), "domain": hostname, "source_quality": quality}
 
 
 # This is deliberately a small, conservative location vocabulary.  Tavily text is
@@ -234,6 +290,7 @@ def _save_evidence(
                 "run_id": run_id,
                 "title": evidence["title"],
                 "url": evidence["url"],
+                **_source_metadata(evidence["title"], evidence["url"]),
                 "excerpt": candidate["fit_summary"],
                 "retrieved_at": datetime.now(timezone.utc).isoformat(),
                 "expires_at": now + EVIDENCE_TTL_SECONDS,
@@ -254,6 +311,7 @@ def _save_research_sources(
             "run_id": run_id,
             "title": source["title"],
             "url": source["url"],
+            **_source_metadata(source["title"], source["url"]),
             "excerpt": "",
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
             "expires_at": now + EVIDENCE_TTL_SECONDS,
@@ -316,6 +374,7 @@ async def research_destination_candidates(
             "evidence_id": _stable_source_id(run_id, url),
             "title": title,
             "url": url,
+            **_source_metadata(title, url),
         })
     _save_research_sources(run_id, context.subject, plan_id, sources)
     candidates: list[dict[str, Any]] = []
@@ -406,47 +465,101 @@ async def get_candidate_sources(
             "evidence_id": evidence_id,
             "title": item["title"],
             "url": item["url"],
+            "publisher": item.get("publisher", item["title"]),
+            "domain": item.get("domain", urlsplit(item["url"]).hostname or ""),
+            "source_quality": item.get("source_quality", "general"),
             "retrieved_at": item["retrieved_at"],
             "excerpt": item["excerpt"],
             "attribution": item["attribution"],
         })
     if read_content:
-        # A model may not choose an arbitrary URL. The Connector resolves one
-        # Plan/run-scoped evidence ID to the URL issued by its own search result.
-        selected = evidence[:1]
-        if selected:
-            source = selected[0]
-            page: dict[str, Any] = {
-                "evidence_id": source["evidence_id"],
-                "title": source["title"],
-                "url": source["url"],
+        # Models can select only Plan/run-scoped source IDs. Deduplicate canonical
+        # HTTPS URLs before the bounded provider request and retain an explicit
+        # unread record for each selected page that cannot safely be read.
+        selected: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for source in evidence:
+            canonical_url = _canonical_url(source.get("url"))
+            if not canonical_url or canonical_url in seen_urls:
+                continue
+            seen_urls.add(canonical_url)
+            source["url"] = canonical_url
+            selected.append(source)
+            if len(selected) >= MAX_EXTRACT_URLS:
+                break
+
+        pages: list[dict[str, Any]] = [
+            {
+                **source,
                 "read_status": "unavailable",
                 "retrieved_at": datetime.now(timezone.utc).isoformat(),
             }
+            for source in selected
+        ]
+        for page in pages:
+            page.pop("excerpt", None)
+        if selected:
             api_key = required_secret(McpSettings.from_env().tavily_api_key, "TAVILY_API_KEY")
             try:
                 async with httpx.AsyncClient(
-                    timeout=20, headers={"Authorization": f"Bearer {api_key}"}
+                    timeout=20,
+                    follow_redirects=False,
+                    headers={"Authorization": f"Bearer {api_key}"},
                 ) as client:
                     response = await client.post(
                         TAVILY_EXTRACT_URL,
-                        json={"urls": source["url"], "extract_depth": "basic", "format": "markdown"},
+                        json={
+                            "urls": [source["url"] for source in selected],
+                            "extract_depth": "basic",
+                            "format": "markdown",
+                        },
                     )
+                    if 300 <= getattr(response, "status_code", 200) < 400:
+                        raise ValueError("redirect rejected")
                     response.raise_for_status()
                     data = response.json()
-                extracted = data.get("results", []) if isinstance(data, dict) else []
-                match = next(
-                    (item for item in extracted if isinstance(item, dict) and _canonical_url(item.get("url")) == source["url"]),
-                    None,
-                )
-                content = _clean_page_text(match.get("raw_content")) if match else ""
-                if content:
+                if not isinstance(data, dict):
+                    raise ValueError("invalid extraction response")
+                extracted = data.get("results", [])
+                failed = data.get("failed_results", [])
+                if not isinstance(extracted, list) or not isinstance(failed, list):
+                    raise ValueError("invalid extraction response")
+                extracted_by_url: dict[str, dict[str, Any]] = {}
+                for item in extracted:
+                    if not isinstance(item, dict):
+                        continue
+                    result_url = _canonical_url(item.get("url"))
+                    if result_url in seen_urls:
+                        extracted_by_url[result_url] = item
+                failed_urls = {
+                    canonical
+                    for item in failed
+                    if isinstance(item, dict)
+                    for canonical in [_canonical_url(item.get("url"))]
+                    if canonical in seen_urls
+                }
+                total_chars = 0
+                for page in pages:
+                    extracted_page = extracted_by_url.get(page["url"])
+                    if not extracted_page or page["url"] in failed_urls:
+                        continue
+                    raw_content = extracted_page.get("raw_content")
+                    content = _clean_page_text(raw_content)
+                    if not content or len(content) > MAX_PAGE_CONTENT:
+                        continue
+                    remaining = MAX_READ_CONTENT - total_chars
+                    if remaining <= 0:
+                        continue
+                    content = content[:remaining]
+                    if not content:
+                        continue
                     page.update(read_status="read", content=content)
-            except (httpx.HTTPError, ValueError, TypeError):
-                # Keep the page identity so callers can explain the read failure,
-                # but never return its search excerpt as page evidence.
+                    total_chars += len(content)
+            except (httpx.HTTPError, ValueError, TypeError, KeyError):
+                # Keep every selected source explicitly unread; never expose its
+                # search excerpt as page evidence or include raw provider errors.
                 pass
-            evidence = [page]
+        evidence = pages
     return {
         "status": "ready",
         "plan_id": plan_id,
