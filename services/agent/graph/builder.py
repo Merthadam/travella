@@ -20,6 +20,12 @@ def _after_conversation(state: AgentState) -> str:
     return "research" if state.get("turn_decision") == "research" else "end"
 
 
+def _after_research(state: AgentState) -> str:
+    if state.get("research_action") == "refine" and int(state.get("research_pass_count", 0)) < 3:
+        return "research"
+    return "end"
+
+
 class AgentGraph:
     """Stable graph interface: inject adapters, invoke with one Plan turn."""
 
@@ -31,7 +37,7 @@ class AgentGraph:
         flow.add_conditional_edges(
             "conversation", _after_conversation, {"research": "research", "end": END}
         )
-        flow.add_edge("research", END)
+        flow.add_conditional_edges("research", _after_research, {"research": "research", "end": END})
         self.compiled = flow.compile(checkpointer=checkpointer)
 
     async def invoke(
@@ -44,7 +50,7 @@ class AgentGraph:
         context_token = bind_authorization_token(authorization_token)
         text_token = bind_text_delta_callback(on_text_delta)
         try:
-            result = await self.compiled.ainvoke(state)
+            result = await self.compiled.ainvoke(state, config={"recursion_limit": 12})
         finally:
             reset_text_delta_callback(text_token)
             reset_authorization_token(context_token)

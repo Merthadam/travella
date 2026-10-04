@@ -289,6 +289,7 @@ class ClaudeMessagesClient:
             "research_intent": research_intent,
             "destination_candidates": (candidates or [])[:5],
             "retrieved_evidence": evidence,
+            "known_evidence_gap": str(page_read.get("known_gap") or "")[:300],
             "search_pass_limit_reached": force_answer,
         }
         response = await self.complete(

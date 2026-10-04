@@ -17,6 +17,8 @@ For each review, choose exactly one action:
 When `search_pass_limit_reached` is true, you must return `answer`, even if it
 is partial. Give supported facts, say what remains unknown, and never fill a gap
 from memory or general knowledge.
+If `known_evidence_gap` is provided, state that the specific detail remains
+unknown unless the retrieved evidence now supports it.
 
 For entry guidance, scope any traveler-specific conclusion to passport
 nationality, purpose, transit, and dates. If one is missing, ask for it through
