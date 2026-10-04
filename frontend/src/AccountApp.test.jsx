@@ -8,6 +8,8 @@ const response = (status, body) => ({ ok: status < 400, status, json: async () =
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async () => response(401, { message: 'Sign-in required.' })));
+  vi.stubGlobal('localStorage', { length: 0 });
+  vi.stubGlobal('sessionStorage', { length: 0 });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
@@ -54,9 +56,10 @@ test('registration submits all fields and waits for real verification', async ()
 
 test('MFA challenge must succeed before the server session opens My plans', async () => {
   const user = await open();
-  fetch.mockImplementation(async (path) => response(200, {
-    state: path === '/auth/sign-in' ? 'mfa_challenge' : 'signed_in',
-  }));
+  fetch.mockImplementation(async (path) => {
+    if (path === '/v1/traveler-profile') return response(200, { exists: true, onboarding_complete: true });
+    return response(200, { state: path === '/auth/sign-in' ? 'mfa_challenge' : 'signed_in' });
+  });
   await user.type(screen.getByLabelText('Email'), 'ada@example.com');
   await user.type(screen.getByLabelText('Password'), 'secret-password');
   await user.click(screen.getByRole('button', { name: 'Sign in', exact: true }));
@@ -73,6 +76,7 @@ test('authenticated enrollment shows recovery codes once', async () => {
   const user = await open();
   fetch.mockImplementation(async (path) => {
     if (String(path).startsWith('/v1/plans')) return response(200, { plans: [] });
+    if (path === '/v1/traveler-profile') return response(200, { exists: true, onboarding_complete: true, departure_base: '', citizenships: [], food_needs: '', accessibility_needs: '', travel_interests: '' });
     if (path === '/auth/sign-in' || path === '/auth/session') return response(200, { state: 'signed_in' });
     if (path === '/auth/mfa/enrollment/start') return response(200, { state: 'mfa_enrollment', secret_code: 'JBSWY3DPEHPK3PXP' });
     if (path === '/auth/mfa/enrollment/verify') return response(200, { state: 'recovery_codes', codes: ['ABCD1234', 'EFGH5678'] });
@@ -98,6 +102,7 @@ test('recovery code requires authenticator replacement before sign-in', async ()
   const user = await open();
   fetch.mockImplementation(async (path) => {
     if (String(path).startsWith('/v1/plans')) return response(200, { plans: [] });
+    if (path === '/v1/traveler-profile') return response(200, { exists: true, onboarding_complete: true, departure_base: '', citizenships: [], food_needs: '', accessibility_needs: '', travel_interests: '' });
     if (path === '/auth/sign-in') return response(200, { state: 'mfa_challenge' });
     if (path === '/auth/mfa/recovery') return response(200, { state: 'mfa_recovery_enrollment', secret_code: 'REPLACESECRET' });
     if (path === '/auth/mfa/recovery/verify') return response(200, { state: 'signed_in' });
@@ -122,11 +127,69 @@ test('expired access session silently refreshes before rendering private content
   let refreshed = false;
   fetch.mockImplementation(async (path) => {
     if (path === '/auth/refresh') { refreshed = true; return response(200, { state: 'signed_in' }); }
+    if (path === '/v1/traveler-profile') return response(200, { exists: true, onboarding_complete: true, departure_base: '', citizenships: [], food_needs: '', accessibility_needs: '', travel_interests: '' });
     return refreshed ? response(200, { state: 'signed_in' }) : response(401, { state: 'refresh_required' });
   });
   render(<AccountApp />);
   await screen.findByRole('heading', { name: 'My plans' });
   expect(fetch.mock.calls.filter(([path]) => path === '/auth/refresh')).toHaveLength(1);
+});
+
+test('first login collects, reviews, and explicitly saves reusable travel details before Plans', async () => {
+  let intakeCalls = 0;
+  let savedProfile;
+  fetch.mockImplementation(async (path, args = {}) => {
+    if (path === '/auth/session') return response(200, { state: 'signed_in' });
+    if (path === '/v1/traveler-profile' && args.method === 'GET') return response(200, { exists: false, onboarding_complete: false });
+    if (path === '/v1/agent/onboarding/events') {
+      intakeCalls++;
+      return response(200, intakeCalls === 1
+        ? { action: 'ask', assistant_text: 'Where do you usually set off from?', answer_candidates: [] }
+        : { action: 'candidate', assistant_text: 'Any food allergies I should know about?', answer_candidates: [{ topic: 'departure_base', value: 'Budapest', source_quote: 'Budapest' }] });
+    }
+    if (path === '/v1/traveler-profile' && args.method === 'PUT') {
+      savedProfile = JSON.parse(args.body);
+      return response(200, { exists: true, ...savedProfile });
+    }
+    if (String(path).startsWith('/v1/plans')) return response(200, { plans: [] });
+    return response(401, { message: 'Sign-in required.' });
+  });
+  const user = userEvent.setup();
+  render(<AccountApp />);
+  await screen.findByRole('heading', { name: 'A few details for better trip plans' });
+  await screen.findByText('Where do you usually set off from?');
+  await user.type(screen.getByLabelText('Your answer'), 'Budapest');
+  await user.click(screen.getByRole('button', { name: 'Send answer' }));
+  await screen.findByText('Any food allergies I should know about?');
+  expect(screen.queryByRole('heading', { name: 'My plans' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Review and continue' }));
+  expect(screen.getByLabelText('Usual departure city or airport').value).toBe('Budapest');
+  await user.click(screen.getByRole('button', { name: 'Save profile and continue' }));
+  await screen.findByRole('heading', { name: 'My plans' });
+  expect(savedProfile).toMatchObject({ departure_base: 'Budapest', onboarding_complete: true });
+  expect(savedProfile).not.toHaveProperty('home_address');
+});
+
+test('first login skip persists completion with an empty profile', async () => {
+  let savedProfile;
+  fetch.mockImplementation(async (path, args = {}) => {
+    if (path === '/auth/session') return response(200, { state: 'signed_in' });
+    if (path === '/v1/traveler-profile' && args.method === 'GET') return response(200, { exists: false, onboarding_complete: false });
+    if (path === '/v1/agent/onboarding/events') return response(200, { action: 'ask', assistant_text: 'Where do you usually set off from?', answer_candidates: [] });
+    if (path === '/v1/traveler-profile' && args.method === 'PUT') {
+      savedProfile = JSON.parse(args.body);
+      return response(200, { exists: true, ...savedProfile });
+    }
+    if (String(path).startsWith('/v1/plans')) return response(200, { plans: [] });
+    return response(401, { message: 'Sign-in required.' });
+  });
+  const user = userEvent.setup();
+  render(<AccountApp />);
+  await screen.findByRole('heading', { name: 'A few details for better trip plans' });
+  await user.click(await screen.findByRole('button', { name: 'Review and continue' }));
+  await user.click(screen.getByRole('button', { name: 'Skip and continue' }));
+  await screen.findByRole('heading', { name: 'My plans' });
+  expect(savedProfile).toMatchObject({ departure_base: '', citizenships: [], food_needs: '', onboarding_complete: true });
 });
 
 test('failed refresh returns to sign-in without private content', async () => {

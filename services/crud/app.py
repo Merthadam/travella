@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from .api import create_router
+from .api import create_profile_router, create_router
 from .auth import DEFAULT_SCOPE
 from .contracts import PROBLEMS, LifecycleProblem
 
@@ -69,5 +69,8 @@ def create_app(verifier, session_factory, *, required_scope=DEFAULT_SCOPE, clock
 
     app.include_router(
         create_router(session_factory, verifier, required_scope=required_scope, clock=clock)
+    )
+    app.include_router(
+        create_profile_router(session_factory, verifier, required_scope=required_scope, clock=clock)
     )
     return app

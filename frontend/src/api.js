@@ -29,3 +29,7 @@ export async function readSession() {
     return request('/auth/session');
   }
 }
+
+export const readTravelerProfile = () => request('/v1/traveler-profile');
+export const saveTravelerProfile = (profile) => request('/v1/traveler-profile', profile, { method: 'PUT' });
+export const sendOnboardingTurn = (messages) => request('/v1/agent/onboarding/events', { messages });

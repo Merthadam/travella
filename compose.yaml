@@ -34,6 +34,8 @@ services:
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       CRUD_BASE_URL: http://crud:8001
       AGENT_BASE_URL: http://agent:8002
+      AGENTCORE_RUNTIME_ARN: ${AGENTCORE_RUNTIME_ARN:-}
+      AGENTCORE_RUNTIME_REGION: ${AGENTCORE_RUNTIME_REGION:-${AWS_REGION:-eu-north-1}}
       SESSION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@postgres:5432/${POSTGRES_DB:-travella}
       AWS_REGION: ${AWS_REGION:-eu-north-1}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
@@ -115,6 +117,9 @@ services:
       APP_ENV: ${APP_ENV:-development}
       CRUD_BASE_URL: http://crud:8001
       AWS_REGION: ${AWS_REGION:-eu-north-1}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AGENTCORE_MEMORY_ID: ${AGENTCORE_MEMORY_ID:-}
+      AGENTCORE_MEMORY_NAMESPACE_TEMPLATE: ${AGENTCORE_MEMORY_NAMESPACE_TEMPLATE:-traveler/__ACTOR_ID__/profile}
       BEDROCK_REGION: ${BEDROCK_REGION:-eu-north-1}
       BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-global.anthropic.claude-sonnet-4-5-20250929-v1:0}
       AWS_BEARER_TOKEN_BEDROCK: ${AWS_BEARER_TOKEN_BEDROCK:-}
@@ -136,6 +141,8 @@ services:
         condition: service_started
       map-mcp:
         condition: service_started
+    volumes:
+      - ${HOME}/.aws:/root/.aws:ro
     ports:
       - "8002:8002"
     healthcheck:

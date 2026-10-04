@@ -39,6 +39,16 @@ class CrudContextReader:
             raise HTTPException(503, "Plan context unavailable.")
         return response.json()
 
+    async def profile(self, token: str) -> dict[str, Any]:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                f"{self.base_url}/v1/traveler-profile",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if response.status_code >= 400:
+            raise HTTPException(503, "Traveler profile unavailable.")
+        return response.json()
+
     async def append(
         self, plan_id: UUID, token: str, *, event_id: str, role: str,
         content: str, generation: int,

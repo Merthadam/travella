@@ -9,8 +9,10 @@ from langgraph.graph import END, START, StateGraph
 from ..request_context import (
     bind_authorization_token,
     bind_text_delta_callback,
+    bind_traveler_profile,
     reset_authorization_token,
     reset_text_delta_callback,
+    reset_traveler_profile,
 )
 from ..state import AgentState
 from .nodes import ConversationNode, ResearchNode
@@ -45,14 +47,17 @@ class AgentGraph:
         state: AgentState,
         *,
         authorization_token: str | None = None,
+        traveler_profile: dict[str, Any] | None = None,
         on_text_delta: Any | None = None,
     ) -> dict[str, Any]:
         context_token = bind_authorization_token(authorization_token)
+        profile_token = bind_traveler_profile(traveler_profile)
         text_token = bind_text_delta_callback(on_text_delta)
         try:
             result = await self.compiled.ainvoke(state, config={"recursion_limit": 12})
         finally:
             reset_text_delta_callback(text_token)
+            reset_traveler_profile(profile_token)
             reset_authorization_token(context_token)
         status = result.get("status", "unable to continue")
         projection: dict[str, Any] = {

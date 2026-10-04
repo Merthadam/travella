@@ -38,3 +38,46 @@ class AgentResponse(BaseModel):
     action: dict[str, Any] | None = None
     error: str | None = None
     assistant_text: str | None = None
+
+
+class OnboardingMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1000)
+
+
+class OnboardingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    messages: list[OnboardingMessage] = Field(default_factory=list, max_length=12)
+
+
+class OnboardingCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    topic: Literal[
+        "departure_base", "citizenship", "food_needs", "accessibility", "travel_interests"
+    ]
+    value: str = Field(min_length=1, max_length=1000)
+
+
+class OnboardingResponse(BaseModel):
+    action: Literal["ask", "candidate", "finish"]
+    assistant_text: str = Field(min_length=1, max_length=2000)
+    answer_candidates: list[OnboardingCandidate] = Field(default_factory=list, max_length=5)
+
+
+class TravelerProfileMemoryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    departure_base: str = Field(default="", max_length=120)
+    citizenships: list[str] = Field(default_factory=list, max_length=10)
+    food_needs: str = Field(default="", max_length=1000)
+    accessibility_needs: str = Field(default="", max_length=1000)
+    travel_interests: str = Field(default="", max_length=1000)
+    updated_at: str | None = Field(default=None, max_length=64)
+
+
+class RuntimeInvocationRequest(BaseModel):
+    """Private envelope accepted by the AgentCore Runtime HTTP protocol."""
+
+    model_config = ConfigDict(extra="forbid")
+    operation: Literal["turn", "stream", "onboarding", "profile_sync", "cancel"]
+    payload: dict[str, Any]

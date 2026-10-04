@@ -98,7 +98,7 @@ class FakeAdapter:
         }
 
 
-def _app(adapter=None, *, plan=None):
+def _app(adapter=None, *, plan=None, memory_adapter=None):
     identity = ValidatedIdentity(
         "traveler-1", "client", frozenset({"aws.cognito.signin.user.admin"}), 1, 9999999999
     )
@@ -114,7 +114,49 @@ def _app(adapter=None, *, plan=None):
             return plan
         return None
 
-    return create_app(verifier=verifier, plan_reader=reader, adapter=adapter or FakeAdapter()), plan
+    return create_app(
+        verifier=verifier,
+        plan_reader=reader,
+        adapter=adapter or FakeAdapter(),
+        memory_adapter=memory_adapter,
+    ), plan
+
+
+def test_profile_memory_sync_uses_verified_identity_and_safe_status():
+    class Memory:
+        enabled = True
+
+        def __init__(self):
+            self.calls = []
+
+        async def sync_profile(self, subject, profile):
+            self.calls.append((subject, profile))
+            return True
+
+        async def retrieve_relevant_memory(self, subject, topic):
+            return None
+
+    memory = Memory()
+    app, _ = _app(memory_adapter=memory)
+    payload = {
+        "departure_base": "Budapest",
+        "citizenships": ["Hungarian"],
+        "food_needs": "Peanut allergy",
+        "accessibility_needs": "",
+        "travel_interests": "Museums",
+        "updated_at": "2026-10-04T10:00:00Z",
+    }
+    with TestClient(app) as client:
+        assert client.put("/v1/agent/traveler-profile/memory", json=payload).status_code == 401
+        response = client.put(
+            "/v1/agent/traveler-profile/memory",
+            headers={"Authorization": "Bearer good"},
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "synced"}
+    assert memory.calls == [("traveler-1", payload)]
 
 
 def test_owned_plan_research_maps_and_deduplicates():
@@ -205,7 +247,7 @@ def test_plan_stream_returns_assistant_text_and_terminal_status():
         return plan if subject == identity.subject and str(plan_id) == plan["plan_id"] else None
 
     class Graph:
-        async def invoke(self, state, *, authorization_token, on_text_delta=None):
+        async def invoke(self, state, *, authorization_token, traveler_profile=None, on_text_delta=None):
             assert state["message"] == "Plan Kyoto"
             if on_text_delta:
                 await on_text_delta("Where to?")
@@ -242,7 +284,9 @@ def test_plan_stream_projects_only_cited_read_sources_beneath_the_answer():
         return plan if subject == identity.subject and str(plan_id) == plan["plan_id"] else None
 
     class Graph:
-        async def invoke(self, state, *, authorization_token, on_text_delta=None):
+        async def invoke(
+            self, state, *, authorization_token, traveler_profile=None, on_text_delta=None
+        ):
             if on_text_delta:
                 await on_text_delta("Valencia has several central markets.")
             evidence = [
@@ -386,7 +430,9 @@ def test_superseded_research_cannot_emit_late_text_or_sources():
         deltas = []
 
         class LateGraph:
-            async def invoke(self, state, *, authorization_token, on_text_delta=None):
+            async def invoke(
+                self, state, *, authorization_token, traveler_profile=None, on_text_delta=None
+            ):
                 started.set()
                 await release.wait()
                 if on_text_delta:
@@ -562,3 +608,31 @@ def test_candidate_actions_validate_and_preserve_plan_scoped_shortlist():
             ).status_code
             == 422
         )
+
+
+def test_onboarding_endpoint_is_authenticated_and_tool_free():
+    class IntakeModel:
+        async def collect_onboarding_answers(self, *, messages):
+            return {
+                "action": "candidate",
+                "assistant_text": "I’ll keep that in mind. Any food allergies?",
+                "answer_candidates": [
+                    {"topic": "departure_base", "value": "Budapest", "source_quote": "I live in Budapest"}
+                ],
+            }
+
+    adapter = FakeAdapter()
+    adapter.messages = IntakeModel()
+    app, _ = _app(adapter)
+    with TestClient(app) as client:
+        denied = client.post("/v1/agent/onboarding/events", json={"messages": []})
+        assert denied.status_code == 401
+        allowed = client.post(
+            "/v1/agent/onboarding/events",
+            headers={"Authorization": "Bearer good"},
+            json={"messages": [{"role": "user", "content": "I live in Budapest"}]},
+        )
+        assert allowed.status_code == 200
+        assert allowed.json()["action"] == "candidate"
+        assert allowed.json()["answer_candidates"] == [{"topic": "departure_base", "value": "Budapest"}]
+        assert adapter.calls == 0

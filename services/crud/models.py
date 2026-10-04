@@ -213,3 +213,14 @@ class PlanChallenge(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     plan: Mapped[Plan] = relationship(back_populates="challenges")
+
+
+class TravelerProfile(Base):
+    """Account-scoped travel details explicitly saved by the traveler."""
+
+    __tablename__ = "traveler_profiles"
+
+    traveler_subject: Mapped[str] = mapped_column(String(255), primary_key=True)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON_OBJECT, nullable=False, default=dict)
+    onboarding_complete: Mapped[bool] = mapped_column(default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -18,7 +18,7 @@ from services.auth.config import CognitoConfig
 from services.auth.jwt_verifier import CognitoJwtVerifier
 from services.crud.app import create_app
 from services.crud.config import create_crud_engine
-from services.crud.models import Base, Conversation, Plan, PlanChallenge
+from services.crud.models import Base, Conversation, Plan, PlanChallenge, TravelerProfile
 
 SCOPE = "aws.cognito.signin.user.admin"
 
@@ -145,6 +145,51 @@ def test_conversation_messages_are_idempotent_and_context_is_scoped(system):
     assert context["plan_id"] == plan["plan_id"] and context["revision"] == 1
     assert context["messages"][-1]["content"] == "I can research that."
     assert system.client.get(f"/v1/plans/{uuid4()}/agent-context").status_code == 404
+
+
+def test_traveler_profile_is_explicitly_saved_and_persists(system):
+    client = system.client
+    path = "/v1/traveler-profile"
+    empty = client.get(path)
+    assert empty.status_code == 200
+    assert empty.json()["exists"] is False
+    assert empty.json()["onboarding_complete"] is False
+    payload = {
+        "departure_base": "Budapest",
+        "citizenships": ["Hungarian", "Canadian"],
+        "food_needs": "Peanut allergy",
+        "accessibility_needs": "",
+        "travel_interests": "Architecture",
+        "onboarding_complete": True,
+    }
+    saved = client.put(path, json=payload)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["exists"] is True
+    assert saved.json()["onboarding_complete"] is True
+    assert saved.json()["food_needs"] == "Peanut allergy"
+    assert client.get(path).json() == saved.json()
+    with system.factory() as db:
+        row = db.get(TravelerProfile, "traveler-one")
+        assert row.payload == {key: value for key, value in payload.items() if key != "onboarding_complete"}
+        assert row.onboarding_complete is True
+
+
+def test_traveler_profile_rejects_unknown_fields_and_isolates_subject(system):
+    path = "/v1/traveler-profile"
+    invalid = system.client.put(path, json={"home_address": "12 Secret St"})
+    assert invalid.status_code == 422
+    address = system.client.put(path, json={"departure_base": "12 Main Street"})
+    assert address.status_code == 422
+    system.client.put(path, json={"departure_base": "Budapest", "onboarding_complete": True})
+    token = jwt.encode(
+        system.claims | {"sub": "another-traveler"}, system.private, algorithm="RS256"
+    )
+    system.client.headers["Authorization"] = f"Bearer {token}"
+    assert system.client.get(path).json()["exists"] is False
+    assert system.client.get(path).json()["departure_base"] == ""
+    assert system.client.put(path, json={"departure_base": "Vienna"}).status_code == 200
+    system.client.headers["Authorization"] = f"Bearer {system.token}"
+    assert system.client.get(path).json()["departure_base"] == "Budapest"
 
 
 @pytest.mark.parametrize(

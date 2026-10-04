@@ -12,6 +12,22 @@ _AUTHORIZATION_TOKEN: ContextVar[str | None] = ContextVar(
 _TEXT_DELTA_CALLBACK: ContextVar[Callable[[str], Any] | None] = ContextVar(
     "travella_agent_text_delta_callback", default=None
 )
+_TRAVELER_PROFILE: ContextVar[dict[str, Any] | None] = ContextVar(
+    "travella_agent_traveler_profile", default=None
+)
+
+
+def current_traveler_profile() -> dict[str, Any]:
+    """Return ephemeral verified profile context without checkpointing it."""
+    return dict(_TRAVELER_PROFILE.get() or {})
+
+
+def bind_traveler_profile(value: dict[str, Any] | None) -> Token[dict[str, Any] | None]:
+    return _TRAVELER_PROFILE.set(dict(value or {}))
+
+
+def reset_traveler_profile(context_token: Token[dict[str, Any] | None]) -> None:
+    _TRAVELER_PROFILE.reset(context_token)
 
 
 def current_authorization_token() -> str | None:

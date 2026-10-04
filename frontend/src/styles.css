@@ -25,6 +25,22 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .primary { color: white; background: #146b5e; }
 @media (max-width: 600px) { .shell { padding: 8vh 1.2rem; } .actions { gap: .75rem; } }
 
+.onboarding-shell { box-sizing: border-box; width: min(760px, 100%); min-height: 100vh; margin: 0 auto; padding: clamp(2rem, 8vh, 6rem) 1.5rem; background: #fff; }
+.onboarding-shell > h1 { max-width: 620px; }
+.onboarding-shell > .quiet { margin: 1rem 0 2rem; }
+.onboarding-chat { display: grid; gap: 1rem; max-height: 42vh; overflow-y: auto; padding: 1rem; border: 1px solid #d9e4e1; border-radius: 1rem; background: #f7faf9; }
+.onboarding-message { display: grid; gap: .35rem; max-width: 82%; margin: 0; padding: .8rem 1rem; border-radius: .9rem; white-space: pre-wrap; line-height: 1.55; }
+.onboarding-message.assistant { justify-self: start; color: #183a37; background: #e8f2ef; }
+.onboarding-message.user { justify-self: end; color: #fff; background: #244d48; }
+.onboarding-speaker { font-size: .72rem; font-weight: 700; opacity: .75; }
+.onboarding-reply label, .onboarding-review label { display: grid; gap: .5rem; margin: 1.25rem 0 .5rem; font-size: .92rem; }
+.onboarding-shell textarea, .onboarding-shell input { box-sizing: border-box; width: 100%; padding: .75rem; border: 1px solid #a8bfba; border-radius: .5rem; color: #182a29; font: inherit; }
+.onboarding-review { display: grid; gap: .25rem; }
+.onboarding-review h2 { margin: 0; }
+.onboarding-review .quiet { margin: .25rem 0 1rem; }
+.onboarding-shell .actions { justify-content: flex-start; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+@media (max-width: 600px) { .onboarding-shell { padding: 2rem 1rem; } .onboarding-message { max-width: 94%; } }
+
 .plans-app { min-height: 100vh; background: #f4f7f6; color: #18333a; }
 .plans-header { background: #fff; border-bottom: 1px solid #b4c9c5; }
 .plans-header > div, .plans-main { max-width: 1120px; margin: 0 auto; }

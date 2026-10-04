@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, Header, Query
 
 from .auth import identity_dependency
 from .contracts import LifecycleProblem
+from .profile import TravelerProfileRepository
+from .profile_schemas import ProfileInput, ProfileOutput
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
 from .schemas import (
     BriefInput,
@@ -205,5 +207,28 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
                 me.subject, plan_id, request_id, expected_revision=if_match, challenge=challenge
             )
         )
+
+    return router
+
+
+def create_profile_router(session_factory, verifier, *, required_scope, clock=None) -> APIRouter:
+    router = APIRouter(prefix="/v1/traveler-profile")
+    identity = identity_dependency(verifier, required_scope=required_scope)
+
+    def repository(me=Depends(identity)):
+        with session_factory() as session:
+            yield TravelerProfileRepository(session, **({"clock": clock} if clock else {}))
+
+    Repo = Annotated[TravelerProfileRepository, Depends(repository)]
+
+    @router.get("", response_model=ProfileOutput)
+    def get_traveler_profile(repo: Repo, me=Depends(identity)):
+        return ProfileOutput.from_row(repo.get(me.subject))
+
+    @router.put("", response_model=ProfileOutput)
+    def save_traveler_profile(data: ProfileInput, repo: Repo, me=Depends(identity)):
+        payload = data.model_dump(exclude={"onboarding_complete"})
+        row = repo.save(me.subject, payload, data.onboarding_complete)
+        return ProfileOutput.from_row(row)
 
     return router

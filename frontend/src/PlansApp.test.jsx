@@ -57,7 +57,10 @@ test('create uses one request and opens the saved Plan chat', async () => {
   await user.click(screen.getByRole('button', { name: 'New plan' }));
   await screen.findByRole('textbox', { name: 'Message Travella' });
   expect(api.create).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('Untitled plan')).toBeTruthy();
+  expect(window.location.pathname).toBe('/plans/new-0');
+  await user.click(screen.getByRole('button', { name: 'Open plans navigation' }));
+  const drawer = await screen.findByRole('dialog', { name: 'Your plans' });
+  expect(await within(drawer).findByRole('link', { name: /Untitled plan/ })).toBeTruthy();
 });
 
 test('rename validates exact title and keeps the normalized value', async () => {
@@ -84,7 +87,10 @@ test('delete and restore preserve the authoritative lifecycle', async () => {
   await user.click(screen.getByRole('button', { name: /Restore plan Recoverable plan/ }));
   await user.click(screen.getByRole('button', { name: 'Restore plan' }));
   await screen.findByRole('textbox', { name: 'Message Travella' });
-  expect(screen.getByText('Recoverable plan')).toBeTruthy();
+  expect(window.location.pathname).toBe('/plans/a');
+  await user.click(screen.getByRole('button', { name: 'Open plans navigation' }));
+  const drawer = await screen.findByRole('dialog', { name: 'Your plans' });
+  expect(await within(drawer).findByRole('link', { name: /Recoverable plan/ })).toBeTruthy();
 });
 
 test('opening a Plan goes straight to full-page chat and streams a reply', async () => {
@@ -119,7 +125,10 @@ test('Plans drawer switches directly to another Plan chat', async () => {
   await user.click(await within(drawer).findByRole('link', { name: /Second plan/ }));
   await screen.findByRole('textbox', { name: 'Message Travella' });
   expect(window.location.pathname).toBe('/plans/b');
-  expect(screen.getByText('Second plan')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Open plans navigation' }));
+  const reopenedDrawer = await screen.findByRole('dialog', { name: 'Your plans' });
+  const activePlan = await within(reopenedDrawer).findByRole('link', { name: /Second plan/ });
+  expect(activePlan.className).toContain('current');
 });
 
 test('Copilot reports a conversation-history failure and keeps the composer disabled while loading', async () => {

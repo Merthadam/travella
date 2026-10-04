@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from pydantic import TypeAdapter, ValidationError
 
 from services.crud.contracts import PROBLEMS
+from services.crud.profile_schemas import ProfileOutput
 from services.crud.schemas import (
     BriefMutationOutput,
     BriefOutput,
@@ -32,13 +33,33 @@ class CrudClient:
         self.transport = transport
 
     def request(self, method: str, path: str, *, token: str, headers, params, body: bytes):
-        match = re.fullmatch(
+        if path == "/v1/traveler-profile":
+            plan_id = action = destination_id = None
+            allowed = {"GET", "PUT"}
+            profile_route = True
+        else:
+            profile_route = False
+            match = re.fullmatch(
             r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|destinations|conversation/messages)(?:/([0-9a-fA-F-]{36}))?)?)?",
             path,
-        )
-        if not match:
-            raise HTTPException(404, "Plan unavailable.")
-        plan_id, action, destination_id = match.groups()
+            )
+            if not match:
+                raise HTTPException(404, "Plan unavailable.")
+            plan_id, action, destination_id = match.groups()
+            allowed = (
+                {
+                    None: {"GET", "DELETE"},
+                    "activity": {"POST"},
+                    "title": {"PATCH"},
+                    "restore": {"POST"},
+                    "challenges": {"POST"},
+                    "brief": {"GET", "PATCH"},
+                    "destinations": {"GET", "POST"},
+                    "conversation/messages": {"GET"},
+                }[action]
+                if plan_id
+                else {"GET", "POST"}
+            )
         if plan_id:
             try:
                 UUID(plan_id)
@@ -49,20 +70,6 @@ class CrudClient:
                 UUID(destination_id)
             except ValueError:
                 raise HTTPException(404, "Plan unavailable.") from None
-        allowed = (
-            {
-                None: {"GET", "DELETE"},
-                "activity": {"POST"},
-                "title": {"PATCH"},
-                "restore": {"POST"},
-                "challenges": {"POST"},
-                "brief": {"GET", "PATCH"},
-                "destinations": {"GET", "POST"},
-                "conversation/messages": {"GET"},
-            }[action]
-            if plan_id
-            else {"GET", "POST"}
-        )
         if destination_id and (action != "destinations" or method != "DELETE"):
             raise HTTPException(405, "Request method not supported.")
         if destination_id:
@@ -93,6 +100,9 @@ class CrudClient:
             if response.status_code != 200:
                 raise ValueError("Unexpected upstream status")
             schema = (
+                ProfileOutput
+                if profile_route
+                else
                 ChallengeOutput
                 if action == "challenges"
                 else BriefOutput

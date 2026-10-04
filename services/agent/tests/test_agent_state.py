@@ -37,9 +37,9 @@ def test_receipt_scope_and_purge():
     assert store.receipt("traveler-1", "plan-1", "event-1") is None
 
 
-def test_agentcore_memory_is_inactive_and_bounded():
+def test_agentcore_memory_is_disabled_without_configuration():
     memory = create_memory_adapter()
     assert memory.enabled is False
     assert memory.namespace("traveler-1") == "traveler/traveler-1"
-    assert asyncio.run(memory.retrieve_relevant_memory("traveler-1", "food")) == []
-    asyncio.run(memory.record_memory_candidate("traveler-1", {"observation": "safe"}))
+    assert asyncio.run(memory.retrieve_relevant_memory("traveler-1", "food")) is None
+    assert asyncio.run(memory.sync_profile("traveler-1", {"food_needs": "Peanut allergy"})) is False

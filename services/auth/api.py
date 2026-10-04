@@ -319,6 +319,37 @@ def create_app(
 
         return await run_in_threadpool(forward)
 
+    @app.api_route("/v1/traveler-profile", methods=["GET", "PUT"])
+    async def traveler_profile_proxy(request: Request):
+        ready()
+        body = await request.body()
+
+        def forward():
+            with store.transaction():
+                _, session, _ = current_session(request)
+                if crud_client is None:
+                    raise HTTPException(503, "Traveler profile is not configured yet.")
+                status, data = crud_client.request(
+                    request.method,
+                    request.url.path,
+                    token=session["access"],
+                    headers=request.headers,
+                    params=request.query_params,
+                    body=body,
+                )
+                if request.method == "PUT" and status == 200 and isinstance(data, dict):
+                    data["memory_sync"] = (
+                        agent_client.sync_profile(token=session["access"], profile=data)
+                        if agent_client is not None
+                        else "not_configured"
+                    )
+                response = JSONResponse(data, status_code=status)
+                if status == 401:
+                    clear(response)
+                return response
+
+        return await run_in_threadpool(forward)
+
     @app.post("/v1/agent/plans/{plan_id}/events")
     async def agent_proxy(plan_id: str, request: Request):
         ready()
@@ -341,6 +372,24 @@ def create_app(
             request.url.path,
             token=token,
             body=body,
+        )
+        return JSONResponse(data, status_code=status)
+
+    @app.post("/v1/agent/onboarding/events")
+    async def onboarding_agent_proxy(request: Request):
+        ready()
+        body = await request.body()
+
+        def access_token():
+            with store.transaction():
+                _, session, _ = current_session(request)
+                return session["access"]
+
+        token = await run_in_threadpool(access_token)
+        if agent_client is None:
+            raise HTTPException(503, "Onboarding is not configured yet.")
+        status, data = await run_in_threadpool(
+            agent_client.onboarding, token=token, body=body
         )
         return JSONResponse(data, status_code=status)
 
