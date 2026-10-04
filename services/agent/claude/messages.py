@@ -228,6 +228,85 @@ class ClaudeMessagesClient:
             "question": str(question)[:500] if question else None,
         }
 
+    async def collect_onboarding_answers(
+        self, *, messages: list[dict[str, str]]
+    ) -> dict[str, Any]:
+        """Ask/clarify only; no tools or application-side actions are exposed."""
+        prompt = load_prompt("onboarding-intake-v1")
+        bounded = [
+            {"role": item["role"], "content": item["content"][:2000]}
+            for item in messages[-12:]
+            if item.get("role") in {"user", "assistant"}
+            and isinstance(item.get("content"), str)
+        ]
+        if not bounded:
+            bounded = [{"role": "user", "content": "Start the traveler intake."}]
+        schema = {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["ask", "candidate", "finish"]},
+                "assistant_text": {"type": "string"},
+                "answer_candidates": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "topic": {
+                                "type": "string",
+                                "enum": [
+                                    "departure_base",
+                                    "citizenship",
+                                    "food_needs",
+                                    "accessibility",
+                                    "travel_interests",
+                                ],
+                            },
+                            "value": {"type": "string"},
+                            "source_quote": {"type": "string"},
+                        },
+                        "required": ["topic", "value", "source_quote"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["action", "assistant_text", "answer_candidates"],
+            "additionalProperties": False,
+        }
+        if self.provider == "openai":
+            response = await self._client().responses.create(
+                model=self.model,
+                max_output_tokens=700,
+                input=bounded,
+                instructions=prompt,
+                store=False,
+                text={
+                    "format": {
+                        "type": "json_schema",
+                        "name": "traveler_intake_turn",
+                        "strict": True,
+                        "schema": schema,
+                    }
+                },
+            )
+            output = str(self.value(response, "output_text", "")).strip()
+        else:
+            response = await self._client().messages.create(
+                model=self.model,
+                max_tokens=700,
+                system=f"{prompt}\n\nReturn one JSON object with action, assistant_text, and answer_candidates.",
+                messages=bounded,
+            )
+            output = "\n".join(
+                str(self.value(block, "text", ""))
+                for block in self.blocks(response)
+                if self.value(block, "text", "")
+            ).strip()
+        try:
+            result = json.loads(output)
+        except (TypeError, ValueError):
+            return {}
+        return result if isinstance(result, dict) else {}
+
     async def _stream_conversation(self, *, message: str, context: TurnContext, on_text_delta) -> dict[str, Any]:
         messages = context.messages(message)
         system = load_prompt("conversation-v1")
