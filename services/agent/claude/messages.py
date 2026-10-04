@@ -11,6 +11,7 @@ from typing import Any
 from anthropic import AsyncAnthropicBedrock
 from openai import AsyncOpenAI
 
+from ..state.contracts import ResearchDecision
 from ..turn import TurnContext, load_prompt
 
 DEFAULT_MODEL = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -244,30 +245,51 @@ class ClaudeMessagesClient:
         candidates: list[dict[str, str]] | None = None,
         on_text_delta=None,
     ) -> dict[str, Any]:
-        """Ask Claude to answer from one successfully read, scoped page only."""
-        evidence_id = str(page_read.get("evidence_id", ""))
-        content = page_read.get("content")
-        if page_read.get("read_status") != "read" or not evidence_id or not isinstance(content, str) or not content.strip():
+        """Review bounded read evidence and answer or suggest a targeted refinement."""
+        force_answer = bool(page_read.get("force_answer"))
+        supplied_evidence = page_read.get("evidence")
+        if not isinstance(supplied_evidence, list):
+            supplied_evidence = [page_read]
+        evidence = []
+        for item in supplied_evidence[:9]:
+            if not isinstance(item, dict):
+                continue
+            evidence_id = str(item.get("evidence_id", ""))[:180]
+            content = item.get("content")
+            if (
+                item.get("read_status") != "read"
+                or not evidence_id
+                or not isinstance(content, str)
+                or not content.strip()
+            ):
+                continue
+            evidence.append({
+                "evidence_id": evidence_id,
+                "title": str(item.get("title", ""))[:180],
+                "url": str(item.get("url", ""))[:2048],
+                "publisher": str(item.get("publisher", ""))[:180],
+                "source_quality": str(item.get("source_quality", "general"))[:40],
+                "retrieved_at": str(item.get("retrieved_at", ""))[:80],
+                "read_status": "read",
+                "untrusted_page_text": content[:10_000],
+            })
+        allowed_ids = {item["evidence_id"] for item in evidence}
+        if not evidence:
             return {
+                "action": "answer",
                 "answer": "I couldn’t read a source page for this question, so I can’t verify an answer yet.",
                 "evidence_ids": [],
-                "uncertainty": ["The selected source page was unavailable."],
+                "uncertainty": ["The selected source pages were unavailable."],
+                "query": None,
+                "gap": None,
             }
-
-        evidence = {
-            "evidence_id": evidence_id,
-            "title": str(page_read.get("title", ""))[:180],
-            "url": str(page_read.get("url", ""))[:2048],
-            "retrieved_at": str(page_read.get("retrieved_at", ""))[:80],
-            "read_status": "read",
-            "untrusted_page_text": content[:10_000],
-        }
         request = {
             "traveler_question": str(message)[:2000],
             "plan_context": context or {},
             "research_intent": research_intent,
             "destination_candidates": (candidates or [])[:5],
-            "retrieved_evidence": [evidence],
+            "retrieved_evidence": evidence,
+            "search_pass_limit_reached": force_answer,
         }
         response = await self.complete(
             message=json.dumps(request, ensure_ascii=False),
@@ -282,40 +304,20 @@ class ClaudeMessagesClient:
                 for block in self.blocks(response)
                 if self.value(block, "text", "")
             ).strip()
-        try:
-            decoded = json.loads(raw)
-        except (TypeError, ValueError):
-            decoded = None
-        if not isinstance(decoded, dict) or not isinstance(decoded.get("answer"), str):
-            return {
-                "answer": "I couldn’t complete a source-grounded answer. Please try again.",
-                "evidence_ids": [],
-                "uncertainty": ["The research response could not be validated."],
-            }
-
-        requested_ids = decoded.get("evidence_ids")
-        if not isinstance(requested_ids, list) or not all(isinstance(item, str) for item in requested_ids):
-            requested_ids = []
-        # The only citeable ID is the successfully read evidence supplied above.
-        citations = list(dict.fromkeys(item for item in requested_ids if item == evidence_id))
-        answer = decoded["answer"].strip()[:2000]
-        if not answer or not citations:
-            return {
-                "answer": "I couldn’t verify a useful answer from the page I read. Tell me what detail you want me to check.",
-                "evidence_ids": [],
-                "uncertainty": ["No valid citation was returned for the answer."],
-            }
-        uncertainty = decoded.get("uncertainty", [])
-        if not isinstance(uncertainty, list):
-            uncertainty = []
+        decision = ResearchDecision.parse(raw, evidence_ids=allowed_ids)
+        if decision is None or (force_answer and decision.action != "answer"):
+            return {"action": "invalid"}
         result = {
-            "answer": answer,
-            "evidence_ids": citations,
-            "uncertainty": [str(item)[:300] for item in uncertainty[:5]],
+            "action": decision.action,
+            "answer": decision.answer,
+            "query": decision.query,
+            "gap": decision.gap,
+            "evidence_ids": list(decision.evidence_ids),
+            "uncertainty": list(decision.uncertainty),
         }
-        # Emit only after the structured answer and all citation IDs are checked.
-        if on_text_delta:
-            await self._emit_full_text({"assistant_text": answer}, on_text_delta)
+        # Only validated terminal answer text is streamed; review and tool state stay private.
+        if decision.action == "answer" and on_text_delta:
+            await self._emit_full_text({"assistant_text": decision.answer}, on_text_delta)
         return result
 
     async def _stream_conversation(self, *, message: str, context: TurnContext, on_text_delta) -> dict[str, Any]:

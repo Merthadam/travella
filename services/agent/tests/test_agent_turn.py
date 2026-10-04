@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from services.agent.claude import ClaudeGatewayAdapter
+from services.agent.state.contracts import ResearchDecision
 from services.agent.turn import TurnContext, load_prompt
 
 
@@ -87,3 +88,64 @@ def test_conversation_fails_closed_to_respond_on_malformed_model_decision():
 
     assert result["decision"] == "respond"
     assert result["assistant_text"] == "not json"
+
+
+def test_research_decision_accepts_only_bounded_answer_or_targeted_refinement():
+    answer = ResearchDecision.parse(
+        '{"action":"answer","answer":"Supported fact.","query":null,"gap":null,'
+        '"evidence_ids":["source-1"],"uncertainty":["One detail is unknown."]}',
+        evidence_ids={"source-1"},
+    )
+    refine = ResearchDecision.parse(
+        '{"action":"refine","answer":null,"query":"Spain rail pass dates",'
+        '"gap":"The page does not state current validity dates.",'
+        '"evidence_ids":["source-1"],"uncertainty":[]}',
+        evidence_ids={"source-1"},
+    )
+
+    assert answer and answer.action == "answer"
+    assert refine and refine.action == "refine" and refine.query == "Spain rail pass dates"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "not json",
+        '{"action":"tool","answer":"x","query":null,"gap":null,"evidence_ids":[],"uncertainty":[]}',
+        '{"action":"answer","answer":"x","query":null,"gap":null,"evidence_ids":["foreign"],"uncertainty":[]}',
+        '{"action":"refine","answer":null,"query":" ","gap":"gap","evidence_ids":[],"uncertainty":[]}',
+        '{"action":"refine","answer":null,"query":"' + ("x" * 301) + '","gap":"gap","evidence_ids":[],"uncertainty":[]}',
+    ],
+)
+def test_research_decision_rejects_malformed_unknown_or_oversized_output(raw):
+    assert ResearchDecision.parse(raw, evidence_ids={"source-1"}) is None
+
+
+def test_research_prompt_scopes_high_consequence_answers_and_uses_bedrock_messages_api():
+    prompt = load_prompt("research-v1")
+    assert "passport" in prompt and "purpose" in prompt and "transit" in prompt and "dates" in prompt
+    assert "clinician" in prompt
+    assert "untrusted data" in prompt
+
+    fake = FakeClient()
+    adapter = ClaudeGatewayAdapter("https://gateway.example/mcp", sdk_client=fake)
+    result = asyncio.run(
+        adapter.messages.research_answer(
+            message="What should I know about Spain?",
+            page_read={
+                "evidence": [{
+                    "evidence_id": "source-1",
+                    "title": "Spain",
+                    "url": "https://example.test/spain",
+                    "retrieved_at": "2026-10-04T00:00:00Z",
+                    "read_status": "read",
+                    "content": "Spain is in Europe.",
+                }]
+            },
+            on_text_delta=None,
+        )
+    )
+    call = fake.messages.calls[-1]
+    assert call["model"].startswith("global.anthropic.claude-sonnet-4-5")
+    assert "response_format" not in call and "output_config" not in call
+    assert result["action"] == "invalid"
