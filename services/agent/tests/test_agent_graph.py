@@ -369,6 +369,49 @@ def test_destination_refinement_preserves_initial_candidate_ids():
     assert [candidate["candidate_id"] for candidate in result["candidates"]] == ["candidate-1"]
 
 
+def test_discovery_explanation_preserves_complete_candidate_snapshot_and_order():
+    candidates = [
+        {
+            "candidate_id": "candidate-2", "name": "Tarifa", "status": "shortlisted",
+            "confidence": "strong", "fit_summary": "Beach and wind sports.",
+            "caveats": ["Wind can be strong."],
+            "evidence": [{"evidence_id": "source-1", "title": "Tarifa guide", "url": "https://example.test/tarifa"}],
+        },
+        {
+            "candidate_id": "candidate-1", "name": "Cadiz", "status": "shortlisted",
+            "confidence": "possible", "fit_summary": "Historic centre and food.",
+            "caveats": [],
+            "evidence": [{"evidence_id": "source-2", "title": "Cadiz guide", "url": "https://example.test/cadiz"}],
+        },
+    ]
+
+    class DiscoveryAdapter(IterativeResearchAdapter):
+        def __init__(self):
+            super().__init__([_answer("Tarifa suits coastal activities; Cadiz offers a historic centre.", ["source-1"])], research_intent="destination_discovery")
+
+        async def research(self, *, message, **kwargs):
+            result = await super().research(message=message, **kwargs)
+            result["candidates"] = candidates
+            return result
+
+    async def run():
+        adapter = DiscoveryAdapter()
+        result = await AgentGraph(adapter).invoke({
+            "traveler_scope": "traveler-1", "plan_id": "plan-1", "plan_revision": 1,
+            "event_id": "candidate-snapshot-event", "generation": 1,
+            "message": "Find a coastal place with history.",
+        }, authorization_token="verified-access-token")
+        return adapter, result
+
+    adapter, result = asyncio.run(run())
+    assert result["status"] == "shortlist_ready"
+    assert result["assistant_text"] == "Tarifa suits coastal activities; Cadiz offers a historic centre."
+    assert result["candidates"] == candidates
+    assert [item["candidate_id"] for item in result["projection"]["candidates"]] == ["candidate-2", "candidate-1"]
+    assert [item["evidence"] for item in result["projection"]["candidates"]] == [item["evidence"] for item in candidates]
+    assert not hasattr(adapter, "mutate_plan")
+
+
 def test_each_search_pass_reads_no_more_than_three_selected_pages():
     class MultiPageAdapter(IterativeResearchAdapter):
         def __init__(self):

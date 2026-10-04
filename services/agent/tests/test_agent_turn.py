@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -149,3 +150,40 @@ def test_research_prompt_scopes_high_consequence_answers_and_uses_bedrock_messag
     assert call["model"].startswith("global.anthropic.claude-sonnet-4-5")
     assert "response_format" not in call and "output_config" not in call
     assert result["action"] == "invalid"
+
+
+def test_research_synthesis_receives_candidates_only_for_destination_discovery():
+    async def run(intent, candidates):
+        fake = FakeClient()
+
+        async def answer_create(**kwargs):
+            fake.messages.calls.append(kwargs)
+            return SimpleNamespace(content=[SimpleNamespace(
+                type="text",
+                text='{"action":"answer","answer":"Supported answer.","query":null,"gap":null,"evidence_ids":["source-1"],"uncertainty":[]}',
+            )])
+
+        fake.messages.create = answer_create
+        adapter = ClaudeGatewayAdapter("https://gateway.example/mcp", sdk_client=fake)
+        result = await adapter.messages.research_answer(
+            message="Where should I go?",
+            page_read={"evidence": [{
+                "evidence_id": "source-1", "title": "Travel guide", "url": "https://example.test/guide",
+                "read_status": "read", "content": "A bounded source page.",
+            }]},
+            research_intent=intent,
+            candidates=candidates,
+        )
+        request = json.loads(fake.messages.calls[0]["messages"][-1]["content"])
+        return result, request
+
+    candidates = [
+        {"candidate_id": "candidate-1", "name": "Tarifa"},
+        {"candidate_id": "candidate-2", "name": "Cadiz"},
+    ]
+    discovery_result, discovery_request = asyncio.run(run("destination_discovery", candidates))
+    factual_result, factual_request = asyncio.run(run("factual_research", []))
+
+    assert discovery_result["action"] == factual_result["action"] == "answer"
+    assert discovery_request["destination_candidates"] == candidates
+    assert factual_request["destination_candidates"] == []
