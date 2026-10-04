@@ -307,3 +307,22 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [ ] 11-03-PLAN.md — Wire runtime credentials, deployment, evaluation, and rollout safeguards
+
+### Phase 12: Travel studio onboarding
+
+**Goal:** Travelers complete the selected B four-step onboarding UI, save and resume each step, and supply reusable preferences to subsequent Plan conversations without agentic intake.
+**Requirements:** ONB-12-01, ONB-12-02, ONB-12-03, ONB-12-04, ONB-12-05, ONB-12-06, ONB-12-07, ONB-12-08, ONB-12-09
+**Depends on:** Existing account/profile/memory implementation in current code; Phase 11 research-loop verification is not a blocker for this independent UI phase.
+**Scope:** Home city and optional airport; optional multi-citizenship; optional free-text accessibility/food needs; optional five-or-more interests with custom entries; per-step saves, prefilled v2 rollout, existing memory projection. Profile editing and NoSQL migration deferred.
+**Success Criteria:**
+1. Selected B layout works at desktop and mobile, with top progress and no onboarding model calls.
+2. Explicit Continue/Skip saves atomically; reopening resumes saved progress even after optional skips.
+3. Existing profiles are prefilled and preserved, v2 appears once and completion returns to Plans.
+4. Real city/airport choices and cheap static catalogs replace simulated data; missing provider services have a clear fallback.
+5. New fields survive authenticated CRUD, serializers and agent memory projection; stale mirrors cannot erase or resurrect preferences.
+**Plans:** 4 plans in 4 sequential waves; planning complete, execution pending.
+
+- [ ] 12-01-PLAN.md — Save and resume a home step
+- [ ] 12-02-PLAN.md — Place selection and reference catalogs
+- [ ] 12-03-PLAN.md — Complete B's four-screen UI
+- [ ] 12-04-PLAN.md — Prefilled rollout, memory projection and manual verification

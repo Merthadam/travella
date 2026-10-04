@@ -217,3 +217,20 @@ Mapped during initial full-MVP roadmap creation.
 ---
 *Requirements defined: 2026-09-26*
 *Last updated: 2026-09-26 after initial definition*
+
+
+## Phase 12 — Travel studio onboarding
+
+Current user discussion and selected B prototype control this phase.
+
+- [ ] **ONB-12-01:** B studio desktop/mobile UI, top progress and deterministic four-step navigation.
+- [ ] **ONB-12-02:** Explicit per-step saves and resume, atomic updates, safe retry/conflict and optional skip tracking.
+- [ ] **ONB-12-03:** Required home city with Google-assisted choice/manual fallback; independently optional nearby/default airport.
+- [ ] **ONB-12-04:** Cheap versioned country/interest/airport catalogs; optional multiple citizenships with passport cards.
+- [ ] **ONB-12-05:** Optional separate free-text accessibility and food allergy/dietary fields.
+- [ ] **ONB-12-06:** Floating interests and custom entries; five unique selections to complete or whole-step Skip.
+- [ ] **ONB-12-07:** Existing users see prefilled v2 once, preserving legacy values and returning to Plans after completion.
+- [ ] **ONB-12-08:** Saved preferences reach existing canonical profile and AgentCore memory projection; no intake model calls and no progress metadata in prompts.
+- [ ] **ONB-12-09:** Direct API/browser verification covers identity, resume, legacy compatibility, failures and responsive UI, with inspected screenshots.
+
+Deferred: preferences editor, NoSQL migration, AI onboarding, new orchestration flow.

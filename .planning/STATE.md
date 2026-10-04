@@ -79,6 +79,8 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
 ### Roadmap Evolution
 
+- Phase 12 planned: selected B Travel studio onboarding; per-step resume, existing-user prefill, onboarding only. Four sequential implementation plans; execution pending.
+
 - Phase 02.1 inserted after Phase 2: Local PostgreSQL data foundation and typed CRUD schema (URGENT)
 - Phase 10 added: Evidence-grounded iterative agent research
 - Phase 10 edited: defined evidence-grounded research scope, dependency, and success criteria
