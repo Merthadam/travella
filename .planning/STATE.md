@@ -108,3 +108,5 @@ Resume file: .planning/phases/02-draft-plans-durable-lifecycle/02-03-PLAN.md
 | 2026-10-03 | local-agent-without-agentcore | Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. |
 | 2026-10-03 | plan-chat-primary | Made Plan chat the primary Plan screen and retained the Plans switcher drawer; see `artifacts/testing/2026-10-03-chat-top-nav/verification.md`. |
 | 2026-10-04 | travella-local-start | Added health-gated local startup and a one-shot sign-in/session smoke check; see `.planning/quick/261004-di1-add-reliable-local-travella-startup-and-/261004-di1-VERIFICATION.md`. |
+| 2026-10-04 | remove-duplicate-plans-control | Removed the duplicate left-side Plans button; verified the right-side selector remains visible and opens the plan list in Chrome. |
+| 2026-10-04 | plans-in-left-sidebar | Moved the active Plans list into one shared left drawer opened by both header controls; interactive browser checks passed, full evidence verification incomplete. See `artifacts/testing/2026-10-04-plans-in-left-sidebar/verification.md`. |
