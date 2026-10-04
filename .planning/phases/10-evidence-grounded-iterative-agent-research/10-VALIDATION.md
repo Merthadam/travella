@@ -38,20 +38,29 @@ created: "2026-10-04"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| Research ordering and bounded refinement | TBD | TBD | DISC-07, DISC-10 | T-10-01 | Evidence is returned before answer synthesis; deterministic pass limits terminate the loop. | unit/integration | `uv run pytest services/agent/tests -q` | ✅ existing suite; cases to add | ⬜ pending |
-| Page extraction and evidence normalization | TBD | TBD | DISC-09, TRUST-04 | Unavailable pages are explicit; unread snippets cannot become citations; web text remains untrusted. | unit/integration | `uv run pytest services/mcps/tests -q` | ✅ existing suite; cases to add | ⬜ pending |
-| Citation projection and candidate preservation | TBD | TBD | DISC-09, DISC-10 | Only read evidence IDs project; destination candidates remain unchanged by synthesis. | integration | `uv run pytest services/agent/tests -q` | ✅ existing suite; cases to add | ⬜ pending |
-| Freshness, checkpoint bounds, and interruption | TBD | TBD | DISC-06, DISC-07, TRUST-04 | Stale evidence refreshes; compact allowed state resumes; cancelled/superseded runs cannot publish. | unit/integration | `uv run pytest services/agent/tests -q` | ✅ existing suite; cases to add | ⬜ pending |
+| 10-01-T1 | 10-01 | 1 | DISC-07, DISC-09 | T-10-01 | Page read precedes synthesis; unread evidence cannot be cited. | integration | `uv run pytest -q services/agent/tests/test_agent_graph.py services/agent/tests/test_agent_turn.py services/mcps/tests/test_mcp_tools.py` | ✅ existing suites; cases added | ⬜ pending |
+| 10-01-T2 | 10-01 | 1 | DISC-07, DISC-10 | T-10-02 | Only validated research/discovery intents route; invalid intent asks or safely fails. | unit | `uv run pytest -q services/agent/tests/test_agent_graph.py services/agent/tests/test_agent_turn.py` | ✅ existing suites; cases added | ⬜ pending |
+| 10-02-T1 | 10-02 | 2 | DISC-09, TRUST-04 | T-10-03 | Extraction is bounded; failed reads remain unavailable and ineligible. | unit/integration | `uv run pytest -q services/mcps/tests/test_mcp_tools.py` | ✅ existing suite; cases added | ⬜ pending |
+| 10-02-T2 | 10-02 | 2 | TRUST-04 | T-10-04 | Unsafe URLs and hostile page instructions cannot escape private retrieval controls. | security/unit | `uv run pytest -q services/mcps/tests/test_research_security.py services/mcps/tests/test_mcp_tools.py` | ✅ existing suites; cases added | ⬜ pending |
+| 10-03-T1 | 10-03 | 3 | DISC-07, DISC-09, TRUST-04 | T-10-05 | Decisions validate schema and evidence IDs; high-consequence claims are scoped. | unit | `uv run pytest -q services/agent/tests/test_agent_turn.py` | ✅ existing suite; cases added | ⬜ pending |
+| 10-03-T2 | 10-03 | 3 | DISC-07, DISC-10 | T-10-06 | Search count never exceeds the hard cap; terminal answer states unresolved uncertainty. | unit/integration | `uv run pytest -q services/agent/tests/test_agent_graph.py services/agent/tests/test_agent_turn.py` | ✅ existing suites; cases added | ⬜ pending |
+| 10-04-T1 | 10-04 | 4 | DISC-09, DISC-10, TRUST-04 | T-10-07 | Only validated read-source references and allow-listed fields reach SSE. | integration | `uv run pytest -q services/agent/tests/test_agent_api.py services/agent/tests/test_agent_turn.py` | ✅ existing suites; cases added | ⬜ pending |
+| 10-04-T2 | 10-04 | 4 | DISC-09, DISC-10 | T-10-08 | Discovery preserves candidate IDs; factual research causes no durable Plan mutation. | integration | `uv run pytest -q services/agent/tests/test_agent_graph.py services/agent/tests/test_agent_turn.py services/agent/tests/test_agent_api.py` | ✅ existing suites; cases added | ⬜ pending |
+| 10-05-T1 | 10-05 | 5 | TRUST-04 | T-10-09 | Checkpoints store compact allow-listed evidence metadata, never pages/secrets/reasoning. | unit | `uv run pytest -q services/agent/tests/test_agent_checkpoint.py` | ✅ existing suite; cases added | ⬜ pending |
+| 10-05-T2 | 10-05 | 5 | DISC-06, DISC-07, TRUST-04 | T-10-10 | Reuse respects fact-type freshness and Plan scope; obsolete runs cannot publish. | unit/integration | `uv run pytest -q services/agent/tests/test_agent_graph.py services/agent/tests/test_agent_checkpoint.py` | ✅ existing suites; cases added | ⬜ pending |
+| 10-06-T1 | 10-06 | 6 | DISC-07, DISC-10, TRUST-04 | T-10-11 | Adversarial pages cannot trigger forbidden tools; stopped/superseded runs emit no late events. | security/integration | `uv run pytest -q services/agent/tests/test_agent_graph.py services/agent/tests/test_agent_api.py services/mcps/tests/test_research_security.py` | ✅ existing suites; cases added | ⬜ pending |
+| 10-06-T2 | 10-06 | 6 | DISC-07, DISC-09, TRUST-04 | T-10-12 | 20 sanitized cases assert retrieval, citation, cap, and output contracts without live providers. | eval/unit | `uv run pytest -q services/agent/evals` | ❌ created by this task | ⬜ pending |
 
-*The planner assigns plan/task numbers and ensures each task has an executable `<automated>` verify command. These requirement-level rows should be mapped to the resulting tasks before execution.*
+*These are required pre-execution checks; task-level commands and failing conditions are the source for implementation verification.*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] Add deterministic fake search, page-read, and model-decision fixtures for normal CI.
-- [ ] Add regression cases for evidence-before-synthesis, cap exhaustion, unread pages, unsupported citations, prompt injection, destination-candidate preservation, and superseded runs.
-- [ ] Confirm the deployed Bedrock endpoint/model/SDK path before selecting JSON constrained output.
+- [x] Existing pytest infrastructure covers all phase requirements; no framework installation is needed.
+- [x] Add deterministic fake search, page-read, and model-decision fixtures as part of Plans 10-01 through 10-06.
+- [x] Add regression cases for evidence-before-synthesis, cap exhaustion, unread pages, unsupported citations, prompt injection, candidate preservation, and superseded runs across those tasks.
+- [x] Plan 10-01 requires confirmation of deployed Bedrock endpoint/model/SDK compatibility before enabling constrained output.
 
 ---
 

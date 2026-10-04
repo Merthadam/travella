@@ -245,15 +245,14 @@ Do not assert a dollar estimate in the contract; calculate from the deployed Bed
 
 ### Eval Tooling
 
-**Repository scan:** No LangSmith, Langfuse, Phoenix, Braintrust, Promptfoo, or RAGAS integration is currently present. Existing agent and private MCP behavior is tested with pytest. This selection is a proposal for implementation, not an installed or configured service.
+**Repository scan:** No LangSmith, Langfuse, Phoenix, Braintrust, Promptfoo, or RAGAS integration is currently present. Existing agent and private MCP behavior is tested with pytest.
 
-**Primary Tool:** LangSmith for LangGraph trace inspection and experiment/dataset management, selected because the existing runtime is LangGraph. Keep the evaluation assertions in a small Python harness so the core regression suite does not depend on a hosted service. Do not send traveler messages, assistant text, page content, credentials, or raw provider payloads to traces; trace only redacted stage names, opaque run correlation IDs, pass counts, durations, token totals, evidence IDs/read outcomes, and error categories. Enable trace export only after the deployment's privacy and endpoint configuration is approved.
+**Primary Tool:** Fixture-backed pytest and deterministic application-level assertions are the required evaluation tools for this phase. A hosted LangSmith integration is optional and deferred; it is not part of the Phase 10 execution plan or a new dependency. If considered later for LangGraph trace inspection and dataset management, first review endpoint, retention, secret handling, and redaction. Never send traveler messages, assistant text, page content, credentials, or raw provider payloads; trace only approved operational metadata.
 
 **Setup:**
 ```bash
-uv add langsmith  # proposed implementation dependency; not installed by this planning task
-# Configure tracing only in an approved environment; keep payload capture disabled/redacted.
-# Set LANGSMITH_TRACING=true and the approved LANGSMITH_API_KEY / endpoint via secret config.
+# No additional dependency is required for this phase's local fixture-backed eval harness.
+uv run pytest services/agent/evals -q
 ```
 
 **CI/CD Integration:**
@@ -302,7 +301,7 @@ An experienced travel adviser/destination specialist labels practical travel and
 
 ## 7. Production Monitoring
 
-**Tracing Tool:** Proposed LangSmith integration for the LangGraph runtime; not present in the repository today. Production enablement is contingent on a reviewed endpoint, secret handling, and payload redaction. Default trace payloads contain operational metadata only; no conversation text, retrieved page text, raw provider payloads, credentials, or personal data.
+**Tracing Tool:** No hosted tracing tool is currently integrated. Use existing service observability and redacted operational metrics for this phase. LangSmith may be considered as a separate future integration after endpoint, secret handling, and payload redaction review; it is not required by these plans.
 
 **Key Metrics to Track:**
 - Hard-bound violations: research passes/tool calls above configured caps, disallowed tool attempts, or obsolete-run output accepted (target: zero).
@@ -335,7 +334,7 @@ Review 100% of privacy-approved cases tagged entry-rule, active safety, or healt
 - [x] AI systems best practices written (Section 4b: Pydantic, async, prompt discipline, context)
 - [x] Evaluation dimensions grounded in domain rubric ingredients
 - [x] Each eval dimension has a concrete rubric (Good/Bad in domain language)
-- [x] Eval tooling selected — LangSmith proposed as an override to the Arize Phoenix default; integration is not installed
+- [x] Eval tooling selected — fixture-backed pytest is primary; hosted tracing integration is deferred
 - [x] Reference dataset spec written (size ≥ 10, composition + labeling defined)
 - [x] CI/CD eval integration specified (proposed command; harness does not exist yet)
 - [x] Online guardrails defined
