@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from services.auth.agent_client import AgentClient
 from services.auth.api import MAX_AGE, RECOVERY_MESSAGE, create_app
 from services.auth.contracts import ValidatedIdentity
+from services.auth.crud_client import CrudClient
 from services.auth.session_store import SessionStore
 from services.auth.token_validator import TokenValidationError
 
@@ -119,6 +120,48 @@ def test_agent_proxy_uses_server_session_and_never_forwards_browser_headers(syst
     assert "cookie" not in captured[0].headers
     assert "browser-spoof" not in captured[0].headers["authorization"]
     assert "secret-access" not in response.text
+
+
+def test_onboarding_and_profile_proxies_keep_identity_server_side(system):
+    client, provider, verifier, store, now = system
+    seen = []
+
+    def crud_upstream(request):
+        seen.append(request)
+        if request.method == "GET":
+            payload = {"exists": False, "onboarding_complete": False}
+        else:
+            payload = {"exists": True, "onboarding_complete": True}
+        return httpx.Response(200, json=payload)
+
+    crud = CrudClient("http://crud.test", transport=httpx.MockTransport(crud_upstream))
+
+    def agent_upstream(request):
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={"action": "ask", "assistant_text": "What city do you usually leave from?", "answer_candidates": []},
+        )
+
+    agent = AgentClient("http://agent.test", transport=httpx.MockTransport(agent_upstream))
+    app = create_app(
+        provider, verifier, store, origin=ORIGIN, clock=lambda: now[0],
+        crud_client=crud, agent_client=agent,
+    )
+    with TestClient(app, base_url=ORIGIN, headers=HEADERS) as signed_client:
+        assert signed_client.get("/v1/traveler-profile").status_code == 401
+        assert signed_client.post("/auth/sign-in", json=CREDENTIALS).status_code == 200
+        profile = signed_client.get("/v1/traveler-profile")
+        assert profile.status_code == 200 and profile.json()["exists"] is False
+        saved = signed_client.put("/v1/traveler-profile", json={"departure_base": "Budapest", "onboarding_complete": True})
+        assert saved.status_code == 200 and saved.json()["onboarding_complete"] is True
+        onboarding = signed_client.post("/v1/agent/onboarding/events", json={"messages": []})
+        assert onboarding.status_code == 200
+        assert onboarding.json()["action"] == "ask"
+    assert len(seen) == 3
+    assert all(request.headers["authorization"] == "Bearer secret-access" for request in seen)
+    assert all("cookie" not in request.headers for request in seen)
+    assert all(request.headers.get("x-travella-request") is None for request in seen)
 
 
 def test_agent_proxy_rejects_upstream_scope_errors_without_clearing_session(system):

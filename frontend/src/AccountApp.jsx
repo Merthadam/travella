@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { readSession, request } from './api';
+import { readSession, readTravelerProfile, request } from './api';
 import { PlansApp } from './PlansApp';
+import { FirstLoginOnboarding } from './FirstLoginOnboarding';
 
 const titles = {
   sign_in: 'Welcome back', register: 'Create your account', verify_email: 'Verify your email',
@@ -22,13 +23,20 @@ export function AccountApp() {
   const [notice, setNotice] = useState('');
   const [secretCode, setSecretCode] = useState('');
   const [recoveryCodes, setRecoveryCodes] = useState([]);
+  const [travelerProfile, setTravelerProfile] = useState(null);
   const heading = useRef(null);
   const generation = useRef(0);
+
+  async function routeAfterSignIn() {
+    const profile = await readTravelerProfile();
+    setTravelerProfile(profile);
+    setStep(profile.onboarding_complete ? 'signed_in' : 'onboarding');
+  }
 
   useEffect(() => { heading.current?.focus(); }, [step]);
   useEffect(() => {
     let cancelled = false;
-    readSession().then(() => { if (!cancelled) setStep('signed_in'); }).catch((err) => {
+    readSession().then(() => { if (!cancelled) return routeAfterSignIn(); }).catch((err) => {
       if (!cancelled) {
         setStep('sign_in');
         if (err.status !== 401) setError(err);
@@ -37,7 +45,7 @@ export function AccountApp() {
     return () => { cancelled = true; };
   }, []);
   useEffect(() => {
-    if (step !== 'signed_in') return;
+    if (!['signed_in', 'onboarding'].includes(step)) return;
     let cancelled = false;
     const check = () => readSession().catch(() => {
       if (!cancelled) {
@@ -81,7 +89,12 @@ export function AccountApp() {
       else if (step === 'reset_password') result = await request('/auth/reset-password', { email, code, new_password: secret });
       else result = await request('/auth/sign-in', { email, password: secret });
       if (generation.current !== attempt) return;
-      if (result.state === 'signed_in') await readSession();
+      if (result.state === 'signed_in') {
+        await readSession();
+        await routeAfterSignIn();
+        if (generation.current === attempt) setNotice(result.message || '');
+        return;
+      }
       if (generation.current !== attempt) return;
       if (result.state === 'mfa_enrollment' || result.state === 'mfa_recovery_enrollment') setSecretCode(result.secret_code);
       if (result.state === 'recovery_codes') setRecoveryCodes(result.codes);
@@ -115,6 +128,12 @@ export function AccountApp() {
       setSecretCode(result.secret_code); setStep('mfa_enrollment');
     } catch (err) { setError(err); }
     finally { setBusy(false); }
+  }
+
+  if (step === 'onboarding') {
+    return <FirstLoginOnboarding initialProfile={travelerProfile || undefined} onComplete={(profile) => {
+      setTravelerProfile(profile); setStep('signed_in');
+    }} />;
   }
 
   if (step === 'signed_in') {

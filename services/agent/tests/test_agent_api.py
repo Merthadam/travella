@@ -424,3 +424,31 @@ def test_candidate_actions_validate_and_preserve_plan_scoped_shortlist():
             ).status_code
             == 422
         )
+
+
+def test_onboarding_endpoint_is_authenticated_and_tool_free():
+    class IntakeModel:
+        async def collect_onboarding_answers(self, *, messages):
+            return {
+                "action": "candidate",
+                "assistant_text": "I’ll keep that in mind. Any food allergies?",
+                "answer_candidates": [
+                    {"topic": "departure_base", "value": "Budapest", "source_quote": "I live in Budapest"}
+                ],
+            }
+
+    adapter = FakeAdapter()
+    adapter.messages = IntakeModel()
+    app, _ = _app(adapter)
+    with TestClient(app) as client:
+        denied = client.post("/v1/agent/onboarding/events", json={"messages": []})
+        assert denied.status_code == 401
+        allowed = client.post(
+            "/v1/agent/onboarding/events",
+            headers={"Authorization": "Bearer good"},
+            json={"messages": [{"role": "user", "content": "I live in Budapest"}]},
+        )
+        assert allowed.status_code == 200
+        assert allowed.json()["action"] == "candidate"
+        assert allowed.json()["answer_candidates"] == [{"topic": "departure_base", "value": "Budapest"}]
+        assert adapter.calls == 0

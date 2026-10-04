@@ -8,7 +8,7 @@ import httpx
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from services.agent.http_contracts import AgentResponse
+from services.agent.http_contracts import AgentResponse, OnboardingRequest, OnboardingResponse
 
 
 class AgentClient:
@@ -49,6 +49,28 @@ class AgentClient:
             return 200, result.model_dump(mode="json")
         except (httpx.HTTPError, ValueError, TypeError, AttributeError, ValidationError):
             return 503, {"message": "Copilot is temporarily unavailable. Try again."}
+
+    def onboarding(self, *, token: str, body: bytes) -> tuple[int, dict]:
+        try:
+            request = OnboardingRequest.model_validate_json(body)
+            with httpx.Client(
+                base_url=self.base_url,
+                timeout=45,
+                follow_redirects=False,
+                transport=self.transport,
+                trust_env=False,
+            ) as client:
+                response = client.post(
+                    "/v1/agent/onboarding/events",
+                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                    json=request.model_dump(mode="json"),
+                )
+            if response.status_code != 200:
+                return self._safe_error(response.status_code)
+            result = OnboardingResponse.model_validate(response.json())
+            return 200, result.model_dump(mode="json")
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError, ValidationError):
+            return 503, {"message": "Onboarding is temporarily unavailable. Try again."}
 
     async def stream(self, path: str, *, token: str, body: bytes):
         match = re.fullmatch(r"/v1/agent/plans/([0-9a-fA-F-]{36})/events/stream", path)

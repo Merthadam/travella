@@ -52,6 +52,7 @@ def migrated_database():
             "auth_enrollments",
             "auth_recovery_codes",
             "auth_sessions",
+            "traveler_profiles",
             "planning_briefs",
             "destination_pins",
             "plan_challenges",
@@ -88,7 +89,7 @@ def test_fresh_postgres_plan_http_round_trip(migrated_database):
 
 
 def test_migration_script_has_single_head():
-    assert migration_heads() == {"0007"}
+    assert migration_heads() == {"0008"}
 
 
 def test_unmigrated_database_is_rejected(tmp_path):

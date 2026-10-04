@@ -62,6 +62,11 @@ def test_intake_node_rejects_inferred_or_untrusted_candidates():
                     "value": "vegan",
                     "source_quote": "I am vegan",
                 },
+                {
+                    "topic": "departure_base",
+                    "value": "12 Main Street",
+                    "source_quote": "I live at 12 Main Street",
+                },
             ],
         }
     )
@@ -106,6 +111,29 @@ def test_intake_node_falls_back_to_one_question_when_output_is_invalid():
         "assistant_text": "What matters?",
         "answer_candidates": [],
     }
+
+
+def test_intake_node_discards_exact_street_address_candidate():
+    model = IntakeModel(
+        {
+            "action": "candidate",
+            "assistant_text": "What city should I use?",
+            "answer_candidates": [
+                {
+                    "topic": "departure_base",
+                    "value": "12 Main Street",
+                    "source_quote": "I live at 12 Main Street",
+                }
+            ],
+        }
+    )
+    result = asyncio.run(
+        OnboardingIntakeNode(model)(
+            {"messages": [{"role": "user", "content": "I live at 12 Main Street"}]}
+        )
+    )
+    assert result["action"] == "ask"
+    assert result["answer_candidates"] == []
 
 
 def test_intake_finish_drops_candidates_and_graph_ends_after_one_node():

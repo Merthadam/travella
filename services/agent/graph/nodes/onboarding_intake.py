@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal, TypedDict
 
 from ...turn import MAX_HISTORY, MAX_TEXT
@@ -10,6 +11,12 @@ TOPICS = frozenset(
     {"departure_base", "citizenship", "food_needs", "accessibility", "travel_interests"}
 )
 MAX_CANDIDATES_PER_TURN = 5
+_STREET_ADDRESS = re.compile(
+    r"\b\d{1,6}\s+[\w.'-]+(?:\s+[\w.'-]+){0,3}\s+"
+    r"(?:street|st\.?|road|rd\.?|avenue|ave\.?|boulevard|blvd\.?|"
+    r"lane|ln\.?|drive|dr\.?|way|court|ct\.?|place|pl\.?)\b",
+    re.IGNORECASE,
+)
 
 
 class AnswerCandidate(TypedDict):
@@ -96,6 +103,7 @@ def _validated_candidates(raw: Any, messages: list[dict[str, str]]) -> list[Answ
             or not latest_user_message
             or quote not in latest_user_message
             or value not in quote
+            or _STREET_ADDRESS.search(value)
         ):
             continue
         accepted.append(

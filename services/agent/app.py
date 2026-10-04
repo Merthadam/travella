@@ -18,7 +18,8 @@ from services.crud.auth import DEFAULT_SCOPE, bearer_identity
 from .claude import ClaudeGatewayAdapter, LocalMcpAdapter
 from .crud_client import CrudContextReader, CrudPlanReader
 from .graph import AgentGraph
-from .http_contracts import AgentRequest, AgentResponse
+from .graph.onboarding import build_onboarding_intake_graph
+from .http_contracts import AgentRequest, AgentResponse, OnboardingRequest, OnboardingResponse
 from .memory import create_memory_adapter
 from .service import AgentTurnService
 from .state import PlanCandidateStore, ProcessReceiptCache
@@ -65,6 +66,7 @@ def create_app(
         else:
             raise ValueError("AGENT_MCP_TRANSPORT must be 'agentcore' or 'local'.")
     workflow = graph or AgentGraph(adapter)
+    onboarding_graph = build_onboarding_intake_graph(getattr(adapter, "messages", adapter))
     candidates = PlanCandidateStore(max_receipts=cache_size)
     turn_service = AgentTurnService(
         plan_reader=plan_reader,
@@ -119,6 +121,24 @@ def create_app(
         authorization: str | None = Header(default=None),
     ) -> AgentResponse:
         return await turn_service.handle(request, identity.subject, authorization)
+
+    @router.post("/onboarding/events", response_model=OnboardingResponse)
+    async def onboarding_events(
+        request: OnboardingRequest,
+        identity: ValidatedIdentity = Depends(identity_dependency),
+    ) -> OnboardingResponse:
+        del identity  # Authentication is required; the stateless intake stores no identity.
+        result = await onboarding_graph.ainvoke(
+            {"messages": [message.model_dump() for message in request.messages]}
+        )
+        return OnboardingResponse(
+            action=result["action"],
+            assistant_text=result["assistant_text"],
+            answer_candidates=[
+                {"topic": item["topic"], "value": item["value"]}
+                for item in result["answer_candidates"]
+            ],
+        )
 
     @router.post("/plans/{plan_id}/events", response_model=AgentResponse)
     async def plan_events(

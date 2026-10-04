@@ -38,3 +38,28 @@ class AgentResponse(BaseModel):
     action: dict[str, Any] | None = None
     error: str | None = None
     assistant_text: str | None = None
+
+
+class OnboardingMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1000)
+
+
+class OnboardingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    messages: list[OnboardingMessage] = Field(default_factory=list, max_length=12)
+
+
+class OnboardingCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    topic: Literal[
+        "departure_base", "citizenship", "food_needs", "accessibility", "travel_interests"
+    ]
+    value: str = Field(min_length=1, max_length=1000)
+
+
+class OnboardingResponse(BaseModel):
+    action: Literal["ask", "candidate", "finish"]
+    assistant_text: str = Field(min_length=1, max_length=2000)
+    answer_candidates: list[OnboardingCandidate] = Field(default_factory=list, max_length=5)
