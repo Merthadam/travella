@@ -9,6 +9,28 @@ from typing import Any, Protocol, TypedDict
 
 SCHEMA_VERSION = 1
 
+
+class ResearchReuseEvidence(TypedDict, total=False):
+    """Compact, Plan-scoped read evidence eligible for checkpoint reuse."""
+
+    plan_id: str
+    evidence_id: str
+    title: str
+    url: str
+    publisher: str
+    domain: str
+    read_status: str
+    fact_type: str
+    retrieved_at: str
+    valid_until: str
+    excerpt: str
+
+
+class ResearchState(TypedDict, total=False):
+    schema_version: int
+    plan_id: str
+    evidence: list[ResearchReuseEvidence]
+
 class AgentState(TypedDict, total=False):
     traveler_scope: str
     plan_id: str
@@ -30,7 +52,7 @@ class AgentState(TypedDict, total=False):
     brief: dict[str, Any]
     tentative_inferences: dict[str, Any]
     recent_messages: list[dict[str, str]]
-    research_state: dict[str, Any]
+    research_state: ResearchState
     assistant_text: str
     turn_decision: str
     research_intent: str
