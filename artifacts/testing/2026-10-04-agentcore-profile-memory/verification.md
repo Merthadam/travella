@@ -11,8 +11,8 @@ This change connects authenticated profile saves to AgentCore Memory and supplie
 - `docker-compose config` — passed; Compose configuration resolves.
 - `git diff --check` — passed.
 - One auth refresh-expiry test failed once in the combined run, then passed on its isolated rerun and the next full run; the failure was unrelated to these changes.
-- AgentCore integration is intentionally not exercised against AWS. Tests use a local stub; no profile data was sent to the configured AWS account.
+- AgentCore integration is intentionally not exercised against AWS. Tests use a local stub; no profile data was sent to the configured AWS account. The existing active Memory resource is configured in the ignored local `.env`, but no traveler profile records were created or changed.
 
 ## Limits
 
-The runtime stays disabled while `AGENTCORE_MEMORY_ID` is empty. Set it and `AWS_REGION` to the deployed AgentCore Memory resource, and grant the Agent service role the three scoped operations documented in `docs/runbooks/agentcore-memory.md`. Browser verification was not applicable because this change does not alter frontend code or UI behavior.
+The local Compose runtime now has `AGENTCORE_MEMORY_ID` and `AWS_REGION` configured through the ignored `.env`. Other deployments must set those values and grant the Agent service role the three scoped operations documented in `docs/runbooks/agentcore-memory.md`. Browser verification was not applicable because this change does not alter frontend code or UI behavior.
