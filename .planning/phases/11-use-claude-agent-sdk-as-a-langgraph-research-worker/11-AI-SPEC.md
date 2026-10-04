@@ -117,7 +117,7 @@ Treat this as a design sketch: verify exact installed SDK field names/version, t
 
 **Model Configuration:** Read model ID and per-run turn/time/cost budgets from validated non-secret configuration. Use `ANTHROPIC_API_KEY` supplied by Secrets Manager. Do not silently fall back to a different provider after SDK/auth failure; return the existing recoverable interrupted/error outcome.
 
-**Core Pattern:** LangGraph conversation node selects `factual_research` or `destination_discovery`; research node invokes an injected SDK worker adapter with only the current message, small recent conversation window, relevant structured Plan context, and existing evidence references. Validate structured output into a typed result before updating graph state. LangGraph handles bounded refinement and result projection.
+**Core Pattern:** LangGraph conversation node selects `factual_research` or `destination_discovery`; research node invokes an injected SDK worker adapter with only the current message, small recent conversation window, relevant structured Plan context, and existing evidence references. Validate structured output into a typed result before updating graph state. Claude Agent SDK owns the bounded search/read/refine loop. LangGraph invokes the worker once and projects its terminal result.
 
 **Tool Use:** Limit the worker to native `WebSearch` and `WebFetch` plus `Skill` if required to invoke the named project skill. No shell, local file access, filesystem enumeration, arbitrary MCP, CRUD, map, or mutation tools. Keep existing candidate lookup integration where needed for typed candidate objects. Retrieved content is untrusted.
 

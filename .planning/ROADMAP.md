@@ -280,6 +280,8 @@ Plans:
 
 ### Phase 11: Use Claude Agent SDK as a LangGraph research worker
 
+**Execution (2026-10-04):** All three implementation slices committed locally. ARM64 image builds. SDK/live integration and evaluation gates remain open; see `11-VERIFICATION.md`.
+
 **Goal:** Route the Plan-scoped research stage through a bounded Claude Agent SDK worker with native web research and Travella research skills, while LangGraph remains the sole end-to-end orchestrator, checkpoint owner, and AG-UI boundary.
 **Requirements**: AGENT-11-01, AGENT-11-02, AGENT-11-03, AGENT-11-04
 **Depends on:** Phase 10

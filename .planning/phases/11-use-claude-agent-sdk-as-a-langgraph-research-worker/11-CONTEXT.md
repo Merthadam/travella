@@ -36,6 +36,9 @@ This phase builds on Phase 10's evidence-grounded iterative research behavior. I
 - **D-13:** Keep current model calls outside the research worker on their current provider configuration unless integration proves a change is required; this phase specifically moves research-worker execution to Claude Agent SDK.
 - **D-14:** No frontend redesign. Reuse current AG-UI/chat response, citations, cancellation, and Plan candidate projections.
 
+### Execution clarification
+- **D-15 (2026-10-04):** The user explicitly confirmed that Claude Agent SDK owns the complete search/read/refine/finish loop. LangGraph invokes the worker once per research turn; it must not wrap the worker in a second refinement loop. A separate tool-free SDK synthesis call inside the worker provides real final-text streaming without exposing research commentary.
+
 ### the agent's Discretion
 - Choose exact compatible SDK/CLI versions, worker module shape, output schema, tool allowlist and denylist, skill packaging, process/time/cost limits, secret ARN/env convention, and any compatibility fallback after checking current deployment and SDK behavior.
 - Determine whether native WebSearch/WebFetch alone satisfies evidence capture or whether a narrow existing private retrieval capability should remain as a fallback. Preserve source integrity and Phase 10 behavior either way.
@@ -50,7 +53,7 @@ This phase builds on Phase 10's evidence-grounded iterative research behavior. I
 - `.planning/phases/10-evidence-grounded-iterative-agent-research/10-CONTEXT.md` — authoritative Phase 10 research behavior; carry forward D-01–D-13 unless this Phase 11 context narrows implementation only.
 - `.planning/phases/10-evidence-grounded-iterative-agent-research/10-AI-SPEC.md` — existing research domain rubrics and risk profile.
 - `docs/runbooks/agentcore-runtime.md` — current Runtime and Secrets Manager deployment contract.
-- `services/agent/graph/builder.py`, `services/agent/graph/nodes/research.py`, `services/agent/state.py`, `services/agent/claude/adapter.py`, and `services/agent/service.py` — live graph, state, adapter, and projection integration points.
+- `services/agent/graph/builder.py`, `services/agent/graph/nodes/research.py`, `services/agent/state/contracts.py`, `services/agent/claude/adapter.py`, and `services/agent/service.py` — live graph, state, adapter, and projection integration points.
 - `Dockerfile.agent-runtime`, `pyproject.toml`, `uv.lock`, and `scripts/local_secrets.py` — runtime image, dependency lock, and local secret sync.
 - Official SDK overview: https://code.claude.com/docs/en/agent-sdk/overview
 - Official Python reference: https://code.claude.com/docs/en/agent-sdk/python
