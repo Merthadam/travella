@@ -265,7 +265,7 @@ class ClaudeResearchWorker:
             max_turns=1 if answer else self.config.max_turns,
             max_budget_usd=budget,
             include_partial_messages=answer,
-            thinking={"type": "disabled"},
+            # Use the selected model's defaults; newer models reject disabled thinking.
             settings=json.dumps({"autoMemoryEnabled": False}),
             extra_args={"no-session-persistence": None},
             env={
