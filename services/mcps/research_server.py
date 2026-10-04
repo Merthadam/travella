@@ -103,10 +103,19 @@ def _canonical_url(value: object) -> str | None:
             address = None
         if address is not None and not address.is_global:
             return None
+        if address is None and (
+            len(hostname) > 253
+            or "." not in hostname
+            or not re.fullmatch(
+                r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*",
+                hostname,
+            )
+        ):
+            return None
         port = parsed.port
         if port not in (None, 443):
             return None
-        netloc = hostname
+        netloc = f"[{hostname}]" if address is not None and address.version == 6 else hostname
         return urlunsplit(("https", netloc, parsed.path or "/", parsed.query, ""))
     except (ValueError, UnicodeError):
         return None
@@ -126,7 +135,7 @@ def _domain_matches(hostname: str, domain: str) -> bool:
     return hostname == domain or hostname.endswith(f".{domain}")
 
 
-def _source_metadata(title: str, url: str) -> dict[str, str]:
+def _source_metadata(url: str) -> dict[str, str]:
     """Return advisory source labels derived from the validated URL host."""
     hostname = urlsplit(url).hostname or ""
     if hostname.endswith(".gov") or any(
@@ -137,7 +146,7 @@ def _source_metadata(title: str, url: str) -> dict[str, str]:
         quality = "reputable_travel"
     else:
         quality = "general"
-    return {"publisher": _clean_text(title, 180), "domain": hostname, "source_quality": quality}
+    return {"publisher": hostname, "domain": hostname, "source_quality": quality}
 
 
 # This is deliberately a small, conservative location vocabulary.  Tavily text is
@@ -290,7 +299,7 @@ def _save_evidence(
                 "run_id": run_id,
                 "title": evidence["title"],
                 "url": evidence["url"],
-                **_source_metadata(evidence["title"], evidence["url"]),
+                **_source_metadata(evidence["url"]),
                 "excerpt": candidate["fit_summary"],
                 "retrieved_at": datetime.now(timezone.utc).isoformat(),
                 "expires_at": now + EVIDENCE_TTL_SECONDS,
@@ -311,7 +320,7 @@ def _save_research_sources(
             "run_id": run_id,
             "title": source["title"],
             "url": source["url"],
-            **_source_metadata(source["title"], source["url"]),
+            **_source_metadata(source["url"]),
             "excerpt": "",
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
             "expires_at": now + EVIDENCE_TTL_SECONDS,
@@ -374,7 +383,7 @@ async def research_destination_candidates(
             "evidence_id": _stable_source_id(run_id, url),
             "title": title,
             "url": url,
-            **_source_metadata(title, url),
+            **_source_metadata(url),
         })
     _save_research_sources(run_id, context.subject, plan_id, sources)
     candidates: list[dict[str, Any]] = []
@@ -426,7 +435,7 @@ async def research_destination_candidates(
         "plan_id": plan_id,
         "run_id": run_id,
         "candidates": candidates,
-        "sources": sources,
+        "sources": sources if research_intent == "factual_research" or candidates else [],
     }
 
 
@@ -465,7 +474,7 @@ async def get_candidate_sources(
             "evidence_id": evidence_id,
             "title": item["title"],
             "url": item["url"],
-            "publisher": item.get("publisher", item["title"]),
+            "publisher": item.get("publisher", item.get("domain", urlsplit(item["url"]).hostname or "")),
             "domain": item.get("domain", urlsplit(item["url"]).hostname or ""),
             "source_quality": item.get("source_quality", "general"),
             "retrieved_at": item["retrieved_at"],
@@ -544,6 +553,8 @@ async def get_candidate_sources(
                     if not extracted_page or page["url"] in failed_urls:
                         continue
                     raw_content = extracted_page.get("raw_content")
+                    if not isinstance(raw_content, str):
+                        continue
                     content = _clean_page_text(raw_content)
                     if not content or len(content) > MAX_PAGE_CONTENT:
                         continue

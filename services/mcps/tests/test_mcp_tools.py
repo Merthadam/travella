@@ -288,13 +288,15 @@ def test_page_extraction_deduplicates_and_caps_selected_https_urls(monkeypatch, 
         "https://example.test/four",
     ]
     sources = [
-        {"evidence_id": research_server._stable_source_id("run-1", url), "title": url, "url": url}
-        for url in urls
-    ]
-    sources.extend([
+        {"evidence_id": research_server._stable_source_id("run-1", urls[0]), "title": urls[0], "url": urls[0]},
+        {"evidence_id": research_server._stable_source_id("run-1", urls[1]), "title": urls[1], "url": urls[1]},
         {"evidence_id": "duplicate", "title": "duplicate", "url": "https://example.test/one#fragment"},
+        *[
+            {"evidence_id": research_server._stable_source_id("run-1", url), "title": url, "url": url}
+            for url in urls[2:]
+        ],
         {"evidence_id": "unsafe", "title": "unsafe", "url": "http://example.test/unsafe"},
-    ])
+    ]
     research_server._save_research_sources("run-1", "traveler-1", "plan-1", sources)
     clients: list[FakeClient] = []
 
