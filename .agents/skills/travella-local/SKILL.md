@@ -116,6 +116,8 @@ The launcher first pulls `travella/local-development` from AWS Secrets Manager i
 `eu-north-1` into ignored, owner-only env files. New worktrees need AWS login but no
 manual credential copying. Manage keys with
 `uv run --locked python scripts/local_secrets.py set OPENAI_API_KEY` (hidden prompt).
+For Claude Agent SDK credentials, the same command accepts
+`ANTHROPIC_API_KEY` through a hidden prompt.
 If retrieval fails, fix AWS access or explicitly use `TRAVELLA_SECRETS_MODE=local`
 for offline startup with existing files. Never print expanded Compose configuration.
 

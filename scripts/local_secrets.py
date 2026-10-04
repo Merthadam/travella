@@ -28,6 +28,7 @@ ROOT_KEYS = frozenset(
         "SESSION_ENCRYPTION_KEY",
         "POSTGRES_PASSWORD",
         "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
         "OPENAI_MODEL_ID",
         "AGENT_MODEL_PROVIDER",
         "BEDROCK_REGION",

@@ -24,8 +24,17 @@ To change a shared value, enter it at a hidden terminal prompt:
 uv run --locked python scripts/local_secrets.py set OPENAI_API_KEY
 ```
 
+For the Claude Agent SDK, use the same hidden prompt for its Anthropic API key:
+
+```bash
+uv run --locked python scripts/local_secrets.py set ANTHROPIC_API_KEY
+```
+
 The same command supports `TAVILY_API_KEY`, `GOOGLE_MAPS_SERVER_API_KEY`,
-`VITE_GOOGLE_MAPS_API_KEY`, Cognito settings, and the session encryption key.
+`VITE_GOOGLE_MAPS_API_KEY`, `ANTHROPIC_API_KEY`, Cognito settings, and the
+session encryption key. The key is stored in the shared secret and pulled into
+the ignored root `.env`; application containers do not receive it until a
+provider explicitly needs it.
 Restart each running worktree to pick up changes. Fetch without starting Docker:
 
 ```bash

@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 10
-current_phase_name: Evidence-grounded iterative agent research
+current_phase: 11
+current_phase_name: Use Claude Agent SDK as a LangGraph research worker
 status: executing
-stopped_at: Phase 10 context gathered
-last_updated: "2026-10-04T12:12:16.608Z"
+stopped_at: Phase 11 planned; ready to execute
+last_updated: "2026-10-04T19:12:51.551Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 10 execution resumed (wave continue)
-state_head: bb97cb8f30383f49e25ab49ce3e4b223bfd44c7a
+state_head: 46e07ad10722c981907ca8d4a1368031fc2825b2
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 0
-  total_plans: 29
-  completed_plans: 14
+  total_plans: 32
+  completed_plans: 18
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-26)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 10 — Evidence-grounded iterative agent research
+**Current focus:** Phase 11 — Use Claude Agent SDK as a LangGraph research worker
 
 ## Current Position
 
-Phase: 10 (Evidence-grounded iterative agent research) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 10
-Last activity: 2026-10-04 — Phase 10 execution resumed (wave continue)
+Phase: 11 (Use Claude Agent SDK as a LangGraph research worker) — READY TO EXECUTE
+Plan: 0 of 3
+Status: Ready to execute
+Last activity: 2026-10-04 — Phase 11 planning complete
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
@@ -82,6 +82,7 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 - Phase 02.1 inserted after Phase 2: Local PostgreSQL data foundation and typed CRUD schema (URGENT)
 - Phase 10 added: Evidence-grounded iterative agent research
 - Phase 10 edited: defined evidence-grounded research scope, dependency, and success criteria
+- Phase 11 added: Use Claude Agent SDK as a LangGraph research worker
 
 ## Deferred Items
 
@@ -93,9 +94,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-04T09:52:13.853Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-evidence-grounded-iterative-agent-research/10-CONTEXT.md
+Last session: 2026-10-04T19:12:51.532Z
+Stopped at: Phase 11 planned; ready to execute
+Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-worker/11-01-PLAN.md
 
 ### Frontend structure decision (2026-09-28)
 
@@ -119,3 +120,4 @@ Resume file: .planning/phases/10-evidence-grounded-iterative-agent-research/10-C
 
 | 2026-10-04 | right-trip-brief-ui | Restored right-side editable Trip Brief; 33 frontend tests/build and desktop interactions passed. Screenshot/mobile checks blocked by unresponsive DevTools. |
 | 2026-10-04 | local-rebuild-freshness | Updated startup skill; rebuild/auth checks passed and three frontend source hashes matched the running container. |
+| 2026-10-04 | support-anthropic-api-key-in-shared-secr | Added hidden-prompt helper support and docs; confirmed the Anthropic key is present in the shared AWS secret without exposing its value. |
