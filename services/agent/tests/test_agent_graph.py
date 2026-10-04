@@ -1,11 +1,76 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from services.agent.graph import AgentGraph
+from services.agent.graph.nodes.research import ResearchNode, _reusable_evidence
 from services.agent.request_context import current_authorization_token, current_text_delta_callback
+
+
+def test_reusable_evidence_requires_same_plan_read_status_and_matching_topic():
+    now = datetime(2026, 10, 4, 12, tzinfo=timezone.utc)
+    entry = {
+        "plan_id": "plan-1", "evidence_id": "e-1", "title": "Lisbon transit guide",
+        "url": "https://example.com/lisbon", "read_status": "read", "fact_type": "stable",
+        "retrieved_at": (now - timedelta(days=1)).isoformat(),
+        "valid_until": (now + timedelta(days=29)).isoformat(), "excerpt": "Lisbon transit uses a metro card.",
+    }
+    state = {"plan_id": "plan-1", "research_state": {"plan_id": "plan-1", "evidence": [
+        entry, {**entry, "evidence_id": "foreign", "plan_id": "plan-2"},
+        {**entry, "evidence_id": "unread", "read_status": "unread"},
+    ]}}
+    reused = _reusable_evidence(state, "How does Lisbon transit work?", now=now)
+    assert [item["evidence_id"] for item in reused] == ["e-1"]
+    assert reused[0]["content"] == entry["excerpt"]
+    assert _reusable_evidence(state, "Tokyo museums", now=now) == []
+
+
+@pytest.mark.parametrize(
+    ("fact_type", "age", "should_reuse"),
+    [("stable", timedelta(days=29), True), ("stable", timedelta(days=31), False),
+     ("rules_schedule", timedelta(hours=23), True), ("rules_schedule", timedelta(hours=25), False),
+     ("live", timedelta(minutes=59), True), ("live", timedelta(hours=2), False)],
+)
+def test_reusable_evidence_obeys_fact_type_freshness(fact_type, age, should_reuse):
+    now = datetime(2026, 10, 4, 12, tzinfo=timezone.utc)
+    entry = {
+        "plan_id": "plan-1", "evidence_id": "e-1", "title": "Lisbon weather transit rules",
+        "url": "https://example.com/lisbon", "read_status": "read", "fact_type": fact_type,
+        "retrieved_at": (now - age).isoformat(), "valid_until": (now + timedelta(days=30)).isoformat(),
+        "excerpt": "Lisbon conditions and transit information.",
+    }
+    state = {"plan_id": "plan-1", "research_state": {"plan_id": "plan-1", "evidence": [entry]}}
+    assert bool(_reusable_evidence(state, "Lisbon information", now=now)) is should_reuse
+
+
+def test_research_node_answers_from_resumed_evidence_without_searching_again():
+    class ResumeAdapter:
+        async def research(self, **_kwargs):
+            raise AssertionError("fresh evidence should be reused")
+
+        async def synthesize_research(self, *, page_read, **_kwargs):
+            assert page_read["evidence"][0]["content"] == "Lisbon has an extensive metro network."
+            return {"action": "answer", "answer": "Lisbon has an extensive metro network.",
+                    "evidence_ids": ["saved-1"], "uncertainty": []}
+
+    now = datetime.now(timezone.utc)
+    saved = {
+        "plan_id": "plan-1", "evidence_id": "saved-1", "title": "Lisbon transit",
+        "url": "https://example.com/lisbon", "publisher": "Example", "read_status": "read",
+        "fact_type": "stable", "retrieved_at": now.isoformat(),
+        "valid_until": (now + timedelta(days=30)).isoformat(),
+        "excerpt": "Lisbon has an extensive metro network.",
+    }
+    result = asyncio.run(ResearchNode(ResumeAdapter())({
+        "traveler_scope": "traveler-1", "plan_id": "plan-1", "event_id": "event-2",
+        "message": "Tell me about Lisbon transit.", "research_intent": "factual_research",
+        "research_state": {"plan_id": "plan-1", "evidence": [saved]},
+    }))
+    assert result["assistant_text"] == "Lisbon has an extensive metro network."
+    assert result["research_sources"][0]["evidence_id"] == "saved-1"
 
 
 class ResearchAdapter:

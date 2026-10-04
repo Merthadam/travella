@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
 from ...request_context import current_authorization_token
 from ...state import AgentState
@@ -21,6 +23,57 @@ _MAX_PAGE_TEXT = 10_000
 _MAX_PASS_COUNT = 3
 _MAX_PAGE_COUNT_PER_PASS = 3
 _MAX_TURN_CHARS = 10_000
+_FRESHNESS = {"stable": timedelta(days=30), "rules_schedule": timedelta(hours=24), "live": timedelta(hours=1)}
+
+
+def _fact_type(message: str) -> str:
+    value = message.casefold()
+    if any(term in value for term in ("weather", "alert", "disruption", "safety", "health", "condition")):
+        return "live"
+    if any(term in value for term in ("visa", "entry", "rule", "schedule", "timetable", "opening hours", "hours")):
+        return "rules_schedule"
+    return "stable"
+
+
+def _parse_time(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+
+
+def _reusable_evidence(state: AgentState, message: str, *, now: datetime | None = None) -> list[dict[str, Any]]:
+    saved = state.get("research_state")
+    if not isinstance(saved, dict) or saved.get("plan_id") != state.get("plan_id"):
+        return []
+    now = now or datetime.now(timezone.utc)
+    query_terms = {term for term in _normalize_query(message).split() if len(term) > 2}
+    result = []
+    for item in saved.get("evidence", []) if isinstance(saved.get("evidence"), list) else []:
+        if not isinstance(item, dict) or item.get("plan_id") != state.get("plan_id") or item.get("read_status") != "read":
+            continue
+        expiry = _parse_time(item.get("valid_until"))
+        retrieved = _parse_time(item.get("retrieved_at"))
+        fact_type = item.get("fact_type")
+        excerpt = item.get("excerpt")
+        if not expiry or not retrieved or expiry <= now or fact_type not in _FRESHNESS or not isinstance(excerpt, str) or not excerpt.strip():
+            continue
+        if now - retrieved > _FRESHNESS[fact_type]:
+            continue
+        haystack = f"{item.get('title', '')} {item.get('publisher', '')} {excerpt}".casefold()
+        if query_terms and not any(term in haystack for term in query_terms):
+            continue
+        result.append({
+            "evidence_id": item.get("evidence_id", ""), "title": item.get("title", ""),
+            "url": item.get("url", ""), "publisher": item.get("publisher", ""),
+            "source_quality": "general", "retrieved_at": item.get("retrieved_at", ""),
+            "read_status": "read", "content": excerpt,
+            "expires_at": expiry.timestamp(), "fact_type": fact_type,
+        })
+    return result[:6]
 
 
 def _bounded_candidates(value: Any) -> list[dict[str, Any]]:
@@ -148,6 +201,21 @@ class ResearchNode:
         if action.get("action") == "refresh":
             original_message = f"{original_message}; find current recommendations"
 
+        reusable = _reusable_evidence(state, original_message)
+        if reusable and not state.get("research_evidence"):
+            reuse_review = await self._review(
+                state=state, message=original_message, evidence=reusable,
+                candidates=state.get("candidates", []), force_answer=False,
+            )
+            if reuse_review.get("action") == "answer":
+                return await self._terminal(
+                    state=state, candidates=state.get("candidates", []), evidence=reusable,
+                    result={}, answer=str(reuse_review.get("answer", "")),
+                    evidence_ids=list(reuse_review.get("evidence_ids", [])),
+                    uncertainty=list(reuse_review.get("uncertainty", [])),
+                    pass_count=0, queries=[],
+                )
+
         pass_count = int(state.get("research_pass_count", 0))
         queries = list(state.get("research_queries", []))
         follow_up = state.get("research_query")
@@ -192,7 +260,7 @@ class ResearchNode:
 
         pass_count += 1
         queries.append(query)
-        evidence = list(state.get("research_evidence", []))
+        evidence = list(state.get("research_evidence", [])) or reusable
         remaining_chars = max(0, _MAX_TURN_CHARS - sum(len(str(item.get("content", ""))) for item in evidence))
         pass_evidence = await self._read_pass_evidence(
             state=state,
@@ -351,6 +419,34 @@ class ResearchNode:
             {key: eligible[evidence_id].get(key, "") for key in ("evidence_id", "title", "url", "retrieved_at")}
             for evidence_id in citations
         ]
+        now = datetime.now(timezone.utc)
+        reusable_entries = []
+        for item in evidence:
+            if not isinstance(item, dict) or item.get("read_status") != "read":
+                continue
+            retrieved = _parse_time(item.get("retrieved_at")) or now
+            kind = str(item.get("fact_type") or _fact_type(str(state.get("message", ""))))
+            if kind not in _FRESHNESS:
+                kind = "stable"
+            valid_until = retrieved + _FRESHNESS[kind]
+            try:
+                domain = urlsplit(str(item.get("url", ""))).hostname or ""
+            except ValueError:
+                domain = ""
+            reusable_entries.append({
+                "plan_id": state.get("plan_id"),
+                "evidence_id": str(item.get("evidence_id", ""))[:180],
+                "title": str(item.get("title", ""))[:180],
+                "url": str(item.get("url", ""))[:2048],
+                "publisher": str(item.get("publisher", ""))[:180],
+                "domain": str(item.get("domain") or domain)[:180],
+                "read_status": "read", "fact_type": kind,
+                "retrieved_at": retrieved.isoformat().replace("+00:00", "Z"),
+                "valid_until": valid_until.isoformat().replace("+00:00", "Z"),
+                "excerpt": " ".join(str(item.get("content", "")).split())[:1200],
+            })
+        prior_reuse = state.get("research_state", {}).get("evidence", []) if isinstance(state.get("research_state"), dict) else []
+        merged_reuse = {str(item.get("evidence_id")): item for item in [*prior_reuse, *reusable_entries] if isinstance(item, dict) and item.get("evidence_id")}
         research_intent = state.get("research_intent")
         if candidates and research_intent == "destination_discovery":
             locations_result = await self.tools.resolve_map(
@@ -379,6 +475,7 @@ class ResearchNode:
             "research_evidence_ids": citations,
             "research_uncertainty": uncertainty[:5],
             "research_evidence": evidence,
+            "research_state": {"plan_id": state.get("plan_id"), "evidence": list(merged_reuse.values())[-6:]},
             "research_pass_count": pass_count,
             "research_queries": queries,
             "research_action": "answer",
