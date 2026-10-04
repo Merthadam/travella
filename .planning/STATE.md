@@ -4,10 +4,10 @@ current_phase: 11
 current_phase_name: Use Claude Agent SDK as a LangGraph research worker
 status: executing
 stopped_at: Phase 11 implementation committed; validation pending
-last_updated: "2026-10-04T19:31:26.535305+00:00"
+last_updated: "2026-10-04T20:09:54.317Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 11 SDK implementation committed; live validation pending
-state_head: 46e07ad10722c981907ca8d4a1368031fc2825b2
+state_head: bda69a2173d7d6311863976d49e8f7caec8f98f3
 progress:
   total_phases: 12
   completed_phases: 0
@@ -106,17 +106,17 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 
 ## Quick Tasks Completed
 
-| Date | Task | Outcome |
-|------|------|---------|
-| 2026-10-03 | local-agent-without-agentcore | Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. |
-| 2026-10-03 | plan-chat-primary | Made Plan chat the primary Plan screen and retained the Plans switcher drawer; see `artifacts/testing/2026-10-03-chat-top-nav/verification.md`. |
-| 2026-10-04 | travella-local-start | Added health-gated local startup and a one-shot sign-in/session smoke check; see `.planning/quick/261004-di1-add-reliable-local-travella-startup-and-/261004-di1-VERIFICATION.md`. |
-| 2026-10-04 | remove-duplicate-plans-control | Removed the duplicate left-side Plans button; verified the right-side selector remains visible and opens the plan list in Chrome. |
-| 2026-10-04 | plans-in-left-sidebar | Moved the active Plans list into the left drawer and removed the duplicate current-plan header button; see `artifacts/testing/2026-10-04-plans-in-left-sidebar/verification.md`. |
-| 2026-10-04 | lightweight-onboarding-intake | Added a standalone, single-node LangGraph intake unit; first-login routing and profile persistence remain separate follow-up work. |
-| 2026-10-04 | agentcore-profile-memory | Mirrored canonical traveler preferences to AgentCore and supplied matching snapshots to Plan turns; see `artifacts/testing/2026-10-04-agentcore-profile-memory/verification.md`. |
-| 2026-10-04 | route-langgraph-through-agentcore-runtime | Added Runtime HTTP contract, authenticated invocation routing, ARM64 image, and deployment runbook; AWS resource not deployed. |
-| 2026-10-04 | share-local-worktree-credentials-through | Added shared Secrets Manager credential sync to local startup; verified live AWS fetch into independent worktrees and authenticated app startup. |
+| # | Description | Date | Commit | Status | Directory |
+| --- | ------------- | ------ | -------- | -------- | ----------- |
+| 1 | local-agent-without-agentcore · Outcome: Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. | 2026-10-03 | — | — | — |
+| 2 | plan-chat-primary · Outcome: Made Plan chat the primary Plan screen and retained the Plans switcher drawer; see `artifacts/testing/2026-10-03-chat-top-nav/verification.md`. | 2026-10-03 | — | — | — |
+| 3 | travella-local-start · Outcome: Added health-gated local startup and a one-shot sign-in/session smoke check; see `.planning/quick/261004-di1-add-reliable-local-travella-startup-and-/261004-di1-VERIFICATION.md`. | 2026-10-04 | — | — | — |
+| 4 | remove-duplicate-plans-control · Outcome: Removed the duplicate left-side Plans button; verified the right-side selector remains visible and opens the plan list in Chrome. | 2026-10-04 | — | — | — |
+| 5 | plans-in-left-sidebar · Outcome: Moved the active Plans list into the left drawer and removed the duplicate current-plan header button; see `artifacts/testing/2026-10-04-plans-in-left-sidebar/verification.md`. | 2026-10-04 | — | — | — |
+| 6 | lightweight-onboarding-intake · Outcome: Added a standalone, single-node LangGraph intake unit; first-login routing and profile persistence remain separate follow-up work. | 2026-10-04 | — | — | — |
+| 7 | agentcore-profile-memory · Outcome: Mirrored canonical traveler preferences to AgentCore and supplied matching snapshots to Plan turns; see `artifacts/testing/2026-10-04-agentcore-profile-memory/verification.md`. | 2026-10-04 | — | — | — |
+| 8 | route-langgraph-through-agentcore-runtime · Outcome: Added Runtime HTTP contract, authenticated invocation routing, ARM64 image, and deployment runbook; AWS resource not deployed. | 2026-10-04 | — | — | — |
+| 9 | share-local-worktree-credentials-through · Outcome: Added shared Secrets Manager credential sync to local startup; verified live AWS fetch into independent worktrees and authenticated app startup. | 2026-10-04 | — | — | — |
 
 | 2026-10-04 | right-trip-brief-ui | Restored right-side editable Trip Brief; 33 frontend tests/build and desktop interactions passed. Screenshot/mobile checks blocked by unresponsive DevTools. |
 | 2026-10-04 | local-rebuild-freshness | Updated startup skill; rebuild/auth checks passed and three frontend source hashes matched the running container. |
@@ -125,3 +125,4 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 2026-10-04 | local-sdk-research-startup | Enabled approved Anthropic router and model alias; rebuilt local stack; auth, SDK health and five source hashes passed. |
 
 | 2026-10-04 | pure-agent-sdk-flow | Removed direct model SDKs and legacy engine; all model stages use Agent SDK; rebuilt local app; auth, health, package absence and six hashes passed. Live conversation checks remain open. |
+| 261004-urd | Refresh local Sonnet 5.5 container; remove disabled-thinking override; startup/auth and source hashes passed, live chat pending | 2026-10-04 | bda69a2 | — | [261004-urd-refresh-local-sonnet-5-5-container-and-u](./quick/261004-urd-refresh-local-sonnet-5-5-container-and-u/) |
