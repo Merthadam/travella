@@ -48,6 +48,8 @@ class SdkResearchNode(ResearchProjection):
             "brief": bounded.brief,
             "traveler_profile": bounded.traveler_profile,
             "recent_messages": list(bounded.recent_messages),
+            "trip_context": state.get("trip_context", {}),
+            "state_changes": state.get("state_changes", []),
         }
         candidates: list[dict[str, Any]] = []
         discovery: dict[str, Any] = {}
@@ -85,12 +87,22 @@ class SdkResearchNode(ResearchProjection):
                 on_text_delta=current_text_delta_callback(),
             )
             result = ResearchResult.model_validate(raw)
-            return await self._terminal(
+            output = await self._terminal(
                 state={**state, "message": message}, candidates=candidates,
                 evidence=[item.model_dump() for item in result.evidence],
                 result=discovery, answer=result.answer, evidence_ids=result.evidence_ids,
                 uncertainty=result.uncertainty, pass_count=1, queries=[],
             )
+            changes = list(state.get("state_changes", []))
+            removed = {str(item.get("value", "")).casefold() for item in changes if item.get("operation") == "remove_candidate"}
+            existing = {name.casefold() for name in context["trip_context"].get("candidates", [])}
+            if intent == "destination_discovery":
+                for name in result.candidate_names:
+                    if name.casefold() not in removed | existing and len(existing) < 20:
+                        changes.append({"operation": "add_candidate", "field": "candidates", "value": name, "source": "research", "source_quote": ""})
+                        existing.add(name.casefold())
+            output["state_changes"] = changes[:24]
+            return output
         except Exception:
             # CancelledError is a BaseException and propagates to SDK/process cleanup.
             # SDK diagnostics can include prompts or credentials: never project them.

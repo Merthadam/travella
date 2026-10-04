@@ -5,12 +5,14 @@ export const emptyTripContext = () => ({
   finalDestination: '',
   dateStart: '',
   dateEnd: '',
+  dateNote: '',
   flexibleDates: false,
-  travelers: '',
+  travelers: null,
   budget: '',
   noFixedBudget: false,
   flights: 'undecided',
   accommodation: 'undecided',
+  provenance: {},
 });
 
 export function tripBriefProgress(context) {
@@ -28,10 +30,15 @@ export function tripBriefProgress(context) {
   return { count, total: 6, percentage: Math.round((count / 6) * 100), complete };
 }
 
-export function TripBrief({ value, onChange, locked = false }) {
+function SourceNote({ context, fields }) {
+  const labels = { user_edit: 'Edited by you', user_explicit: 'From your message', agent_inferred: 'Inferred from chat', memory: 'From your saved preferences', research: 'From research' };
+  const sources = [...new Set(fields.map(field => labels[context.provenance?.[field]?.source]).filter(Boolean))];
+  return sources.length ? <p className="trip-brief-muted">{sources.join(' · ')}</p> : null;
+}
+
+export function TripBrief({ value, onChange, locked = false, saving = false, error = '' }) {
   const context = value || emptyTripContext();
   const [candidateDraft, setCandidateDraft] = useState('');
-  const [pendingStatus, setPendingStatus] = useState(null);
   const progress = useMemo(() => tripBriefProgress(context), [context]);
   const update = patch => onChange({ ...context, ...patch });
   const datesTravelersCount = Number(progress.complete[1]) + Number(progress.complete[2]);
@@ -39,6 +46,7 @@ export function TripBrief({ value, onChange, locked = false }) {
 
   function addCandidate(event) {
     event.preventDefault();
+    if (locked || context.candidates.length >= 20) return;
     const name = candidateDraft.trim();
     if (!name || context.candidates.some(item => item.toLowerCase() === name.toLowerCase())) return;
     update({ candidates: [...context.candidates, name] });
@@ -46,8 +54,7 @@ export function TripBrief({ value, onChange, locked = false }) {
   }
 
   function changeNeed(field, status) {
-    if (status === context[field]) { setPendingStatus(null); return; }
-    setPendingStatus({ field, status });
+    if (!locked && status !== context[field]) update({ [field]: status });
   }
 
   return <aside className="trip-brief" aria-label="Trip Brief" aria-busy={locked}>
@@ -55,6 +62,8 @@ export function TripBrief({ value, onChange, locked = false }) {
       <div><p className="trip-brief-kicker">YOUR PLAN</p><h1>Trip Brief</h1></div>
       <span className="trip-brief-count" aria-label={`${progress.count} of 6 details complete`}>{progress.count}/6</span>
     </header>
+    {saving && <p className="trip-brief-muted" role="status">Saving trip details…</p>}
+    {error && <p className="chat-error" role="alert">{error}</p>}
     <section className="trip-brief-progress" aria-label="Trip progress">
       <p>{progress.count === 6 ? 'Your trip basics are clear' : `${6 - progress.count} details left to shape`}</p>
     </section>
@@ -72,6 +81,7 @@ export function TripBrief({ value, onChange, locked = false }) {
         <label htmlFor="trip-candidate">Add a place</label>
         <div><input id="trip-candidate" value={candidateDraft} maxLength={100} onChange={event => setCandidateDraft(event.target.value)} placeholder="City or country" disabled={locked} /><button type="submit" disabled={locked || !candidateDraft.trim()}>Add</button></div>
       </form>
+      <SourceNote context={context} fields={['candidates', 'finalDestination']} />
       </section>
     </details>
 
@@ -81,11 +91,14 @@ export function TripBrief({ value, onChange, locked = false }) {
       <div className="trip-brief-section-heading"><div><p className="trip-brief-kicker">WHEN</p><h2 id="trip-dates-heading">Dates</h2></div></div>
       <div className="trip-brief-date-fields"><label>From<input type="date" aria-label="Start date" value={context.dateStart} onChange={event => update({ dateStart: event.target.value, flexibleDates: false })} disabled={locked || context.flexibleDates} /></label><label>To<input type="date" aria-label="End date" value={context.dateEnd} onChange={event => update({ dateEnd: event.target.value, flexibleDates: false })} disabled={locked || context.flexibleDates} /></label></div>
       <label className="trip-brief-inline-check"><input type="checkbox" checked={context.flexibleDates} onChange={event => update({ flexibleDates: event.target.checked, ...(event.target.checked ? { dateStart: '', dateEnd: '' } : {}) })} disabled={locked} /> My dates are flexible</label>
+      <label className="trip-brief-field">Timing notes<input type="text" value={context.dateNote || ''} maxLength={200} onChange={event => update({ dateNote: event.target.value })} placeholder="For example, sometime in February" disabled={locked} /></label>
+      <SourceNote context={context} fields={['dateStart', 'dateEnd', 'dateNote', 'flexibleDates']} />
       </section>
 
       <section className="trip-brief-section" aria-labelledby="trip-travelers-heading">
       <div className="trip-brief-section-heading"><div><p className="trip-brief-kicker">WHO</p><h2 id="trip-travelers-heading">Travelers</h2></div></div>
-      <label className="trip-brief-field">People<input type="number" min="1" max="50" step="1" value={context.travelers} onChange={event => update({ travelers: event.target.value })} placeholder="Number of travelers" disabled={locked} /></label>
+      <label className="trip-brief-field">People<input type="number" min="1" max="50" step="1" value={context.travelers ?? ''} onChange={event => update({ travelers: event.target.value })} placeholder="Number of travelers" disabled={locked} /></label>
+      <SourceNote context={context} fields={['travelers']} />
       </section>
     </details>
 
@@ -95,6 +108,7 @@ export function TripBrief({ value, onChange, locked = false }) {
       <div className="trip-brief-section-heading"><div><p className="trip-brief-kicker">SPENDING</p><h2 id="trip-budget-heading">Trip budget</h2></div></div>
       <label className="trip-brief-field">Approximate total<input type="text" inputMode="decimal" value={context.budget} onChange={event => update({ budget: event.target.value, noFixedBudget: false })} placeholder="Amount and currency" disabled={locked || context.noFixedBudget} /></label>
       <label className="trip-brief-inline-check"><input type="checkbox" checked={context.noFixedBudget} onChange={event => update({ noFixedBudget: event.target.checked, ...(event.target.checked ? { budget: '' } : {}) })} disabled={locked} /> I don’t have a fixed budget</label>
+      <SourceNote context={context} fields={['budget', 'noFixedBudget']} />
       </section>
     </details>
 
@@ -107,11 +121,7 @@ export function TripBrief({ value, onChange, locked = false }) {
         <div className="trip-brief-segment" role="group" aria-label={`${label} status`}>
           {[['undecided', 'Undecided'], ['needed', 'Needed'], ['not-needed', 'Not needed']].map(([status, text]) => <button type="button" key={status} aria-pressed={context[field] === status} disabled={locked} onClick={() => changeNeed(field, status)}>{text}</button>)}
         </div>
-        {pendingStatus?.field === field && <div className="trip-brief-inline-confirm" role="group" aria-label={`Confirm ${label} status change`}>
-          <span>Change to {pendingStatus.status === 'needed' ? 'Needed' : pendingStatus.status === 'not-needed' ? 'Not needed' : 'Undecided'}?</span>
-          <button type="button" className="trip-brief-confirm" disabled={locked} onClick={() => { update({ [field]: pendingStatus.status }); setPendingStatus(null); }}>Confirm</button>
-          <button type="button" disabled={locked} onClick={() => setPendingStatus(null)}>Cancel</button>
-        </div>}
+        <SourceNote context={context} fields={[field]} />
       </div>)}
       </section>
     </details>

@@ -71,7 +71,7 @@ class PlanCandidateStore:
     def _lock(self, key: tuple[str, str]) -> asyncio.Lock:
         return self._locks.setdefault(key, asyncio.Lock())
 
-    async def reserve(self, traveler_scope: str, plan_id: str, event_id: str) -> EventReservation:
+    async def reserve(self, traveler_scope: str, plan_id: str, event_id: str, *, exclusive: bool = False) -> EventReservation:
         key = (traveler_scope, plan_id)
         receipt_key = (*key, event_id)
         async with self._lock(key):
@@ -83,6 +83,8 @@ class PlanCandidateStore:
             pending = self._pending.get(receipt_key)
             if pending is not None:
                 return EventReservation(self._generations.get(key, 0), pending, False)
+            if exclusive and any(item[:2] == key for item in self._pending):
+                raise ValueError("another reply is running")
             generation = self._generations.get(key, 0) + 1
             self._generations[key] = generation
             future = asyncio.get_running_loop().create_future()

@@ -168,6 +168,17 @@ class PlanningBrief(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ResearchContext(Base):
+    __tablename__ = "research_contexts"
+
+    plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("plans.id", ondelete="CASCADE"), primary_key=True)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON_OBJECT, nullable=False, default=dict)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    active_event: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class PlanActionReceipt(Base):
     __tablename__ = "plan_action_receipts"
     __table_args__ = (

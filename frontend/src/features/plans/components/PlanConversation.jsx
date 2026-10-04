@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
-import { emptyTripContext, TripBrief } from './TripBrief';
+import { A2uiTripBrief } from './A2uiTripBrief';
+import { useTripContext } from '../useTripContext';
 
 const safeSources = values => (Array.isArray(values) ? values : []).filter(item => {
   if (!item?.url || !item?.title) return false;
@@ -34,18 +35,18 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
   const [error, setError] = useState('');
-  const [tripContext, setTripContext] = useState(emptyTripContext);
   const history = useRef(null);
   const composer = useRef(null);
   const activeRef = useRef(null);
   const onExpiredRef = useRef(onExpired);
   const nearBottom = useRef(true);
   const planId = selected?.plan_id;
+  const brief = useTripContext(api, planId, onExpired);
   onExpiredRef.current = onExpired;
 
   useEffect(() => {
     let mounted = true;
-    setMessages([]); setError(''); setLoading(true);
+    setMessages([]); setError(''); setLoading(true); setActive(null);
     api.conversationMessages({ plan_id: planId }).then(result => {
       if (mounted) setMessages(Array.isArray(result) ? result.map(hydrateMessage) : []);
     }).catch(err => {
@@ -53,7 +54,7 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
       if (err.status === 401) onExpiredRef.current();
       else setError(err.message || 'Could not load this conversation.');
     }).finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; activeRef.current?.controller.abort(); };
+    return () => { mounted = false; activeRef.current?.controller.abort(); activeRef.current = null; };
   }, [api, planId]);
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
     const assistantId = `assistant-${eventId}`;
     const timestamp = new Date().toISOString();
     const controller = new AbortController();
+    const surfaceMessages = [];
     activeRef.current = { eventId, assistantId, controller, stopped: false };
     setActive({ eventId, assistantId }); setError('');
     setMessages(current => [...current, { client_id: `user-${eventId}`, message_id: `user-${eventId}`, event_id: `${eventId}:user`, role: 'user', content: message, status: 'complete', created_at: timestamp }]);
@@ -79,7 +81,11 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
         signal: controller.signal,
         onEvent(event) {
           if (activeRef.current?.eventId !== eventId) return;
-          if (event.type === 'TEXT_MESSAGE_CONTENT' && typeof event.delta === 'string') {
+          if (event.type === 'CUSTOM' && event.name === 'a2ui') {
+            surfaceMessages.push(event.value);
+          } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot?.trip_context) {
+            brief.accept({ ...event.snapshot.trip_context, a2ui_messages: surfaceMessages });
+          } else if (event.type === 'TEXT_MESSAGE_CONTENT' && typeof event.delta === 'string') {
             setMessages(current => current.map(item => item.client_id === assistantId ? { ...item, content: item.content + event.delta } : item));
           } else if (event.type === 'TERMINAL' || event.type === 'RUN_FINISHED') {
             const status = event.status || event.outcome?.type || 'complete';
@@ -88,9 +94,11 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
           }
         },
       });
+      if (activeRef.current?.eventId !== eventId) return;
       if (result?.sources?.length) updateMessage(assistantId, { sources: safeSources(result.sources) });
       if (result?.status) updateMessage(assistantId, { status: ['needs your input', 'shortlist_ready'].includes(result.status) ? 'complete' : result.status });
     } catch (err) {
+      if (activeRef.current?.eventId !== eventId) return;
       const stopped = activeRef.current?.eventId === eventId && activeRef.current.stopped;
       if (err.status === 401) onExpiredRef.current();
       if (stopped || err.name === 'AbortError') updateMessage(assistantId, { status: 'stopped' });
@@ -109,7 +117,7 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
   async function send(event) {
     event.preventDefault();
     const message = draft.trim();
-    if (!message || active) return;
+    if (!message || active || brief.loading || brief.saving || brief.locked || brief.error) return;
     setDraft('');
     await runTurn(message);
   }
@@ -117,18 +125,20 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
   async function stop() {
     const turn = activeRef.current;
     if (!turn) return;
-    turn.stopped = true;
-    updateMessage(turn.assistantId, { status: 'stopped' });
     try {
-      if (api.cancelAgentTurn) await api.cancelAgentTurn(selected, turn.eventId);
-      else turn.controller.abort();
+      if (api.cancelAgentTurn) {
+        const result = await api.cancelAgentTurn(selected, turn.eventId);
+        if (result?.cancelled === false) return;
+      } else turn.controller.abort();
+      turn.stopped = true;
+      updateMessage(turn.assistantId, { status: 'stopped' });
     } catch {
       turn.controller.abort();
     }
   }
 
   function retry(message) {
-    if (active) return;
+    if (active || brief.loading || brief.saving || brief.locked || brief.error) return;
     runTurn(message);
   }
 
@@ -158,11 +168,11 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
       <label className="sr-only" htmlFor="conversation-message">Message Travella</label>
       <textarea ref={composer} id="conversation-message" aria-label="Message Travella" value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
         if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
-      }} rows={1} maxLength={2000} placeholder="Ask anything about your trip…" disabled={loading || Boolean(active)} />
-      {active ? <button className="chat-stop" type="button" onClick={stop}>Stop</button> : <button className="chat-send" type="submit" disabled={loading || !draft.trim()}>Send</button>}
+      }} rows={1} maxLength={2000} placeholder="Ask anything about your trip…" disabled={loading || brief.loading || Boolean(active) || brief.locked} />
+      {active ? <button className="chat-stop" type="button" onClick={stop}>Stop</button> : <button className="chat-send" type="submit" disabled={loading || brief.loading || brief.saving || brief.locked || Boolean(brief.error) || !draft.trim()}>Send</button>}
       <p className="chat-composer-hint">Enter to send · Shift+Enter for a new line</p>
     </form>
     </main>
-    <TripBrief value={tripContext} onChange={setTripContext} locked={Boolean(active)} />
+    <A2uiTripBrief key={planId} messages={brief.messages} value={brief.context} onChange={brief.update} locked={Boolean(active) || brief.loading || brief.locked} saving={brief.saving} error={brief.error} />
   </div>;
 }

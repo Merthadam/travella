@@ -10,13 +10,13 @@ export function normalizeTitle(value) {
 const path = id => `/v1/plans/${encodeURIComponent(id)}`;
 const agentPath = plan => `/v1/agent/plans/${encodeURIComponent(plan.plan_id)}/events`;
 
-async function agentTurnStream(plan, message, eventId, { signal, onEvent }) {
+async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwardedProps }) {
   let response;
   try {
     response = await fetch(`${agentPath(plan)}/stream`, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json', 'X-Travella-Request': '1', Accept: 'text/event-stream' },
-      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message }),
+      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(forwardedProps ? { forwardedProps } : {}) }),
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
@@ -41,6 +41,10 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent }) {
       onEvent({ type: event.type, messageId: String(event.messageId || ''), delta: event.delta });
     } else if (event.type === 'TEXT_MESSAGE_END') {
       onEvent({ type: event.type, messageId: String(event.messageId || '') });
+    } else if (event.type === 'CUSTOM' && event.name === 'a2ui' && event.value && typeof event.value === 'object') {
+      onEvent({ type: 'CUSTOM', name: 'a2ui', value: event.value });
+    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot?.trip_context) {
+      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { trip_context: event.snapshot.trip_context } });
     } else if (event.type === 'TERMINAL') {
       terminal = {
         type: 'TERMINAL',
@@ -78,6 +82,23 @@ export const plansApi = {
   activity: (plan, id) => request(`${path(plan.plan_id)}/activity`, {}, { headers: { 'Idempotency-Key': id, 'If-Match': String(plan.revision) } }),
   destinations: plan => request(`${path(plan.plan_id)}/destinations`),
   conversationMessages: plan => request(`${path(plan.plan_id)}/conversation/messages`),
+  researchContext: plan => request(`${path(plan.plan_id)}/research-context`),
+  updateResearchContext: async (plan, changes, revision, id, action) => {
+    let snapshot;
+    const messages = [];
+    const result = await agentTurnStream(plan, '', id, {
+      forwardedProps: { a2ui: { action: {
+        name: 'update_trip_context', surfaceId: 'trip-brief', sourceComponentId: 'root',
+        timestamp: action?.timestamp || new Date().toISOString(), context: { changes, revision },
+      } } },
+      onEvent(event) {
+        if (event.type === 'CUSTOM') messages.push(event.value);
+        if (event.type === 'STATE_SNAPSHOT') snapshot = event.snapshot.trip_context;
+      },
+    });
+    if (result.status !== 'complete' || !snapshot) throw new ApiError(result.message || 'Trip details could not be saved. Refresh and try again.', 409);
+    return { ...snapshot, a2ui_messages: messages };
+  },
   agentTurn: (plan, message, eventId) => request(`${agentPath(plan)}`, { plan_id: plan.plan_id, event_id: eventId, message }),
   agentTurnStream,
   cancelAgentTurn: (plan, eventId) => request(`${agentPath(plan)}/${encodeURIComponent(eventId)}/cancel`, {}),

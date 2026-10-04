@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import Field, model_validator
+from services.trip_context import StateChange, TripContext, TurnResult, apply_changes
 
 from ..config import ResearchWorkerConfig
 from ..turn import TurnContext, load_prompt
@@ -18,6 +20,7 @@ class ConversationRoute(StrictResult):
     research_intent: Literal["factual_research", "destination_discovery"] | None
     research_query: str | None = Field(max_length=500)
     reply_instruction: str = Field(max_length=600)
+    state_changes: list[StateChange] = Field(default_factory=list, max_length=24)
 
     @model_validator(mode="after")
     def require_research_request(self):
@@ -55,6 +58,7 @@ class ClaudeSdkConversationClient:
             "current_message": message[:2000],
             "conversation_history": list(bounded.recent_messages),
             "plan_brief": bounded.brief,
+            "trip_context": TripContext.model_validate(bounded.trip_context).model_dump(),
             "traveler_preferences": bounded.traveler_profile,
         }
         try:
@@ -66,10 +70,18 @@ class ClaudeSdkConversationClient:
                         budget=self.config.max_budget_usd * 0.5,
                     )
                     route = ConversationRoute.model_validate(raw)
+                    updated = apply_changes(
+                        TripContext.model_validate(payload["trip_context"]), route.state_changes,
+                        now=datetime.now(timezone.utc).isoformat(), message=message,
+                    )
+                    payload["trip_context"] = updated.model_dump()
+                    changes = [item.model_dump() for item in route.state_changes]
+                    payload["state_changes"] = changes
                     if route.decision == "research":
                         return {"decision": "research", "assistant_text": "", "question": None,
                                 "research_intent": route.research_intent,
-                                "resolved_research_message": route.research_query}
+                                "resolved_research_message": route.research_query,
+                                "state_changes": changes, "trip_context": updated.model_dump()}
                     remaining = self.config.max_budget_usd - cost
                     if remaining <= 0:
                         raise ResearchWorkerError("conversation_budget_exceeded")
@@ -83,15 +95,23 @@ class ClaudeSdkConversationClient:
                             "to understand follow-ups; do not claim it is absent when it is supplied. "
                             "Ask at most one focused question. Do not claim to have searched or saved "
                             "anything in this response. Do not invent place facts or URLs. Write only "
-                            "the user-facing reply, at most 1900 characters (500 if asking a question)."
+                            "the user-facing reply, at most 1900 characters (500 if asking a question). "
+                            "Help gradually fill the supplied trip_context while staying an open, friendly "
+                            "travel guide. Answer the current question first; ask about one useful missing "
+                            "detail only when natural. Briefly acknowledge supplied state_changes; they "
+                            "will apply when this reply completes. Never claim other changes were made. "
+                            "Flexible dates and no fixed budget are resolved preferences. Candidates "
+                            "are exploratory; only an explicit traveler decision settles a destination."
                         ),
                         payload={**payload, "response_goal": route.reply_instruction,
                                  "decision": route.decision},
                         budget=remaining, on_text_delta=on_text_delta,
                     )
-                    return {"decision": route.decision, "assistant_text": answer,
+                    turn_result = TurnResult(answer=answer, state_changes=route.state_changes)
+                    return {"decision": route.decision, "assistant_text": turn_result.answer,
                             "question": answer[:500] if route.decision == "question" else None,
-                            "research_intent": None}
+                            "research_intent": None, "state_changes": changes,
+                            "trip_context": updated.model_dump()}
         except asyncio.CancelledError:
             raise
         except Exception:

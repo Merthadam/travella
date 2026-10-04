@@ -4,6 +4,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+from services.trip_context import ContextSnapshot, TurnResult, ForwardedProps
 
 
 class CandidateAction(BaseModel):
@@ -21,6 +22,7 @@ class AgentRequest(BaseModel):
     event_id: str = Field(min_length=1, max_length=100)
     message: str = Field(default="", max_length=2000)
     candidate_action: CandidateAction | None = None
+    forwardedProps: ForwardedProps | None = None
 
 
 class AgentResponse(BaseModel):
@@ -38,6 +40,8 @@ class AgentResponse(BaseModel):
     action: dict[str, Any] | None = None
     error: str | None = None
     assistant_text: str | None = None
+    result: TurnResult | None = None
+    trip_context: ContextSnapshot | None = None
 
 
 class OnboardingMessage(BaseModel):

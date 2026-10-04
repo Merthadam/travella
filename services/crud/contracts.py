@@ -57,6 +57,7 @@ class LifecycleProblem(Exception):
 
 
 PROBLEMS = {
+    "context_locked": (409, "Travella is replying. Try editing the Trip Brief when it finishes."),
     "revision_conflict": (409, "Plan changed. Refresh and try again."),
     "request_reused": (409, "Request could not be processed."),
     "challenge_invalid": (409, "Confirmation is no longer valid."),

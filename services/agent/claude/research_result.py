@@ -51,6 +51,7 @@ class EvidenceSelection(StrictResult):
 
     evidence_ids: list[Annotated[str, Field(min_length=1, max_length=180)]] = Field(max_length=9)
     uncertainty: list[Annotated[str, Field(min_length=1, max_length=300)]] = Field(max_length=5)
+    candidate_names: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(default_factory=list, max_length=5)
 
 
 class ResearchResult(EvidenceSelection):

@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import HTTPException
+from services.trip_context import ContextSnapshot, TurnResult, a2ui_messages
 
 from .http_contracts import AgentRequest, AgentResponse
 from .state import PlanCandidateStore, ProcessReceiptCache
@@ -67,6 +68,17 @@ class AgentTurnService:
         token = (authorization or "")[7:].strip()
         plan = await self._read_plan(subject, request.plan_id, token)
         plan_id = str(request.plan_id)
+        if request.forwardedProps:
+            if request.message or request.candidate_action or not self.context_reader:
+                raise HTTPException(422, "Send Trip Brief edits separately from chat messages.")
+            action = request.forwardedProps.a2ui.action
+            snapshot = await self.context_reader.edit_context(
+                request.plan_id, token, event_id=request.event_id,
+                revision=action.context.revision,
+                changes=[change.model_dump() for change in action.context.changes],
+            )
+            return AgentResponse(status="in_progress", plan_id=request.plan_id,
+                                 event_id=request.event_id, trip_context=snapshot)
         context = (
             await self.context_reader.context(request.plan_id, token) if self.context_reader else {}
         )
@@ -100,7 +112,10 @@ class AgentTurnService:
                         traveler_profile = {
                             key: remembered.get(key) for key in keys if remembered.get(key)
                         }
-        reservation = await self.candidates.reserve(subject, plan_id, request.event_id)
+        try:
+            reservation = await self.candidates.reserve(subject, plan_id, request.event_id, exclusive=True)
+        except ValueError:
+            raise HTTPException(409, "Another reply is running for this Plan.") from None
         if not reservation.owner:
             if reservation.future.done():
                 return AgentResponse.model_validate(reservation.future.result())
@@ -130,7 +145,15 @@ class AgentTurnService:
                 if isinstance(value, Awaitable):
                     await value
 
+        context_snapshot = None
+        context_attempted = False
+        context_committed = False
         try:
+            if self.context_reader and hasattr(self.context_reader, "context_run"):
+                context_attempted = True
+                context_snapshot = await self.context_reader.context_run(
+                    request.plan_id, token, event_id=request.event_id, action="begin",
+                )
             action_name = action.get("action") if action else None
             if action_name in {"explore", "reject"}:
                 if prior is None:
@@ -231,6 +254,8 @@ class AgentTurnService:
                 "plan_revision": int(context.get("revision", plan.get("revision", 1))),
                 "conversation_id": context.get("conversation_id"),
                 "brief": context.get("brief", {}),
+                "trip_context": context_snapshot["context"] if context_snapshot else {},
+                "state_changes": [],
                 "recent_messages": context.get("messages", []),
                 "event_id": request.event_id,
                 "generation": generation,
@@ -299,7 +324,8 @@ class AgentTurnService:
                     "action": action if action_name == "refresh" else projection.get("action"),
                 }
 
-            if self.context_reader and query:
+            successful = projection.get("status") in {"in_progress", "needs your input", "shortlist_ready"} and bool(projection.get("assistant_text") or projection.get("question"))
+            if self.context_reader and query and not (context_snapshot and successful):
                 await self.context_reader.append(
                     request.plan_id,
                     token,
@@ -316,7 +342,7 @@ class AgentTurnService:
             projection["sources"] = source_refs
             assistant_content = str(projection.get("assistant_text") or projection.get("question") or "")
             assistant_content = self._message_with_sources(assistant_content, source_refs)
-            if self.context_reader and assistant_content:
+            if self.context_reader and assistant_content and not (context_snapshot and successful):
                 await self.context_reader.append(
                     request.plan_id,
                     token,
@@ -325,7 +351,35 @@ class AgentTurnService:
                     content=assistant_content,
                     generation=generation,
                 )
+            if successful:
+                turn_result = TurnResult(
+                    answer=str(projection.get("assistant_text") or projection.get("question")),
+                    state_changes=result.get("state_changes", []),
+                )
+                if context_snapshot:
+                    active = self._active_streams.get((subject, plan_id, request.event_id))
+                    if active:
+                        active["committing"] = True
+                    # Once validated completion begins, cancellation cannot leave an
+                    # acknowledged database commit looking like a stopped proposal.
+                    commit = asyncio.create_task(self.context_reader.context_run(
+                        request.plan_id, token, event_id=request.event_id, action="complete",
+                        revision=context_snapshot["revision"], message=query,
+                        assistant_text=assistant_content, generation=generation,
+                        changes=[change.model_dump() for change in turn_result.state_changes],
+                    ))
+                    try:
+                        saved_context = await asyncio.shield(commit)
+                    except asyncio.CancelledError:
+                        saved_context = await commit
+                    context_committed = True
+                    projection["trip_context"] = saved_context
+                projection["result"] = turn_result.model_dump()
             return await finish(projection)
+        except asyncio.CancelledError:
+            await self.candidates.resolve_pending(subject, plan_id, request.event_id,
+                                                 self._interrupted(plan_id, request.event_id, generation, prior))
+            raise
         except HTTPException as exc:
             await self.candidates.resolve_pending(
                 subject,
@@ -352,6 +406,19 @@ class AgentTurnService:
                 safe["candidates"] = list(prior.candidates)
             await self.candidates.resolve_pending(subject, plan_id, request.event_id, safe)
             return AgentResponse.model_validate(safe)
+        finally:
+            if context_attempted and not context_committed:
+                async def release_context():
+                    try:
+                        await self.context_reader.context_run(request.plan_id, token,
+                                                             event_id=request.event_id, action="cancel")
+                    except Exception:
+                        pass  # The bounded lease also expires after process/network failure.
+                release = asyncio.create_task(release_context())
+                try:
+                    await asyncio.shield(release)
+                except asyncio.CancelledError:
+                    await release
 
     async def stream(
         self,
@@ -363,6 +430,9 @@ class AgentTurnService:
     ):
         """Yield an allow-listed assistant-text stream and persist partial outcomes."""
         key = (subject, str(request.plan_id), request.event_id)
+        if key in self._active_streams:
+            yield self._sse({"type": "TERMINAL", "status": "error", "message": "This reply is already running."})
+            return
         queue: asyncio.Queue[tuple[str, Any] | None] = asyncio.Queue()
         emitted: list[str] = []
         state: dict[str, Any] = {"reason": None, "task": None}
@@ -388,13 +458,15 @@ class AgentTurnService:
                     text = response.assistant_text or response.question or ""
                     for start in range(0, len(text), 28):
                         await on_text_delta(text[start:start + 28])
-                status = "error" if response.status == "unable to continue" else response.status
+                status = "error" if response.status == "unable to continue" else "complete" if response.status == "in_progress" else response.status
                 if status == "error" and emitted:
                     await self._persist_partial(
                         request, subject, authorization, "".join(emitted), "interrupted",
                         generation=response.generation,
                     )
-                await queue.put(("terminal", {"status": status, "sources": final.get("sources", [])}))
+                await queue.put(("terminal", {"status": status, "sources": final.get("sources", []),
+                                               "trip_context": final.get("trip_context"),
+                                               "result": final.get("result")}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"
                 await self._persist_partial(request, subject, authorization, "".join(emitted), reason)
@@ -411,6 +483,7 @@ class AgentTurnService:
         task = asyncio.create_task(run_turn())
         state["task"] = task
         try:
+            yield self._sse({"type": "RUN_STARTED", "threadId": str(request.plan_id), "runId": request.event_id})
             yield self._sse({"type": "TEXT_MESSAGE_START", "messageId": message_id, "role": "assistant"})
             while True:
                 if await is_disconnected() and not task.done():
@@ -428,8 +501,13 @@ class AgentTurnService:
                 if kind == "content":
                     yield self._sse({"type": "TEXT_MESSAGE_CONTENT", "messageId": message_id, "delta": value})
                 else:
+                    if value.get("trip_context"):
+                        for message in a2ui_messages(ContextSnapshot.model_validate(value["trip_context"])):
+                            yield self._sse({"type": "CUSTOM", "name": "a2ui", "value": message})
+                        yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": {"trip_context": value["trip_context"]}})
                     yield self._sse({"type": "TEXT_MESSAGE_END", "messageId": message_id})
                     yield self._sse({"type": "TERMINAL", **value})
+                    yield self._sse({"type": "RUN_FINISHED", "threadId": str(request.plan_id), "runId": request.event_id})
         except asyncio.CancelledError:
             if not task.done():
                 state["reason"] = state["reason"] or "interrupted"
@@ -444,7 +522,7 @@ class AgentTurnService:
 
     async def cancel(self, subject: str, plan_id: str, event_id: str) -> bool:
         state = self._active_streams.get((subject, plan_id, event_id))
-        if not state or not state.get("task") or state["task"].done():
+        if not state or not state.get("task") or state["task"].done() or state.get("committing"):
             return False
         state["reason"] = "stopped"
         state["task"].cancel()

@@ -441,6 +441,10 @@ def create_app(
             f"/v1/agent/plans/{plan_id}/events/{event_id}/cancel",
             token=token,
         )
+        if status == 200 and data.get("cancelled") and getattr(agent_client, "runtime_arn", None) and crud_client:
+            released = await run_in_threadpool(crud_client.cancel_research_run, plan_id, event_id, token=token)
+            if not released:
+                return JSONResponse({"message": "The reply stopped, but the Trip Brief is still unlocking. Try again shortly."}, status_code=503)
         return JSONResponse(data, status_code=status)
 
     @app.get("/private/probe")

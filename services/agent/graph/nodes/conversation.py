@@ -44,6 +44,7 @@ class ConversationNode:
             conversation_id=state.get("conversation_id"),
             plan_revision=int(state.get("plan_revision", 1)),
             brief=state.get("brief", {}),
+            trip_context=state.get("trip_context", {}),
             traveler_profile=current_traveler_profile(),
             tentative_inferences=state.get("tentative_inferences", {}),
             recent_messages=tuple(state.get("recent_messages", [])),
@@ -75,6 +76,8 @@ class ConversationNode:
         output: dict[str, Any] = {
             "turn_decision": decision,
             "assistant_text": str(result.get("assistant_text", ""))[:2000],
+            "state_changes": result.get("state_changes", []),
+            "trip_context": result.get("trip_context", state.get("trip_context", {})),
         }
         if decision == "research":
             output["research_intent"] = research_intent

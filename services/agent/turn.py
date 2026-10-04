@@ -19,6 +19,7 @@ class TurnContext:
     conversation_id: str | None = None
     plan_revision: int = 1
     brief: dict[str, Any] = field(default_factory=dict)
+    trip_context: dict[str, Any] = field(default_factory=dict)
     traveler_profile: dict[str, Any] = field(default_factory=dict)
     tentative_inferences: dict[str, Any] = field(default_factory=dict)
     recent_messages: tuple[dict[str, str], ...] = ()
@@ -45,6 +46,7 @@ class TurnContext:
             conversation_id=self.conversation_id,
             plan_revision=self.plan_revision,
             brief=active_brief,
+            trip_context=dict(self.trip_context),
             traveler_profile={
                 key: self.traveler_profile.get(key)
                 for key in (

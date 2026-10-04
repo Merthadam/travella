@@ -50,6 +50,8 @@ class AgentState(TypedDict, total=False):
     projection: dict[str, Any]
     conversation_id: str
     brief: dict[str, Any]
+    trip_context: dict[str, Any]
+    state_changes: list[dict[str, Any]]
     tentative_inferences: dict[str, Any]
     recent_messages: list[dict[str, str]]
     research_state: ResearchState

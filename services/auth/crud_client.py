@@ -9,6 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from services.crud.contracts import PROBLEMS
 from services.crud.profile_schemas import ProfileOutput
+from services.trip_context import ContextSnapshot, ContextSurface
 from services.crud.schemas import (
     BriefMutationOutput,
     BriefOutput,
@@ -32,6 +33,19 @@ class CrudClient:
         self.base_url = base_url
         self.transport = transport
 
+    def cancel_research_run(self, plan_id: str, event_id: str, *, token: str) -> bool:
+        """Release a durable lease when AgentCore terminates the worker session."""
+        try:
+            UUID(plan_id)
+            with httpx.Client(base_url=self.base_url, timeout=10, follow_redirects=False,
+                              transport=self.transport, trust_env=False) as client:
+                response = client.post(f"/v1/plans/{plan_id}/research-context/run",
+                                       headers={"Authorization": f"Bearer {token}"},
+                                       json={"event_id": event_id, "action": "cancel"})
+            return response.status_code == 200
+        except (httpx.HTTPError, ValueError):
+            return False
+
     def request(self, method: str, path: str, *, token: str, headers, params, body: bytes):
         if path == "/v1/traveler-profile":
             plan_id = action = destination_id = None
@@ -40,7 +54,7 @@ class CrudClient:
         else:
             profile_route = False
             match = re.fullmatch(
-            r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|destinations|conversation/messages)(?:/([0-9a-fA-F-]{36}))?)?)?",
+            r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|research-context|destinations|conversation/messages)(?:/([0-9a-fA-F-]{36}))?)?)?",
             path,
             )
             if not match:
@@ -54,6 +68,7 @@ class CrudClient:
                     "restore": {"POST"},
                     "challenges": {"POST"},
                     "brief": {"GET", "PATCH"},
+                    "research-context": {"GET", "PATCH"},
                     "destinations": {"GET", "POST"},
                     "conversation/messages": {"GET"},
                 }[action]
@@ -100,6 +115,9 @@ class CrudClient:
             if response.status_code != 200:
                 raise ValueError("Unexpected upstream status")
             schema = (
+                (ContextSurface if method == "GET" else ContextSnapshot)
+                if action == "research-context"
+                else
                 ProfileOutput
                 if profile_route
                 else

@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, Header, Query
 
 from .auth import identity_dependency
 from .contracts import LifecycleProblem
+from services.trip_context import ContextEdit, ContextRun, ContextSnapshot, ContextSurface, a2ui_messages
+from .research_context import ResearchContextRepository
 from .profile import TravelerProfileRepository
 from .profile_schemas import ProfileInput, ProfileOutput
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
@@ -104,6 +106,19 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
         view: Literal["active", "deleted"] = "active",
     ):
         return PlanOutput.from_ref(repo.get(me.subject, plan_id, include_deleted=view == "deleted"))
+
+    @router.get("/{plan_id}/research-context", response_model=ContextSurface)
+    def research_context(plan_id: UUID, repo: Repo, me=Depends(identity)):
+        snapshot = ResearchContextRepository(repo).snapshot(me.subject, plan_id)
+        return ContextSurface(**snapshot.model_dump(), a2ui_messages=a2ui_messages(snapshot))
+
+    @router.patch("/{plan_id}/research-context", response_model=ContextSnapshot)
+    def edit_research_context(plan_id: UUID, data: ContextEdit, request_id: WriteId, if_match: Revision, repo: Repo, me=Depends(identity)):
+        return ResearchContextRepository(repo).edit(me.subject, plan_id, request_id, if_match, data.changes)
+
+    @router.post("/{plan_id}/research-context/run", response_model=ContextSnapshot)
+    def research_context_run(plan_id: UUID, data: ContextRun, repo: Repo, me=Depends(identity)):
+        return ResearchContextRepository(repo).run(me.subject, plan_id, data)
 
     @router.get("/{plan_id}/brief", response_model=BriefOutput)
     def get_brief(plan_id: UUID, repo: Repo, me=Depends(identity)):

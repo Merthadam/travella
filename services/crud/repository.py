@@ -357,7 +357,7 @@ class PlanRepository:
     def _message_projection(row: ConversationMessage) -> dict:
         return {"message_id": str(row.id), "conversation_id": str(row.conversation_id), "event_id": row.event_id, "role": row.role, "content": row.content, "status": row.status, "generation": row.generation, "sequence": row.sequence, "created_at": as_utc(row.created_at).isoformat()}
 
-    def append_conversation_message(self, subject: str, plan_id: UUID, event_id: str, role: str, content: str, *, generation: int = 0, status: str = "complete") -> dict:
+    def append_conversation_message(self, subject: str, plan_id: UUID, event_id: str, role: str, content: str, *, generation: int = 0, status: str = "complete", commit: bool = True) -> dict:
         if role not in {"user", "assistant"} or not event_id or len(content) > 2000:
             raise LifecycleProblem("invalid_request", "Request could not be processed.")
         plan = self._locked_plan(subject, plan_id)
@@ -370,7 +370,8 @@ class PlanRepository:
         row = ConversationMessage(conversation_id=plan.conversation.id, event_id=event_id, role=role, content=content, generation=generation, status=status, sequence=sequence, created_at=self.clock())
         self.session.add(row)
         self.session.flush()
-        self.session.commit()
+        if commit:
+            self.session.commit()
         return self._message_projection(row)
 
     def conversation_messages(self, subject: str, plan_id: UUID, limit: int = 12) -> list[dict]:
