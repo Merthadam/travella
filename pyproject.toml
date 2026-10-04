@@ -19,6 +19,7 @@ dependencies = [
   "langgraph>=0.6,<1",
   "langgraph-checkpoint-postgres==3.0.4",
   "openai>=1.99,<3",
+  "python-dotenv>=1,<2",
 ]
 
 [dependency-groups]

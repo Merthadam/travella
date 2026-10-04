@@ -3,6 +3,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+if [[ "${TRAVELLA_SECRETS_MODE:-aws}" == "aws" ]]; then
+  uv run --locked python scripts/local_secrets.py pull
+elif [[ "${TRAVELLA_SECRETS_MODE}" != "local" ]]; then
+  echo "TRAVELLA_SECRETS_MODE must be aws or local." >&2
+  exit 1
+fi
+
 python3 scripts/ensure-local-mcp-auth.py
 
 compose_file="${TRAVELLA_COMPOSE_FILE:-compose.local-single.yaml}"

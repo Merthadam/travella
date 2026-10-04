@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 uv sync --locked
 uv run --locked ruff check services
 uv run --locked ruff format --check services
-uv run --locked pytest -q services/auth/tests services/crud/tests
+uv run --locked pytest -q services/auth/tests services/crud/tests scripts/tests
 npm ci --prefix frontend
 npm test --prefix frontend
 npm run build --prefix frontend

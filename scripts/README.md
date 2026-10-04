@@ -2,6 +2,58 @@
 
 ## Start local services
 
+The launchers fetch shared credentials from AWS Secrets Manager before starting
+Docker. The default secret is `travella/local-development` in `eu-north-1`.
+Use your existing AWS CLI login/profile; AWS credentials themselves stay in the
+AWS credential chain. Every checkout with these scripts uses the same secret.
+
+One-time setup (already performed for this account):
+
+```bash
+uv run --locked python scripts/local_secrets.py bootstrap
+```
+
+This imports supported settings from existing ignored env files, without printing
+values. Use `--from-checkout /path/to/configured/worktree` to fill missing settings
+from another checkout. Existing cloud settings win; bootstrap never silently
+rotates them. The secret is a flat JSON object with env variable names as keys.
+
+To change a shared value, enter it at a hidden terminal prompt:
+
+```bash
+uv run --locked python scripts/local_secrets.py set OPENAI_API_KEY
+```
+
+The same command supports `TAVILY_API_KEY`, `GOOGLE_MAPS_SERVER_API_KEY`,
+`VITE_GOOGLE_MAPS_API_KEY`, Cognito settings, and the session encryption key.
+Restart each running worktree to pick up changes. Fetch without starting Docker:
+
+```bash
+uv run --locked python scripts/local_secrets.py pull
+```
+
+Pull writes owner-only, Git-ignored env files atomically: app secrets in `.env`,
+provider secrets in `services/mcps/.env`, and only the explicitly supplied browser
+Maps key in `frontend/.env.local`. It never derives a browser key from the server
+Maps key. These files are local plaintext caches and are excluded from Docker
+builds. Worktree-specific settings such as ports remain intact. Shared keys removed
+from the secret are removed from these files on the next pull. Internal local MCP
+signing credentials continue to be generated automatically per checkout.
+
+Startup stops on retrieval errors or missing required settings, instead of silently
+using stale credentials. To deliberately use existing local files without AWS:
+
+```bash
+TRAVELLA_SECRETS_MODE=local bash scripts/start-local.sh
+```
+
+Select another shared secret with `TRAVELLA_SECRETS_ID`, region with
+`TRAVELLA_SECRETS_REGION`, or AWS profile with `AWS_PROFILE` in your shell.
+Reading requires `secretsmanager:GetSecretValue`; bootstrap additionally needs
+`CreateSecret`/`PutSecretValue`, and key updates require `PutSecretValue`.
+Do not run `docker compose config` without `--quiet` or print expanded environments:
+those outputs contain credentials.
+
 With Docker and Colima installed, start the frontend, auth gateway, CRUD API, and agent
 inside one local app container. PostgreSQL runs in its own container with a named data
 volume so app image rebuilds do not remove database data:
@@ -34,22 +86,10 @@ APIs, with keys loaded only into the local MCP containers from `services/mcps/.e
 The local auth process still talks to your existing Cognito user pool, so the
 container mounts `~/.aws` read-only for its AWS SDK configuration.
 
-The Agent uses OpenAI's direct Responses API. Create a key in the
-[OpenAI Platform API Keys page](https://platform.openai.com/api-keys). API billing
-is managed separately from ChatGPT subscriptions. The ignored project-root `.env`
-has a provider block; paste the token after `OPENAI_API_KEY=` and leave the model
-line at its default unless you want another model. Keep this key out of
-`frontend/.env.local`.
-
-Alternatively, enter the key at a hidden prompt in the shell that starts the local
-services, without writing it to a file:
-
-```bash
-export OPENAI_API_KEY="$(python3 -c 'import getpass; print(getpass.getpass("OpenAI API key: "))')"
-export AGENT_MODEL_PROVIDER=openai
-export OPENAI_MODEL_ID=gpt-5.4-mini # optional; this is the default
-bash scripts/start-local.sh
-```
+The Agent uses OpenAI's direct Responses API. Manage `OPENAI_API_KEY` through the
+shared secret or the hidden-prompt command above. API billing is managed separately
+from ChatGPT subscriptions. Compose shell environment overrides still take precedence
+over `.env`; unset an old exported key if you want the newly fetched shared value.
 
 The key is used by the server-side agent only. In the combined local app container,
 Docker stores it in that container's environment; the launcher gives it to the agent,

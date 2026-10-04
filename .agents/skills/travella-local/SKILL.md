@@ -102,6 +102,12 @@ bash scripts/start-local-ready.sh
 This starts or updates the Compose stack in detached mode, waits for the local auth health endpoint, reads the example account from `~/.config/travella/test-account.json`, and performs one sign-in → session check → sign-out cycle. It prints only result states. Keep the stack running while the user checks the UI.
 
 Successful Cognito discovery does not bypass application startup failures. If the app fails during database migration, including a missing migration revision, treat that as a separate blocker: capture the sanitized migration error and diagnose the migration history. Preserve the PostgreSQL data volume while troubleshooting.
+The launcher first pulls `travella/local-development` from AWS Secrets Manager in
+`eu-north-1` into ignored, owner-only env files. New worktrees need AWS login but no
+manual credential copying. Manage keys with
+`uv run --locked python scripts/local_secrets.py set OPENAI_API_KEY` (hidden prompt).
+If retrieval fails, fix AWS access or explicitly use `TRAVELLA_SECRETS_MODE=local`
+for offline startup with existing files. Never print expanded Compose configuration.
 
 To stop it after the browser check, run `docker-compose -p travella-local-single -f compose.local-single.yaml down`. This preserves the PostgreSQL data volume.
 
