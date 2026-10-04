@@ -59,6 +59,8 @@ class AgentGraph:
             projection["candidates"] = result.get("candidates", [])[:5]
             if result.get("run_id"):
                 projection["run_id"] = result["run_id"]
+            sources = result.get("research_sources", [])
+            projection["sources"] = sources[:3] if isinstance(sources, list) else []
         for field in ("question", "assistant_text", "error"):
             if result.get(field):
                 projection[field] = result[field]

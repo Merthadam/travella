@@ -259,7 +259,9 @@ class AgentTurnService:
                     content=query,
                     generation=generation,
                 )
-            source_refs = self._source_refs(projection)
+            source_refs = self._validated_research_sources(projection.get("sources"))
+            if "sources" not in projection:
+                source_refs = self._source_refs(projection)
             if source_refs:
                 projection["sources"] = source_refs
             assistant_content = str(projection.get("assistant_text") or projection.get("question") or "")
@@ -423,6 +425,24 @@ class AgentTurnService:
     @staticmethod
     def _sse(payload: dict[str, Any]) -> str:
         return f"data: {json.dumps(payload, ensure_ascii=False, separators=(',', ':'))}\n\n"
+
+    @staticmethod
+    def _validated_research_sources(value: Any) -> list[dict[str, str]]:
+        """Prefer sources tied to Claude's validated, successfully read citations."""
+        if not isinstance(value, list):
+            return []
+        sources: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for item in value[:3]:
+            if not isinstance(item, dict):
+                continue
+            title = re.sub(r"[\x00-\x1f\x7f\[\]]", " ", str(item.get("title", "")))[:80].strip()
+            url = str(item.get("url", "")).strip()
+            if not title or not url.startswith("https://") or len(url) > 2048 or url in seen:
+                continue
+            seen.add(url)
+            sources.append({"title": title, "url": url})
+        return sources
 
     @staticmethod
     def _source_refs(projection: dict[str, Any]) -> list[dict[str, str]]:

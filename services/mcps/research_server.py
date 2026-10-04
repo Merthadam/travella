@@ -22,8 +22,10 @@ MAX_CANDIDATES = 5
 MAX_SOURCES = 10
 MAX_EXCERPT = 700
 MAX_CLAIM = 420
+MAX_READ_CONTENT = 10_000
 EVIDENCE_TTL_SECONDS = 60 * 60
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
+TAVILY_EXTRACT_URL = "https://api.tavily.com/extract"
 
 
 def _transport_security() -> TransportSecuritySettings:
@@ -66,6 +68,13 @@ def _clean_text(value: object, limit: int = MAX_EXCERPT) -> str:
     text = re.sub(r"[\x00-\x1f\x7f]", " ", text)
     text = re.sub(r"(?i)(ignore|disregard) (all|previous|prior) instructions?", "", text)
     return text[:limit].strip()
+
+
+def _clean_page_text(value: object) -> str:
+    """Bound extracted page text without treating its content as instructions."""
+    text = str(value or "")
+    text = re.sub(r"\x00|[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]", " ", text)
+    return text[:MAX_READ_CONTENT].strip()
 
 
 def _canonical_url(value: object) -> str | None:
@@ -233,25 +242,48 @@ def _save_evidence(
     _write_registry(registry)
 
 
+def _save_research_sources(
+    run_id: str, subject: str, plan_id: str, sources: list[dict[str, str]]
+) -> None:
+    now = int(time.time())
+    registry = _read_registry()
+    for source in sources[:MAX_SOURCES]:
+        registry[source["evidence_id"]] = {
+            "subject": subject,
+            "plan_id": plan_id,
+            "run_id": run_id,
+            "title": source["title"],
+            "url": source["url"],
+            "excerpt": "",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "expires_at": now + EVIDENCE_TTL_SECONDS,
+            "attribution": "Tavily search",
+        }
+    _write_registry(registry)
+
+
 @research_mcp.tool()
 async def research_destination_candidates(
     theme: str,
     plan_id: str,
     max_candidates: int = MAX_CANDIDATES,
     request_id: str | None = None,
+    research_intent: str = "destination_discovery",
     scope_assertion: str | None = None,
 ) -> dict[str, Any]:
-    """Find up to five cited destination candidates for one Plan intent."""
+    """Search scoped place research and retain up to five source identities."""
     del scope_assertion
     context = require_tool_context(plan_id=plan_id)
     query = " ".join(theme.split()).strip()
     if not query or len(query) > 500:
         raise ValueError("theme must contain between 1 and 500 characters")
+    if research_intent not in {"factual_research", "destination_discovery"}:
+        raise ValueError("research_intent must be factual_research or destination_discovery")
     limit = min(MAX_CANDIDATES, max(1, int(max_candidates)))
     api_key = required_secret(McpSettings.from_env().tavily_api_key, "TAVILY_API_KEY")
     payload = {
         "api_key": api_key,
-        "query": f"best travel destinations for {query}",
+        "query": f"best travel destinations for {query}" if research_intent == "destination_discovery" else query,
         "topic": "general",
         "search_depth": "advanced",
         "max_results": limit,
@@ -272,6 +304,20 @@ async def research_destination_candidates(
             "error": "research provider unavailable",
         }
     results = data.get("results", []) if isinstance(data, dict) else []
+    sources: list[dict[str, str]] = []
+    for result in results[:MAX_SOURCES] if isinstance(results, list) else []:
+        if not isinstance(result, dict):
+            continue
+        title = _clean_text(result.get("title"), 180)
+        url = _canonical_url(result.get("url"))
+        if not title or not url:
+            continue
+        sources.append({
+            "evidence_id": _stable_source_id(run_id, url),
+            "title": title,
+            "url": url,
+        })
+    _save_research_sources(run_id, context.subject, plan_id, sources)
     candidates: list[dict[str, Any]] = []
     by_identity: dict[str, dict[str, Any]] = {}
     for result in results:
@@ -321,6 +367,7 @@ async def research_destination_candidates(
         "plan_id": plan_id,
         "run_id": run_id,
         "candidates": candidates,
+        "sources": sources,
     }
 
 
@@ -329,9 +376,10 @@ async def get_candidate_sources(
     evidence_ids: list[str],
     plan_id: str,
     run_id: str,
+    read_content: bool = False,
     scope_assertion: str | None = None,
 ) -> dict[str, Any]:
-    """Retrieve compact details only for evidence issued in this Plan/run."""
+    """Retrieve scoped source details, optionally reading one page as bounded evidence."""
     del scope_assertion
     context = require_tool_context(plan_id=plan_id)
     if not run_id:
@@ -354,16 +402,51 @@ async def get_candidate_sources(
             or int(item.get("expires_at", 0)) <= now
         ):
             continue
-        evidence.append(
-            {
-                "evidence_id": evidence_id,
-                "title": item["title"],
-                "url": item["url"],
-                "retrieved_at": item["retrieved_at"],
-                "excerpt": item["excerpt"],
-                "attribution": item["attribution"],
+        evidence.append({
+            "evidence_id": evidence_id,
+            "title": item["title"],
+            "url": item["url"],
+            "retrieved_at": item["retrieved_at"],
+            "excerpt": item["excerpt"],
+            "attribution": item["attribution"],
+        })
+    if read_content:
+        # A model may not choose an arbitrary URL. The Connector resolves one
+        # Plan/run-scoped evidence ID to the URL issued by its own search result.
+        selected = evidence[:1]
+        if selected:
+            source = selected[0]
+            page: dict[str, Any] = {
+                "evidence_id": source["evidence_id"],
+                "title": source["title"],
+                "url": source["url"],
+                "read_status": "unavailable",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
             }
-        )
+            api_key = required_secret(McpSettings.from_env().tavily_api_key, "TAVILY_API_KEY")
+            try:
+                async with httpx.AsyncClient(
+                    timeout=20, headers={"Authorization": f"Bearer {api_key}"}
+                ) as client:
+                    response = await client.post(
+                        TAVILY_EXTRACT_URL,
+                        json={"urls": source["url"], "extract_depth": "basic", "format": "markdown"},
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                extracted = data.get("results", []) if isinstance(data, dict) else []
+                match = next(
+                    (item for item in extracted if isinstance(item, dict) and _canonical_url(item.get("url")) == source["url"]),
+                    None,
+                )
+                content = _clean_page_text(match.get("raw_content")) if match else ""
+                if content:
+                    page.update(read_status="read", content=content)
+            except (httpx.HTTPError, ValueError, TypeError):
+                # Keep the page identity so callers can explain the read failure,
+                # but never return its search excerpt as page evidence.
+                pass
+            evidence = [page]
     return {
         "status": "ready",
         "plan_id": plan_id,

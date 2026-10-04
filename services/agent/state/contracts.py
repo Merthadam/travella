@@ -21,6 +21,8 @@ class AgentState(TypedDict, total=False):
     candidates: list[dict[str, Any]]
     locations: list[dict[str, Any]]
     evidence: list[dict[str, Any]]
+    research_sources: list[dict[str, str]]
+    research_evidence_ids: list[str]
     error: str | None
     projection: dict[str, Any]
     conversation_id: str
@@ -72,5 +74,3 @@ class CheckpointStore(Protocol):
     def delete(self, traveler_scope: str, plan_id: str) -> None: ...
 
     def purge(self, traveler_scope: str, plan_id: str) -> None: ...
-
-
