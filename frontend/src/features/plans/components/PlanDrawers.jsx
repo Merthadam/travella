@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 
-function SwipeDrawer({ side, onClose, children, className, label }) {
+function SwipeDrawer({ side, onClose, children, className, label, modal = false, drawerRef }) {
   const [offset, setOffset] = useState(0);
   const drag = useRef(null);
   const isLeft = side === 'left';
@@ -24,9 +24,16 @@ function SwipeDrawer({ side, onClose, children, className, label }) {
     if (distance > 90) onClose();
     else setOffset(0);
   };
-  return <aside className={`${className} shadow-2xl`} aria-label={label} style={{ transform: `translateX(${offset}px)`, transition: drag.current ? 'none' : 'transform 180ms ease-out', touchAction: 'pan-y' }} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>{children}</aside>;
+  return <aside ref={drawerRef} className={`${className} shadow-2xl`} aria-label={label} role={modal ? 'dialog' : undefined} aria-modal={modal ? 'true' : undefined} style={{ transform: `translateX(${offset}px)`, transition: drag.current ? 'none' : 'transform 180ms ease-out', touchAction: 'pan-y' }} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>{children}</aside>;
 }
 
-export function PlanDrawer({ plans, loading, selected, actions, onClose, onOpen, onNew }) {
-  return <><button className="drawer-backdrop" aria-label="Close plans navigation" onClick={onClose} /><SwipeDrawer side="left" className="plan-drawer" label="Your plans" onClose={onClose}><div className="drawer-header"><div><p className="eyebrow">TRAVELLA</p><h2>Plans</h2></div><button aria-label="Close plans navigation" onClick={onClose}>Close</button></div><a className="drawer-all" href="/plans" onClick={event => onOpen(event, null)}>All plans</a>{loading && <p role="status">Loading plans…</p>}<ul className="drawer-list">{plans.map(plan => <li key={plan.plan_id}><a className={selected?.plan_id === plan.plan_id ? 'current' : ''} href={`/plans/${plan.plan_id}`} onClick={event => onOpen(event, plan.plan_id)}><strong>{plan.title}</strong><span>{plan.destination_summary || 'No destination yet'}</span></a>{selected?.plan_id === plan.plan_id && <div className="drawer-plan-actions">{actions(plan)}</div>}</li>)}</ul>{!loading && !plans.length && <p className="drawer-empty">No active plans yet.</p>}<button className="primary drawer-new" onClick={onNew}>New plan</button></SwipeDrawer></>;
+export function PlanDrawer({ plans, loading, selected, actions, onClose, onOpen, onNew, closeRef, drawerRef }) {
+  return <><button className="drawer-backdrop" aria-label="Close plans navigation" onClick={onClose} /><SwipeDrawer side="left" className="plan-drawer" label="Your plans" modal drawerRef={drawerRef}>
+    <div className="drawer-header"><div><p className="eyebrow">TRAVELLA</p><h2>Plans</h2></div><button ref={closeRef} aria-label="Close plans navigation" onClick={onClose}>Close</button></div>
+    <a className="drawer-all" href="/plans" onClick={event => onOpen(event, null)}>All plans</a>
+    {loading && <p role="status">Loading plans…</p>}
+    <ul className="drawer-list">{plans.map(plan => <li key={plan.plan_id}><a className={selected?.plan_id === plan.plan_id ? 'current' : ''} href={`/plans/${plan.plan_id}`} onClick={event => onOpen(event, plan.plan_id)}><strong>{plan.title}</strong><span>{plan.destination_summary || 'No destination yet'}</span></a>{selected?.plan_id === plan.plan_id && <div className="drawer-plan-actions">{actions(plan)}</div>}</li>)}</ul>
+    {!loading && !plans.length && <p className="drawer-empty">No active plans yet.</p>}
+    <button className="primary drawer-new" onClick={onNew}>New plan</button>
+  </SwipeDrawer></>;
 }
