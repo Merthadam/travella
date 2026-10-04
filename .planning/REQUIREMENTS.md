@@ -42,6 +42,13 @@ Requirements for the full documented MVP. Each maps to exactly one roadmap phase
 - [ ] **DISC-09**: Allow-listed source references supplied with an assistant reply appear inline with that reply and do not open a separate context or source drawer.
 - [ ] **DISC-10**: The browser receives only assistant-visible text, approved inline source references, and terminal outcome metadata; Plan context, memory content, tool activity, research progress, internal reasoning, and raw provider payloads remain server-side.
 
+### Agent Runtime Integration
+
+- [ ] **AGENT-11-01**: The Plan-scoped LangGraph remains the sole workflow supervisor and checkpoint owner; Claude Agent SDK runs as a bounded, stateless worker for the research stage.
+- [ ] **AGENT-11-02**: The research worker uses only approved web research tools and the named Travella research skill, with bounded turns, time, and cost; it cannot access local files, shell, arbitrary MCP tools, or durable Plan mutations.
+- [ ] **AGENT-11-03**: Worker answers and citations are schema-validated and pass through the existing AG-UI contract; only read-source links and assistant-visible answer text are projected or persisted.
+- [ ] **AGENT-11-04**: Local and AgentCore Runtime deployments obtain Anthropic credentials through AWS Secrets Manager; credentials are absent from images, logs, checkpoints, and browser events, and SDK cancellation follows graph cancellation.
+
 ### Requirements and Workspace
 
 - [ ] **WORK-01**: A traveler can confirm whether flight, accommodation, and car rental are needed, not needed, or undecided during initial planning.

@@ -277,3 +277,31 @@ Plans:
 **Wave 6** *(blocked on Wave 5 completion)*
 
 - [x] 10-06-PLAN.md
+
+### Phase 11: Use Claude Agent SDK as a LangGraph research worker
+
+**Goal:** Route the Plan-scoped research stage through a bounded Claude Agent SDK worker with native web research and Travella research skills, while LangGraph remains the sole end-to-end orchestrator, checkpoint owner, and AG-UI boundary.
+**Requirements**: AGENT-11-01, AGENT-11-02, AGENT-11-03, AGENT-11-04
+**Depends on:** Phase 10
+**Success Criteria**:
+
+1. LangGraph routes research turns to a single-turn Claude Agent SDK worker; later and future workflow stages remain LangGraph nodes, and SDK sessions are not used as durable conversation state.
+2. The worker can use only the approved web search/fetch and named Travella research skill capabilities, with bounded turns/time/cost and no filesystem, shell, Plan mutation, or arbitrary MCP tools.
+3. The worker returns schema-validated answer text and source metadata; only user-visible answer text and validated citations reach the existing AG-UI/chat projection, and only compact normalized state is checkpointed.
+4. Existing Phase 10 behavior remains intact: factual research reads supporting pages, discloses unavailable/conflicting evidence, supports bounded refinement, preserves destination candidates, and never changes durable Plan data without traveler action.
+5. Anthropic API credentials are resolved from AWS Secrets Manager for AgentCore Runtime and local development without entering images, logs, browser events, checkpoints, or source control; failures remain recoverable and interrupt/cancel behavior is preserved.
+
+**Plans**: 3 plans in 3 waves
+
+Plans:
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — Define the isolated Claude research worker and skill contract
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 11-02-PLAN.md — Integrate the worker with LangGraph state, streaming, and source projection
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 11-03-PLAN.md — Wire runtime credentials, deployment, evaluation, and rollout safeguards
