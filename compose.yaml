@@ -161,7 +161,7 @@ services:
     environment:
       VITE_API_TARGET: http://auth:8000
     volumes:
-      - ./frontend/.env.local:/app/.env.local:ro
+      - ./frontend/.env.local:/app/frontend/.env.local:ro
     ports:
       - "5173:5173"
     depends_on:

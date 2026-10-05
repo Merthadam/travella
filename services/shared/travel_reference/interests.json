@@ -1,0 +1,102 @@
+[
+  {
+    "id": "hiking",
+    "label": "Hiking",
+    "icon": "⛰"
+  },
+  {
+    "id": "skiing",
+    "label": "Skiing",
+    "icon": "✳"
+  },
+  {
+    "id": "beaches",
+    "label": "Beaches",
+    "icon": "☀"
+  },
+  {
+    "id": "local-food",
+    "label": "Local food",
+    "icon": "◒"
+  },
+  {
+    "id": "architecture",
+    "label": "Architecture",
+    "icon": "▥"
+  },
+  {
+    "id": "nature",
+    "label": "Nature",
+    "icon": "♧"
+  },
+  {
+    "id": "live-music",
+    "label": "Live music",
+    "icon": "♫"
+  },
+  {
+    "id": "photography",
+    "label": "Photography",
+    "icon": "◎"
+  },
+  {
+    "id": "surfing",
+    "label": "Surfing",
+    "icon": "⌁"
+  },
+  {
+    "id": "art-museums",
+    "label": "Art & museums",
+    "icon": "✦"
+  },
+  {
+    "id": "cafe-hopping",
+    "label": "Café hopping",
+    "icon": "☕"
+  },
+  {
+    "id": "stargazing",
+    "label": "Stargazing",
+    "icon": "☽"
+  },
+  {
+    "id": "wellness",
+    "label": "Wellness",
+    "icon": "♨"
+  },
+  {
+    "id": "road-trips",
+    "label": "Road trips",
+    "icon": "↗"
+  },
+  {
+    "id": "gardens",
+    "label": "Gardens",
+    "icon": "❀"
+  },
+  {
+    "id": "hidden-gems",
+    "label": "Hidden gems",
+    "icon": "◇"
+  },
+  {
+    "id": "history",
+    "label": "History",
+    "icon": "♜"
+  },
+  {
+    "id": "diving",
+    "label": "Diving",
+    "icon": "≋"
+  },
+  {
+    "id": "markets",
+    "label": "Markets",
+    "icon": "☷"
+  },
+  {
+    "id": "camping",
+    "label": "Camping",
+    "icon": "↟"
+  }
+]

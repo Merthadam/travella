@@ -4,11 +4,10 @@ import { PlanDrawer } from './features/plans/components/PlanDrawers';
 import { PlanConversation } from './features/plans/components/PlanConversation';
 import { PlanWorkspace } from './features/plans/components/PlanWorkspace';
 import { emptyBrief } from './features/plans/components/PlanDetails';
+import { getGoogleMapsApiKey, loadGoogleMaps } from './lib/googleMaps';
 
 const unknown = error => !error.status || error.status >= 500 || error.code === 'request_pending';
 const date = value => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'long' });
-const configuredMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-const mapsKeyIsPlaceholder = !configuredMapsKey || configuredMapsKey === 'VITE_GOOGLE_MAPS_API_KEY' || configuredMapsKey.includes('replace-with');
 export function remaining(value, now = Date.now()) {
   const hours = Math.max(0, (new Date(value).getTime() - now) / 3600000);
   if (hours < 1) return 'Less than 1 hour remaining';
@@ -102,7 +101,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const [cursor, setCursor] = useState(null), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [notice, setNotice] = useState(''), [dialog, setDialog] = useState(null);
   const [destinationView, setDestinationView] = useState('map');
-  const mapsApiKey = mapsKeyIsPlaceholder ? '' : configuredMapsKey;
+  const mapsApiKey = getGoogleMapsApiKey();
   const [mapsStatus, setMapsStatus] = useState('');
   const [candidate, setCandidate] = useState(null);
   const [savingDestination, setSavingDestination] = useState(false);
@@ -121,19 +120,9 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   useEffect(() => {
     if (!selected || selected.lifecycle !== 'active' || destinationView !== 'map' || !mapsApiKey || !mapCanvas.current) return undefined;
     let cancelled = false;
-    const scriptId = 'travella-google-maps';
     const loadMap = async () => {
       try {
-        if (!window.google?.maps) {
-          await new Promise((resolve, reject) => {
-            const existing = document.getElementById(scriptId);
-            if (existing) { existing.addEventListener('load', resolve, { once: true }); existing.addEventListener('error', reject, { once: true }); return; }
-            const script = document.createElement('script');
-            script.id = scriptId; script.async = true; script.defer = true;
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(mapsApiKey)}&v=weekly&libraries=places,marker`;
-            script.onload = resolve; script.onerror = reject; document.head.appendChild(script);
-          });
-        }
+        await loadGoogleMaps();
         if (cancelled || !window.google?.maps) return;
         const { Map } = await window.google.maps.importLibrary('maps');
         if (cancelled) return;
