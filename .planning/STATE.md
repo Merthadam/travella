@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase 12 implemented; human_needed acceptance checks in 12-UAT.md
 last_updated: "2026-10-04T21:37:20.817Z"
 last_activity: 2026-10-05
-last_activity_desc: Low SDK reasoning effort and compact replies implemented; local container rebuilt
+last_activity_desc: Onboarding and low-effort agent changes integrated into origin/main
 state_head: fa0b983afc7d3f51ef8f68c767a34b3b462a4ba4
 progress:
   total_phases: 12
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-26)
 Phase: 12 (Travel studio onboarding) — VERIFYING
 Plan: 4 of 4 implemented; independent verification human_needed
 Status: Implementation committed; 11/15 must-haves verified, five acceptance check groups open
-Last activity: 2026-10-05 — Completed quick task 261005-tlx: low SDK effort and compact replies; local container rebuilt
+Last activity: 2026-10-05 — Completed quick task 261005-tzh: onboarding and low-effort agent changes integrated into origin/main
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
@@ -135,3 +135,4 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 
 | 261005-s1w | B onboarding full-address map and automatic nearby airports; build/API/desktop interaction passed, screenshot/mobile acceptance blocked by Chrome stall | 2026-10-05 | — | Verification incomplete | [261005-s1w](./quick/261005-s1w-replace-onboarding-home-form-with-google/) |
 | 261005-tlx | Low Claude SDK effort and helpful compact replies; local rebuild/auth and source freshness passed; model output and savings unmeasured | 2026-10-05 | 33d03d9 | Implemented | [261005-tlx](./quick/261005-tlx-lower-claude-agent-sdk-reasoning-effort-/) |
+| 261005-tzh | Fast-forwarded onboarding and low-effort agent changes into origin/main; preserved dirty local main checkout | 2026-10-05 | 4be4a89 | Complete | [261005-tzh](./quick/261005-tzh-merge-completed-onboarding-and-low-effor/) |
