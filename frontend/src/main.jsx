@@ -4,4 +4,9 @@ import { AccountApp } from './AccountApp';
 import './styles.css';
 import './tailwind.css';
 
-createRoot(document.getElementById('root')).render(<AccountApp />);
+const root = createRoot(document.getElementById('root'));
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'account') {
+  import('./prototypes/AccountSettingsPrototype').then(({ AccountSettingsPrototype }) => root.render(<AccountSettingsPrototype />));
+} else {
+  root.render(<AccountApp />);
+}
