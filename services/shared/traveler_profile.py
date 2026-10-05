@@ -14,6 +14,7 @@ PROFILE_FIELDS = (
     "departure_base", "citizenships", "food_needs", "accessibility_needs",
     "travel_interests", "home_city", "default_airport", "interest_ids", "custom_interests",
 )
+HOME_CITY_CONTEXT_FIELDS = ("name", "country_code", "place_id", "source")
 
 
 @lru_cache(maxsize=3)
@@ -24,7 +25,19 @@ def reference_catalog(name: str) -> list[dict]:
 
 
 def profile_context(profile: dict) -> dict:
-    return {key: profile[key] for key in PROFILE_FIELDS if key in profile}
+    context = {key: profile[key] for key in PROFILE_FIELDS if key in profile}
+    city = context.get("home_city")
+    if isinstance(city, dict):
+        # Precise addresses belong only to canonical CRUD storage. Copy the
+        # nested object so sanitization never edits the caller's saved profile.
+        context["home_city"] = {
+            key: city[key] for key in HOME_CITY_CONTEXT_FIELDS if key in city
+        }
+    elif city is not None:
+        # Memory is advisory and may contain old or malformed values. Never
+        # forward an unstructured home value that could hold a precise address.
+        context["home_city"] = None
+    return context
 
 
 def derive_legacy_fields(payload: dict, step: str) -> None:

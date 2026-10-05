@@ -172,3 +172,46 @@
 @media (prefers-reduced-motion: reduce) {
   .travel-studio *, .travel-studio *::before, .travel-studio *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Home base: one address, a map, and a deliberate airport selection. */
+.ts-home-fields { @apply min-w-0; }
+.ts-manual-location { @apply grid grid-cols-2 gap-3; }
+.ts-manual-location > div { @apply min-w-0; }
+.ts-confirmed-address, .ts-selected-airport { @apply my-3 flex items-center gap-3 rounded-xl border border-[#d2dfcb] bg-[#f0f5eb] p-3; }
+.ts-confirmed-address > span:first-child, .ts-selected-airport > span:first-child { @apply text-2xl text-[#37634d]; }
+.ts-confirmed-address > div, .ts-selected-airport > div { @apply min-w-0 flex-1; }
+.ts-confirmed-address strong, .ts-selected-airport strong { @apply block text-[13px] font-medium leading-relaxed; overflow-wrap:anywhere; }
+.ts-confirmed-address small, .ts-selected-airport small { @apply mt-1 block text-xs leading-relaxed text-[#62735d]; }
+.travel-studio .ts-selected-airport button { @apply min-w-11 shrink-0 px-2 text-xl; }
+.ts-home-map-wrap { @apply mt-2 overflow-hidden rounded-xl border border-[#d9e2d3] bg-[#f4f6ee]; }
+.ts-map-heading { @apply flex flex-wrap items-center justify-between gap-2 px-3 py-3 text-[10px] tracking-[.09em] text-[#586e51]; }
+.ts-map-heading > span:last-child { @apply flex items-center gap-1.5 text-[10px] tracking-normal; }
+.ts-map-heading i { @apply ml-2 h-2 w-2 rounded-full; }
+.ts-map-key-home { @apply bg-[#254d3d]; }
+.ts-map-key-airport { @apply bg-[#cc9961]; }
+.ts-home-map { @apply relative h-[290px] bg-[#e7eddd]; }
+.ts-home-map-canvas { @apply h-full w-full; }
+.ts-home-map-placeholder { @apply absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center; background:radial-gradient(ellipse at 50% 100%,#d9e5cd 0%,#eef1e5 70%); }
+.ts-home-map-placeholder > span { @apply mb-1 text-[35px] text-[#749167]; }
+.ts-home-map-placeholder > strong { @apply text-sm font-medium; }
+.ts-home-map-placeholder > p { @apply max-w-[280px] text-xs leading-relaxed text-[#607557]; }
+.travel-studio .ts-map-caption { @apply px-3 py-2 text-[11px] leading-relaxed text-[#607557]; }
+.ts-map-pin { display:flex; align-items:center; justify-content:center; white-space:nowrap; border:2px solid white; box-shadow:0 2px 6px #163e3433; font-family:Inter,system-ui,sans-serif; }
+.ts-map-pin-home { width:36px; height:36px; background:#254d3d; color:#fff; border-radius:50%; font-size:25px; }
+.ts-map-pin-airport { padding:7px 10px; background:#f1e2cb; color:#573919; border-radius:8px; font-size:12px; font-weight:600; }
+.ts-map-pin-airport.selected { background:#254d3d; color:#fff; outline:2px solid #254d3d; }
+.ts-airport-search-row { @apply flex items-stretch gap-2; }
+.ts-airport-search-row > input { @apply min-w-0; }
+.travel-studio .ts-airport-search-row > button { @apply shrink-0 rounded-xl border border-[#b8cab0] bg-[#edf3e7] px-3 text-xs; }
+.travel-studio .ts-airport-source { @apply mb-0 mt-4 text-[10px] tracking-[.09em] text-[#64785b]; }
+.ts-home-fields .ts-airports { @apply mt-2 gap-1.5; }
+.travel-studio .ts-home-fields .ts-airport { @apply gap-3 px-3 py-2.5; }
+.ts-home-fields .ts-airport-code { @apply min-w-10 text-base; }
+.ts-home-fields .ts-airport strong { @apply text-xs; }
+.ts-home-fields .ts-airport small { @apply text-[11px]; }
+@media (max-width: 700px) {
+  .ts-home-map { @apply h-[250px]; }
+}
+@media (max-width: 420px) {
+  .ts-manual-location { @apply grid-cols-1 gap-0; }
+}

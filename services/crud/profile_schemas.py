@@ -1,6 +1,7 @@
 """Strict public contract for reusable traveler profile details."""
 
 import re
+import unicodedata
 from typing import Literal
 from uuid import UUID
 
@@ -49,7 +50,17 @@ class HomeCity(BaseModel):
     name: str = Field(min_length=2, max_length=110)
     country_code: str = Field(min_length=2, max_length=2)
     place_id: str | None = Field(default=None, min_length=1, max_length=255)
+    address: str | None = Field(default=None, max_length=500)
     source: Literal["manual", "google"]
+
+    @field_validator("address", mode="before")
+    @classmethod
+    def valid_address(cls, value):
+        if isinstance(value, str):
+            if any(unicodedata.category(char) == "Cc" for char in value):
+                raise ValueError("Enter an address without control characters.")
+            return value.strip()
+        return value
 
     @field_validator("name")
     @classmethod

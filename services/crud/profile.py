@@ -60,7 +60,20 @@ class TravelerProfileRepository:
         if event_id in receipts:
             receipt = receipts[event_id]
             if receipt["digest"] != digest:
-                raise LifecycleProblem("request_reused")
+                # Pre-address home receipts hashed the same normalized request
+                # without address=None. Accept that exact legacy digest only;
+                # a changed address or any other changed field still conflicts.
+                legacy_request = mutation.model_dump(mode="json")
+                legacy_city = legacy_request["values"].get("home_city")
+                if (mutation.step != "home" or mutation.action != "continue"
+                        or not isinstance(legacy_city, dict)
+                        or legacy_city.get("address") is not None):
+                    raise LifecycleProblem("request_reused")
+                legacy_city.pop("address", None)
+                legacy_digest = hashlib.sha256(json.dumps(legacy_request,
+                                                          sort_keys=True).encode()).hexdigest()
+                if receipt["digest"] != legacy_digest:
+                    raise LifecycleProblem("request_reused")
             return ProfileOutput.model_validate(receipt["response"])
         if payload.get("revision", 0) != mutation.expected_revision:
             raise LifecycleProblem("revision_conflict")

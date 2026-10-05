@@ -11,7 +11,7 @@ import './onboarding.css';
 const steps = ['home', 'citizenship', 'needs', 'interests'];
 const labels = ['Home base', 'Citizenship', 'Your needs', 'Your interests'];
 const headlines = ['Good journeys start at home.', 'A little more of your world.', 'Travel should fit you.', 'What makes you feel alive?'];
-const descriptions = ['Tell us where you usually start. We’ll help you find a convenient departure airport.', 'Which citizenships do you hold? Build your travel wallet, one country at a time.', 'Share anything that helps us make your travels more comfortable. Only what you want to.', 'Pick at least five things you love. The obvious favorites. The unexpected ones. All of it.'];
+const descriptions = ['Find your home on the map. We’ll automatically find nearby airports, and you choose your favorite.', 'Which citizenships do you hold? Build your travel wallet, one country at a time.', 'Share anything that helps us make your travels more comfortable. Only what you want to.', 'Pick at least five things you love. The obvious favorites. The unexpected ones. All of it.'];
 const fields = { home: ['home_city', 'default_airport'], citizenship: ['citizenships'], needs: ['accessibility_needs', 'food_needs'], interests: ['interest_ids', 'custom_interests'] };
 const toDraft = profile => ({ home_city: null, default_airport: null, citizenships: [], accessibility_needs: '', food_needs: '', interest_ids: [], custom_interests: [], departure_base: '', travel_interests: '', ...profile, _legacy_interests: profile.interest_ids?.length || profile.custom_interests?.length ? '' : profile.travel_interests || '' });
 const resumeStep = profile => Math.max(0, steps.findIndex(step => !['completed', 'skipped'].includes(profile.onboarding?.steps?.[step])));
@@ -40,7 +40,7 @@ export function OnboardingFlow({ initialProfile, onComplete, onExpired }) {
   }
   async function save(action, retry = false) {
     if (lock.current || error?.stale) return;
-    if (action === 'continue' && !form.current?.reportValidity()) return;
+    if (action === 'continue' && (!canContinue || !form.current?.reportValidity())) return;
     const key = steps[step];
     const values = action === 'skip' ? {} : Object.fromEntries(fields[key].map(field => [field, data[field]]));
     const body = { step: key, action, expected_revision: saved.revision || 0, values };
@@ -72,7 +72,7 @@ export function OnboardingFlow({ initialProfile, onComplete, onExpired }) {
     finally { lock.current = false; if (alive.current) setBusy(false); }
   }
   const resolved = steps.filter(key => ['completed', 'skipped'].includes(saved.onboarding?.steps?.[key])).length;
-  const canContinue = !error?.stale && (step === 0 ? Boolean(data.home_city?.name?.trim().length >= 2 && /\p{L}/u.test(data.home_city.name) && data.home_city?.country_code) : step === 3 ? interestCount(data) >= 5 : true);
+  const canContinue = !error?.stale && (step === 0 ? Boolean(data.home_city?.address?.trim() && data.home_city?.name?.trim().length >= 2 && /\p{L}/u.test(data.home_city.name) && data.home_city?.country_code) : step === 3 ? interestCount(data) >= 5 : true);
   const Step = [HomeStep, CitizenshipStep, NeedsStep, InterestsStep][step];
   return <div className="travel-studio">
     <header className="ts-header"><span className="ts-brand"><span aria-hidden="true">✳</span> travella</span><span>Your world, a little closer.</span></header>

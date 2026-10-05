@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-from services.shared.traveler_profile import PROFILE_FIELDS
+from services.shared.traveler_profile import PROFILE_FIELDS, profile_context
 
 
 class MemoryAdapter(Protocol):
@@ -74,7 +74,7 @@ class AgentCoreMemory:
         )
 
     async def sync_profile(self, traveler_scope: str, profile: dict[str, Any]) -> bool:
-        safe_profile = {key: profile.get(key) for key in self.PROFILE_FIELDS}
+        safe_profile = self._safe_profile(profile)
         record = {
             "content": {"text": json.dumps(safe_profile, ensure_ascii=False, separators=(",", ":"))},
             "timestamp": datetime.now(UTC),
@@ -151,7 +151,13 @@ class AgentCoreMemory:
         # Concurrent first saves can briefly create duplicate records; prefer
         # the newest canonical profile revision until the next sync reconciles them.
         value = max(candidates, key=lambda profile: str(profile.get("updated_at") or ""))
-        return {key: value.get(key) for key in self.PROFILE_FIELDS}
+        return self._safe_profile(value)
+
+    @classmethod
+    def _safe_profile(cls, profile: dict[str, Any]) -> dict[str, Any]:
+        safe_profile = profile_context({key: profile.get(key) for key in cls.PROFILE_FIELDS})
+        safe_profile["updated_at"] = profile.get("updated_at")
+        return safe_profile
 
     def _list_profile_records(self, namespace: str) -> list[dict[str, Any]]:
         response = self.client.list_memory_records(
