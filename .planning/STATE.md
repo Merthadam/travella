@@ -136,3 +136,5 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 261005-s1w | B onboarding full-address map and automatic nearby airports; build/API/desktop interaction passed, screenshot/mobile acceptance blocked by Chrome stall | 2026-10-05 | — | Verification incomplete | [261005-s1w](./quick/261005-s1w-replace-onboarding-home-form-with-google/) |
 | 261005-tlx | Low Claude SDK effort and helpful compact replies; local rebuild/auth and source freshness passed; model output and savings unmeasured | 2026-10-05 | 33d03d9 | Implemented | [261005-tlx](./quick/261005-tlx-lower-claude-agent-sdk-reasoning-effort-/) |
 | 261005-tzh | Fast-forwarded onboarding and low-effort agent changes into origin/main; preserved dirty local main checkout | 2026-10-05 | 4be4a89 | Complete | [261005-tzh](./quick/261005-tzh-merge-completed-onboarding-and-low-effor/) |
+
+| 261005-uc5 | Three small generatable Flights/Accommodation container prototypes; dedicated browsing views; design selection pending | 2026-10-05 | prototype/planning-cards | Prototype | [261005-uc5](./quick/261005-uc5-prototype-three-interactive-accommodatio/) |

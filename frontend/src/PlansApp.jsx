@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { normalizeTitle, plansApi, requestId } from './plansApi';
 import { PlanDrawer } from './features/plans/components/PlanDrawers';
+import { TravelCardsPrototype } from './features/plans/prototypes/TravelCardsPrototype';
 import { PlanConversation } from './features/plans/components/PlanConversation';
 import { PlanWorkspace } from './features/plans/components/PlanWorkspace';
 import { emptyBrief } from './features/plans/components/PlanDetails';
@@ -327,7 +328,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       </nav>
     </div></header>
     {planDrawerOpen && <PlanDrawer drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
-    {conversationPage && selected ? <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} /> : <main id="plans-main" className="plans-main" tabIndex={-1}>
+    {import.meta.env.DEV && new URLSearchParams(location.search).get('prototype') === 'travel-cards' ? <TravelCardsPrototype /> : conversationPage && selected ? <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} /> : <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>
         {!selected && view === 'active' && <button className="primary" disabled={busy || loading} onClick={createPlan}>{busy ? 'Creating plan…' : 'New plan'}</button>}</div>
       {notice && <p className="plan-notice" role="status">{notice}</p>}
