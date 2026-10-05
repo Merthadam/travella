@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from services.shared.traveler_profile import profile_context
+
 PROMPT_DIR = Path(__file__).with_name("prompts")
 MAX_HISTORY = 12
 MAX_TEXT = 2000
@@ -47,14 +49,7 @@ class TurnContext:
             plan_revision=self.plan_revision,
             brief=active_brief,
             trip_context=dict(self.trip_context),
-            traveler_profile={
-                key: self.traveler_profile.get(key)
-                for key in (
-                    "departure_base", "citizenships", "food_needs",
-                    "accessibility_needs", "travel_interests",
-                )
-                if self.traveler_profile.get(key)
-            },
+            traveler_profile=profile_context(self.traveler_profile),
             tentative_inferences=dict(self.tentative_inferences),
             recent_messages=history,
             research_state=dict(self.research_state),

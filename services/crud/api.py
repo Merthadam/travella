@@ -9,13 +9,20 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query
 
+from services.trip_context import (
+    ContextEdit,
+    ContextRun,
+    ContextSnapshot,
+    ContextSurface,
+    a2ui_messages,
+)
+
 from .auth import identity_dependency
 from .contracts import LifecycleProblem
-from services.trip_context import ContextEdit, ContextRun, ContextSnapshot, ContextSurface, a2ui_messages
-from .research_context import ResearchContextRepository
 from .profile import TravelerProfileRepository
-from .profile_schemas import ProfileInput, ProfileOutput
+from .profile_schemas import OnboardingMutation, ProfileInput, ProfileOutput
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
+from .research_context import ResearchContextRepository
 from .schemas import (
     BriefInput,
     BriefMutationOutput,
@@ -242,8 +249,13 @@ def create_profile_router(session_factory, verifier, *, required_scope, clock=No
 
     @router.put("", response_model=ProfileOutput)
     def save_traveler_profile(data: ProfileInput, repo: Repo, me=Depends(identity)):
-        payload = data.model_dump(exclude={"onboarding_complete"})
-        row = repo.save(me.subject, payload, data.onboarding_complete)
+        payload = data.model_dump(exclude={"onboarding_complete"}, exclude_unset=True)
+        complete = data.onboarding_complete if "onboarding_complete" in data.model_fields_set else None
+        row = repo.save(me.subject, payload, complete)
         return ProfileOutput.from_row(row)
+
+    @router.patch("/onboarding", response_model=ProfileOutput)
+    def save_onboarding_step(data: OnboardingMutation, repo: Repo, me=Depends(identity)):
+        return repo.save_step(me.subject, data)
 
     return router

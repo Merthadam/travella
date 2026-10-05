@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
+from services.shared.traveler_profile import PROFILE_FIELDS
+
 
 class MemoryAdapter(Protocol):
     @property
@@ -49,14 +51,7 @@ class DisabledMemory:
 class AgentCoreMemory:
     """Persist one deterministic profile record in a private actor namespace."""
 
-    PROFILE_FIELDS = (
-        "departure_base",
-        "citizenships",
-        "food_needs",
-        "accessibility_needs",
-        "travel_interests",
-        "updated_at",
-    )
+    PROFILE_FIELDS = (*PROFILE_FIELDS, "updated_at")
 
     def __init__(
         self,

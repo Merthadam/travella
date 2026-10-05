@@ -21,6 +21,7 @@ from services.agent.http_contracts import (
     OnboardingRequest,
     OnboardingResponse,
 )
+from services.shared.traveler_profile import PROFILE_FIELDS
 
 
 class AgentClient:
@@ -68,21 +69,22 @@ class AgentClient:
             "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": self._runtime_session(token, scope),
         }
 
-    def _runtime_call(self, operation: str, payload: dict, *, token: str, scope: str):
+    def _runtime_call(self, operation: str, payload: dict, *, token: str, scope: str,
+                      timeout: float = 120, attempts: int = 3):
         try:
             with httpx.Client(
-                timeout=120,
+                timeout=timeout,
                 follow_redirects=False,
                 transport=self.transport,
                 trust_env=False,
             ) as client:
-                for attempt in range(3):
+                for attempt in range(attempts):
                     response = client.post(
                         self._runtime_url(),
                         headers=self._runtime_headers(token, scope),
                         json={"operation": operation, "payload": payload},
                     )
-                    if response.status_code != 409 or attempt == 2:
+                    if response.status_code != 409 or attempt == attempts - 1:
                         break
                     time.sleep(0.15 * (attempt + 1))
             if response.status_code != 200:
@@ -186,14 +188,12 @@ class AgentClient:
         """Mirror an already-saved CRUD profile; return only a safe status."""
         allowed = {
             key: profile.get(key)
-            for key in (
-                "departure_base", "citizenships", "food_needs",
-                "accessibility_needs", "travel_interests", "updated_at",
-            )
+            for key in (*PROFILE_FIELDS, "updated_at")
+            if key in profile
         }
         if self.runtime_arn:
             status, response = self._runtime_call(
-                "profile_sync", allowed, token=token, scope="traveler-profile"
+                "profile_sync", allowed, token=token, scope="traveler-profile", timeout=10, attempts=1
             )
             if status != 200:
                 return "unavailable"

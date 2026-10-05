@@ -12,6 +12,8 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import HTTPException
+
+from services.shared.traveler_profile import PROFILE_FIELDS, profile_context
 from services.trip_context import ContextSnapshot, TurnResult, a2ui_messages
 
 from .http_contracts import AgentRequest, AgentResponse
@@ -90,12 +92,8 @@ class AgentTurnService:
                 # Profile context is advisory; an unavailable profile service must
                 # not break an otherwise valid Plan turn.
                 current = None
-            keys = (
-                "departure_base", "citizenships", "food_needs",
-                "accessibility_needs", "travel_interests",
-            )
             if isinstance(current, dict):
-                traveler_profile = {key: current.get(key) for key in keys if current.get(key)}
+                traveler_profile = profile_context(current)
                 if self.memory is not None and self.memory.enabled:
                     try:
                         remembered = await self.memory.retrieve_relevant_memory(
@@ -103,15 +101,14 @@ class AgentTurnService:
                         )
                     except Exception:
                         remembered = None
-                    # Use the AgentCore copy only when it still exactly matches CRUD.
+                    # A mirrored copy can only substitute an identical canonical
+                    # snapshot, including explicit empty/null preferences.
                     if (
                         remembered
                         and remembered.get("updated_at") == current.get("updated_at")
-                        and all(remembered.get(key) == current.get(key) for key in keys)
+                        and all(remembered.get(key) == current.get(key) for key in PROFILE_FIELDS)
                     ):
-                        traveler_profile = {
-                            key: remembered.get(key) for key in keys if remembered.get(key)
-                        }
+                        traveler_profile = profile_context(current)
         try:
             reservation = await self.candidates.reserve(subject, plan_id, request.event_id, exclusive=True)
         except ValueError:

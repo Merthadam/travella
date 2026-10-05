@@ -9,7 +9,6 @@ from pydantic import TypeAdapter, ValidationError
 
 from services.crud.contracts import PROBLEMS
 from services.crud.profile_schemas import ProfileOutput
-from services.trip_context import ContextSnapshot, ContextSurface
 from services.crud.schemas import (
     BriefMutationOutput,
     BriefOutput,
@@ -19,6 +18,7 @@ from services.crud.schemas import (
     PlanOutput,
     PlanPage,
 )
+from services.trip_context import ContextSnapshot, ContextSurface
 
 SAFE_ERRORS = {code: message for code, (_, message) in PROBLEMS.items()} | {
     "not_found": "Plan unavailable.",
@@ -47,9 +47,9 @@ class CrudClient:
             return False
 
     def request(self, method: str, path: str, *, token: str, headers, params, body: bytes):
-        if path == "/v1/traveler-profile":
+        if path in {"/v1/traveler-profile", "/v1/traveler-profile/onboarding"}:
             plan_id = action = destination_id = None
-            allowed = {"GET", "PUT"}
+            allowed = {"PATCH"} if path.endswith("/onboarding") else {"GET", "PUT"}
             profile_route = True
         else:
             profile_route = False

@@ -6,6 +6,8 @@ from collections.abc import Awaitable, Callable
 from contextvars import ContextVar, Token
 from typing import Any
 
+from services.shared.traveler_profile import profile_context
+
 _AUTHORIZATION_TOKEN: ContextVar[str | None] = ContextVar(
     "travella_agent_authorization_token", default=None
 )
@@ -23,7 +25,7 @@ def current_traveler_profile() -> dict[str, Any]:
 
 
 def bind_traveler_profile(value: dict[str, Any] | None) -> Token[dict[str, Any] | None]:
-    return _TRAVELER_PROFILE.set(dict(value or {}))
+    return _TRAVELER_PROFILE.set(profile_context(value or {}))
 
 
 def reset_traveler_profile(context_token: Token[dict[str, Any] | None]) -> None:

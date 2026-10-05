@@ -4,7 +4,9 @@ from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-from services.trip_context import ContextSnapshot, TurnResult, ForwardedProps
+
+from services.crud.profile_schemas import HomeCity
+from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
 
 
 class CandidateAction(BaseModel):
@@ -76,6 +78,10 @@ class TravelerProfileMemoryRequest(BaseModel):
     food_needs: str = Field(default="", max_length=1000)
     accessibility_needs: str = Field(default="", max_length=1000)
     travel_interests: str = Field(default="", max_length=1000)
+    home_city: HomeCity | None = None
+    default_airport: str | None = Field(default=None, pattern=r"^[A-Z0-9]{3}$")
+    interest_ids: list[str] = Field(default_factory=list, max_length=40)
+    custom_interests: list[str] = Field(default_factory=list, max_length=20)
     updated_at: str | None = Field(default=None, max_length=64)
 
 

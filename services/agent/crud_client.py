@@ -5,6 +5,8 @@ from uuid import UUID
 
 import httpx
 from fastapi import HTTPException
+
+from services.crud.profile_schemas import ProfileOutput
 from services.trip_context import ContextSnapshot
 
 
@@ -72,7 +74,7 @@ class CrudContextReader:
             )
         if response.status_code >= 400:
             raise HTTPException(503, "Traveler profile unavailable.")
-        return response.json()
+        return ProfileOutput.model_validate(response.json()).model_dump(mode="json")
 
     async def append(
         self, plan_id: UUID, token: str, *, event_id: str, role: str,

@@ -106,7 +106,7 @@ def create_app(
 
     @app.middleware("http")
     async def protection(request: Request, call_next):
-        if request.method in {"POST", "PATCH", "DELETE"}:
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             if (
                 request.headers.get("origin") != origin
                 or request.headers.get("x-travella-request") != "1"
@@ -320,6 +320,7 @@ def create_app(
         return await run_in_threadpool(forward)
 
     @app.api_route("/v1/traveler-profile", methods=["GET", "PUT"])
+    @app.patch("/v1/traveler-profile/onboarding")
     async def traveler_profile_proxy(request: Request):
         ready()
         body = await request.body()
@@ -327,26 +328,33 @@ def create_app(
         def forward():
             with store.transaction():
                 _, session, _ = current_session(request)
-                if crud_client is None:
-                    raise HTTPException(503, "Traveler profile is not configured yet.")
-                status, data = crud_client.request(
-                    request.method,
-                    request.url.path,
-                    token=session["access"],
-                    headers=request.headers,
-                    params=request.query_params,
-                    body=body,
-                )
-                if request.method == "PUT" and status == 200 and isinstance(data, dict):
-                    data["memory_sync"] = (
-                        agent_client.sync_profile(token=session["access"], profile=data)
-                        if agent_client is not None
-                        else "not_configured"
-                    )
-                response = JSONResponse(data, status_code=status)
-                if status == 401:
-                    clear(response)
-                return response
+                token = session["access"]
+            if crud_client is None:
+                raise HTTPException(503, "Traveler profile is not configured yet.")
+            status, data = crud_client.request(
+                request.method,
+                request.url.path,
+                token=token,
+                headers=request.headers,
+                params=request.query_params,
+                body=body,
+            )
+            if request.method in {"PUT", "PATCH"} and status == 200 and isinstance(data, dict):
+                complete = data.get("onboarding", {}).get("completed_version") == 2
+                # Draft step saves never wait for AgentCore. A completed profile
+                # is already durable even if this bounded mirror attempt fails.
+                if request.method == "PUT" or complete:
+                    try:
+                        data["memory_sync"] = (
+                            agent_client.sync_profile(token=token, profile=data)
+                            if agent_client is not None else "not_configured"
+                        )
+                    except Exception:
+                        data["memory_sync"] = "unavailable"
+            response = JSONResponse(data, status_code=status)
+            if status == 401:
+                clear(response)
+            return response
 
         return await run_in_threadpool(forward)
 
