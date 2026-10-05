@@ -5,8 +5,8 @@ current_phase_name: Travel studio onboarding
 status: human_needed
 stopped_at: Phase 12 implemented; human_needed acceptance checks in 12-UAT.md
 last_updated: "2026-10-04T21:37:20.817Z"
-last_activity: 2026-10-04
-last_activity_desc: Phase 11 SDK implementation committed; live validation pending
+last_activity: 2026-10-05
+last_activity_desc: Low SDK reasoning effort and compact replies implemented; local container rebuilt
 state_head: fa0b983afc7d3f51ef8f68c767a34b3b462a4ba4
 progress:
   total_phases: 12
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-26)
 Phase: 12 (Travel studio onboarding) — VERIFYING
 Plan: 4 of 4 implemented; independent verification human_needed
 Status: Implementation committed; 11/15 must-haves verified, five acceptance check groups open
-Last activity: 2026-10-04 — Phase 11 SDK worker, graph integration and runtime packaging committed
+Last activity: 2026-10-05 — Completed quick task 261005-tlx: low SDK effort and compact replies; local container rebuilt
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
@@ -134,3 +134,4 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 261005-044 | Three interactive onboarding prototypes; Chrome interactions and screenshot inspection complete; user design selection pending | 2026-10-05 | prototype/onboarding-directions | Prototype | [261005-044](./quick/261005-044-prototype-three-interactive-non-agentic-/) |
 
 | 261005-s1w | B onboarding full-address map and automatic nearby airports; build/API/desktop interaction passed, screenshot/mobile acceptance blocked by Chrome stall | 2026-10-05 | — | Verification incomplete | [261005-s1w](./quick/261005-s1w-replace-onboarding-home-form-with-google/) |
+| 261005-tlx | Low Claude SDK effort and helpful compact replies; local rebuild/auth and source freshness passed; model output and savings unmeasured | 2026-10-05 | 33d03d9 | Implemented | [261005-tlx](./quick/261005-tlx-lower-claude-agent-sdk-reasoning-effort-/) |
