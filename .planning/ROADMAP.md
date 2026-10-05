@@ -320,9 +320,9 @@ Plans:
 3. Existing profiles are prefilled and preserved, v2 appears once and completion returns to Plans.
 4. Real city/airport choices and cheap static catalogs replace simulated data; missing provider services have a clear fallback.
 5. New fields survive authenticated CRUD, serializers and agent memory projection; stale mirrors cannot erase or resurrect preferences.
-**Plans:** 4 plans in 4 sequential waves; planning complete, execution pending.
+**Plans:** 4 implementation plans delivered through coordinated multi-agent segments. Final verification and manual acceptance pending; see 12-VERIFICATION.md.
 
-- [ ] 12-01-PLAN.md — Save and resume a home step
-- [ ] 12-02-PLAN.md — Place selection and reference catalogs
-- [ ] 12-03-PLAN.md — Complete B's four-screen UI
+- [x] 12-01-PLAN.md — Save and resume a home step
+- [x] 12-02-PLAN.md — Place selection and reference catalogs
+- [x] 12-03-PLAN.md — Complete B's four-screen UI
 - [ ] 12-04-PLAN.md — Prefilled rollout, memory projection and manual verification

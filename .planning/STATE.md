@@ -1,9 +1,9 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 11
-current_phase_name: Use Claude Agent SDK as a LangGraph research worker
-status: executing
-stopped_at: Phase 11 implementation committed; validation pending
+current_phase: 12
+current_phase_name: Travel studio onboarding
+status: human_needed
+stopped_at: Phase 12 implemented; human_needed acceptance checks in 12-UAT.md
 last_updated: "2026-10-04T21:37:20.817Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 11 SDK implementation committed; live validation pending
@@ -23,13 +23,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-26)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 11 — Use Claude Agent SDK as a LangGraph research worker
+**Current focus:** Phase 12 — Travel studio onboarding
 
 ## Current Position
 
-Phase: 11 (Use Claude Agent SDK as a LangGraph research worker) — VALIDATION PENDING
-Plan: 3 of 3 implemented; verification gates open
-Status: Implementation committed; verification pending
+Phase: 12 (Travel studio onboarding) — VERIFYING
+Plan: 4 of 4 implemented; independent verification human_needed
+Status: Implementation committed; 11/15 must-haves verified, five acceptance check groups open
 Last activity: 2026-10-04 — Phase 11 SDK worker, graph integration and runtime packaging committed
 
 Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
@@ -58,7 +58,7 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 ### Decisions
 
 - User selected Python services, a separate React frontend, and uv for Python package management.
-- Continue inline as requested; no subagent completion or independent review is claimed.
+- Phase 12 uses the explicitly requested multi-agent execution flow and an independent source reviewer.
 - Browser receives an opaque HttpOnly cookie; Cognito tokens remain encrypted server-side.
 - SQLite is a local single-worker session store only; production auth startup is blocked pending deployment safeguards.
 - Roadmap the full documented MVP as eight vertical traveler-capability phases.
@@ -79,7 +79,7 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
 ### Roadmap Evolution
 
-- Phase 12 planned: selected B Travel studio onboarding; per-step resume, existing-user prefill, onboarding only. Four sequential implementation plans; execution pending.
+- Phase 12 implemented: selected B onboarding, save/resume, catalogs and memory projection; auth re-login and remaining manual checks recorded for acceptance.
 
 - Phase 02.1 inserted after Phase 2: Local PostgreSQL data foundation and typed CRUD schema (URGENT)
 - Phase 10 added: Evidence-grounded iterative agent research
