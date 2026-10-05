@@ -1,6 +1,6 @@
 # Account-page prototypes — design verification
 
-Date: 2026-10-05. Branch: `prototype/account-settings`. Scope: three throwaway interactive design alternatives with light/dark mode. User selection pending; no production account functionality delivered.
+Date: 2026-10-05. Branch: `prototype/account-settings`. Scope: three throwaway interactive design alternatives with light/dark mode. User selected C on 2026-10-05; no production account functionality delivered.
 
 ## Run and compare
 
@@ -41,4 +41,4 @@ Editor details: [A dark interest editor](plan/a-dark-interest-editor.png), [B mo
 
 ## Boundaries
 
-All data is fictional and all edits are in memory. Location maps, search, email verification, password changes, authenticator setup and recovery codes are explicitly simulated. No backend CRUD changed, no live authentication was exercised, and no account data was persisted. Authenticated example-account testing and durable-data checks apply to the future selected implementation. No automated tests were added for throwaway code. Design selection and production integration remain pending.
+All data is fictional and all edits are in memory. Location maps, search, email verification, password changes, authenticator setup and recovery codes are explicitly simulated. No backend CRUD changed, no live authentication was exercised, and no account data was persisted. Authenticated example-account testing and durable-data checks apply to the future selected implementation. No automated tests were added for throwaway code. Design C is selected. Production integration remains pending.
