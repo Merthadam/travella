@@ -82,7 +82,7 @@ export function OnboardingFlow({ initialProfile, onComplete, onExpired }) {
       <form className="ts-form" ref={form} onSubmit={event => { event.preventDefault(); save('continue'); }}>
         <div className="ts-chapter"><span>CHAPTER 0{step + 1}</span><h2>{labels[step]}</h2><p>{step === 0 ? 'The beginning of every adventure.' : step === 1 ? 'Your story can cross borders.' : step === 2 ? 'More comfortable, more you.' : 'A little collection of what you love.'}</p></div>
         {returned && <p className="ts-returned">We’ve brought your saved preferences with you. Review them as you go.</p>}
-        <fieldset disabled={busy}><Step key={`${step}-${reloadKey}`} data={data} update={update} /></fieldset>
+        <fieldset disabled={busy}><Step key={`${step}-${reloadKey}`} data={data} update={update} disabled={busy || Boolean(error?.stale)} /></fieldset>
         {error && <div className="ts-error" role="alert"><p>{error.message}</p><button type="button" disabled={busy} onClick={error.stale ? reload : () => save(pending.current?.request.action || 'continue', true)}>{error.stale ? 'Reload saved preferences' : 'Retry save'}</button></div>}
         <p className="ts-save-status" role="status" aria-live="polite">{status || 'Each step saves when you continue. Come back anytime.'}</p>
         <StepActions step={step} busy={busy || Boolean(error?.stale)} canContinue={canContinue} onBack={() => { setStep(value => value - 1); setError(null); setStatus(''); pending.current = null; }} onSkip={() => save('skip')} />

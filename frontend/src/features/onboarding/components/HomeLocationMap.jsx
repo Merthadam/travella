@@ -13,14 +13,16 @@ export function HomeLocationMap({ location, airports, selectedAirport, onSelectA
   selectAirport.current = onSelectAirport;
 
   useEffect(() => {
-    if (!hasLocation) return;
     let current = true;
     let map;
+    let element;
     setMapError(false);
     loadGoogleMaps({ libraries: ['maps', 'marker'] }).then(({ maps, libraries }) => {
       if (!current || !canvas.current) return;
-      map = new libraries.maps.Map(canvas.current, {
-        center: { lat: 20, lng: 0 }, zoom: 2, mapId: 'DEMO_MAP_ID',
+      element = new libraries.maps.MapElement({ center: { lat: 20, lng: 0 }, zoom: 2, mapId: 'DEMO_MAP_ID' });
+      canvas.current.replaceChildren(element);
+      map = element.innerMap;
+      map.setOptions({
         fullscreenControl: false, streetViewControl: false, mapTypeControl: false,
         gestureHandling: 'cooperative',
       });
@@ -29,12 +31,14 @@ export function HomeLocationMap({ location, airports, selectedAirport, onSelectA
     return () => {
       current = false;
       if (map) window.google?.maps?.event.clearInstanceListeners(map);
+      element?.remove();
       setMapState(null);
     };
-  }, [hasLocation, attempt]);
+  }, [attempt]);
 
   useEffect(() => {
-    if (!mapState || !hasLocation) return;
+    if (!mapState) return;
+    if (!hasLocation) { mapState.map.setCenter({ lat: 20, lng: 0 }); mapState.map.setZoom(2); return; }
     const { map, maps, AdvancedMarkerElement } = mapState;
     const markers = [];
     const listeners = [];
@@ -69,8 +73,8 @@ export function HomeLocationMap({ location, airports, selectedAirport, onSelectA
   return <div className="ts-home-map-wrap">
     <div className="ts-map-heading"><span>YOUR STARTING POINT</span><span><i className="ts-map-key-home" /> Home <i className="ts-map-key-airport" /> Airport</span></div>
     <div className="ts-home-map" aria-label="Home and departure airports map">
-      {hasLocation && <div className="ts-home-map-canvas" ref={canvas} />}
-      {(!hasLocation || mapError || !mapState) && <div className="ts-home-map-placeholder" role="status">
+      <div className="ts-home-map-canvas" ref={canvas} />
+      {(mapError || !mapState) && <div className="ts-home-map-placeholder" role="status">
         <span aria-hidden="true">⌖</span>
         <strong>{restoring ? 'Locating your saved address…' : mapError || restoreError ? 'Your address is here. The map couldn’t load.' : hasLocation ? 'Loading your map…' : 'Your journey starts here'}</strong>
         <p>{!hasLocation && !restoring && !restoreError ? 'Select your home address to see nearby airports.' : mapError || restoreError ? 'You can still review your address and choose an airport below.' : 'We’ll show your home and nearby departure options.'}</p>

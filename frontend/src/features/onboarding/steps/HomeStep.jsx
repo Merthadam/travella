@@ -1,18 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { countries, loadAirports } from '../catalogs';
-import { searchAddresses, resolveAddress, restoreHomeLocation, createPlacesSession, findGoogleAirports, searchGoogleAirports, findNearbyAirports, searchAirports } from '../places';
+import { resolveAddress, restoreHomeLocation, findGoogleAirports, searchGoogleAirports, findNearbyAirports, searchAirports } from '../places';
 import { countryName } from '../components/ProfilePreview';
 import { HomeLocationMap } from '../components/HomeLocationMap';
+import { GoogleAddressSearch } from '../components/GoogleAddressSearch';
 
-export function HomeStep({ data, update }) {
-  const [query, setQuery] = useState(data.home_city?.address || '');
+export function HomeStep({ data, update, disabled }) {
   const [manual, setManual] = useState(data.home_city?.source === 'manual');
   const [editing, setEditing] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
-  const [active, setActive] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState('');
-  const [attempt, setAttempt] = useState(0);
   const [location, setLocation] = useState(null);
   const [restoring, setRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState(false);
@@ -32,7 +29,6 @@ export function HomeStep({ data, update }) {
   const lookupVersion = useRef(0);
   const airportVersion = useRef(0);
   const restoreVersion = useRef(0);
-  const session = useRef(null);
   const restoredPlace = useRef(null);
   const manualAddress = useRef(null);
   const selectedHome = Boolean(data.home_city?.address && !editing);
@@ -43,23 +39,6 @@ export function HomeStep({ data, update }) {
     loadAirports().then(items => { if (current) { setAirports(items); setCatalogError(false); } }).catch(() => { if (current) setCatalogError(true); });
     return () => { current = false; };
   }, [catalogAttempt]);
-  useEffect(() => {
-    const version = ++lookupVersion.current;
-    setSuggestions([]); setActive(-1); setLookupError('');
-    if (manual || !editing || query.trim().length < 3) { setLoading(false); return; }
-    setLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        session.current ||= await createPlacesSession();
-        const results = await searchAddresses(query.trim(), session.current);
-        if (!alive.current || version !== lookupVersion.current) return;
-        setSuggestions(results); setLoading(false);
-      } catch {
-        if (alive.current && version === lookupVersion.current) { setLookupError('Address search is unavailable. Try again, or enter your address manually.'); setLoading(false); }
-      }
-    }, 300);
-    return () => { clearTimeout(timer); };
-  }, [query, manual, editing, attempt]);
 
   const placeId = data.home_city?.address ? data.home_city.place_id : null;
   useEffect(() => {
@@ -87,6 +66,7 @@ export function HomeStep({ data, update }) {
       try {
         const results = airportSearch.trim() ? await searchGoogleAirports(airportSearch.trim(), location, airports) : await findGoogleAirports(location, airports);
         if (!alive.current || version !== airportVersion.current) return;
+        if (!results.length && !airportSearch.trim()) setUseAirportCatalog(true);
         setAirportResults(results.slice(0, 5)); setAirportLoading(false);
       } catch {
         if (!alive.current || version !== airportVersion.current) return;
@@ -105,22 +85,22 @@ export function HomeStep({ data, update }) {
   }
   async function choose(suggestion) {
     const version = ++lookupVersion.current;
-    setLoading(true); setSuggestions([]); setLookupError('');
+    setLoading(true); setLookupError('');
     try {
       const resolved = await resolveAddress(suggestion);
       if (!alive.current || version !== lookupVersion.current) return;
       invalidateHome();
       restoredPlace.current = resolved.home_city.place_id;
-      setLocation(resolved.location); setQuery(resolved.home_city.address); setEditing(false);
+      setLocation(resolved.location); setEditing(false);
       update({ home_city: resolved.home_city, default_airport: null });
-      session.current = null; setLoading(false);
+      setLoading(false);
     } catch {
       if (alive.current && version === lookupVersion.current) { setLookupError('We couldn’t confirm a full address and city here. Try a street address, or enter the details manually.'); setLoading(false); }
     }
   }
   function useManual() {
-    invalidateHome(); setManual(true); setEditing(false); setSuggestions([]); setLoading(false);
-    update({ home_city: { address: data.home_city?.address || query.trim(), name: data.home_city?.name || '', country_code: data.home_city?.country_code || '', source: 'manual' }, default_airport: null });
+    invalidateHome(); setManual(true); setEditing(false); setLoading(false);
+    update({ home_city: { address: data.home_city?.address || '', name: data.home_city?.name || '', country_code: data.home_city?.country_code || '', source: 'manual' }, default_airport: null });
     requestAnimationFrame(() => manualAddress.current?.focus());
   }
   function editManual(field, value) {
@@ -140,20 +120,14 @@ export function HomeStep({ data, update }) {
     {!data.home_city && data.departure_base && !editing && <div className="ts-legacy"><strong>Your previously saved departure base</strong><p>{data.departure_base}</p><p>Select your full home address below to complete your home base.</p></div>}
     {data.home_city && !data.home_city.address && !manual && <p className="ts-help">Your saved home is {data.home_city.name}, {countryName(data.home_city.country_code)}. Add your full address to place it on the map.</p>}
     {!manual && <>
-      <label htmlFor="ts-address">Your home address <span>Required</span></label>
-      <input id="ts-address" role="combobox" aria-autocomplete="list" aria-expanded={suggestions.length > 0} aria-controls="ts-address-results" aria-activedescendant={active >= 0 ? `ts-address-option-${active}` : undefined} aria-describedby="ts-address-help" value={query} autoComplete="off" placeholder="Start typing your street address" onChange={event => {
-        invalidateHome(); setQuery(event.target.value); setEditing(true); update({ home_city: null, default_airport: null });
-      }} onKeyDown={event => {
-        if (event.key === 'ArrowDown' && suggestions.length) { event.preventDefault(); setActive(index => (index + 1) % suggestions.length); }
-        if (event.key === 'ArrowUp' && suggestions.length) { event.preventDefault(); setActive(index => index < 0 ? suggestions.length - 1 : (index - 1 + suggestions.length) % suggestions.length); }
-        if (event.key === 'Enter' && suggestions.length) { event.preventDefault(); choose(suggestions[Math.max(active, 0)]); }
-        if (event.key === 'Escape') { setSuggestions([]); setActive(-1); }
+      <label>Your home address <span>Required</span></label>
+      <GoogleAddressSearch disabled={disabled} onSelect={choose} onEdit={() => {
+        invalidateHome(); setEditing(true); setLookupError(''); setLoading(false);
+        update({ home_city: null, default_airport: null });
       }} />
-      <p id="ts-address-help" className="ts-help">Select an address, then we’ll automatically find airports nearby.</p>
-      {loading && <p className="ts-help" role="status">Finding your address…</p>}
-      {suggestions.length > 0 && <><ul className="ts-city-results" id="ts-address-results" role="listbox">{suggestions.map((suggestion, index) => <li id={`ts-address-option-${index}`} key={suggestion.id} role="option" aria-selected={index === active} onMouseDown={event => event.preventDefault()} onClick={() => choose(suggestion)}><span aria-hidden="true">⌖</span><span><strong>{suggestion.mainText}</strong><small>{suggestion.secondaryText}</small></span><span aria-hidden="true">↗</span></li>)}</ul><div className="ts-google-attribution" translate="no">Google Maps</div></>}
-      {!loading && !suggestions.length && editing && query.trim().length >= 3 && !lookupError && <p className="ts-help" role="status">No address found. Try adding the city or postal code.</p>}
-      {lookupError && <div className="ts-lookup-error" role="status"><p>{lookupError}</p><button type="button" onClick={() => setAttempt(value => value + 1)}>Retry address search</button></div>}
+      <p className="ts-help">Choose your address in Google’s search. Nearby airports appear automatically.</p>
+      {loading && <p className="ts-help" role="status">Locating your address…</p>}
+      {lookupError && <p className="ts-lookup-error" role="status">{lookupError}</p>}
       <button type="button" className="ts-text-button" onClick={useManual}>Enter address manually</button>
     </>}
     {manual && <>
@@ -164,7 +138,7 @@ export function HomeStep({ data, update }) {
         <div><label htmlFor="ts-city-name">City <span>Required</span></label><input id="ts-city-name" required minLength={2} maxLength={110} autoComplete="address-level2" value={data.home_city?.name || ''} onChange={event => editManual('name', event.target.value)} /></div>
         <div><label htmlFor="ts-home-country">Country or territory <span>Required</span></label><select id="ts-home-country" required value={data.home_city?.country_code || ''} onChange={event => editManual('country_code', event.target.value)}><option value="">Choose country</option>{countries.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}</select></div>
       </div>
-      <button type="button" className="ts-text-button" onClick={() => { invalidateHome(); setManual(false); setQuery(''); setEditing(false); update({ home_city: null, default_airport: null }); }}>Search for an address instead</button>
+      <button type="button" className="ts-text-button" onClick={() => { invalidateHome(); setManual(false); setEditing(false); update({ home_city: null, default_airport: null }); }}>Search for an address instead</button>
     </>}
     {selectedHome && !manual && <div className="ts-confirmed-address" role="status"><span aria-hidden="true">⌂</span><div><strong>{data.home_city.address}</strong><small>{data.home_city.name} · {countryName(data.home_city.country_code)}</small></div><span aria-label="Address selected">✓</span></div>}
     <HomeLocationMap location={location} airports={airportResults} selectedAirport={selectedAirport} onSelectAirport={chooseAirport} restoring={restoring} restoreError={restoreError} onRetryRestore={() => { restoredPlace.current = null; setRestoreAttempt(value => value + 1); }} />
