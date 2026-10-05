@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { readSession, readTravelerProfile, request } from './api';
 import { PlansApp } from './PlansApp';
-import { FirstLoginOnboarding } from './FirstLoginOnboarding';
+import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 
 const titles = {
   sign_in: 'Welcome back', register: 'Create your account', verify_email: 'Verify your email',
@@ -30,7 +30,7 @@ export function AccountApp() {
   async function routeAfterSignIn() {
     const profile = await readTravelerProfile();
     setTravelerProfile(profile);
-    setStep(profile.onboarding_complete ? 'signed_in' : 'onboarding');
+    setStep(profile.onboarding?.completed_version >= 2 ? 'signed_in' : 'onboarding');
   }
 
   useEffect(() => { heading.current?.focus(); }, [step]);
@@ -47,8 +47,9 @@ export function AccountApp() {
   useEffect(() => {
     if (!['signed_in', 'onboarding'].includes(step)) return;
     let cancelled = false;
-    const check = () => readSession().catch(() => {
-      if (!cancelled) {
+    const check = () => readSession().catch((err) => {
+      // A temporary network/server failure must not discard an in-progress form.
+      if (!cancelled && err.status === 401) {
         generation.current++;
         setStep('sign_in'); setNotice(''); setError(null);
       }
@@ -131,7 +132,7 @@ export function AccountApp() {
   }
 
   if (step === 'onboarding') {
-    return <FirstLoginOnboarding initialProfile={travelerProfile || undefined} onComplete={(profile) => {
+    return <OnboardingFlow initialProfile={travelerProfile || undefined} onExpired={() => go('sign_in')} onComplete={(profile) => {
       setTravelerProfile(profile); setStep('signed_in');
     }} />;
   }
