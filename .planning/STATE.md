@@ -1,17 +1,17 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 12
-current_phase_name: Travel studio onboarding
+current_phase: 14
+current_phase_name: Standalone A2UI Planning Components
 status: human_needed
 stopped_at: Phase 12 implemented; human_needed acceptance checks in 12-UAT.md
-last_updated: "2026-10-04T21:37:20.817Z"
+last_updated: "2026-10-06T07:22:18.459Z"
 last_activity: 2026-10-05
 last_activity_desc: Onboarding and low-effort agent changes integrated into origin/main
-state_head: fa0b983afc7d3f51ef8f68c767a34b3b462a4ba4
+state_head: 8c2fbf3d8e3094a87f3178a06ebc9b4439fe1f3c
 progress:
-  total_phases: 12
+  total_phases: 14
   completed_phases: 0
-  total_plans: 32
+  total_plans: 40
   completed_plans: 18
   percent: 0
 ---
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-09-26)
 
 ## Current Position
 
-Phase: 12 (Travel studio onboarding) — VERIFYING
+Phase: 14 (Standalone A2UI Planning Components) — READY TO EXECUTE
 Plan: 4 of 4 implemented; independent verification human_needed
 Status: Implementation committed; 11/15 must-haves verified, five acceptance check groups open
 Last activity: 2026-10-05 — Completed quick task 261005-tzh: onboarding and low-effort agent changes integrated into origin/main
@@ -138,3 +138,7 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 261005-tzh | Fast-forwarded onboarding and low-effort agent changes into origin/main; preserved dirty local main checkout | 2026-10-05 | 4be4a89 | Complete | [261005-tzh](./quick/261005-tzh-merge-completed-onboarding-and-low-effor/) |
 
 | 261005-uc5 | Three small generatable Flights/Accommodation container prototypes; dedicated browsing views; design selection pending | 2026-10-05 | prototype/planning-cards | Prototype | [261005-uc5](./quick/261005-uc5-prototype-three-interactive-accommodatio/) |
+
+### Roadmap Evolution — 2026-10-06
+
+- Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.

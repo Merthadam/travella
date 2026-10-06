@@ -234,3 +234,14 @@ Current user discussion and selected B prototype control this phase.
 - [ ] **ONB-12-09:** Direct API/browser verification covers identity, resume, legacy compatibility, failures and responsive UI, with inspected screenshots.
 
 Deferred: preferences editor, NoSQL migration, AI onboarding, new orchestration flow.
+
+## Phase 14 — Standalone A2UI Planning Components
+
+- [ ] **CANVAS-14-01**: A local catalog and isolated gallery render declarative fixture messages with no live connections.
+- [ ] **CANVAS-14-02**: Trip Essentials supports missing/resolved dates, travelers and budget plus local edits.
+- [ ] **CANVAS-14-03**: Destination Map has fixture candidate/final selection, accessible fallback and a future Google adapter boundary.
+- [ ] **CANVAS-14-04**: Themes/preferences remain separate, editable sample components.
+- [ ] **CANVAS-14-05**: Compact Flights/Accommodation containers open distinct preview views; LiteAPI integration deferred.
+- [ ] **CANVAS-14-06**: Findings and useful links have source/purpose/uncertainty presentation and bounded safe inputs.
+- [ ] **CANVAS-14-07**: All components compose consistently, simulate generation and pass manual desktop/mobile design review.
+- [ ] **CANVAS-14-08**: Map supports multiple colored/icon category pins with local add/edit/remove, filtering and details; visual hierarchy is more distinctive.

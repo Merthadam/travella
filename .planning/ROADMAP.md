@@ -315,14 +315,43 @@ Plans:
 **Depends on:** Existing account/profile/memory implementation in current code; Phase 11 research-loop verification is not a blocker for this independent UI phase.
 **Scope:** Home city and optional airport; optional multi-citizenship; optional free-text accessibility/food needs; optional five-or-more interests with custom entries; per-step saves, prefilled v2 rollout, existing memory projection. Profile editing and NoSQL migration deferred.
 **Success Criteria:**
+
 1. Selected B layout works at desktop and mobile, with top progress and no onboarding model calls.
 2. Explicit Continue/Skip saves atomically; reopening resumes saved progress even after optional skips.
 3. Existing profiles are prefilled and preserved, v2 appears once and completion returns to Plans.
 4. Real city/airport choices and cheap static catalogs replace simulated data; missing provider services have a clear fallback.
 5. New fields survive authenticated CRUD, serializers and agent memory projection; stale mirrors cannot erase or resurrect preferences.
+
 **Plans:** 4 implementation plans delivered through coordinated multi-agent segments. Final verification and manual acceptance pending; see 12-VERIFICATION.md.
 
 - [x] 12-01-PLAN.md — Save and resume a home step
 - [x] 12-02-PLAN.md — Place selection and reference catalogs
 - [x] 12-03-PLAN.md — Complete B's four-screen UI
 - [ ] 12-04-PLAN.md — Prefilled rollout, memory projection and manual verification
+
+### Phase 14: Standalone A2UI Planning Components
+
+**Goal:** Design and build seven standalone A2UI components in a fixture-driven preview, ready to connect to an agent later.
+**Requirements:** CANVAS-14-01, CANVAS-14-02, CANVAS-14-03, CANVAS-14-04, CANVAS-14-05, CANVAS-14-06, CANVAS-14-07, CANVAS-14-08
+**Depends on:** Existing A2UI Trip Brief renderer and accepted compact-card prototype pattern; no dependency on an absent Phase 13 or unfinished legacy workspace plans.
+**Scope:** Component schemas, pure renderers, local editing/navigation, simulated generation and desktop/mobile design review. Live agent, AG-UI, CRUD, Maps and LiteAPI integrations deferred.
+**Success Criteria:**
+1. All seven components render independently from validated A2UI fixture messages.
+2. Composed canvas has consistent responsive placement and simulated create/update/hide without duplicate cards.
+3. Flight/stay containers open distinct local preview views; map/findings/links have honest sample/loading/error states.
+4. No model/provider/backend calls or persisted Plan changes occur in the component gallery.
+5. User receives working preview and inspected desktop/mobile evidence before later integration.
+
+**Plans:** 4 plans in 3 waves; planning only, not implemented.
+
+**Wave 1**
+- [ ] 14-01-PLAN.md — A2UI gallery and Trip Essentials
+
+**Wave 2** *(after Wave 1)*
+- [ ] 14-02-PLAN.md — Destination Map and Trip Themes
+- [ ] 14-03-PLAN.md — Travel containers, findings and links
+
+**Wave 3** *(after both Wave 2 plans)*
+- [ ] 14-04-PLAN.md — Compose, inspect and review the catalog
+
+**Cross-cutting constraints:** Standalone fixture state only; seven allowlisted component types; no production chat/navigation changes; no live agent/provider/persistence integration; no tests or paid calls unless requested.
