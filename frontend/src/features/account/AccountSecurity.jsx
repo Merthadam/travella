@@ -3,7 +3,7 @@ import { request } from '../../api';
 
 const unknownCopy = "We couldn't confirm the result. Check account status before starting another change.";
 
-export function AccountSecurity({ setting, account, onAccountSaved, onExpired, onProtected, onBusy, cancel }) {
+export function AccountSecurity({ setting, account, onAccountSaved, onExpired, onProtected, onBusy, onDisclosure, onAuthenticator, cancel }) {
   const [stage, setStage] = useState('summary');
   const [password, setPassword] = useState('');
   const [nextPassword, setNextPassword] = useState('');
@@ -15,6 +15,7 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
   const [mode, setMode] = useState(null);
   const [setupKey, setSetupKey] = useState('');
   const [expiresAt, setExpiresAt] = useState(null);
+  const [codes, setCodes] = useState([]);
   const operation = useRef(null);
   const proof = useRef(null);
   const eventId = useRef(null);
@@ -25,14 +26,15 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
   useEffect(() => { alive.current = true; return () => { alive.current = false; proof.current = null; eventId.current = null; operation.current = null; }; }, []);
   useEffect(() => { onProtected?.(stage !== 'summary'); return () => onProtected?.(false); }, [stage, onProtected]);
   useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy, onBusy]);
+  useEffect(() => { onDisclosure?.(stage === 'codes'); return () => onDisclosure?.(false); }, [stage, onDisclosure]);
   useEffect(() => { form.current?.querySelector('input')?.focus(); }, [stage]);
   useEffect(() => { if (error) alert.current?.focus(); }, [error]);
   useEffect(() => {
     if (!expiresAt) return;
-    const timer = setTimeout(() => { clearSecrets(); operation.current = null; setStage('summary'); setError('Authenticator setup expired. Start again.'); }, Math.max(0, expiresAt - Date.now()));
+    const timer = setTimeout(() => { clearSecrets(); operation.current = null; setStage('summary'); setError('Verification expired. Confirm it is you again to continue.'); }, Math.max(0, expiresAt - Date.now()));
     return () => clearTimeout(timer);
   }, [expiresAt]);
-  function clearSecrets() { setPassword(''); setNextPassword(''); setConfirmation(''); setCode(''); setSetupKey(''); setExpiresAt(null); proof.current = null; }
+  function clearSecrets() { setPassword(''); setNextPassword(''); setConfirmation(''); setCode(''); setSetupKey(''); setCodes([]); setExpiresAt(null); proof.current = null; }
   function leave() { clearSecrets(); eventId.current = null; setStage('summary'); setError(''); }
   async function run(action) {
     if (lock.current) return;
@@ -50,10 +52,13 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
   async function mutate() {
     eventId.current = crypto.randomUUID();
     const authorization = { verification_id: proof.current, event_id: eventId.current };
-    const result = await request(setting === 'password' ? '/auth/account/password' : `/auth/account/authenticator/${mode === 'disable' ? 'disable' : 'start'}`,
-      setting === 'password' ? { ...authorization, current_password: password, new_password: nextPassword } : mode === 'disable' ? authorization : { ...authorization, mode });
+    const result = await request(setting === 'password' ? '/auth/account/password' : setting === 'recovery' ? '/auth/account/recovery-codes/rotate' : `/auth/account/authenticator/${mode === 'disable' ? 'disable' : 'start'}`,
+      setting === 'password' ? { ...authorization, current_password: password, new_password: nextPassword } : setting === 'recovery' || mode === 'disable' ? authorization : { ...authorization, mode });
     if (!alive.current) return;
     clearSecrets();
+    if (setting === 'recovery' && result.state === 'codes_generated' && Array.isArray(result.codes) && result.codes.length && result.account) {
+      onAccountSaved(result.account); setCodes(result.codes); setStage('codes'); setNotice("New recovery codes were generated. Save them now; you won't be able to view them again."); return;
+    }
     if (result.state === 'enrollment_required' && result.operation_id && result.secret_code) {
       operation.current = result.operation_id; setSetupKey(result.secret_code); setExpiresAt(Date.now() + result.expires_in * 1000); setStage('enrollment'); return;
     }
@@ -72,11 +77,11 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
         onAccountSaved(result.account); leave(); setNotice(successCopy()); return;
       }
       const result = await request(stage === 'factor' ? '/auth/account/verification/complete' : '/auth/account/verification',
-        stage === 'factor' ? { verification_id: proof.current, code } : { purpose: setting === 'password' ? 'password_change' : `mfa_${mode}`, password });
+        stage === 'factor' ? { verification_id: proof.current, code } : { purpose: setting === 'password' ? 'password_change' : setting === 'recovery' ? 'recovery_rotate' : `mfa_${mode}`, password });
       if (!alive.current) return;
       if (!result.verification_id || !['verified', 'mfa_required'].includes(result.state)) throw new Error('Verification result unavailable.');
       proof.current = result.verification_id;
-      if (result.state === 'mfa_required') { if (setting !== 'password') setPassword(''); setStage('factor'); return; }
+      if (result.state === 'mfa_required') { if (setting !== 'password') setPassword(''); setExpiresAt(Date.now() + (result.expires_in || 300) * 1000); setStage('factor'); return; }
       await mutate();
     });
   }
@@ -84,10 +89,17 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
     const result = await request('/auth/account/operation-status', { event_id: eventId.current });
     if (!alive.current) return;
     onAccountSaved(result.account);
-    if (result.state === 'complete') { leave(); setNotice(successCopy()); }
+    if (result.state === 'complete') { leave(); setNotice(setting === 'recovery' ? 'Recovery codes were generated, but their one-time display is no longer available. Replace recovery codes explicitly if you did not save them.' : successCopy()); }
     else { setStage('unknown'); setError(setting === 'password' ? "The result is still unconfirmed. Check access with your new password before explicitly starting a new change." : 'The result is still unconfirmed. Review your authenticator access before starting another change.'); }
   }
   const policy = account?.password_policy;
+  const count = account?.recovery_codes?.remaining;
+  const recoveryLabel = account?.recovery_codes?.status === 'unavailable' || !Number.isInteger(count) ? 'Status unavailable' : count === 0 ? 'No recovery codes available' : count === 1 ? '1 code remaining' : `${count} codes remaining`;
+  async function copyCodes() {
+    setError(''); setNotice('');
+    try { await navigator.clipboard.writeText(codes.join('\n')); if (alive.current) setNotice('Codes copied.'); }
+    catch { if (alive.current) setError("Couldn't copy the codes. Select and copy them manually."); }
+  }
   return <div aria-busy={busy}>
     {error && <p ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
     {!account ? <p>Status unavailable</p> : stage === 'summary' ? <>
@@ -97,10 +109,14 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
         {['setup', 'replace', 'disable'].filter(action => account.capabilities?.authenticator?.[action]).map(action => <button key={action} onClick={() => { leave(); setMode(action); setStage('verify-password'); }}>{action === 'setup' ? 'Set up authenticator' : action === 'replace' ? 'Replace authenticator' : 'Turn off authenticator'}</button>)}
         {!['setup', 'replace', 'disable'].some(action => account.capabilities?.authenticator?.[action]) && <p>Authenticator changes are unavailable right now.</p>}
       </>}
-    </> : stage === 'unknown' ? <><p>No change will be submitted again automatically.</p><button disabled={busy} onClick={() => run(check)}>Check account status</button><button disabled={busy} onClick={() => cancel(leave)}>Close</button></> : <form ref={form} onSubmit={submit}>
+      {setting === 'recovery' && <><p>{recoveryLabel}</p><p>Manage your backup sign-in codes.</p>
+        {account.capabilities?.recovery_codes?.rotate ? <button className="account-primary" onClick={() => { leave(); setNotice(''); setStage('verify-password'); }}>{count > 0 ? 'Replace recovery codes' : 'Generate recovery codes'}</button> : account.mfa?.status === 'off' ? <><p>Set up an authenticator before generating recovery codes.</p><button onClick={onAuthenticator}>Set up authenticator</button></> : <p>Recovery code changes are unavailable right now.</p>}
+      </>}
+    </> : stage === 'codes' ? <><label>Your new recovery codes<textarea readOnly autoComplete="off" rows={10} value={codes.join('\n')} /></label><div className="account-actions"><button onClick={copyCodes}>Copy codes</button><button onClick={() => { leave(); setNotice('Keep your recovery codes somewhere safe.'); }}>I've saved my codes</button></div></> : stage === 'unknown' ? <><p>No change will be submitted again automatically.</p><button disabled={busy} onClick={() => run(check)}>Check account status</button><button disabled={busy} onClick={() => cancel(leave)}>Close</button></> : <form ref={form} onSubmit={submit}>
       <fieldset disabled={busy}>
         {stage === 'verify-password' && <>
           <h3>Confirm it's you</h3>
+          {setting === 'recovery' && <p>{count > 0 ? 'Generating new recovery codes immediately invalidates your old codes. Save the new codes before leaving.' : 'Your recovery codes will be shown once. Save them before leaving.'}</p>}
           {mode === 'replace' && <p>Verifying the new authenticator will invalidate your old authenticator. Keep your backup sign-in codes available.</p>}
           {mode === 'disable' && <p>Turning off your authenticator removes this extra sign-in protection. It does not delete the registered setup key.</p>}
           <label>Current password<input type="password" autoComplete="current-password" required maxLength={256} value={password} onChange={event => setPassword(event.target.value)} /></label>

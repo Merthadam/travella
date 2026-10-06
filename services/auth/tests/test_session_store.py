@@ -37,3 +37,24 @@ def test_account_journal_survives_restart_and_reconciliation_preserves_hashes_an
     assert json.loads(second.cipher.decrypt(row[1])) == {'email': 'new@example.com', 'hashes': ['hash-one']}
     assert second.get(record['id'], 301) is None
     second.close()
+
+
+def test_recovery_hash_replacement_survives_restart_and_retains_legacy_consumption(tmp_path):
+    path = str(tmp_path / 'codes.sqlite3')
+    key = Fernet.generate_key().decode()
+    first = SessionStore(path, key)
+    legacy = first.digest('LEGACY01')
+    first.put_recovery_codes('one', 'fixture@example.com', [legacy], 10)
+    first.close()
+    second = SessionStore(path, key)
+    assert second.consume_recovery_code('one', legacy)
+    assert not second.consume_recovery_code('one', legacy)
+    strong = second.digest('0' * 32)
+    with second.account_guard('one'), second.transaction():
+        second.put_recovery_codes('one', 'fixture@example.com', [strong], 20)
+    second.close()
+    third = SessionStore(path, key)
+    assert third.recovery_count('one') == 1
+    assert third.consume_recovery_code_for_email('fixture@example.com', strong) == 'one'
+    assert third.consume_recovery_code_for_email('fixture@example.com', strong) is None
+    third.close()

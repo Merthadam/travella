@@ -27,6 +27,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   const [account, setAccount] = useState(null);
   const [identityProtected, setIdentityProtected] = useState(false);
   const [identityBusy, setIdentityBusy] = useState(false);
+  const [codeDisclosure, setCodeDisclosure] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const [selected, setSelected] = useState('home');
   const [draft, setDraft] = useState(null);
@@ -72,6 +73,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   }, [dirty, busy, identityBusy, uncertain]);
 
   function resetEditor() {
+    setCodeDisclosure(false);
     setIdentityProtected(false); setEditorKey(value => value + 1);
     setDraft(null); setError(''); setNotice(''); setConflict(false); setLatest(null);
     setUncertain(false); attempt.current = null;
@@ -146,7 +148,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     return <PreferenceSettings setting={selected} profile={saved} />;
   }
   function summary() {
-    if (['password', 'authenticator', 'recovery'].includes(selected)) return <AccountSecurity key={`${selected}-${editorKey}`} setting={selected} account={account} onAccountSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} cancel={guard} />;
+    if (['password', 'authenticator', 'recovery'].includes(selected)) return <AccountSecurity key={`${selected}-${editorKey}`} setting={selected} account={account} onAccountSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} onDisclosure={setCodeDisclosure} onAuthenticator={() => guard(() => setSelected('authenticator'))} cancel={guard} />;
     if (selected === 'name' || selected === 'email') return <AccountIdentity key={`${selected}-${editorKey}`} setting={selected} account={account} onSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} cancel={guard} />;
     if (preferenceLabels[selected]) return <>{values(profile)}<button className="account-primary" onClick={() => { setDraft(preferenceDraft(selected, profile)); setNotice(''); }}>Edit {preferenceLabels[selected]}</button></>;
     return <p className="account-values">We couldn't load this setting. Try again.</p>;
@@ -178,8 +180,8 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
       </div>
     </main>
     {pendingExit && <dialog ref={dialog} className="account-discard" aria-labelledby="account-discard-heading" aria-describedby="account-discard-description" onCancel={event => { event.preventDefault(); setPendingExit(null); }}>
-      <h2 id="account-discard-heading">Discard unsaved changes?</h2><p id="account-discard-description">Your changes to this setting haven't been saved.</p>
-      <div className="account-actions"><button ref={keepButton} onClick={() => setPendingExit(null)}>Keep editing</button><button onClick={() => { const action = pendingExit; setPendingExit(null); resetEditor(); action(); }}>Discard changes</button></div>
+      <h2 id="account-discard-heading">{codeDisclosure ? 'Have you saved your recovery codes?' : 'Discard unsaved changes?'}</h2><p id="account-discard-description">{codeDisclosure ? "You won't be able to view these codes again after closing them." : "Your changes to this setting haven't been saved."}</p>
+      <div className="account-actions"><button ref={keepButton} onClick={() => setPendingExit(null)}>{codeDisclosure ? 'Go back' : 'Keep editing'}</button><button onClick={() => { const action = pendingExit; setPendingExit(null); resetEditor(); action(); }}>{codeDisclosure ? 'Close codes' : 'Discard changes'}</button></div>
     </dialog>}
   </div>;
 }

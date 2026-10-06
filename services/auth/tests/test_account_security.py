@@ -269,3 +269,33 @@ def test_recovery_local_failure_rolls_back_proof_receipt_and_old_hashes(account,
     assert a.store.recovery_count('one') == 1
     assert a.store.get(body['verification_id'], a.now[0])['status'] == 'verified'
     assert a.client.post(PATH + '/operation-status', json={'event_id': body['event_id']}).json()['state'] == 'not_found'
+
+
+def test_concurrent_recovery_event_discloses_one_set_and_keeps_one_receipt(account):
+    from concurrent.futures import ThreadPoolExecutor
+    from fastapi.testclient import TestClient
+    from services.auth.tests.test_account import ORIGIN
+    a = account
+    mfa_provider(a, True)
+    body = {'verification_id': security_proof(a, 'recovery_rotate'), 'event_id': str(uuid4())}
+    def rotate():
+        with TestClient(a.client.app, base_url=ORIGIN, headers={'origin': ORIGIN, 'x-travella-request': '1'}) as client:
+            client.cookies.set('__Host-travella', a.sid)
+            return client.post(PATH + '/recovery-codes/rotate', json=body)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: rotate(), range(2)))
+    assert sorted(result.status_code for result in results) == [200, 409]
+    assert sum('codes' in result.json() for result in results) == 1
+    assert a.store.recovery_count('one') == 10
+    receipts = [r for r in a.store.account_records('one', a.now[0]) if r.get('event_id') == body['event_id']]
+    assert len(receipts) == 1 and receipts[0]['status'] == 'complete'
+
+
+def test_recovery_wrong_and_expired_proof_cannot_rotate(account):
+    a = account
+    mfa_provider(a, True)
+    for purpose in ('mfa_replace', 'recovery_rotate'):
+        body = {'verification_id': security_proof(a, purpose), 'event_id': str(uuid4())}
+        if purpose == 'recovery_rotate': a.now[0] += 301
+        assert a.client.post(PATH + '/recovery-codes/rotate', json=body).status_code == 403
+    assert a.store.recovery_count('one') == 0

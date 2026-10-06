@@ -1,6 +1,7 @@
 """Canonical identity projection and journaled, session-bound account operations."""
 
 import hashlib
+import secrets
 from threading import Lock
 from typing import Literal
 from uuid import UUID
@@ -14,8 +15,9 @@ from .token_validator import TokenValidationError
 
 
 class AccountError(Exception):
-    def __init__(self, code, status=503):
+    def __init__(self, code, status=503, account=None):
         self.code, self.status = code, status
+        self.account = account
 
 
 MESSAGES = {
@@ -170,13 +172,12 @@ class AccountService:
                and r.get('status') == 'result_unknown' for r in self.store.account_records(session['subject'], self.clock())):
             mfa = 'unavailable'
         count = self.store.recovery_count(session["subject"])
-        unavailable = {"available": False, "reason": "capability_unavailable"}
         return {"identity": {"first_name": attrs.get("given_name", ""), "last_name": attrs.get("family_name", ""),
                              "email": attrs["email"], "email_verified": True},
                 "capabilities": {"email_change": {"available": self.email_available(), "reason": None if self.email_available() else "capability_unavailable"},
                     "password_change": {"available": True, "reason": None},
                     "authenticator": self.authenticator_capabilities(mfa),
-                    "recovery_codes": {"rotate": False, "reason": "capability_unavailable"}},
+                    "recovery_codes": {"rotate": mfa == 'on', "reason": None if mfa == 'on' else 'capability_unavailable'}},
                 "password_policy": self.password_policy(), "mfa": {"status": mfa},
                 "recovery_codes": {"status": "available" if count else "empty", "remaining": count},
                 "pending_email": None if pending is None else {
@@ -355,6 +356,26 @@ class AccountService:
                 return self.finish_authenticator(sid, session, record)
             state = 'not_found' if not record else 'complete' if record['status'] == 'complete' else 'result_unknown'
             return {'state': state, 'account': self.output(sid, session)}
+
+    def rotate_recovery_codes(self, sid, session, data):
+        with self.store.account_guard(session['subject']):
+            if self.security_receipt(sid, session, data, 'recovery_rotate'):
+                raise AccountError('disclosure_unavailable', 409, self.output(sid, session))
+            output = self.output(sid, session)
+            if not output['capabilities']['recovery_codes']['rotate']:
+                raise AccountError('capability_unavailable')
+            codes = [secrets.token_hex(16).upper() for _ in range(10)]
+            try:
+                with self.store.transaction():
+                    record = self.security_intent(sid, session, data, 'recovery_rotate')
+                    self.store.put_recovery_codes(session['subject'], output['identity']['email'],
+                                                  [self.store.digest(code) for code in codes], self.clock())
+                    record['status'] = 'complete'
+                    self.store.update(record['id'], record)
+            except SQLAlchemyError:
+                raise AccountError('result_unknown') from None
+            # No plaintext is retained. Only the initiating response can disclose it, after commit.
+            return {'state': 'codes_generated', 'codes': codes, 'account': self.output(sid, session)}
 
     def record(self, sid, session, purpose, **values):
         return self.store.create_account_record(dict(subject=session["subject"], owner_sid_hash=self.store.digest(sid),
@@ -589,7 +610,8 @@ def register_account_routes(app, provider, verifier, store, current_session, rea
 
     @app.exception_handler(AccountError)
     async def account_error(request, exc):
-        return JSONResponse({"code": exc.code, "message": MESSAGES.get(exc.code, MESSAGES["provider_unavailable"])}, status_code=exc.status)
+        return JSONResponse({"code": exc.code, "message": MESSAGES.get(exc.code, MESSAGES["provider_unavailable"]),
+                             **({'account': exc.account} if exc.account else {})}, status_code=exc.status)
 
     @app.get("/auth/account")
     def account(request: Request):
@@ -653,5 +675,10 @@ def register_account_routes(app, provider, verifier, store, current_session, rea
     def authenticator_disable(data: SecurityInput, request: Request):
         sid, session, _ = service.context(request)
         return service.disable_authenticator(sid, session, data)
+
+    @app.post('/auth/account/recovery-codes/rotate')
+    def recovery_rotate(data: SecurityInput, request: Request):
+        sid, session, _ = service.context(request)
+        return service.rotate_recovery_codes(sid, session, data)
 
     return service
