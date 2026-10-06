@@ -49,3 +49,26 @@ test('password mismatch never submits and unknown outcome checks status without 
   expect(screen.queryByLabelText('Current password')).toBeNull();
   expect(screen.queryByText('Your password was changed.')).toBeNull();
 });
+
+test('authenticator setup discloses a transient manual key and waits for verified canonical On', async () => {
+  const user = userEvent.setup();
+  backend(path => response(path.endsWith('/verification') ? { state: 'verified', verification_id: 'proof' } : path.endsWith('/start') ? { state: 'enrollment_required', operation_id: 'operation', secret_code: 'FICTIONALSETUPKEY', expires_in: 300 } : { state: 'complete', account: { ...account, mfa: { status: 'on' } } }));
+  await page(user, 'Two-factor authentication');
+  await user.click(screen.getByText('Set up authenticator'));
+  await user.type(screen.getByLabelText('Current password'), 'current-fixture'); await user.click(screen.getByText('Continue'));
+  expect(screen.getByLabelText('Setup key').value).toBe('FICTIONALSETUPKEY');
+  expect(screen.queryByText('Your authenticator is on.')).toBeNull();
+  await user.type(screen.getByLabelText('Authenticator code'), '123456'); await user.click(screen.getByText('Verify authenticator'));
+  await screen.findByText('Your authenticator is on.');
+  expect(screen.queryByLabelText('Setup key')).toBeNull();
+});
+
+test('replacement warns before proof and policy-disallowed disable stays absent', async () => {
+  const user = userEvent.setup();
+  backend(() => response({}), { ...account, capabilities: { ...account.capabilities, authenticator: { replace: true, disable: false } }, mfa: { status: 'on' } });
+  await page(user, 'Two-factor authentication');
+  expect(screen.queryByText('Turn off authenticator')).toBeNull();
+  await user.click(screen.getByText('Replace authenticator'));
+  expect(screen.getByText(/Verifying the new authenticator will invalidate your old authenticator/)).toBeTruthy();
+  expect(fetch.mock.calls).toHaveLength(1);
+});

@@ -74,3 +74,96 @@ def test_password_status_is_session_bound_and_payload_validation_private(account
     assert invalid.status_code == 422 and 'fixture-current' not in invalid.text and 'victim-secret' not in invalid.text
     a.client.cookies.clear()
     assert a.client.post(PATH + '/password', json=data).status_code == 401
+
+
+def mfa_provider(a, enabled=False, required=False):
+    state = {'enabled': enabled}
+    original = a.provider.get_user.side_effect
+    a.provider.get_user.side_effect = lambda access: original(access) | {'UserMFASettingList': ['SOFTWARE_TOKEN_MFA'] if state['enabled'] else []}
+    a.provider.account_configuration.return_value['mfa'] = {'MfaConfiguration': 'ON' if required else 'OPTIONAL', 'SoftwareTokenMfaConfiguration': {'Enabled': True}}
+    a.provider.associate_software_token.return_value = {'SecretCode': 'FIXTURESETUPKEY'}
+    a.provider.verify_software_token.return_value = {'Status': 'SUCCESS'}
+    a.provider.set_software_token_preference.side_effect = lambda access, enabled: state.update(enabled=enabled)
+    if enabled:
+        a.provider.sign_in.return_value = {'ChallengeName': 'SOFTWARE_TOKEN_MFA', 'Session': 'private-challenge', 'ChallengeParameters': {'USERNAME': 'canonical-user'}}
+        a.provider.answer_challenge.return_value = {'AuthenticationResult': {'AccessToken': 'access', 'RefreshToken': 'temporary'}}
+    return state
+
+
+def security_proof(a, purpose):
+    response = a.client.post(PATH + '/verification', json={'purpose': purpose, 'password': 'fixture-password'}).json()
+    if response['state'] == 'mfa_required':
+        assert a.client.post(PATH + '/verification/complete', json={'verification_id': response['verification_id'], 'code': '123456'}).json()['state'] == 'verified'
+    return response['verification_id']
+
+
+def start_mfa(a, mode='setup'):
+    body = {'mode': mode, 'verification_id': security_proof(a, 'mfa_' + mode), 'event_id': str(uuid4())}
+    return body, a.client.post(PATH + '/authenticator/start', json=body)
+
+
+@pytest.mark.parametrize('mode', ['setup', 'replace'])
+def test_authenticator_requires_verify_preference_and_readback(account, mode):
+    a = account
+    mfa_provider(a, mode == 'replace')
+    body, result = start_mfa(a, mode)
+    assert result.status_code == 200
+    assert result.json()['secret_code'] == 'FIXTURESETUPKEY'
+    operation = result.json()['operation_id']
+    assert a.client.post(PATH + '/authenticator/start', json=body).status_code == 409
+    assert 'FIXTURESETUPKEY' not in a.client.get(PATH).text
+    result = a.client.post(PATH + '/authenticator/verify', json={'operation_id': operation, 'code': '123456'})
+    assert result.status_code == 200 and result.json()['account']['mfa']['status'] == 'on'
+    a.provider.verify_software_token.assert_called_once_with('123456', access_token='access')
+    a.provider.set_software_token_preference.assert_called_once_with('access', True)
+    assert a.client.post(PATH + '/authenticator/verify', json={'operation_id': operation, 'code': '123456'}).json()['state'] == 'complete'
+    a.provider.verify_software_token.assert_called_once()
+    for row in a.store.db.execute('SELECT payload FROM auth_sessions').fetchall():
+        assert 'FIXTURESETUPKEY' not in a.store.cipher.decrypt(row[0]).decode()
+
+
+def test_authenticator_partial_activation_and_wrong_code_never_claim_success(account):
+    a = account
+    mfa_provider(a)
+    body, result = start_mfa(a)
+    assert result.status_code == 200
+    operation = result.json()['operation_id']
+    a.provider.verify_software_token.return_value = {'Status': 'ERROR'}
+    assert a.client.post(PATH + '/authenticator/verify', json={'operation_id': operation, 'code': '111111'}).status_code == 400
+    a.provider.set_software_token_preference.assert_not_called()
+    a.provider.verify_software_token.return_value = {'Status': 'SUCCESS'}
+    a.provider.set_software_token_preference.side_effect = EndpointConnectionError(endpoint_url='https://private.test')
+    assert a.client.post(PATH + '/authenticator/verify', json={'operation_id': operation, 'code': '123456'}).json()['code'] == 'result_unknown'
+    assert a.client.get(PATH).json()['mfa']['status'] == 'unavailable'
+    status = a.client.post(PATH + '/operation-status', json={'event_id': body['event_id']}).json()
+    assert status['state'] == 'result_unknown'
+    assert a.client.post(PATH + '/authenticator/verify', json={'operation_id': operation, 'code': '123456'}).json()['state'] == 'result_unknown'
+    assert a.provider.verify_software_token.call_count == 2
+    a.provider.set_software_token_preference.assert_called_once()
+
+
+def test_enrollment_expiry_other_session_and_legacy_routes_cannot_bypass(account):
+    a = account
+    mfa_provider(a)
+    assert a.client.post('/auth/mfa/enrollment/start').status_code == 422
+    assert a.client.post('/auth/mfa/enrollment/verify', json={'code': '123456'}).status_code == 422
+    a.provider.associate_software_token.assert_not_called()
+    body, result = start_mfa(a)
+    assert result.status_code == 200
+    operation = result.json()['operation_id']
+    a.now[0] += 301
+    assert a.client.post(PATH + '/authenticator/verify', json={'operation_id': operation, 'code': '123456'}).status_code == 400
+    a.provider.verify_software_token.assert_not_called()
+
+
+@pytest.mark.parametrize('required', [False, True])
+def test_disable_is_proof_and_policy_guarded(account, required):
+    a = account
+    mfa_provider(a, True, required)
+    body = {'verification_id': security_proof(a, 'mfa_disable'), 'event_id': str(uuid4())}
+    result = a.client.post(PATH + '/authenticator/disable', json=body)
+    assert result.status_code == (503 if required else 200)
+    if required: a.provider.set_software_token_preference.assert_not_called()
+    else:
+        assert result.json()['account']['mfa']['status'] == 'off'
+        a.provider.set_software_token_preference.assert_called_once_with('access', False)
