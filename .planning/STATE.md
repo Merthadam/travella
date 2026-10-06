@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-26)
 Phase: 14 (Standalone A2UI Planning Components) — HUMAN REVIEW
 Plan: 4 of 4 implementation slices delivered; final design approval pending
 Status: Standalone studio at http://localhost:5177/. Builds and manual browser checks pass.
-Last activity: 2026-10-06 — Implemented separate frontend/src/design-system library and gallery.
+Last activity: 2026-10-06 — Completed quick task 261006-n64: Booked / Not booked travel-card states; Chrome desktop/mobile checks passed.
 
 Phase12's prior acceptance status is unchanged; see its own verification/UAT artifacts.
 
@@ -138,6 +138,8 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 261005-tzh | Fast-forwarded onboarding and low-effort agent changes into origin/main; preserved dirty local main checkout | 2026-10-05 | 4be4a89 | Complete | [261005-tzh](./quick/261005-tzh-merge-completed-onboarding-and-low-effor/) |
 
 | 261005-uc5 | Three small generatable Flights/Accommodation container prototypes; dedicated browsing views; design selection pending | 2026-10-05 | prototype/planning-cards | Prototype | [261005-uc5](./quick/261005-uc5-prototype-three-interactive-accommodatio/) |
+
+| 261006-n64 | Added independent Booked / Not booked travel-card previews | 2026-10-06 | e8efa38 | Complete | [261006-n64](./quick/261006-n64-add-booked-and-not-booked-states-to-flig/) |
 
 ### Roadmap Evolution — 2026-10-06
 
