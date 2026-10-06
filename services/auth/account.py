@@ -19,6 +19,8 @@ class AccountError(Exception):
 
 
 MESSAGES = {
+    "current_password_incorrect": "Your current password is incorrect.",
+    "password_policy": "Your new password doesn't meet the password policy. Choose another password.",
     "capability_unavailable": "This setting is currently unavailable. Check availability later.",
     "provider_unavailable": "We couldn't load this setting. Try again.",
     "result_unknown": "We couldn't confirm the result. Check saved details before trying again.",
@@ -76,6 +78,19 @@ class OperationInput(Input):
 
 class EmailVerify(OperationInput):
     code: SecretStr = Field(min_length=1, max_length=64)
+
+
+class EventInput(Input):
+    event_id: UUID
+
+
+class SecurityInput(EventInput):
+    verification_id: str = Field(min_length=1, max_length=128)
+
+
+class PasswordInput(SecurityInput):
+    current_password: SecretStr = Field(min_length=1, max_length=256)
+    new_password: SecretStr = Field(min_length=1, max_length=256)
 
 
 class AccountService:
@@ -147,16 +162,78 @@ class AccountService:
         return {"identity": {"first_name": attrs.get("given_name", ""), "last_name": attrs.get("family_name", ""),
                              "email": attrs["email"], "email_verified": True},
                 "capabilities": {"email_change": {"available": self.email_available(), "reason": None if self.email_available() else "capability_unavailable"},
-                    "password_change": unavailable,
+                    "password_change": {"available": True, "reason": None},
                     "authenticator": {"setup": False, "replace": False, "disable": False, "reason": "capability_unavailable"},
                     "recovery_codes": {"rotate": False, "reason": "capability_unavailable"}},
-                "password_policy": None, "mfa": {"status": mfa},
+                "password_policy": self.password_policy(), "mfa": {"status": mfa},
                 "recovery_codes": {"status": "available" if count else "empty", "remaining": count},
                 "pending_email": None if pending is None else {
                     "operation_id": pending['id'] if pending['owner_sid_hash'] == self.store.digest(sid) else None,
                     "new_email": pending['new_email'] if pending['owner_sid_hash'] == self.store.digest(sid) else None,
                     "state": 'awaiting_verification' if pending['status'] == 'awaiting_verification' else 'reconciliation_required',
                     "resumable": pending['owner_sid_hash'] == self.store.digest(sid)}}
+
+    def password_policy(self):
+        config = self.configuration()
+        policy = config['pool'].get('Policies', {}).get('PasswordPolicy', {}) if config else {}
+        fields = {'MinimumLength': 'minimum_length', 'RequireUppercase': 'require_uppercase',
+                  'RequireLowercase': 'require_lowercase', 'RequireNumbers': 'require_numbers', 'RequireSymbols': 'require_symbols'}
+        return {label: policy[key] for key, label in fields.items()
+                if key in policy and type(policy[key]) is (int if key == 'MinimumLength' else bool)} or None
+
+    def security_receipt(self, sid, session, data, purpose):
+        # Deliberately no input digest: passwords and password-derived values never persist.
+        prior = self.receipt(session, data.event_id, purpose)
+        if prior:
+            self.owned_record(sid, session, prior['id'], purpose=purpose)
+        return prior
+
+    def security_result(self, sid, session, record):
+        if record.get('error'):
+            raise AccountError(record['error'], record.get('error_status', 400))
+        return {'state': 'complete' if record['status'] == 'complete' else 'result_unknown',
+                'account': self.output(sid, session)}
+
+    def security_intent(self, sid, session, data, purpose):
+        with self.store.transaction():
+            self.consume_proof(sid, session, data.verification_id, purpose)
+            return self.record(sid, session, purpose, record_type='security', event_id=str(data.event_id),
+                               request_digest=purpose, status='result_unknown')
+
+    def change_password(self, sid, session, data):
+        with self.store.account_guard(session['subject']):
+            prior = self.security_receipt(sid, session, data, 'password_change')
+            if prior:
+                return self.security_result(sid, session, prior)
+            self.user(session)
+            record = self.security_intent(sid, session, data, 'password_change')
+            try:
+                self.provider.change_password(session['access'], data.current_password.get_secret_value(), data.new_password.get_secret_value())
+            except ClientError as exc:
+                code = exc.response.get('Error', {}).get('Code')
+                errors = {'NotAuthorizedException': ('current_password_incorrect', 400),
+                          'InvalidPasswordException': ('password_policy', 400),
+                          'PasswordHistoryPolicyViolationException': ('password_policy', 400),
+                          'TooManyRequestsException': ('rate_limited', 429), 'LimitExceededException': ('rate_limited', 429)}
+                if code in errors:
+                    record['error'], record['error_status'] = errors[code]
+                    record['status'] = 'failed'
+                    self.store.update(record['id'], record)
+                    raise AccountError(record['error'], record['error_status']) from None
+                raise AccountError('result_unknown') from None
+            except BotoCoreError:
+                raise AccountError('result_unknown') from None
+            record['status'] = 'complete'
+            self.store.update(record['id'], record)
+            return self.security_result(sid, session, record)
+
+    def operation_status(self, sid, session, data):
+        with self.store.account_guard(session['subject']):
+            record = next((r for r in self.store.account_records(session['subject'], self.clock())
+                           if r.get('event_id') == str(data.event_id) and r.get('owner_sid_hash') == self.store.digest(sid)
+                           and r.get('record_type') == 'security'), None)
+            state = 'not_found' if not record else 'complete' if record['status'] == 'complete' else 'result_unknown'
+            return {'state': state, 'account': self.output(sid, session)}
 
     def record(self, sid, session, purpose, **values):
         return self.store.create_account_record(dict(subject=session["subject"], owner_sid_hash=self.store.digest(sid),
@@ -428,5 +505,15 @@ def register_account_routes(app, provider, verifier, store, current_session, rea
     def email_verify(data: EmailVerify, request: Request):
         sid, session, _ = service.context(request)
         return service.verify_email(sid, session, data)
+
+    @app.post('/auth/account/password')
+    def password(data: PasswordInput, request: Request):
+        sid, session, _ = service.context(request)
+        return service.change_password(sid, session, data)
+
+    @app.post('/auth/account/operation-status')
+    def operation_status(data: EventInput, request: Request):
+        sid, session, _ = service.context(request)
+        return service.operation_status(sid, session, data)
 
     return service

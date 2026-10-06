@@ -35,6 +35,16 @@ def test_email_operation_botocore_shapes():
         stub.assert_no_pending_responses()
 
 
+def test_password_operation_has_only_access_previous_and_proposed():
+    import boto3
+    from botocore.stub import Stubber
+    client = boto3.client('cognito-idp', region_name='eu-north-1', aws_access_key_id='fixture', aws_secret_access_key='fixture')
+    with Stubber(client) as stub:
+        stub.add_response('change_password', {}, {'AccessToken': 'access', 'PreviousPassword': 'previous', 'ProposedPassword': 'proposed'})
+        CognitoAdapter(client, 'pool', 'client').change_password('access', 'previous', 'proposed')
+        stub.assert_no_pending_responses()
+
+
 class CognitoAdapterTests(unittest.TestCase):
     def test_register_maps_product_attributes(self):
         client = Mock()

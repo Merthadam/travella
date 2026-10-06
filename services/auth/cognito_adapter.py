@@ -99,6 +99,9 @@ class CognitoAdapter:
             Password=new_password,
         )
 
+    def change_password(self, access_token: str, previous: str, proposed: str):
+        return self.client.change_password(AccessToken=access_token, PreviousPassword=previous, ProposedPassword=proposed)
+
     def refresh(self, refresh_token: str) -> dict[str, Any]:
         return self.client.get_tokens_from_refresh_token(
             ClientId=self.app_client_id,

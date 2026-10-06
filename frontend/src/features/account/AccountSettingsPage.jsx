@@ -3,6 +3,7 @@ import { readTravelerProfile, request } from '../../api';
 import { PreferenceSettings, preferenceDraft, preferenceLabels, preferenceSaved } from './PreferenceSettings';
 import './account.css';
 import { AccountIdentity } from './AccountIdentity';
+import { AccountSecurity } from './AccountSecurity';
 
 export const ACCOUNT_SETTINGS = [
   { id: 'name', label: 'Your name', group: 'Personal details' },
@@ -145,6 +146,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     return <PreferenceSettings setting={selected} profile={saved} />;
   }
   function summary() {
+    if (['password', 'authenticator', 'recovery'].includes(selected)) return <AccountSecurity key={`${selected}-${editorKey}`} setting={selected} account={account} onAccountSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} cancel={guard} />;
     if (selected === 'name' || selected === 'email') return <AccountIdentity key={`${selected}-${editorKey}`} setting={selected} account={account} onSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} cancel={guard} />;
     if (preferenceLabels[selected]) return <>{values(profile)}<button className="account-primary" onClick={() => { setDraft(preferenceDraft(selected, profile)); setNotice(''); }}>Edit {preferenceLabels[selected]}</button></>;
     return <p className="account-values">We couldn't load this setting. Try again.</p>;
