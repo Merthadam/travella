@@ -55,7 +55,7 @@ test('dirty cancel and setting navigation keep editing until explicit discard', 
   await screen.findByRole('dialog', { name: 'Discard unsaved changes?' });
   await user.click(screen.getByRole('button', { name: 'Keep editing' }));
   expect(screen.getByLabelText('Accessibility needs').value).toBe('Step-free');
-  await user.selectOptions(screen.getByLabelText('Setting'), 'home');
+  await user.selectOptions(screen.getByLabelText('Choose a setting'), 'home');
   await user.click(screen.getByRole('button', { name: 'Discard changes', exact: true }));
   expect(screen.getByRole('heading', { name: 'Home base' })).toBeTruthy();
   expect(screen.queryByLabelText('Accessibility needs')).toBeNull();
@@ -143,4 +143,50 @@ test('transient session failure preserves editor and expiry rejects late save', 
   await act(async () => finish(response(200, { ...profile, accessibility_needs: 'Private draft', revision: 4 })));
   expect(screen.queryByText('Private draft')).toBeNull();
   expect(screen.queryByText('Your food and accessibility preferences were saved.')).toBeNull();
+});
+
+test('denied appearance storage leaves edits usable and unchanged Cancel leaves immediately', async () => {
+  vi.stubGlobal('localStorage', { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } });
+  const user = userEvent.setup(); render(<AccountApp />);
+  await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Dark mode' }));
+  await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
+  await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Edit food & accessibility' })).toBeTruthy();
+});
+
+test('dirty forward navigation restores position and waits for explicit discard', async () => {
+  const user = userEvent.setup(); render(<AccountApp />);
+  await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'My plans', exact: true }));
+  await screen.findByRole('heading', { name: 'My plans' });
+  act(() => history.back());
+  await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
+  await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
+  act(() => history.forward());
+  await screen.findByRole('dialog', { name: 'Discard unsaved changes?' });
+  await waitFor(() => expect(location.pathname).toBe('/account'));
+  await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+  expect(screen.getByLabelText('Accessibility needs').value).toBe('Step-free');
+  act(() => history.forward());
+  await screen.findByRole('dialog', { name: 'Discard unsaved changes?' });
+  await waitFor(() => expect(location.pathname).toBe('/account'));
+  await user.click(screen.getByRole('button', { name: 'Discard changes', exact: true }));
+  await screen.findByRole('heading', { name: 'My plans' });
+});
+
+test('dirty My plans and desktop setting selection share the confirmation', async () => {
+  const user = userEvent.setup(); render(<AccountApp />);
+  await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
+  await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
+  await user.click(screen.getByRole('button', { name: 'My plans', exact: true }));
+  await screen.findByRole('dialog', { name: 'Discard unsaved changes?' });
+  await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+  await user.click(screen.getByRole('button', { name: 'Home base' }));
+  await screen.findByRole('dialog', { name: 'Discard unsaved changes?' });
+  await user.click(screen.getByRole('button', { name: 'Discard changes', exact: true }));
+  expect(screen.getByRole('heading', { name: 'Home base' })).toBeTruthy();
 });

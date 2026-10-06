@@ -7,6 +7,7 @@ import { AccountApp } from './AccountApp';
 const response = (status, body) => ({ ok: status < 400, status, json: async () => body });
 
 beforeEach(() => {
+  history.replaceState(null, '', '/');
   vi.stubGlobal('fetch', vi.fn(async () => response(401, { message: 'Sign-in required.' })));
   vi.stubGlobal('localStorage', { length: 0 });
   vi.stubGlobal('sessionStorage', { length: 0 });
@@ -72,30 +73,37 @@ test('MFA challenge must succeed before the server session opens My plans', asyn
   await screen.findByRole('heading', { name: 'Welcome back' });
 });
 
-test('authenticated enrollment shows recovery codes once', async () => {
-  const user = await open();
-  fetch.mockImplementation(async (path) => {
-    if (String(path).startsWith('/v1/plans')) return response(200, { plans: [] });
-    if (path === '/v1/traveler-profile') return response(200, { exists: true, onboarding_complete: true, departure_base: '', citizenships: [], food_needs: '', accessibility_needs: '', travel_interests: '' });
-    if (path === '/auth/sign-in' || path === '/auth/session') return response(200, { state: 'signed_in' });
-    if (path === '/auth/mfa/enrollment/start') return response(200, { state: 'mfa_enrollment', secret_code: 'JBSWY3DPEHPK3PXP' });
-    if (path === '/auth/mfa/enrollment/verify') return response(200, { state: 'recovery_codes', codes: ['ABCD1234', 'EFGH5678'] });
-    return response(401, { message: 'Sign-in required.' });
-  });
-  await user.type(screen.getByLabelText('Email'), 'ada@example.com');
-  await user.type(screen.getByLabelText('Password'), 'secret-password');
-  await user.click(screen.getByRole('button', { name: 'Sign in', exact: true }));
+test('Account opens preferences without enrollment and returns to the mounted Plans view', async () => {
+  const user = userEvent.setup();
+  history.replaceState(null, '', '/plans');
+  fetch.mockImplementation(async path => response(200, path === '/v1/traveler-profile'
+    ? { exists: true, revision: 1, onboarding: { completed_version: 2 }, food_needs: '', accessibility_needs: '' }
+    : { plans: [] }));
+  render(<AccountApp />);
   await screen.findByRole('heading', { name: 'My plans' });
-  await user.click(screen.getByRole('button', { name: 'Set up authenticator' }));
-  await screen.findByRole('heading', { name: 'Set up an authenticator' });
-  expect(screen.getByText('JBSWY3DPEHPK3PXP')).toBeTruthy();
-  await user.type(screen.getByLabelText('Authenticator code'), '123456');
-  await user.click(screen.getByRole('button', { name: 'Verify', exact: true }));
-  await screen.findByRole('heading', { name: 'Save your recovery codes' });
-  expect(document.querySelector('.recovery-codes').textContent).toContain('ABCD1234');
-  await user.click(screen.getByRole('button', { name: 'I saved my codes' }));
+  const originalPlans = document.querySelector('.plans-app');
+  await user.click(screen.getByRole('button', { name: 'Account', exact: true }));
+  await screen.findByRole('heading', { name: 'Account & preferences' });
+  expect(location.pathname).toBe('/account');
+  expect(originalPlans.parentElement.hidden).toBe(true);
+  expect(originalPlans.parentElement.hasAttribute('inert')).toBe(true);
+  expect(fetch.mock.calls.some(([path]) => path.includes('/mfa/enrollment'))).toBe(false);
+  await user.click(screen.getByRole('button', { name: 'My plans', exact: true }));
   await screen.findByRole('heading', { name: 'My plans' });
-  expect(screen.queryByText('ABCD1234')).toBeNull();
+  expect(document.querySelector('.plans-app')).toBe(originalPlans);
+  expect(location.pathname).toBe('/plans');
+});
+
+test('direct account entry waits for session and profile bootstrap', async () => {
+  history.replaceState(null, '', '/account');
+  let sessionReady;
+  fetch.mockImplementation(path => path === '/auth/session' ? new Promise(resolve => { sessionReady = resolve; })
+    : Promise.resolve(response(200, { exists: true, revision: 1, onboarding: { completed_version: 2 } })));
+  render(<AccountApp />);
+  expect(screen.queryByRole('heading', { name: 'Account & preferences' })).toBeNull();
+  sessionReady(response(200, { state: 'signed_in' }));
+  await screen.findByRole('heading', { name: 'Account & preferences' });
+  expect(fetch.mock.calls.filter(([path]) => path === '/v1/traveler-profile')).toHaveLength(1);
 });
 
 test('recovery code requires authenticator replacement before sign-in', async () => {

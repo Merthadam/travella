@@ -27,11 +27,47 @@ export function AccountApp() {
   const [travelerProfile, setTravelerProfile] = useState(null);
   const heading = useRef(null);
   const generation = useRef(0);
+  const navigationGuard = useRef(null);
+  const accountVisible = useRef(false);
+  const returnRoute = useRef('/plans');
+  const position = useRef(0);
+  const restoring = useRef(false);
+  const approvedTraversal = useRef(false);
+  const queuedTraversal = useRef(null);
+  const plansRoute = path => /^\/plans(?:\/deleted|\/[0-9a-fA-F-]{36}(?:\/conversation)?)?$/.test(path) ? path : '/plans';
+
+  function initializeAccountHistory() {
+    if (Number.isInteger(history.state?.accountPosition)) {
+      position.current = history.state.accountPosition;
+      returnRoute.current = plansRoute(history.state?.accountReturn);
+    } else {
+      // A direct entry needs an internal Back destination whose history position is known.
+      history.replaceState({ accountPosition: 0 }, '', '/plans');
+      history.pushState({ accountPosition: 1, accountReturn: '/plans' }, '', '/account');
+      position.current = 1;
+    }
+  }
+  function openAccount() {
+    returnRoute.current = plansRoute(location.pathname);
+    position.current = Number.isInteger(history.state?.accountPosition) ? history.state.accountPosition : 0;
+    history.replaceState({ ...history.state, accountPosition: position.current }, '', location.pathname);
+    history.pushState({ accountPosition: ++position.current, accountReturn: returnRoute.current }, '', '/account');
+    accountVisible.current = true; go('account');
+  }
+  function openPlans() {
+    history.pushState({ accountPosition: ++position.current }, '', returnRoute.current);
+    accountVisible.current = false; go('signed_in');
+  }
 
   async function routeAfterSignIn() {
+    const ticket = generation.current;
     const profile = await readTravelerProfile();
+    if (generation.current !== ticket) return;
     setTravelerProfile(profile);
-    setStep(profile.onboarding?.completed_version >= 2 ? (window.location.pathname === '/account' ? 'account' : 'signed_in') : 'onboarding');
+    const account = window.location.pathname === '/account';
+    if (profile.onboarding?.completed_version >= 2 && account) initializeAccountHistory();
+    accountVisible.current = account && profile.onboarding?.completed_version >= 2;
+    setStep(profile.onboarding?.completed_version >= 2 ? (account ? 'account' : 'signed_in') : 'onboarding');
   }
 
   useEffect(() => { heading.current?.focus(); }, [step]);
@@ -43,8 +79,51 @@ export function AccountApp() {
         if (err.status !== 401) setError(err);
       }
     });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; generation.current++; };
   }, []);
+  useEffect(() => {
+    if (!['signed_in', 'account'].includes(step)) return;
+    function navigate(event) {
+      const target = location.pathname;
+      if (restoring.current) {
+        event.stopImmediatePropagation(); restoring.current = false;
+        const resume = queuedTraversal.current; queuedTraversal.current = null; resume?.(); return;
+      }
+      const nextPosition = Number.isInteger(event.state?.accountPosition) ? event.state.accountPosition : position.current - 1;
+      if (accountVisible.current) {
+        event.stopImmediatePropagation();
+        const delta = nextPosition - position.current;
+        if (!approvedTraversal.current && delta !== 0 && navigationGuard.current) {
+          const proceed = () => {
+            const traverse = () => { approvedTraversal.current = true; history.go(delta); };
+            if (restoring.current) queuedTraversal.current = traverse; else traverse();
+          };
+          // Query the guard without executing an accepted traversal twice.
+          let accepted = false;
+          const allowed = navigationGuard.current(() => { accepted = true; });
+          if (!allowed) {
+            restoring.current = true; history.go(-delta);
+            // Replace only the pending action, keeping the single page guard/dialog.
+            navigationGuard.current(proceed);
+            return;
+          }
+          if (!accepted) return;
+        }
+        approvedTraversal.current = false; position.current = nextPosition;
+        if (target === '/account') return;
+        accountVisible.current = false; setStep('signed_in');
+        return;
+      }
+      position.current = nextPosition;
+      if (target === '/account') {
+        event.stopImmediatePropagation();
+        returnRoute.current = plansRoute(event.state?.accountReturn);
+        accountVisible.current = true; setStep('account');
+      }
+    }
+    window.addEventListener('popstate', navigate, true);
+    return () => window.removeEventListener('popstate', navigate, true);
+  }, [step]);
   useEffect(() => {
     if (!['signed_in', 'account', 'onboarding'].includes(step)) return;
     let cancelled = false;
@@ -52,7 +131,8 @@ export function AccountApp() {
       // A temporary network/server failure must not discard an in-progress form.
       if (!cancelled && err.status === 401) {
         generation.current++;
-        setStep('sign_in'); setNotice(''); setError(null);
+        accountVisible.current = false; setTravelerProfile(null); setSecretCode(''); setRecoveryCodes([]);
+        setStep('sign_in'); setNotice('Your session has expired. Sign in again to continue.'); setError(null);
       }
     });
     const timer = setInterval(check, 30000);
@@ -65,6 +145,7 @@ export function AccountApp() {
     setStep(next); setError(null); setNotice('');
     if (next !== 'mfa_enrollment') setSecretCode('');
     if (next !== 'recovery_codes') setRecoveryCodes([]);
+    if (next === 'sign_in') { setTravelerProfile(null); accountVisible.current = false; }
   }
 
   async function submit(event) {
@@ -123,28 +204,18 @@ export function AccountApp() {
     finally { setBusy(false); }
   }
 
-  async function beginEnrollment() {
-    setBusy(true); setError(null);
-    try {
-      const result = await request('/auth/mfa/enrollment/start', {});
-      setSecretCode(result.secret_code); setStep('mfa_enrollment');
-    } catch (err) { setError(err); }
-    finally { setBusy(false); }
-  }
-
   if (step === 'onboarding') {
     return <OnboardingFlow initialProfile={travelerProfile || undefined} onExpired={() => go('sign_in')} onComplete={(profile) => {
       setTravelerProfile(profile); setStep('signed_in');
     }} />;
   }
 
-  if (step === 'signed_in') {
-    return <PlansApp onExpired={() => go('sign_in')} onSignOut={signOut} onAccount={() => { history.pushState(null, '', '/account'); go('account'); }}
-      accountBusy={busy} accountError={error} />;
+  if (step === 'signed_in' || step === 'account') {
+    return <><div hidden={step === 'account'} inert={step === 'account'}><PlansApp inactive={step === 'account'} onExpired={() => go('sign_in')} onSignOut={signOut} onAccount={openAccount}
+      accountBusy={busy} accountError={error} /></div>
+      {step === 'account' && <AccountSettingsPage initialProfile={travelerProfile} onExpired={() => go('sign_in')}
+        navigationGuard={navigationGuard} onProfileSaved={setTravelerProfile} onNavigatePlans={openPlans} />}</>;
   }
-
-  if (step === 'account') return <AccountSettingsPage initialProfile={travelerProfile} onExpired={() => go('sign_in')}
-    onNavigatePlans={() => { history.pushState(null, '', '/plans'); go('signed_in'); }} />;
 
   const hasEmail = ['sign_in', 'register', 'verify_email', 'forgot_password_email', 'reset_password'].includes(step);
   const hasPassword = ['sign_in', 'register', 'reset_password'].includes(step);

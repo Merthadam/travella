@@ -96,7 +96,10 @@ function ActionDialog({ value, onClose, onDone, onExpired, api }) {
   </dialog>;
 }
 
-export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false, accountError, api = plansApi }) {
+export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false, accountError, inactive = false, api = plansApi }) {
+  const inactiveView = useRef(inactive);
+  inactiveView.current = inactive;
+  const initialized = useRef(false);
   const [view, setView] = useState('active'), [plans, setPlans] = useState([]), [selected, setSelected] = useState(null);
   const [cursor, setCursor] = useState(null), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [notice, setNotice] = useState(''), [dialog, setDialog] = useState(null);
@@ -172,7 +175,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     if (err.status === 401) { generation.current++; onExpired(); return; }
     setError({ message: err.message || 'We couldn’t load your plans. Try again.', retry });
   }
-  function url(path) { if (window.location.pathname !== path) window.history.pushState({}, '', path); }
+  function url(path) { if (!inactiveView.current && window.location.pathname !== path) window.history.pushState({ accountPosition: (window.history.state?.accountPosition || 0) + 1 }, '', path); }
   async function load(nextView = 'active', nextCursor = null) {
     const ticket = ++generation.current;
     setLoading(true); setError(null); setView(nextView); setSelected(null); setConversationPage(false);
@@ -262,10 +265,16 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     return () => window.removeEventListener('keydown', handleDrawerKeys);
   }, [planDrawerOpen]);
   useEffect(() => {
-    function navigate() { const current = route(); if (current.id) open(current.id, false); else load(current.view); }
+    function navigate() { if (inactiveView.current || location.pathname === '/account') return; initialized.current = true; const current = route(); if (current.id) open(current.id, false); else load(current.view); }
     navigate(); window.addEventListener('popstate', navigate);
     return () => { generation.current++; window.removeEventListener('popstate', navigate); };
   }, []);
+  useEffect(() => {
+    if (!inactive && !initialized.current) {
+      initialized.current = true;
+      const current = route(); if (current.id) open(current.id, false); else load(current.view);
+    }
+  }, [inactive]);
   async function createPlan() {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
