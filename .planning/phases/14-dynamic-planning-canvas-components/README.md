@@ -1,6 +1,6 @@
 # Standalone A2UI planning components
 
-**Plan ready; implementation not started.** Latest scope: design reusable components with sample data, ready for future agent generation.
+**Implemented; ready for your design review.** Open http://localhost:5177/. Latest scope: design reusable components with sample data, ready for future agent generation.
 
 ## Components
 1. Trip Essentials — dates, travelers, budget.
@@ -21,4 +21,4 @@
 
 [Component contracts](14-COMPONENT-CONTRACT.md) · [UI design](14-UI-SPEC.md) · [Decisions](14-CONTEXT.md) · [Plan review](14-PLAN-REVIEW.md)
 
-The local gallery will simulate A2UI creation and updates. Live agent, AG-UI, persistence, Google Maps/Places and LiteAPI connections are deferred. Current sketch is visual only. Execute later with `$gsd-execute-phase 14`; this planning request does not start implementation.
+The local gallery simulates A2UI creation and updates. Live agent, AG-UI, persistence, Google Maps/Places and LiteAPI connections are deferred. The component gallery is now implemented, with manual browser evidence in artifacts/testing/2026-10-06-planning-components/. Final design approval remains pending.

@@ -342,16 +342,16 @@ Plans:
 4. No model/provider/backend calls or persisted Plan changes occur in the component gallery.
 5. User receives working preview and inspected desktop/mobile evidence before later integration.
 
-**Plans:** 4 plans in 3 waves; planning only, not implemented.
+**Plans:** 4 implementation slices delivered in the standalone component studio. Human design approval pending; see14-VERIFICATION.md.
 
 **Wave 1**
-- [ ] 14-01-PLAN.md — A2UI gallery and Trip Essentials
+- [x] 14-01-PLAN.md — A2UI gallery and Trip Essentials
 
 **Wave 2** *(after Wave 1)*
-- [ ] 14-02-PLAN.md — Destination Map and Trip Themes
-- [ ] 14-03-PLAN.md — Travel containers, findings and links
+- [x] 14-02-PLAN.md — Destination Map and Trip Themes
+- [x] 14-03-PLAN.md — Travel containers, findings and links
 
 **Wave 3** *(after both Wave 2 plans)*
-- [ ] 14-04-PLAN.md — Compose, inspect and review the catalog
+- [ ] 14-04-PLAN.md — Implementation and browser checks done; awaiting user design review
 
 **Cross-cutting constraints:** Standalone fixture state only; seven allowlisted component types; no production chat/navigation changes; no live agent/provider/persistence integration; no tests or paid calls unless requested.
