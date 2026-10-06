@@ -1,0 +1,51 @@
+import React from 'react';
+import { afterEach, expect, test, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AccountSettingsPage } from './AccountSettingsPage';
+
+const account = { identity: { first_name: 'Ada', last_name: 'Traveler', email: 'fixture@example.com' },
+  capabilities: { password_change: { available: true }, authenticator: { setup: true, replace: false, disable: false }, recovery_codes: { rotate: false } },
+  password_policy: { minimum_length: 12, require_numbers: true }, mfa: { status: 'off' }, recovery_codes: { status: 'empty', remaining: 0 } };
+const response = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+async function page(user, setting = 'Password', value = account) {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; };
+  render(<AccountSettingsPage initialProfile={{ revision: 1 }} onExpired={vi.fn()} />);
+  await screen.findByText('Ada Traveler');
+  await user.click(screen.getByRole('button', { name: setting, exact: true }));
+}
+function backend(handler, value = account) { vi.stubGlobal('fetch', vi.fn(async (path, options) => path === '/auth/account' ? response(value) : handler(path, JSON.parse(options.body)))); }
+async function passwords(user, confirm = 'new-fixture-password') {
+  await user.click(screen.getByText('Change password'));
+  await user.type(screen.getByLabelText('Current password'), 'current-fixture');
+  await user.type(screen.getByLabelText('New password'), 'new-fixture-password');
+  await user.type(screen.getByLabelText('Confirm new password'), confirm);
+  await user.click(screen.getByText('Save password'));
+}
+test('password verifies current credentials and factor before changing, clears terminal secrets', async () => {
+  const user = userEvent.setup();
+  backend((path, body) => response(path.endsWith('/verification') ? { state: 'mfa_required', verification_id: 'proof' } : path.endsWith('/complete') ? { state: 'verified', verification_id: 'proof' } : { state: 'complete', account }));
+  await page(user); await passwords(user);
+  expect(fetch.mock.calls.some(([path]) => path.endsWith('/password'))).toBe(false);
+  await user.type(screen.getByLabelText('Authenticator code'), '123456');
+  await user.click(screen.getByText('Continue'));
+  await screen.findByText('Your password was changed.');
+  const call = fetch.mock.calls.find(([path]) => path.endsWith('/password'));
+  expect(JSON.parse(call[1].body)).toEqual({ current_password: 'current-fixture', new_password: 'new-fixture-password', verification_id: 'proof', event_id: expect.any(String) });
+  expect(screen.queryByLabelText('Current password')).toBeNull();
+});
+test('password mismatch never submits and unknown outcome checks status without replay', async () => {
+  const user = userEvent.setup();
+  backend(path => { if (path.endsWith('/password')) throw new TypeError('offline'); return response(path.endsWith('/verification') ? { state: 'verified', verification_id: 'proof' } : { state: 'result_unknown', account }); });
+  await page(user); await passwords(user, 'different-fixture');
+  await screen.findByText("Your new passwords don't match.");
+  expect(fetch.mock.calls).toHaveLength(1);
+  await user.clear(screen.getByLabelText('Confirm new password')); await user.type(screen.getByLabelText('Confirm new password'), 'new-fixture-password');
+  await user.click(screen.getByText('Save password'));
+  await user.click(await screen.findByText('Check account status'));
+  expect(fetch.mock.calls.filter(([path]) => path.endsWith('/password'))).toHaveLength(1);
+  expect(screen.queryByLabelText('Current password')).toBeNull();
+  expect(screen.queryByText('Your password was changed.')).toBeNull();
+});
