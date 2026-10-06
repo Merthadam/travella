@@ -27,6 +27,47 @@ def test_password_acknowledgement_is_journaled_without_secrets(account):
     assert a.store.get(a.sid, a.now[0]) is not None
 
 
+def test_omitted_mfa_list_allows_password_change_and_initial_setup(account):
+    a = account
+    mfa_provider(a)
+    original = a.provider.get_user.side_effect
+    def omitted(access):
+        user = original(access)
+        user.pop('UserMFASettingList')
+        return user
+    a.provider.get_user.side_effect = omitted
+    result = a.client.get(PATH)
+    assert result.status_code == 200
+    assert result.json()['mfa']['status'] == 'off'
+    assert result.json()['capabilities']['authenticator']['setup'] is True
+    data = password_body(a)
+    changed = a.client.post(PATH + '/password', json=data)
+    assert changed.status_code == 200 and changed.json()['state'] == 'complete'
+    a.provider.change_password.assert_called_once()
+    assert a.store.get(data['verification_id'], a.now[0])['status'] == 'consumed'
+    _, started = start_mfa(a)
+    assert started.status_code == 200 and started.json()['secret_code'] == 'FIXTURESETUPKEY'
+    a.provider.associate_software_token.assert_called_once()
+
+
+@pytest.mark.parametrize('methods', [None, 'SOFTWARE_TOKEN_MFA', {}, [None], ['SOFTWARE_TOKEN_MFA', 1]])
+def test_malformed_mfa_list_blocks_status_proof_issue_and_consumption(account, methods):
+    a = account
+    data = password_body(a)
+    original = a.provider.get_user.side_effect
+    a.provider.get_user.side_effect = lambda access: original(access) | {'UserMFASettingList': methods}
+    result = a.client.get(PATH)
+    assert result.status_code == 200 and result.json()['mfa']['status'] == 'unavailable'
+    assert result.json()['capabilities']['authenticator']['setup'] is False
+    a.provider.sign_in.reset_mock()
+    verification = a.client.post(PATH + '/verification', json={'purpose': 'password_change', 'password': 'fixture'})
+    assert verification.status_code == 503 and verification.json()['code'] == 'provider_unavailable'
+    a.provider.sign_in.assert_not_called()
+    assert a.client.post(PATH + '/password', json=data).status_code == 403
+    a.provider.change_password.assert_not_called()
+    assert a.store.get(data['verification_id'], a.now[0])['status'] == 'verified'
+
+
 def test_password_unknown_is_never_resubmitted(account):
     a = account
     a.provider.change_password.side_effect = EndpointConnectionError(endpoint_url='https://private.test')

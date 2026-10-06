@@ -104,6 +104,14 @@ class AuthenticatorVerify(OperationInput):
     code: SecretStr = Field(min_length=6, max_length=6)
 
 
+def observed_mfa_status(user):
+    # Only use after a successful, subject-validated GetUser response.
+    methods = user.get('UserMFASettingList', [])
+    if not isinstance(methods, list) or any(not isinstance(item, str) for item in methods):
+        return 'unavailable'
+    return 'on' if 'SOFTWARE_TOKEN_MFA' in methods else 'off'
+
+
 class AccountService:
     def __init__(self, provider, verifier, store, current_session, ready, clock, capability_reader):
         self.provider, self.verifier, self.store = provider, verifier, store
@@ -166,8 +174,7 @@ class AccountService:
         if pending and attrs['email'] == pending['new_email']:
             self.reconcile(pending, attrs)
             pending = None
-        methods = user.get("UserMFASettingList")
-        mfa = ("on" if "SOFTWARE_TOKEN_MFA" in methods else "off") if isinstance(methods, list) else "unavailable"
+        mfa = observed_mfa_status(user)
         observed_mfa = mfa
         for record in self.store.account_records(session['subject'], self.clock()):
             expected = 'off' if record.get('purpose') == 'mfa_disable' else 'on'
@@ -231,8 +238,7 @@ class AccountService:
 
     def mfa_status(self, session):
         user, _ = self.user(session)
-        methods = user.get('UserMFASettingList')
-        return ('on' if 'SOFTWARE_TOKEN_MFA' in methods else 'off') if isinstance(methods, list) else 'unavailable'
+        return observed_mfa_status(user)
 
     def start_authenticator(self, sid, session, data):
         purpose = 'mfa_' + data.mode
@@ -455,6 +461,9 @@ class AccountService:
 
     def begin_verification(self, sid, session, data):
         user, _ = self.user(session)
+        status = observed_mfa_status(user)
+        if status == 'unavailable':
+            raise AccountError('provider_unavailable')
         if not isinstance(user.get('Username'), str) or not user['Username']:
             raise AccountError('provider_unavailable')
         try:
@@ -466,7 +475,7 @@ class AccountService:
                     raise AccountError('verification_failed', 400)
                 values = {'status': 'mfa_required', 'challenge': result['Session'], 'username': username}
             else:
-                if 'SOFTWARE_TOKEN_MFA' in user.get('UserMFASettingList', []):
+                if status == 'on':
                     # Validate/revoke any minted credentials, but require the current factor.
                     self.verify_tokens(result, session['subject'])
                     raise AccountError('verification_failed', 400)
@@ -492,7 +501,8 @@ class AccountService:
         if record.get('record_type') != 'proof':
             raise AccountError('verification_required', 403)
         # A proof minted while MFA was off cannot authorize operations after it turns on.
-        if self.mfa_status(session) != 'off' and not record.get('factor_verified'):
+        status = self.mfa_status(session)
+        if status == 'unavailable' or (status == 'on' and not record.get('factor_verified')):
             raise AccountError('verification_required', 403)
         record['status'] = 'consumed'
         self.store.update(token, record)
