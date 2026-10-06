@@ -68,7 +68,7 @@ last_updated: 2026-10-06T14:19:50.112Z
     "phase": "13",
     "file": "frontend/src/features/account/AccountSettingsPage.jsx",
     "line": 145,
-    "description": "Account identity/security rows are intentionally unavailable until plans 13-03 and 13-04. Preference editors completed in 13-02; browser gate remains open in entry 3.",
+    "description": "Account security rows and security capabilities are intentionally unavailable until plan 13-04. Preferences completed in 13-02 and canonical identity/conditional email in 13-03; browser gate remains open in entry 3.",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-06T14:19:50.022Z",
