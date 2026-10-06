@@ -321,6 +321,7 @@ def create_app(
 
     @app.api_route("/v1/traveler-profile", methods=["GET", "PUT"])
     @app.patch("/v1/traveler-profile/onboarding")
+    @app.patch("/v1/traveler-profile/sections")
     async def traveler_profile_proxy(request: Request):
         ready()
         body = await request.body()

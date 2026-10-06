@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { readSession, readTravelerProfile, request } from './api';
 import { PlansApp } from './PlansApp';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
+import { AccountSettingsPage } from './features/account/AccountSettingsPage';
 
 const titles = {
   sign_in: 'Welcome back', register: 'Create your account', verify_email: 'Verify your email',
@@ -30,7 +31,7 @@ export function AccountApp() {
   async function routeAfterSignIn() {
     const profile = await readTravelerProfile();
     setTravelerProfile(profile);
-    setStep(profile.onboarding?.completed_version >= 2 ? 'signed_in' : 'onboarding');
+    setStep(profile.onboarding?.completed_version >= 2 ? (window.location.pathname === '/account' ? 'account' : 'signed_in') : 'onboarding');
   }
 
   useEffect(() => { heading.current?.focus(); }, [step]);
@@ -45,7 +46,7 @@ export function AccountApp() {
     return () => { cancelled = true; };
   }, []);
   useEffect(() => {
-    if (!['signed_in', 'onboarding'].includes(step)) return;
+    if (!['signed_in', 'account', 'onboarding'].includes(step)) return;
     let cancelled = false;
     const check = () => readSession().catch((err) => {
       // A temporary network/server failure must not discard an in-progress form.
@@ -138,9 +139,12 @@ export function AccountApp() {
   }
 
   if (step === 'signed_in') {
-    return <PlansApp onExpired={() => go('sign_in')} onSignOut={signOut} onAccount={beginEnrollment}
+    return <PlansApp onExpired={() => go('sign_in')} onSignOut={signOut} onAccount={() => { history.pushState(null, '', '/account'); go('account'); }}
       accountBusy={busy} accountError={error} />;
   }
+
+  if (step === 'account') return <AccountSettingsPage initialProfile={travelerProfile} onExpired={() => go('sign_in')}
+    onNavigatePlans={() => { history.pushState(null, '', '/plans'); go('signed_in'); }} />;
 
   const hasEmail = ['sign_in', 'register', 'verify_email', 'forgot_password_email', 'reset_password'].includes(step);
   const hasPassword = ['sign_in', 'register', 'reset_password'].includes(step);

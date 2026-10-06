@@ -322,7 +322,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
         <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
       </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}
       <nav className="app-nav" aria-label="Application navigation">
-        <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
+        <button className="nav-button" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
       </nav>
     </div></header>

@@ -191,6 +191,21 @@ class OnboardingMutation(BaseModel):
         return self
 
 
+class AccountSectionMutation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    section: Literal["home", "citizenship", "needs", "interests"]
+    values: dict
+    expected_revision: int = Field(ge=0, strict=True)
+    event_id: UUID
+
+    @model_validator(mode="after")
+    def section_values(self):
+        if self.section != "needs":
+            raise ValueError("This profile section is not available.")
+        self.values = NeedsValues.model_validate(self.values).model_dump(mode="json")
+        return self
+
+
 class ProfileOutput(ProfileInput):
     home_city: HomeCity | None = None
     default_airport: str | None = None
