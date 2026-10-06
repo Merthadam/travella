@@ -2,6 +2,7 @@
 .account-page[data-theme=dark] { --account-bg:#111b17; --account-panel:#192620; --account-text:#e6ecdf; --account-muted:#a3b4a7; --account-line:#34453a; --account-soft:#22332a; --account-accent:#b3d59b; --account-active:#2c4232; --account-destructive:#ffb4ab; }
 .account-page *, .account-page *::before, .account-page *::after { box-sizing:border-box; }
 .account-page :is(h1,h2,h3,p) { margin:0; }
+.account-page :is(strong,b) { font-weight:600; }
 .account-page button { font:600 14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:inherit; border-radius:8px; padding:8px 16px; min-height:44px; min-width:44px; background:transparent; border:1px solid var(--account-muted); cursor:pointer; }
 .account-page button:hover { background:var(--account-soft); }
 .account-page button:disabled { opacity:.6; cursor:wait; }
