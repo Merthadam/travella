@@ -4,7 +4,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite --force",
-    "prototype:account": "vite --host 127.0.0.1 --port 5176 --strictPort",
     "build": "vite build",
     "test": "vitest run"
   },
