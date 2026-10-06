@@ -195,7 +195,7 @@ def test_incomplete_account_edits_mirror_canonical_clears_without_changing_plans
 
     provider = Mock()
     provider.sign_in.return_value = {"AuthenticationResult": {"AccessToken": gateway.system.token, "RefreshToken": "isolated-refresh"}}
-    provider.get_user.return_value = {"UserAttributes": [{"Name": "sub", "Value": "traveler-one"}, {"Name": "email_verified", "Value": "true"}]}
+    provider.get_user.return_value = {"Username": "canonical-user", "UserAttributes": [{"Name": "sub", "Value": "traveler-one"}, {"Name": "email_verified", "Value": "true"}, {"Name": "email", "Value": "travella.local@example.com"}]}
     app = create_app(provider, gateway.system.verifier, gateway.store, origin=ORIGIN,
                      clock=lambda: gateway.now[0], crud_client=gateway.adapter,
                      agent_client=AgentClient("http://agent.test", transport=httpx.MockTransport(mirror)))

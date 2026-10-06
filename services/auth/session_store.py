@@ -304,12 +304,14 @@ class SessionStore:
                                      {"id": self.digest(token)}).fetchone()
             return _epoch(row.expires_at) if row else 0
 
-    def account_records(self, subject: str, now: float) -> list[dict]:
+    def live_records(self, now: float) -> list[dict]:
         with self._operation() as connection:
             rows = connection.execute(text("SELECT payload FROM auth_sessions WHERE expires_at > :now"),
                                       {"now": _timestamp(now)}).fetchall()
-            values = [json.loads(self.cipher.decrypt(bytes(row.payload))) for row in rows]
-            return [v for v in values if v.get("kind") == "account_operation" and v.get("subject") == subject]
+            return [json.loads(self.cipher.decrypt(bytes(row.payload))) for row in rows]
+
+    def account_records(self, subject: str, now: float) -> list[dict]:
+        return [v for v in self.live_records(now) if v.get("kind") == "account_operation" and v.get("subject") == subject]
 
     def create_account_record(self, payload: dict, expires: float, now: float) -> dict:
         with self.transaction():

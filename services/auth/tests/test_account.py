@@ -219,3 +219,99 @@ def test_reset_repairs_pending_canonical_email_before_invalidating_sessions(acco
     assert result.status_code == 200
     assert a.store.get(a.sid, a.now[0]) is None
     a.provider.global_sign_out.assert_called_once_with('access')
+
+
+def test_concurrent_sessions_cannot_replace_pending_email(account):
+    from concurrent.futures import ThreadPoolExecutor
+    a = account
+    safe_email(a)
+    sid2 = a.store.create(a.store.get(a.sid, a.now[0]), 7000, a.now[0])
+    first_proof = proof(a)
+    a.client.cookies.set('__Host-travella', sid2)
+    second_proof = proof(a)
+    def start(sid, verification):
+        with TestClient(a.client.app, base_url=ORIGIN, headers={'origin': ORIGIN, 'x-travella-request': '1'}) as client:
+            client.cookies.set('__Host-travella', sid)
+            return client.post(PATH + '/email/start', json={'new_email': 'new@example.com', 'verification_id': verification, 'event_id': str(uuid4())}).status_code
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        one = pool.submit(start, a.sid, first_proof)
+        two = pool.submit(start, sid2, second_proof)
+        assert sorted([one.result(), two.result()]) == [200, 409]
+    a.provider.update_email.assert_called_once()
+
+
+def test_email_event_replay_changed_body_and_wrong_readback_never_repeat_update(account):
+    a = account
+    safe_email(a)
+    data = {'new_email': 'new@example.com', 'verification_id': proof(a), 'event_id': str(uuid4())}
+    result = a.client.post(PATH + '/email/start', json=data)
+    assert result.status_code == 200
+    assert a.client.post(PATH + '/email/start', json=data).status_code == 200
+    assert a.client.post(PATH + '/email/start', json=data | {'new_email': 'changed@example.com'}).json()['code'] == 'request_reused'
+    a.provider.update_email.assert_called_once()
+    operation = result.json()['operation_id']
+    response = a.client.post(PATH + '/email/verify', json={'operation_id': operation, 'code': '123456'})
+    assert response.status_code == 503 and response.json()['code'] == 'result_unknown'
+    assert a.store.get(a.sid, a.now[0])['email'] == 'old@example.com'
+
+
+def test_unknown_provider_start_is_journaled_encrypted_and_not_repeated(account):
+    from botocore.exceptions import EndpointConnectionError
+    a = account
+    safe_email(a)
+    a.provider.update_email.side_effect = EndpointConnectionError(endpoint_url='https://private.test')
+    data = {'new_email': 'new@example.com', 'verification_id': proof(a), 'event_id': str(uuid4())}
+    assert a.client.post(PATH + '/email/start', json=data).status_code == 503
+    assert a.client.post(PATH + '/email/start', json=data).status_code == 503
+    pending = a.client.get(PATH).json()['pending_email']
+    assert pending['state'] == 'reconciliation_required' and pending['resumable'] is True
+    a.provider.update_email.assert_called_once()
+    for row in a.store.db.execute('SELECT payload FROM auth_sessions').fetchall():
+        assert b'new@example.com' not in row[0] and b'fixture-password' not in row[0]
+        assert 'fixture-password' not in a.store.cipher.decrypt(row[0]).decode()
+
+
+@pytest.mark.parametrize('provider_code, status, code', [('NotAuthorizedException', 400, 'verification_failed'), ('TooManyRequestsException', 429, 'rate_limited')])
+def test_fresh_verification_errors_keep_session_and_hide_secrets(account, caplog, provider_code, status, code):
+    from botocore.exceptions import ClientError
+    a = account
+    a.provider.sign_in.side_effect = ClientError({'Error': {'Code': provider_code, 'Message': 'private-provider-text'}}, 'Auth')
+    result = a.client.post(PATH + '/verification', json={'purpose': 'email_change', 'password': 'fixture-password'})
+    assert result.status_code == status and result.json()['code'] == code
+    assert 'set-cookie' not in result.headers
+    assert a.store.get(a.sid, a.now[0]) is not None
+    for private in ('private-provider-text', 'fixture-password', 'canonical-user', 'old@example.com'):
+        assert private not in result.text + caplog.text
+
+
+def test_existing_totp_cannot_be_bypassed_by_direct_tokens(account):
+    a = account
+    original = a.provider.get_user.side_effect
+    a.provider.get_user.side_effect = lambda access: original(access) | {'UserMFASettingList': ['SOFTWARE_TOKEN_MFA']}
+    result = a.client.post(PATH + '/verification', json={'purpose': 'email_change', 'password': 'fixture-password'})
+    assert result.status_code == 400
+    a.provider.revoke.assert_called_once_with('temporary')
+
+
+def test_wrong_subject_cannot_read_pending_operation_and_expiry_does_not_extend_session(account):
+    a = account
+    safe_email(a)
+    operation = start_email(a).json()['operation_id']
+    a.attrs['sub'] = 'other'
+    a.verifier.return_value = ValidatedIdentity('other', 'client', frozenset(), 900, 9000)
+    other = a.store.create({'kind': 'session', 'subject': 'other', 'email': 'other@example.com', 'access': 'other', 'access_expires': 9000}, 1010, a.now[0])
+    a.client.cookies.set('__Host-travella', other)
+    assert a.client.get(PATH).json()['pending_email'] is None
+    assert a.client.post(PATH + '/email/resend', json={'operation_id': operation}).status_code == 403
+    result = a.client.post(PATH + '/verification', json={'purpose': 'email_change', 'password': 'fixture-password'})
+    assert result.json()['expires_in'] == 10
+    a.now[0] = 1011
+    assert a.client.get(PATH).status_code == 401
+
+
+def test_account_inherits_origin_bounds_and_private_validation(account):
+    a = account
+    assert a.client.post(PATH + '/verification', json={}, headers={'origin': 'https://other.test'}).status_code == 403
+    result = a.client.post(PATH + '/verification', json={'purpose': 'email_change', 'password': 'secret', 'subject': 'victim'})
+    assert result.status_code == 422 and result.json()['code'] == 'invalid_account'
+    assert 'secret' not in result.text and 'victim' not in result.text

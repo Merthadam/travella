@@ -27,7 +27,7 @@ def error(code="NotAuthorizedException"):
 
 @pytest.fixture
 def system(tmp_path):
-    now = [time.time()]
+    now = [float(int(time.time()))]
     provider = Mock()
     provider.sign_in.return_value = {
         "AuthenticationResult": {
@@ -36,9 +36,11 @@ def system(tmp_path):
         }
     }
     provider.get_user.return_value = {
+        "Username": "canonical-user",
         "UserAttributes": [
             {"Name": "sub", "Value": "traveler-one"},
             {"Name": "email_verified", "Value": "true"},
+            {"Name": "email", "Value": "ada@example.com"},
         ]
     }
     verifier = Mock(

@@ -27,9 +27,11 @@ def gateway(system, tmp_path):  # noqa: F811 — imported pytest fixture
         "AuthenticationResult": {"AccessToken": system.token, "RefreshToken": "private-refresh"}
     }
     provider.get_user.return_value = {
+        "Username": "canonical-user",
         "UserAttributes": [
             {"Name": "sub", "Value": "traveler-one"},
             {"Name": "email_verified", "Value": "true"},
+            {"Name": "email", "Value": "travella.local@example.com"},
         ]
     }
     now = [time.time()]

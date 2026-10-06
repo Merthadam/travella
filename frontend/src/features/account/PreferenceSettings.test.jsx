@@ -10,20 +10,21 @@ const profile = { exists: true, revision: 3, home_city: { name: 'Vienna', countr
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   HTMLDialogElement.prototype.close = function () { this.open = false; };
-  vi.stubGlobal('fetch', vi.fn(async (_path, options) => ({ ok: true, status: 200, json: async () => ({ ...profile, ...JSON.parse(options.body).values, revision: 4 }) })));
+  vi.stubGlobal('fetch', vi.fn(async (_path, options) => ({ ok: true, status: 200, json: async () => options.method === 'GET' ? {} : ({ ...profile, ...JSON.parse(options.body).values, revision: 4 }) })));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const page = (data = profile) => render(<AccountSettingsPage initialProfile={data} onExpired={vi.fn()} onNavigatePlans={vi.fn()} />);
+const writes = () => fetch.mock.calls.filter(([, options]) => options.method === 'PATCH');
 
 test('home is default and clearing airport only persists on Save', async () => {
   const user = userEvent.setup(); page();
   expect(screen.getByRole('heading', { name: 'Home base' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Edit home base' }));
   await user.click(await screen.findByRole('button', { name: 'Clear selected airport' }));
-  expect(fetch).not.toHaveBeenCalled();
+  expect(writes()).toHaveLength(0);
   await user.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Your home base was saved.');
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ section: 'home', values: { home_city: profile.home_city, default_airport: null } });
+  expect(JSON.parse(writes()[0][1].body)).toMatchObject({ section: 'home', values: { home_city: profile.home_city, default_airport: null } });
   expect(screen.getByText('No preference')).toBeTruthy();
 });
 
@@ -35,7 +36,7 @@ test('home changes disclose draft airport clear and cancel preserves saved home'
   await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
   await user.click(screen.getByRole('button', { name: 'Discard changes', exact: true }));
   expect(screen.getByText(/Vienna · Austria/)).toBeTruthy();
-  expect(fetch).not.toHaveBeenCalled();
+  expect(writes()).toHaveLength(0);
 });
 
 test('home validation failure retains the draft and focuses the error', async () => {
@@ -59,7 +60,7 @@ test('citizenships support accessible removal, catalog add and explicit clear vi
   await user.click(screen.getByRole('button', { name: 'Clear citizenships' }));
   await user.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Your citizenships were saved.');
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ section: 'citizenship', values: { citizenships: [] } });
+  expect(JSON.parse(writes()[0][1].body)).toMatchObject({ section: 'citizenship', values: { citizenships: [] } });
   expect(screen.getByText('No citizenships added')).toBeTruthy();
 });
 
@@ -77,15 +78,15 @@ test('interests allow keyboard add, duplicate feedback, individual removal and z
   screen.getByRole('button', { name: 'Remove Quiet walks interest' }).focus();
   await user.keyboard('{Enter}');
   expect(screen.getByText('1 interest selected')).toBeTruthy();
-  expect(fetch).not.toHaveBeenCalled();
+  expect(writes()).toHaveLength(0);
   await user.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Your interests were saved.');
-  expect(JSON.parse(fetch.mock.calls[0][1].body).values).toEqual({ interest_ids: ['hiking'], custom_interests: [] });
+  expect(JSON.parse(writes()[0][1].body).values).toEqual({ interest_ids: ['hiking'], custom_interests: [] });
   await user.click(screen.getByRole('button', { name: 'Edit your interests' }));
   await user.click(screen.getByRole('button', { name: 'Clear all interests' }));
   await user.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Your interests were saved.');
-  expect(JSON.parse(fetch.mock.calls[1][1].body).values).toEqual({ interest_ids: [], custom_interests: [] });
+  expect(JSON.parse(writes()[1][1].body).values).toEqual({ interest_ids: [], custom_interests: [] });
 });
 
 test('twenty custom interests remain removable and cannot exceed the maximum', async () => {

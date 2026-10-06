@@ -1,7 +1,6 @@
 """Canonical identity projection and journaled, session-bound account operations."""
 
 import hashlib
-import json
 from threading import Lock
 from typing import Literal
 from uuid import UUID
@@ -88,7 +87,16 @@ class AccountService:
 
     def context(self, request):
         self.ready()
-        return self.current_session(request)
+        try:
+            return self.current_session(request)
+        except TokenValidationError:
+            from fastapi import HTTPException
+            raise HTTPException(401, 'Sign-in required.') from None
+        except ClientError as exc:
+            if exc.response.get('Error', {}).get('Code') == 'NotAuthorizedException':
+                from fastapi import HTTPException
+                raise HTTPException(401, 'Sign-in required.') from None
+            raise AccountError('provider_unavailable') from None
 
     def user(self, session):
         try:
@@ -224,6 +232,10 @@ class AccountService:
                     raise AccountError('verification_failed', 400)
                 values = {'status': 'mfa_required', 'challenge': result['Session'], 'username': username}
             else:
+                if 'SOFTWARE_TOKEN_MFA' in user.get('UserMFASettingList', []):
+                    # Validate/revoke any minted credentials, but require the current factor.
+                    self.verify_tokens(result, session['subject'])
+                    raise AccountError('verification_failed', 400)
                 self.verify_tokens(result, session['subject'])
             expiry = min(self.clock() + 300, self.store.expiry(sid))
             record = self.store.create_account_record(dict(subject=session['subject'], owner_sid_hash=self.store.digest(sid),
@@ -281,6 +293,30 @@ class AccountService:
         except SQLAlchemyError:
             raise AccountError('result_unknown') from None
 
+    def reconcile_before_reset(self, email):
+        """Repair a persisted pending intent before reset invalidation uses its index."""
+        records = self.store.live_records(self.clock())
+        intents = [r for r in records if r.get('kind') == 'account_operation' and r.get('record_type') == 'email'
+                   and r.get('status') not in ('complete', 'failed') and email in (r.get('new_email'), r.get('old_email'))]
+        for record in intents:
+            with self.store.account_guard(record['subject']):
+                sessions = [s for s in records if s.get('kind') == 'session' and s.get('subject') == record['subject']
+                            and s.get('access_expires', 0) > self.clock()]
+                for session in sessions:
+                    try:
+                        principal = self.verifier(session['access'])
+                        if principal.subject != record['subject']:
+                            continue
+                        _, attrs = self.user(session)
+                    except (AccountError, ClientError, BotoCoreError, TokenValidationError):
+                        continue
+                    if attrs['email'] == record['new_email']:
+                        self.reconcile(record, attrs)
+                    break
+                else:
+                    # Never acknowledge reset while knowingly retaining stale local indexes.
+                    raise AccountError('provider_unavailable')
+
     def start_email(self, sid, session, data):
         with self.store.account_guard(session['subject']):
             if not self.email_available(fresh=True):
@@ -290,7 +326,11 @@ class AccountService:
             if prior:
                 self.owned_record(sid, session, prior['id'], purpose='email_change')
                 output = self.output(sid, session)
-                return {'state': 'complete' if prior['status'] == 'complete' else 'awaiting_verification', 'operation_id': prior['id'], 'account': output}
+                current = self.store.get(prior['id'], self.clock())
+                state = current['status']
+                if state not in ('complete', 'awaiting_verification'):
+                    raise AccountError('result_unknown')
+                return {'state': state, 'operation_id': prior['id'], 'account': output}
             if self.pending_email(session):
                 raise AccountError('operation_pending', 409)
             self.consume_proof(sid, session, data.verification_id, 'email_change')

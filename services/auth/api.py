@@ -155,7 +155,8 @@ def create_app(
             }
         )
         return JSONResponse(
-            {"message": "Check the highlighted fields.", "fields": fields}, status_code=422
+            {"message": "Check the highlighted fields.", "fields": fields,
+             **({"code": "invalid_account"} if request.url.path.startswith('/auth/account') else {})}, status_code=422
         )
 
     @app.exception_handler(HTTPException)
@@ -239,6 +240,7 @@ def create_app(
     def reset_password(data: ResetInput):
         ready()
         email = str(data.email)
+        app.state.account.reconcile_before_reset(email)
         try:
             provider.reset_password(
                 email, data.code.get_secret_value(), data.new_password.get_secret_value()
@@ -267,6 +269,12 @@ def create_app(
     def finish(result: dict, response: Response, email: str):
         tokens = result["AuthenticationResult"]
         principal = identity(tokens["AccessToken"])
+        user = provider.get_user(tokens['AccessToken'])
+        attributes = {a['Name']: a['Value'] for a in user.get('UserAttributes', [])}
+        if attributes.get('sub') != principal.subject or attributes.get('email_verified') != 'true' or not attributes.get('email'):
+            raise TokenValidationError('Canonical verified email required')
+        email = attributes['email']
+        store.reconcile_email(principal.subject, email)
         now = clock()
         sid = store.create(
             {
