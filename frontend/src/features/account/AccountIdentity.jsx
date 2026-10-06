@@ -141,10 +141,10 @@ function EmailIdentity({ account, onSaved, onExpired, onProtected, onBusy, cance
     });
   }
   return <div aria-busy={busy}>
-    <p className="account-values">{account.identity.email}</p>
+    <div className="account-values"><p>{account.identity.email}</p><p>{account.identity.email_verified ? 'Verified' : 'Verification status unavailable'}</p></div>
     {error && <p id="account-email-error" ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
     {uncertain && <button disabled={busy} onClick={() => run(check)}>Check saved details</button>}
-    {stage === 'summary' ? <>{pending ? <><p>{pending.resumable ? 'Verify your new email address to complete the change.' : 'An email change is pending in another session.'}</p>{pending.resumable && <button onClick={() => { operation.current = pending.operation_id; setEmail(pending.new_email); setStage('pending'); }}>Resume email change</button>}</> : account.capabilities.email_change.available ? <button className="account-primary" onClick={() => setStage('password')}>Change email address</button> : <p>Email changes are currently unavailable.</p>}
+    {stage === 'summary' ? <>{pending ? <><p>{pending.resumable ? 'Awaiting verification. Verify your new email address to complete the change.' : 'An email change is pending in another session.'}</p>{pending.resumable && <button onClick={() => { operation.current = pending.operation_id; setEmail(pending.new_email); setStage('pending'); }}>Resume email change</button>}</> : account.capabilities.email_change.available ? <button className="account-primary" onClick={() => setStage('password')}>Change email address</button> : <p>Email changes are unavailable right now. Your current email address is unchanged.</p>}
       <button disabled={busy} onClick={() => run(check)}>Check availability</button></> : <form ref={form} onSubmit={submit}>
       <fieldset disabled={busy || uncertain} aria-describedby={error ? 'account-email-error' : undefined}>
         {stage === 'password' && <><h3>Confirm it's you</h3><label>Current password<input type="password" autoComplete="current-password" required maxLength={256} value={password} onChange={event => setPassword(event.target.value)} /></label></>}
