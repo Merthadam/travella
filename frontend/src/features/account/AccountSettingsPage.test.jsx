@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountApp } from '../../AccountApp';
+import { AccountSettingsPage } from './AccountSettingsPage';
 
 const profile = { exists: true, revision: 3, onboarding_complete: true, onboarding: { completed_version: 2 }, food_needs: 'Vegetarian', accessibility_needs: '' };
 const response = (status, body) => ({ ok: status < 400, status, json: async () => body });
@@ -14,6 +15,27 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async path => response(200, path === '/v1/traveler-profile' ? profile : { plans: [] })));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
+
+test('account loading is distinct from failure and local retry preserves selected security setting', async () => {
+  const user = userEvent.setup(); let finish;
+  fetch.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  render(<AccountSettingsPage initialProfile={profile} onExpired={vi.fn()} />);
+  await user.click(screen.getByRole('button', { name: 'Your name' }));
+  expect(screen.getByText('Loading account details…')).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
+  await act(async () => finish(response(503, {})));
+  expect(screen.getByRole('alert').textContent).toContain("We couldn't load this setting.");
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
+  expect(screen.getByText('Edit food & accessibility')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Two-factor authentication' }));
+  await user.click(screen.getByText('Retry'));
+  expect(screen.getByText('Loading account details…')).toBeTruthy();
+  expect(screen.queryByText('Retry')).toBeNull();
+  await act(async () => finish(response(200, { identity: { first_name: 'Ada', last_name: 'Traveler' }, mfa: { status: 'off' }, capabilities: { authenticator: { setup: true } } })));
+  expect(screen.getByRole('heading', { name: 'Two-factor authentication' })).toBeTruthy();
+  expect(screen.getByText('Set up authenticator')).toBeTruthy();
+  expect(fetch.mock.calls).toHaveLength(2);
+});
 
 test('production account saves exact needs contract and renders only acknowledged values', async () => {
   const user = userEvent.setup();

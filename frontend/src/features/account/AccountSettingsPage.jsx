@@ -25,6 +25,8 @@ function initialTheme() {
 export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans, navigationGuard, onProfileSaved }) {
   const [profile, setProfile] = useState(initialProfile);
   const [account, setAccount] = useState(null);
+  const [accountRead, setAccountRead] = useState('loading');
+  const [accountReadAttempt, setAccountReadAttempt] = useState(0);
   const [identityProtected, setIdentityProtected] = useState(false);
   const [identityBusy, setIdentityBusy] = useState(false);
   const [codeDisclosure, setCodeDisclosure] = useState(false);
@@ -49,7 +51,18 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   const setting = ACCOUNT_SETTINGS.find(item => item.id === selected);
   const invalid = error === 'Check the highlighted fields and try again.';
   const dirty = identityProtected || (draft !== null && JSON.stringify(draft) !== JSON.stringify(preferenceDraft(selected, profile)));
-  useEffect(() => { let active = true; request('/auth/account').then(value => { if (active) setAccount(value); }).catch(err => { if (active && err.status === 401) onExpired(); }); return () => { active = false; }; }, [onExpired]);
+  useEffect(() => {
+    let active = true;
+    setAccountRead('loading');
+    request('/auth/account').then(value => {
+      if (active && alive.current) { setAccount(value); setAccountRead('ready'); }
+    }).catch(err => {
+      if (!active || !alive.current) return;
+      if (err.status === 401) expired();
+      else setAccountRead('error');
+    });
+    return () => { active = false; };
+  }, [onExpired, accountReadAttempt]);
 
   useEffect(() => { alive.current = true; return () => { alive.current = false; attempt.current = null; }; }, []);
   useEffect(() => {
@@ -148,6 +161,10 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     return <PreferenceSettings setting={selected} profile={saved} />;
   }
   function summary() {
+    if (['name', 'email', 'password', 'authenticator', 'recovery'].includes(selected)) {
+      if (accountRead === 'loading') return <p role="status" aria-live="polite">Loading account details…</p>;
+      if (accountRead === 'error') return <><p role="alert">We couldn't load this setting. Try again.</p><button onClick={() => setAccountReadAttempt(value => value + 1)}>Retry</button></>;
+    }
     if (['password', 'authenticator', 'recovery'].includes(selected)) return <AccountSecurity key={`${selected}-${editorKey}`} setting={selected} account={account} onAccountSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} onDisclosure={setCodeDisclosure} onAuthenticator={() => guard(() => setSelected('authenticator'))} cancel={guard} />;
     if (selected === 'name' || selected === 'email') return <AccountIdentity key={`${selected}-${editorKey}`} setting={selected} account={account} onSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} cancel={guard} />;
     if (preferenceLabels[selected]) return <>{values(profile)}<button className="account-primary" onClick={() => { setDraft(preferenceDraft(selected, profile)); setNotice(''); }}>Edit {preferenceLabels[selected]}</button></>;
