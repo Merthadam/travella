@@ -212,3 +212,60 @@ def test_active_replacement_cannot_be_overlapped_or_disabled(account):
     data = {'verification_id': security_proof(a, 'mfa_disable'), 'event_id': str(uuid4())}
     assert a.client.post(PATH + '/authenticator/disable', json=data).json()['code'] == 'operation_pending'
     a.provider.set_software_token_preference.assert_not_called()
+
+
+def test_recovery_rotation_is_hash_only_atomic_and_disclosed_once(account):
+    import hashlib
+    a = account
+    mfa_provider(a, True)
+    old = hashlib.sha256(b'LEGACY01').hexdigest()
+    a.store.put_recovery_codes('one', 'old@example.com', [old], a.now[0])
+    a.store.put_recovery_codes('other', 'other@example.com', ['untouched'], a.now[0])
+    body = {'verification_id': security_proof(a, 'recovery_rotate'), 'event_id': str(uuid4())}
+    result = a.client.post(PATH + '/recovery-codes/rotate', json=body)
+    assert result.status_code == 200
+    codes = result.json()['codes']
+    assert len(codes) == len(set(codes)) == 10
+    assert all(len(code) == 32 for code in codes)
+    assert a.client.get(PATH).json()['recovery_codes'] == {'status': 'available', 'remaining': 10}
+    replay = a.client.post(PATH + '/recovery-codes/rotate', json=body)
+    assert replay.status_code == 409 and replay.json()['code'] == 'disclosure_unavailable'
+    assert replay.json()['account']['recovery_codes']['remaining'] == 10
+    assert a.client.post(PATH + '/operation-status', json={'event_id': body['event_id']}).json()['state'] == 'complete'
+    assert a.store.consume_recovery_code('one', old) is False
+    assert a.store.consume_recovery_code('one', hashlib.sha256(codes[0].encode()).hexdigest()) is True
+    assert a.store.consume_recovery_code('one', hashlib.sha256(codes[0].encode()).hexdigest()) is False
+    assert a.store.recovery_count('other') == 1
+    public = a.client.get(PATH).text + replay.text
+    payloads = [a.store.cipher.decrypt(row[0]).decode() for row in a.store.db.execute('SELECT payload FROM auth_sessions').fetchall()]
+    payloads += [a.store.cipher.decrypt(row[0]).decode() for row in a.store.db.execute('SELECT payload FROM auth_recovery_codes').fetchall()]
+    for code in codes:
+        assert code not in public and all(code not in payload for payload in payloads)
+    assert a.client.get(PATH).json()['recovery_codes']['remaining'] == 9
+
+
+def test_recovery_rotation_requires_active_factor_and_right_proof(account):
+    a = account
+    mfa_provider(a)
+    body = {'verification_id': security_proof(a, 'recovery_rotate'), 'event_id': str(uuid4())}
+    assert a.client.post(PATH + '/recovery-codes/rotate', json=body).status_code == 503
+    assert a.store.recovery_count('one') == 0
+    assert a.client.post(PATH + '/recovery-codes/rotate', json=body | {'subject': 'other'}).status_code == 422
+
+
+def test_recovery_local_failure_rolls_back_proof_receipt_and_old_hashes(account, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+    a = account
+    mfa_provider(a, True)
+    a.store.put_recovery_codes('one', 'old@example.com', ['old-hash'], a.now[0])
+    body = {'verification_id': security_proof(a, 'recovery_rotate'), 'event_id': str(uuid4())}
+    original = a.store.put_recovery_codes
+    def fail_after_write(*args):
+        original(*args)
+        raise OperationalError('fixture', {}, Exception('private'))
+    monkeypatch.setattr(a.store, 'put_recovery_codes', fail_after_write)
+    result = a.client.post(PATH + '/recovery-codes/rotate', json=body)
+    assert result.status_code == 503
+    assert a.store.recovery_count('one') == 1
+    assert a.store.get(body['verification_id'], a.now[0])['status'] == 'verified'
+    assert a.client.post(PATH + '/operation-status', json={'event_id': body['event_id']}).json()['state'] == 'not_found'

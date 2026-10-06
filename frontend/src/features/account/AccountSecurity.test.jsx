@@ -72,3 +72,32 @@ test('replacement warns before proof and policy-disallowed disable stays absent'
   expect(screen.getByText(/Verifying the new authenticator will invalidate your old authenticator/)).toBeTruthy();
   expect(fetch.mock.calls).toHaveLength(1);
 });
+
+test('recovery codes copy follows actual clipboard outcome and navigation requires disclosure confirmation', async () => {
+  const user = userEvent.setup();
+  const capable = { ...account, mfa: { status: 'on' }, capabilities: { ...account.capabilities, recovery_codes: { rotate: true } } };
+  backend(path => response(path.endsWith('/verification') ? { state: 'verified', verification_id: 'proof' } : { state: 'codes_generated', codes: ['FICTIONAL-CODE-ONE', 'FICTIONAL-CODE-TWO'], account: { ...capable, recovery_codes: { status: 'available', remaining: 2 } } }), capable);
+  await page(user, 'Recovery codes');
+  await user.click(screen.getByText('Generate recovery codes'));
+  await user.type(screen.getByLabelText('Current password'), 'current-fixture'); await user.click(screen.getByText('Continue'));
+  expect(screen.getByLabelText('Your new recovery codes').value).toContain('FICTIONAL-CODE-ONE');
+  const clipboard = vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('denied')).mockResolvedValueOnce();
+  await user.click(screen.getByText('Copy codes'));
+  await screen.findByText("Couldn't copy the codes. Select and copy them manually.");
+  expect(screen.queryByText('Codes copied.')).toBeNull();
+  await user.click(screen.getByText('Copy codes')); await screen.findByText('Codes copied.');
+  expect(clipboard).toHaveBeenLastCalledWith('FICTIONAL-CODE-ONE\nFICTIONAL-CODE-TWO');
+  await user.click(screen.getByRole('button', { name: 'Password', exact: true }));
+  await screen.findByRole('dialog', { name: 'Have you saved your recovery codes?' });
+  await user.click(screen.getByText('Go back')); expect(screen.getByLabelText('Your new recovery codes')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Password', exact: true }));
+  await user.click(screen.getByText('Close codes')); expect(screen.queryByLabelText('Your new recovery codes')).toBeNull();
+});
+
+test('MFA-off recovery link opens actual authenticator setting', async () => {
+  const user = userEvent.setup(); backend(() => response({}));
+  await page(user, 'Recovery codes');
+  await user.click(screen.getByText('Set up authenticator'));
+  expect(screen.getByRole('heading', { name: 'Two-factor authentication' })).toBeTruthy();
+  expect(fetch.mock.calls).toHaveLength(1);
+});
