@@ -125,3 +125,41 @@ def test_account_token_ownership_and_cross_origin(gateway):
     with gateway.system.factory() as db:
         assert db.get(TravelerProfile, "traveler-one") is None
         assert db.get(TravelerProfile, "another-traveler").payload["food_needs"] == "Vegetarian"
+
+
+def test_account_interests_allow_zero_and_one_while_onboarding_requires_five(gateway):
+    from services.shared.traveler_profile import reference_catalog
+    login(gateway)
+    client = gateway.client
+    catalog = reference_catalog("interests")
+    initial = client.put(PATH, json={"travel_interests": "Legacy interests", "onboarding_complete": True}).json()
+    # A different section must not discard legacy text.
+    unchanged = section_write(client, "needs", {"food_needs": "", "accessibility_needs": ""}, initial["revision"]).json()
+    assert unchanged["travel_interests"] == "Legacy interests"
+    saved = unchanged
+    for values in [{"interest_ids": [catalog[0]["id"]], "custom_interests": []},
+                   {"interest_ids": [catalog[0]["id"], catalog[0]["id"]],
+                    "custom_interests": [catalog[0]["label"].upper(), "  Quiet   walks ", "quiet walks"]},
+                   {"interest_ids": [], "custom_interests": []}]:
+        response = section_write(client, "interests", values, saved["revision"])
+        assert response.status_code == 200, response.text
+        saved = response.json()
+        assert saved["onboarding"] == initial["onboarding"] and saved["onboarding_complete"]
+        assert client.get(PATH).json() == saved
+        assert len(saved["interest_ids"]) <= 1
+        assert saved["custom_interests"] in ([], ["Quiet walks"])
+        with gateway.system.factory() as db:
+            payload = db.get(TravelerProfile, "traveler-one").payload
+            assert all(payload[key] == saved[key] for key in ["interest_ids", "custom_interests", "travel_interests"])
+    assert saved["travel_interests"] == ""
+    for values in [{"interest_ids": [], "custom_interests": []},
+                   {"interest_ids": [catalog[0]["id"]], "custom_interests": []}]:
+        response = client.patch(PATH + "/onboarding", json={"step": "interests", "action": "continue", "values": values,
+                                "expected_revision": saved["revision"], "event_id": str(uuid4())})
+        assert response.status_code == 422
+    for values in [{"interest_ids": ["invalid"], "custom_interests": []},
+                   {"interest_ids": [], "custom_interests": ["x" * 81]},
+                   {"interest_ids": [], "custom_interests": [f"{i} " + "x" * 75 for i in range(20)]},
+                   {"interest_ids": [], "custom_interests": [f"Interest {i}" for i in range(21)]}]:
+        assert section_write(client, "interests", values, saved["revision"]).status_code == 422
+        assert client.get(PATH).json() == saved
