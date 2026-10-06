@@ -53,9 +53,93 @@ export function AccountIdentity({ setting, account, onSaved, onExpired, onProtec
       {uncertain && <button type="button" disabled={busy} onClick={() => save()}>Check saved details</button>}
       {conflict && <button type="button" disabled={busy} onClick={() => run(refresh)}>Review latest details</button>}
       <div className="account-actions"><button type="button" disabled={busy} onClick={() => cancel(() => { setDraft(null); setUncertain(false); })}>Cancel</button><button className="account-primary" disabled={busy || uncertain || conflict}>{busy ? 'Saving…' : 'Save changes'}</button></div>
-    </form> : <><p className="account-values">{[identity.first_name, identity.last_name].filter(Boolean).join(' ') || 'Your name has not been added.'}</p><button className="account-primary" onClick={() => { setDraft(names); setNotice(''); }}>Edit your name</button></>}</> : <>
-      <p className="account-values">{identity.email}</p>
-      <p>Email changes are currently unavailable.</p><button disabled={busy} onClick={() => run(refresh)}>Check availability</button>
-    </>}
+    </form> : <><p className="account-values">{[identity.first_name, identity.last_name].filter(Boolean).join(' ') || 'Your name has not been added.'}</p><button className="account-primary" onClick={() => { setDraft(names); setNotice(''); }}>Edit your name</button></>}</> : <EmailIdentity account={account} onSaved={onSaved} onExpired={onExpired} onProtected={onProtected} onBusy={onBusy} cancel={cancel} />}
+  </div>;
+}
+
+function EmailIdentity({ account, onSaved, onExpired, onProtected, onBusy, cancel }) {
+  const [stage, setStage] = useState('summary');
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [uncertain, setUncertain] = useState(false);
+  const verification = useRef(null);
+  const operation = useRef(null);
+  const lock = useRef(false);
+  const alive = useRef(true);
+  const pending = account.pending_email;
+  useEffect(() => { alive.current = true; return () => { alive.current = false; verification.current = null; operation.current = null; }; }, []);
+  useEffect(() => { onProtected?.(stage !== 'summary' || uncertain); return () => onProtected?.(false); }, [stage, uncertain, onProtected]);
+  useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy, onBusy]);
+  function leave() {
+    verification.current = null; operation.current = null; setPassword(''); setCode(''); setEmail(''); setStage('summary'); setUncertain(false); setError('');
+  }
+  async function run(action) {
+    if (lock.current) return;
+    lock.current = true; setBusy(true); setError(''); setNotice('');
+    try { await action(); }
+    catch (err) {
+      if (!alive.current) return;
+      if (err.status === 401) { leave(); onExpired?.(); }
+      else {
+        setError(err.message || "We couldn't confirm the result. Check saved details.");
+        if (['verification_required', 'verification_failed'].includes(err.code)) { verification.current = null; setStage('password'); }
+        if (err.code === 'obsolete_operation') { verification.current = null; operation.current = null; setStage('summary'); }
+        if (!err.status || err.status >= 500) setUncertain(true);
+      }
+    } finally { lock.current = false; if (alive.current) { setBusy(false); setPassword(''); setCode(''); } }
+  }
+  async function check() {
+    const saved = await request('/auth/account');
+    if (!alive.current) return;
+    onSaved(saved); setUncertain(false); verification.current = null;
+    if (saved.pending_email?.resumable) { operation.current = saved.pending_email.operation_id; setEmail(saved.pending_email.new_email); setStage('pending'); }
+    else { operation.current = null; setStage('summary'); }
+  }
+  async function submit(event) {
+    event.preventDefault();
+    const current = stage;
+    await run(async () => {
+      let result;
+      if (current === 'password' || current === 'factor') {
+        result = await request(current === 'password' ? '/auth/account/verification' : '/auth/account/verification/complete', current === 'password' ? { purpose: 'email_change', password } : { verification_id: verification.current, code });
+        if (!alive.current) return;
+        if (!['verified', 'mfa_required'].includes(result.state) || !result.verification_id) throw new Error('Verification result unavailable.');
+        verification.current = result.verification_id; setStage(result.state === 'verified' ? 'email' : 'factor');
+      } else if (current === 'email') {
+        result = await request('/auth/account/email/start', { new_email: email, verification_id: verification.current, event_id: crypto.randomUUID() });
+        if (!alive.current) return;
+        verification.current = null;
+        if (result.state !== 'awaiting_verification' || !result.operation_id || !result.account) throw new Error('Email result unavailable.');
+        operation.current = result.operation_id; onSaved(result.account); setStage('pending');
+      } else if (current === 'pending') {
+        result = await request('/auth/account/email/verify', { operation_id: operation.current, code });
+        if (!alive.current) return;
+        if (result.state !== 'complete' || !result.account?.identity?.email_verified || result.account.identity.email !== email) throw new Error('Email result unavailable.');
+        onSaved(result.account); leave(); setNotice('Your email address was updated.');
+      }
+    });
+  }
+  return <div aria-busy={busy}>
+    <p className="account-values">{account.identity.email}</p>
+    {error && <p role="alert">{error}</p>}<p role="status">{notice}</p>
+    {uncertain && <button disabled={busy} onClick={() => run(check)}>Check saved details</button>}
+    {stage === 'summary' ? <>{pending ? <><p>{pending.resumable ? 'Verify your new email address to complete the change.' : 'An email change is pending in another session.'}</p>{pending.resumable && <button onClick={() => { operation.current = pending.operation_id; setEmail(pending.new_email); setStage('pending'); }}>Resume email change</button>}</> : account.capabilities.email_change.available ? <button className="account-primary" onClick={() => setStage('password')}>Change email address</button> : <p>Email changes are currently unavailable.</p>}
+      <button disabled={busy} onClick={() => run(check)}>Check availability</button></> : <form onSubmit={submit}>
+      <fieldset disabled={busy || uncertain}>
+        {stage === 'password' && <><h3>Confirm it's you</h3><label>Current password<input type="password" autoComplete="current-password" required maxLength={256} value={password} onChange={event => setPassword(event.target.value)} /></label></>}
+        {stage === 'factor' && <label>Authenticator code<input inputMode="numeric" autoComplete="one-time-code" required maxLength={6} pattern="[0-9]{6}" value={code} onChange={event => setCode(event.target.value)} /></label>}
+        {stage === 'email' && <label>New email address<input type="email" autoComplete="email" required maxLength={320} value={email} onChange={event => setEmail(event.target.value)} /></label>}
+        {stage === 'pending' && <><p>A verification code was requested for {email}. Your current email stays unchanged until verification completes.</p><label>Email verification code<input autoComplete="one-time-code" required maxLength={64} value={code} onChange={event => setCode(event.target.value)} /></label><button type="button" onClick={() => run(async () => {
+          const result = await request('/auth/account/email/resend', { operation_id: operation.current });
+          if (alive.current && result.state === 'awaiting_verification') setNotice('A new verification code was requested.');
+        })}>Resend code</button></>}
+      </fieldset>
+      <p>Leaving this editor does not revoke a code already sent.</p>
+      <div className="account-actions"><button type="button" disabled={busy} onClick={() => cancel ? cancel(leave) : leave()}>Cancel</button><button className="account-primary" disabled={busy || uncertain}>{busy ? 'Checking…' : stage === 'email' ? 'Send verification code' : stage === 'pending' ? 'Verify email address' : 'Continue'}</button></div>
+    </form>}
   </div>;
 }

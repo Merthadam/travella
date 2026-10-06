@@ -40,6 +40,16 @@ class CognitoAdapter:
             {"Name": "family_name", "Value": last_name},
         ])
 
+    def update_email(self, access_token: str, email: str):
+        return self.client.update_user_attributes(AccessToken=access_token,
+            UserAttributes=[{"Name": "email", "Value": email}])
+
+    def resend_email(self, access_token: str):
+        return self.client.get_user_attribute_verification_code(AccessToken=access_token, AttributeName="email")
+
+    def verify_email(self, access_token: str, code: str):
+        return self.client.verify_user_attribute(AccessToken=access_token, AttributeName="email", Code=code)
+
     def account_configuration(self):
         # A separate read-only client bounds management-plane capability probes.
         from botocore.config import Config

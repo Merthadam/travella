@@ -326,3 +326,21 @@ class SessionStore:
             if not row:
                 return 0
             return len(json.loads(self.cipher.decrypt(bytes(row.payload)))["hashes"])
+
+    def reconcile_email(self, subject: str, email: str):
+        """Update both recovery copies and all same-subject sessions atomically."""
+        with self.transaction(), self._operation() as connection:
+            rows = connection.execute(text("SELECT id, payload FROM auth_sessions")).fetchall()
+            for row in rows:
+                value = json.loads(self.cipher.decrypt(bytes(row.payload)))
+                if value.get("kind") == "session" and value.get("subject") == subject:
+                    value["email"] = email
+                    connection.execute(text("UPDATE auth_sessions SET payload=:payload WHERE id=:id"),
+                        {"id": row.id, "payload": self.cipher.encrypt(json.dumps(value).encode())})
+            row = connection.execute(text("SELECT payload FROM auth_recovery_codes WHERE subject=:subject"),
+                                     {"subject": subject}).fetchone()
+            if row:
+                value = json.loads(self.cipher.decrypt(bytes(row.payload)))
+                value["email"] = email
+                connection.execute(text("UPDATE auth_recovery_codes SET email=:email, payload=:payload WHERE subject=:subject"),
+                    {"subject": subject, "email": email, "payload": self.cipher.encrypt(json.dumps(value).encode())})

@@ -20,6 +20,21 @@ def test_account_reads_and_name_write_use_exact_botocore_shapes():
         stub.assert_no_pending_responses()
 
 
+def test_email_operation_botocore_shapes():
+    import boto3
+    from botocore.stub import Stubber
+    client = boto3.client('cognito-idp', region_name='eu-north-1', aws_access_key_id='fixture', aws_secret_access_key='fixture')
+    adapter = CognitoAdapter(client, 'eu-north-1_fixture', 'fixture')
+    with Stubber(client) as stub:
+        stub.add_response('update_user_attributes', {}, {'AccessToken': 'access', 'UserAttributes': [{'Name': 'email', 'Value': 'new@example.com'}]})
+        stub.add_response('get_user_attribute_verification_code', {}, {'AccessToken': 'access', 'AttributeName': 'email'})
+        stub.add_response('verify_user_attribute', {}, {'AccessToken': 'access', 'AttributeName': 'email', 'Code': '123456'})
+        adapter.update_email('access', 'new@example.com')
+        adapter.resend_email('access')
+        adapter.verify_email('access', '123456')
+        stub.assert_no_pending_responses()
+
+
 class CognitoAdapterTests(unittest.TestCase):
     def test_register_maps_product_attributes(self):
         client = Mock()
