@@ -331,6 +331,8 @@ Plans:
 
 ### Phase 13: Account settings and travel preferences
 
+**Status:** Complete — 2026-10-06; independent verification passed (14/14).
+
 **Goal:** Travelers manage their identity, reusable travel preferences and account security through selected design C, with light/dark mode and durable explicit saves.
 **Depends on:** Existing account access and Phase 12 profile foundations; earlier unrelated verification debt is not silently closed.
 **Requirements:** ACCOUNT-13-01, ACCOUNT-13-02, ACCOUNT-13-03, ACCOUNT-13-04, ACCOUNT-13-05, ACCOUNT-13-06
@@ -343,7 +345,7 @@ Plans:
 4. Saved travel edits reach subsequent advisory context without changing confirmed Plan data; stale mirrors cannot resurrect cleared values.
 5. Authenticated browser/API checks cover persistence, validation, ownership, failure and responsive behavior with sanitized screenshot evidence.
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 
@@ -351,4 +353,4 @@ Plans:
 - [x] 13-02-PLAN.md — All reusable travel preferences, optional clearing and canonical future-suggestion context.
 - [x] 13-03-PLAN.md — Canonical personal details, fresh verification and fail-closed verified email support.
 - [x] 13-04-PLAN.md — Password, authenticator and one-time recovery-code management.
-- [ ] 13-05-PLAN.md — SQL concurrency, authenticated Chrome verification and inspected evidence.
+- [x] 13-05-PLAN.md — SQL concurrency, authenticated Chrome verification and inspected evidence.

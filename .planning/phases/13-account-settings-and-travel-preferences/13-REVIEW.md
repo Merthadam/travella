@@ -46,11 +46,22 @@ files_reviewed_list:
   - services/crud/tests/test_account_postgres.py
   - services/crud/tests/test_api.py
 findings:
+  critical: 0
+  warning: 0
+  info: 0
+  total: 0
+status: clean
+historical_findings:
   critical: 1
   warning: 0
   info: 0
   total: 1
-status: issues_found
+re_reviewed: 2026-10-06T19:01:58Z
+re_reviewed_head: d5d53d3
+re_reviewed_source_head: c2dfb88
+re_review_scope: CR-01 only
+resolved_findings:
+  - CR-01
 ---
 
 # Phase 13: Code Review Report
@@ -58,13 +69,13 @@ status: issues_found
 **Reviewed:** 2026-10-06T17:50:14Z
 **Depth:** standard
 **Files Reviewed:** 39 current source/test/configuration files
-**Status:** issues_found
+**Status:** clean — CR-01 resolved by focused re-review; original finding retained below
 
 ## Summary
 
 Reviewed the bounded Phase 13 changes from `49e6d52` through `e3905d7`, using the phase plans, summaries, context, research, project rules and verification evidence. Scope includes account routing/editors, shared home controls, Auth provider operations and encrypted records, profile section persistence and related tests. Removed account prototype files were checked as deletions; evidence/planning artifacts and generated files are excluded from the source count. No structural pre-pass or external reviewer evidence was supplied.
 
-One new correctness blocker prevents MFA-off travelers from using advertised password changes and authenticator setup. Existing broad-suite debt and the deliberately disabled live email capability are not new findings.
+The original review found one correctness blocker preventing MFA-off travelers from using advertised password changes and authenticator setup. The focused re-review below resolves it. Existing broad-suite debt and the deliberately disabled live email capability are not new findings.
 
 ## Narrative Findings (AI reviewer)
 
@@ -73,6 +84,8 @@ One new correctness blocker prevents MFA-off travelers from using advertised pas
 ### CR-01: Omitted Cognito MFA list prevents password changes and first authenticator setup
 
 **Classification:** BLOCKER
+
+**Resolution:** Resolved on 2026-10-06 against source `c2dfb88` (fix commit `a9336cc`); the issue, line references and original reproduction below are historical.
 
 **File:** `/Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/transparent-pajama/services/auth/account.py:232-235`
 
@@ -105,3 +118,19 @@ The targeted fixture reproduction and sanitized local account read described abo
 
 _Reviewer: gsd-code-reviewer_
 _Depth: standard_
+
+## Focused re-review — CR-01 resolved
+
+**Re-reviewed:** 2026-10-06T19:01:58Z
+
+**Source:** `c2dfb88`; current documentation HEAD `d5d53d3`
+
+**Result:** Resolved. No remaining defect found in the CR-01 fix.
+
+Inspected the shared `observed_mfa_status` helper in `services/auth/account.py:107-112` and its use after subject-validated provider reads in account output, MFA status, proof issuance and proof consumption. Missing and empty lists now mean Off; explicitly malformed values remain unavailable. Proof consumption rejects unavailable status even when a proof records factor verification, and an active TOTP factor still requires factor-verified assurance.
+
+Independently executed `uv run --locked pytest services/auth/tests/test_account.py services/auth/tests/test_account_security.py -q` in the canonical checkout: **57 passed**, with existing library deprecation warnings. The omitted-list regression proves canonical Off/setup capability, successful isolated password mutation with consumed proof, and first authenticator association. Existing empty-list and active-factor tests pass, including activation after proof issuance. Five malformed-list regressions prove unavailable status, rejected proof issuance with no provider sign-in, and rejected consumption with no password mutation or proof consumption.
+
+Read [13-REVIEW-FIX.md](13-REVIEW-FIX.md) and the appended [verification record](../../../artifacts/testing/2026-10-06-account-settings/verification.md#review-fixes--2026-10-06). Its completed Chrome check reports live Account GET 200, MFA **Off**, and visible **Set up authenticator**, with matched running-container source hashes. That live read/affordance evidence was inspected, not rerun during this re-review; sensitive success remains isolated-provider evidence. The [live MFA screenshot](../../../artifacts/testing/2026-10-06-account-settings/implementation/review-mfa-off-light.png) remains linked from the verification record.
+
+This was a focused CR-01 recheck, not a new broad source or UI audit. Only this review report was changed; no source edits or commits were made. The initial finding is retained for traceability, while frontmatter counts represent unresolved findings and are now zero.

@@ -86,3 +86,50 @@
 - `artifacts/testing/2026-10-06-account-settings/verification.md` and the twelve images identified above
 
 **Recommendation count:** 3 priority fixes; 8 additional minor recommendations (C1, C2, V1, V2, CO1, T1, E4, E5). No BLOCKER finding; warning findings should be resolved before declaring full UI-contract conformance.
+
+---
+
+## Focused Re-audit — 2026-10-06
+
+**Source reviewed:** fixes through `c2dfb88`, present at documentation HEAD `d5d53d3`.
+**Disposition:** All eleven original UI findings resolved. No remaining UI-contract blocker identified within this focused re-audit. The original 18/24 assessment above remains historical; the updated assessment below supersedes its recommendation status.
+
+Reviewed the current AccountSettingsPage, AccountIdentity, AccountSecurity, AccountIcon and account.css implementations, [fix report](13-REVIEW-FIX.md), and the appended [changed-path verification evidence](../../../artifacts/testing/2026-10-06-account-settings/verification.md#review-fixes--2026-10-06). Opened all thirteen `review-*.png` images individually with the image viewer. This was a resolution check, not a new design or unrelated polish pass.
+
+### Finding Resolution
+
+| Original finding | Result and current evidence |
+|---|---|
+| E1: Sensitive confirmation | **Resolved.** `AccountSecurity.jsx:29` defines the three exact consequence/safe/action sets; lines 125 and 129 route consequential operations through confirmation before fresh verification. Native dialog at line 151 supplies title/body semantics, Escape cancellation and explicit action; lines 39–44 focus the safe action and restore the opener. All three labeled fixture screenshots show the correct dialog and focused safe action. Browser evidence records keyboard/Escape checks; no live security mutation was used. |
+| E2: Loading/error/Retry | **Resolved.** `AccountSettingsPage.jsx:29` and its read effect distinguish loading, ready and error; lines 166–167 gate identity/security detail with a loading live status or local Retry. Retry repeats the read without changing selected setting. Loading/retry images show the intended states; recorded simulated 503 followed by canonical Retry recovered in two reads. Preferences remain independently available. |
+| E3: Name conflict comparison | **Resolved.** `AccountIdentity.jsx:43`–47 retains latest identity separately; line 65 renders both labeled saved fields above the retained unsaved form. Desktop and both mobile conflict captures visibly distinguish Latest/Saved from Draft/Traveler. The recorded review action issued no additional PATCH. |
+| E4: Identity focus/validation | **Resolved.** `AccountIdentity.jsx:25`–28 focuses name entry or associated invalid field/error; line 66 binds names and feedback. Email stage/error focus is implemented at lines 93–94 and described feedback at line 150. The follow-up correction clears validation without repeatedly stealing typing focus. Recorded Chrome typing and the seven passing identity tests cover this regression. |
+| E5: Pending mobile selection | **Resolved.** `AccountSettingsPage.jsx:184` now disables the selector for `busy || identityBusy`, matching desktop navigation. Held fixture PATCH verified the disabled mobile state. |
+| C1: Email status/copy | **Resolved.** `AccountIdentity.jsx:145` displays canonical verification status; line 148 supplies unchanged-address reassurance. `review-email-unavailable.png` shows Verified and the exact unavailable sentence; the email alone is masked for evidence. |
+| C2: Name/password summaries | **Resolved.** `AccountIdentity.jsx:70` supplies individual name labels, Not provided fallbacks and descriptive copy. `AccountSecurity.jsx:121` adds password context and gates Password is set on capability. |
+| CO1: Heading/error focus palette | **Resolved.** `account.css:12` extends the 3px accent ring to focused `tabindex=-1` elements. Loading/email captures visibly show the green/light-green heading ring; theme controls retain visible matching focus. |
+| T1: Extra bold weight | **Resolved.** `account.css:5` normalizes account `strong,b` to 600. The existing four-size/two-weight scale is preserved. |
+| V1: Icons | **Resolved.** `AccountIcon.jsx:20`–21 supplies local 20px outline SVGs, hidden from assistive technology and nonfocusable. Header, missing identity, settings and chevrons use these icons. The scoped inline-block correction prevents inherited global SVG display from splitting controls; all refreshed layout captures remain readable. |
+| V2: Error indicators | **Resolved.** Account load/preference, name/email and security alerts now include the decorative error icon while retaining alert semantics. The retry screenshot clearly shows icon plus explicit error text. |
+
+The fix report's twelfth item, **CR-01**, belongs to the separate code review. Its UI manifestation is resolved: the live MFA captures now display canonical Off and Set up authenticator. The supplied actual-handler regression evidence reports omitted-list and malformed-list cases passing. This UI audit does not replace the independent code/security verification of proof issuance and consumption.
+
+### Updated Pillar Scores
+
+| Pillar | Score | Re-audit evidence |
+|---|---|---|
+| Copywriting | 4/4 | Reported missing status, empty-field labels and descriptive summaries are present and truthful. |
+| Visuals | 4/4 | Local outline icons and explicit error indicators restore the contract without changing selected C. |
+| Color | 4/4 | Focused headings/errors now use the specified theme accent; inspected light/dark surfaces remain restrained. |
+| Typography | 4/4 | Strong text now obeys the declared 600 weight; readable four-size scale retained. |
+| Spacing | 4/4 | Desktop and 390px full-page captures show readable wrapping and no overlap; recorded exact 320px overflow checks also passed. |
+| Experience Design | 4/4 | Reported confirmation, loading/recovery, comparison, focus and pending-state gaps are closed with source and changed-path evidence. |
+
+**Updated overall: 24/24 for the reviewed contract and states.** Scores reflect resolved findings, not a claim that every provider/environment state was exercised live. **Remaining priority fixes: 0. Remaining minor recommendations from this audit: 0.**
+
+### Evidence Boundaries
+
+- Independently inspected four live MFA desktop/mobile light/dark captures; two explicitly simulated loading/retry captures; three fixture name-conflict desktop/mobile captures; three fixture confirmation captures; and the live unavailable-email capture. No clipping or overlap observed. Simulation banners belong to evidence and are not production UI.
+- Authenticated changed-path Chrome interaction, console/network review, canonical rebuild/source-hash checks and exact 390/320 CSS viewport measurements are documented in the supplied verification record. This re-audit rechecked source and saved images; it did not repeat those browser journeys or run sensitive live mutations.
+- The record reports 29 passing changed account UI tests, seven identity tests after the focus correction, 57 backend tests and a passing final build. Existing broad-suite debt and unavailable live email change remain unchanged. Earlier real ordinary preference save/reload evidence remains valid historical evidence; those persistence paths were not rerun for this focused review.
+- The mandatory testing skill was reread before reporting completion. No new screenshots, source modifications, commits or changes to the independent final verification report were made. No third-party registry components were introduced.
