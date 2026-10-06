@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
@@ -308,7 +308,15 @@ class SessionStore:
         with self._operation() as connection:
             rows = connection.execute(text("SELECT payload FROM auth_sessions WHERE expires_at > :now"),
                                       {"now": _timestamp(now)}).fetchall()
-            return [json.loads(self.cipher.decrypt(bytes(row.payload))) for row in rows]
+            records = []
+            for row in rows:
+                try:
+                    records.append(json.loads(self.cipher.decrypt(bytes(row.payload))))
+                except InvalidToken:
+                    # Legacy ciphertext is not authority for this key. Preserve it,
+                    # but don't let an unrelated unusable session block the account.
+                    continue
+            return records
 
     def account_records(self, subject: str, now: float) -> list[dict]:
         return [v for v in self.live_records(now) if v.get("kind") == "account_operation" and v.get("subject") == subject]
@@ -334,7 +342,10 @@ class SessionStore:
         with self.transaction(), self._operation() as connection:
             rows = connection.execute(text("SELECT id, payload FROM auth_sessions")).fetchall()
             for row in rows:
-                value = json.loads(self.cipher.decrypt(bytes(row.payload)))
+                try:
+                    value = json.loads(self.cipher.decrypt(bytes(row.payload)))
+                except InvalidToken:
+                    continue
                 if value.get("kind") == "session" and value.get("subject") == subject:
                     value["email"] = email
                     connection.execute(text("UPDATE auth_sessions SET payload=:payload WHERE id=:id"),

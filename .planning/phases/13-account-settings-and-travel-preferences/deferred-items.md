@@ -11,4 +11,10 @@ These are pre-existing test-fixture debts, not verified application regressions.
 
 ## Planned browser gate
 
+## Additional baseline debt observed by 13-05 full suites
+
+The full frontend run adds four unchanged PlanConversation tests with absent `researchContext` mocks and one unchanged TripBrief expectation for old inline confirmation. Total full frontend result: 48 passed / 17 failed. Source/test comparison against 49e6d526 shows these files are unchanged.
+
+Full Python selection: 203 passed / 2 failed / 1 error. Existing PostgreSQL Plan-delete integration expects no confirmation (actual 409); migration-head assertion expects 0008 rather than existing 0009; migration test environment interaction causes the next database fixture safety guard to stop. Standalone constraints test expects IntegrityError for VARCHAR overflow but PostgreSQL/psycopg raises DataError. No false full-suite pass or unrelated repair is claimed.
+
 Chrome DevTools example-account save/reload, selected Plan return, desktop/mobile light/dark screenshots, console/network review and container source hashes remain 13-05 deliverables. No live browser verification is claimed by 13-01.
