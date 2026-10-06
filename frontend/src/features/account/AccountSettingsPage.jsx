@@ -54,7 +54,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   }, [theme]);
   useEffect(() => { detailHeading.current?.focus(); }, [selected, Boolean(draft)]);
   useEffect(() => {
-    if (invalid) document.getElementById('account-food-needs')?.focus();
+    if (invalid) (document.getElementById('account-food-needs') || errorBox.current)?.focus();
     else if (error) errorBox.current?.focus();
   }, [error, invalid]);
   useEffect(() => {
@@ -139,7 +139,6 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   }
   function summary() {
     if (preferenceLabels[selected]) return <>{values(profile)}<button className="account-primary" onClick={() => { setDraft(preferenceDraft(selected, profile)); setNotice(''); }}>Edit {preferenceLabels[selected]}</button></>;
-    if (selected === 'interests') return <p className="account-values">{profile.travel_interests || 'No interests selected'}</p>;
     return <p className="account-values">We couldn't load this setting. Try again.</p>;
   }
   if (!profile) return null;

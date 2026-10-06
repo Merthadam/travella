@@ -38,6 +38,16 @@ test('home changes disclose draft airport clear and cancel preserves saved home'
   expect(fetch).not.toHaveBeenCalled();
 });
 
+test('home validation failure retains the draft and focuses the error', async () => {
+  const user = userEvent.setup(); page();
+  await user.click(screen.getByRole('button', { name: 'Edit home base' }));
+  await user.clear(screen.getByLabelText(/City/)); await user.type(screen.getByLabelText(/City/), 'Changed city');
+  fetch.mockResolvedValue({ ok: false, status: 422, json: async () => ({ code: 'invalid_profile' }) });
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('alert')));
+  expect(screen.getByLabelText(/City/).value).toBe('Changed city');
+});
+
 test('citizenships support accessible removal, catalog add and explicit clear via mobile selector', async () => {
   const user = userEvent.setup(); page();
   await user.selectOptions(screen.getByLabelText('Choose a setting'), 'citizenship');
