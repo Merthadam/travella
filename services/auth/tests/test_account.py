@@ -172,3 +172,50 @@ def test_expired_proof_and_other_session_cannot_start_or_resume(account):
     assert pending == {'operation_id': None, 'new_email': None, 'state': 'awaiting_verification', 'resumable': False}
     assert a.client.post(PATH + '/email/verify', json={'operation_id': operation, 'code': '123456'}).status_code == 403
     assert start_email(a).json()['code'] == 'operation_pending'
+
+
+def test_future_login_uses_canonical_email_not_submitted_alias(account):
+    a = account
+    a.attrs['email'] = 'canonical@example.com'
+    result = a.client.post('/auth/sign-in', json={'email': 'alias@example.com', 'password': 'fixture-password'})
+    assert result.status_code == 200
+    assert a.store.get(result.cookies.get('__Host-travella'), a.now[0])['email'] == 'canonical@example.com'
+
+
+def test_sql_failure_after_provider_success_repairs_on_read_without_repeat(account, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+    a = account
+    safe_email(a)
+    other = a.store.create({'kind': 'session', 'subject': 'other', 'email': 'unrelated@example.com'}, 5000, a.now[0])
+    sibling = a.store.create(a.store.get(a.sid, a.now[0]), 6000, a.now[0])
+    a.store.put_recovery_codes('one', 'old@example.com', ['hash-one', 'hash-two'], a.now[0])
+    operation = start_email(a).json()['operation_id']
+    original = a.store.reconcile_email
+    monkeypatch.setattr(a.store, 'reconcile_email', Mock(side_effect=OperationalError('fixture', {}, Exception('private'))))
+    a.provider.verify_email.side_effect = lambda access, code: a.attrs.update(email='new@example.com')
+    result = a.client.post(PATH + '/email/verify', json={'operation_id': operation, 'code': '123456'})
+    assert result.status_code == 503 and result.json()['code'] == 'result_unknown'
+    assert a.store.get(sibling, a.now[0])['email'] == 'old@example.com'
+    monkeypatch.setattr(a.store, 'reconcile_email', original)
+    readback = a.client.get(PATH)
+    assert readback.status_code == 200 and readback.json()['pending_email'] is None
+    assert a.store.get(sibling, a.now[0])['email'] == 'new@example.com'
+    assert a.store.expiry(sibling) == 6000
+    assert a.store.get(other, a.now[0])['email'] == 'unrelated@example.com'
+    import json
+    row = a.store.db.execute('SELECT email, payload FROM auth_recovery_codes WHERE subject="one"').fetchone()
+    assert row[0] == 'new@example.com'
+    assert json.loads(a.store.cipher.decrypt(row[1])) == {'email': 'new@example.com', 'hashes': ['hash-one', 'hash-two']}
+    a.provider.update_email.assert_called_once()
+    a.provider.verify_email.assert_called_once()
+
+
+def test_reset_repairs_pending_canonical_email_before_invalidating_sessions(account):
+    a = account
+    safe_email(a)
+    start_email(a)
+    a.attrs['email'] = 'new@example.com'  # provider completed before process/local receipt
+    result = a.client.post('/auth/reset-password', json={'email': 'new@example.com', 'code': 'fixture-code', 'new_password': 'fixture-password'})
+    assert result.status_code == 200
+    assert a.store.get(a.sid, a.now[0]) is None
+    a.provider.global_sign_out.assert_called_once_with('access')

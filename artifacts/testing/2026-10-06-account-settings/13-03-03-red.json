@@ -1,0 +1,10 @@
+{
+  "command": "uv run --locked pytest services/auth/tests/test_account.py -q",
+  "exitCode": 1,
+  "targetTest": "test_future_login_uses_canonical_email_not_submitted_alias",
+  "targetFile": "services/auth/tests/test_account.py",
+  "expected": "new session uses canonical provider email",
+  "actual": "alias@example.com != canonical@example.com",
+  "output": "not ok 1 - test_future_login_uses_canonical_email_not_submitted_alias\nnot ok 2 - test_reset_repairs_pending_canonical_email_before_invalidating_sessions\n# tests 15\n# pass 13\n# fail 2",
+  "adapter": "Pytest assertion summary after correcting test response-cookie selection"
+}
