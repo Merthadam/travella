@@ -106,6 +106,7 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
       {setting === 'password' && (account.capabilities?.password_change?.available ? <button className="account-primary" onClick={() => { leave(); setNotice(''); setStage('password'); }}>Change password</button> : <p>Password changes are unavailable right now.</p>)}
       {setting === 'authenticator' && <>
         <p>{account.mfa?.status === 'on' ? 'On · Authenticator app' : account.mfa?.status === 'off' ? 'Off' : 'Status unavailable'}</p>
+        {account.mfa?.status === 'unavailable' && <p>A previous change may be unconfirmed. Check your current authenticator access before explicitly starting a new change; fresh verification is required.</p>}
         {['setup', 'replace', 'disable'].filter(action => account.capabilities?.authenticator?.[action]).map(action => <button key={action} onClick={() => { leave(); setMode(action); setStage('verify-password'); }}>{action === 'setup' ? 'Set up authenticator' : action === 'replace' ? 'Replace authenticator' : 'Turn off authenticator'}</button>)}
         {!['setup', 'replace', 'disable'].some(action => account.capabilities?.authenticator?.[action]) && <p>Authenticator changes are unavailable right now.</p>}
       </>}

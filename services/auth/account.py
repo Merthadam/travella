@@ -168,20 +168,21 @@ class AccountService:
             pending = None
         methods = user.get("UserMFASettingList")
         mfa = ("on" if "SOFTWARE_TOKEN_MFA" in methods else "off") if isinstance(methods, list) else "unavailable"
+        observed_mfa = mfa
         for record in self.store.account_records(session['subject'], self.clock()):
             expected = 'off' if record.get('purpose') == 'mfa_disable' else 'on'
             if record.get('record_type') == 'security' and record.get('stage') == 'preference_acknowledged' and mfa == expected:
                 record['status'] = 'complete'
                 self.store.update(record['id'], record)
         if any(r.get('purpose', '').startswith('mfa_') and r.get('record_type') == 'security'
-               and r.get('status') == 'result_unknown' for r in self.store.account_records(session['subject'], self.clock())):
+               and r.get('status') == 'result_unknown' and not r.get('superseded') for r in self.store.account_records(session['subject'], self.clock())):
             mfa = 'unavailable'
         count = self.store.recovery_count(session["subject"])
         return {"identity": {"first_name": attrs.get("given_name", ""), "last_name": attrs.get("family_name", ""),
                              "email": attrs["email"], "email_verified": True},
                 "capabilities": {"email_change": {"available": self.email_available(), "reason": None if self.email_available() else "capability_unavailable"},
                     "password_change": {"available": True, "reason": None},
-                    "authenticator": self.authenticator_capabilities(mfa),
+                    "authenticator": self.authenticator_capabilities(observed_mfa),
                     "recovery_codes": {"rotate": mfa == 'on', "reason": None if mfa == 'on' else 'capability_unavailable'}},
                 "password_policy": self.password_policy(), "mfa": {"status": mfa},
                 "recovery_codes": {"status": "available" if count else "empty", "remaining": count},
@@ -226,7 +227,7 @@ class AccountService:
             self.consume_proof(sid, session, data.verification_id, purpose)
             return self.store.create_account_record(dict(subject=session['subject'], owner_sid_hash=self.store.digest(sid),
                 purpose=purpose, record_type='security', event_id=str(data.event_id), request_digest=purpose,
-                status='result_unknown'), self.store.expiry(sid), self.clock())
+                status='result_unknown', operation_expires=min(self.clock() + 300, self.store.expiry(sid))), self.store.expiry(sid), self.clock())
 
     def mfa_status(self, session):
         user, _ = self.user(session)
@@ -242,10 +243,13 @@ class AccountService:
                 raise AccountError('capability_unavailable')
             pending = [r for r in self.store.account_records(session['subject'], self.clock())
                        if r.get('record_type') == 'security' and r.get('purpose', '').startswith('mfa_')
-                       and r.get('status') not in ('complete', 'failed')]
-            if any(r.get('enrollment_expires', 0) > self.clock() or r['status'] == 'result_unknown' for r in pending):
+                       and r.get('status') not in ('complete', 'failed') and not r.get('superseded')]
+            if any(r.get('operation_expires', r.get('enrollment_expires', 0)) > self.clock() for r in pending):
                 raise AccountError('operation_pending', 409)
             record = self.security_intent(sid, session, data, purpose)
+            for prior in pending:
+                prior['superseded'] = True
+                self.store.update(prior['id'], prior)
             record['stage'] = 'associating'
             record['enrollment_expires'] = min(self.clock() + 300, self.store.expiry(sid))
             self.store.update(record['id'], record)
@@ -287,6 +291,8 @@ class AccountService:
             record = self.owned_record(sid, session, data.operation_id)
             if record.get('record_type') != 'security' or record.get('purpose') not in ('mfa_setup', 'mfa_replace'):
                 raise AccountError('verification_required', 403)
+            if record.get('superseded'):
+                raise AccountError('obsolete_operation', 400)
             if record['status'] != 'enrollment_required':
                 return self.finish_authenticator(sid, session, record)
             if record.get('enrollment_expires', 0) <= self.clock():
@@ -323,6 +329,10 @@ class AccountService:
             if not self.authenticator_capabilities(self.mfa_status(session), fresh=True)['disable']:
                 raise AccountError('capability_unavailable')
             record = self.security_intent(sid, session, data, 'mfa_disable')
+            for previous in self.store.account_records(session['subject'], self.clock()):
+                if previous['id'] != record['id'] and previous.get('record_type') == 'security' and previous.get('purpose', '').startswith('mfa_') and previous['status'] not in ('complete', 'failed'):
+                    previous['superseded'] = True
+                    self.store.update(previous['id'], previous)
             return self.activate_authenticator(sid, session, record, False)
 
     def change_password(self, sid, session, data):

@@ -321,3 +321,20 @@ def test_reload_repairs_acknowledged_mfa_readback_without_event_in_browser(accou
     a.provider.get_user.side_effect = original
     assert a.client.get(PATH).json()['mfa']['status'] == 'on'
     a.provider.set_software_token_preference.assert_called_once()
+
+
+def test_unconfirmed_enrollment_can_only_be_replaced_by_explicit_fresh_operation(account):
+    a = account
+    mfa_provider(a)
+    a.provider.associate_software_token.side_effect = EndpointConnectionError(endpoint_url='https://fixture.test')
+    body, started = start_mfa(a)
+    assert started.status_code == 503
+    assert a.client.get(PATH).json()['mfa']['status'] == 'unavailable'
+    assert start_mfa(a)[1].json()['code'] == 'operation_pending'
+    a.now[0] += 301
+    a.provider.associate_software_token.side_effect = None
+    replacement, started = start_mfa(a)
+    assert started.status_code == 200
+    assert a.client.post(PATH + '/operation-status', json={'event_id': body['event_id']}).json()['state'] == 'result_unknown'
+    assert a.client.post(PATH + '/authenticator/verify', json={'operation_id': started.json()['operation_id'], 'code': '123456'}).json()['state'] == 'complete'
+    assert a.client.get(PATH).json()['mfa']['status'] == 'on'
