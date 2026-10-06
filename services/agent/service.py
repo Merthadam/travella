@@ -258,6 +258,8 @@ class AgentTurnService:
                 "generation": generation,
                 "message": query,
                 "candidate_action": action,
+                "canvas_action": request.canvas_action,
+                "canvas_draft": None,
             }
             if on_text_delta:
                 result = await self.graph.invoke(
@@ -277,6 +279,10 @@ class AgentTurnService:
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
                 raise HTTPException(502, "Agent response was invalid.")
+            if request.canvas_action:
+                # A generated component is a draft, not a chat message or saved Plan edit.
+                # finish still enforces generation freshness and event replay handling.
+                return await finish(projection)
             is_candidate_research = (
                 projection.get("status") == "shortlist_ready"
                 and projection.get("research_intent") != "factual_research"
@@ -455,7 +461,7 @@ class AgentTurnService:
                     text = response.assistant_text or response.question or ""
                     for start in range(0, len(text), 28):
                         await on_text_delta(text[start:start + 28])
-                status = "error" if response.status == "unable to continue" else "complete" if response.status == "in_progress" else response.status
+                status = "error" if response.status == "unable to continue" else "complete" if response.status in {"in_progress", "canvas_draft_ready"} else response.status
                 if status == "error" and emitted:
                     await self._persist_partial(
                         request, subject, authorization, "".join(emitted), "interrupted",
@@ -464,6 +470,7 @@ class AgentTurnService:
                 await queue.put(("terminal", {"status": status, "sources": final.get("sources", []),
                                                "message": response.error if status == "error" else None,
                                                "trip_context": final.get("trip_context"),
+                                               "canvas_draft": final.get("canvas_draft"),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"
@@ -499,6 +506,10 @@ class AgentTurnService:
                 if kind == "content":
                     yield self._sse({"type": "TEXT_MESSAGE_CONTENT", "messageId": message_id, "delta": value})
                 else:
+                    if value.get("canvas_draft"):
+                        yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": {
+                            "canvas_draft": value["canvas_draft"],
+                        }})
                     if value.get("trip_context"):
                         for message in a2ui_messages(ContextSnapshot.model_validate(value["trip_context"])):
                             yield self._sse({"type": "CUSTOM", "name": "a2ui", "value": message})
@@ -536,7 +547,7 @@ class AgentTurnService:
         *,
         generation: int | None = None,
     ) -> None:
-        if not self.context_reader:
+        if request.canvas_action or not self.context_reader:
             return
         token = (authorization or "")[7:].strip()
         plan_id = request.plan_id

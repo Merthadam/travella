@@ -81,6 +81,6 @@ class TurnContext:
 
 
 def load_prompt(name: str) -> str:
-    if name not in {"conversation-v1", "sdk-conversation-v1", "research-v1", "onboarding-intake-v1"}:
+    if name not in {"conversation-v1", "sdk-conversation-v1", "research-v1", "onboarding-intake-v1", "canvas-themes-v1"}:
         raise ValueError("prompt is not allowlisted")
     return (PROMPT_DIR / f"{name}.md").read_text(encoding="utf-8")

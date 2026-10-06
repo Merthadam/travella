@@ -3,10 +3,12 @@
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from services.crud.profile_schemas import HomeCity
 from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
+
+from .canvas_contracts import CanvasDraft
 
 
 class CandidateAction(BaseModel):
@@ -25,12 +27,19 @@ class AgentRequest(BaseModel):
     message: str = Field(default="", max_length=2000)
     candidate_action: CandidateAction | None = None
     forwardedProps: ForwardedProps | None = None
+    canvas_action: Literal["generate_themes"] | None = None
+
+    @model_validator(mode="after")
+    def separate_canvas_action(self):
+        if self.canvas_action and (self.candidate_action or self.forwardedProps):
+            raise ValueError("Send canvas generation separately from other actions.")
+        return self
 
 
 class AgentResponse(BaseModel):
     status: Literal[
         "needs your input", "shortlist_ready", "candidate_action", "source_detail",
-        "unable to continue", "interrupted", "in_progress",
+        "unable to continue", "interrupted", "in_progress", "canvas_draft_ready",
     ]
     plan_id: UUID
     event_id: str
@@ -44,6 +53,7 @@ class AgentResponse(BaseModel):
     assistant_text: str | None = None
     result: TurnResult | None = None
     trip_context: ContextSnapshot | None = None
+    canvas_draft: CanvasDraft | None = None
 
 
 class OnboardingMessage(BaseModel):

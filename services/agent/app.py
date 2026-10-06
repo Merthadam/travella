@@ -39,6 +39,7 @@ def create_app(
     context_reader: CrudContextReader | None = None,
     graph: AgentGraph | None = None,
     research_worker: Any | None = None,
+    canvas_worker: Any | None = None,
     adapter: Any | None = None,
     memory_adapter: Any | None = None,
     required_scope: str | None = None,
@@ -90,7 +91,12 @@ def create_app(
         from .config import ResearchWorkerConfig
 
         research_worker = ClaudeResearchWorker(sdk_config or ResearchWorkerConfig.from_env())
-    workflow = graph or AgentGraph(adapter, research_worker=research_worker)
+    if graph is None and canvas_worker is None and sdk_config is not None:
+        from .claude.themes_worker import ClaudeThemesWorker
+
+        canvas_worker = ClaudeThemesWorker(sdk_config)
+    workflow = graph or AgentGraph(adapter, research_worker=research_worker,
+                                  canvas_worker=canvas_worker)
     onboarding_graph = build_onboarding_intake_graph(getattr(adapter, "messages", adapter))
     memory = memory_adapter or create_memory_adapter()
     candidates = PlanCandidateStore(max_receipts=cache_size)
