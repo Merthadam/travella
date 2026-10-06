@@ -3,3 +3,5 @@
 @media(prefers-reduced-motion:reduce){.ds-card{animation:none}.ds-card *{transition:none!important}}
 
 .ds-slot.span-all{grid-column:1/-1}
+
+.ds-booking-status{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;white-space:nowrap;font-size:10px;font-weight:500;line-height:1.4;padding:6px 9px;border:1px solid #e0e4d9;border-radius:999px;color:#737b69;background:#f8f9f5}.ds-booking-circle{width:8px;height:8px;border:1px solid currentColor;border-radius:50%}.ds-booking-status.booked{color:#286448;background:#edf5ec;border-color:#ccdfcd}.ds-travel.is-booked:before{background:#528363}.ds-travel-need{display:block;margin-top:10px;font-size:11px;color:var(--ds-muted)}

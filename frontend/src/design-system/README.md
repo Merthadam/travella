@@ -60,3 +60,7 @@ Map adapter interface: `{ places, selectedId, onSelect }`. All actual Google Map
 ## Boundaries
 
 This is a design-system starting point, not a claim that production components are connected. The card summaries are independent fixtures; editing Essentials does not synchronize Flights. Later integration should supply coherent shared domain data. Do not import the preview app or fixtures into production.
+
+### Travel booking states
+
+Flights and Accommodation each accept a required `bookingStatus: 'booked' | 'not-booked'`, separate from `need` and provider `availability`. Not booked keeps the Explore action; Booked shows a green check badge and View flight/stay details. The gallery's **Booking preview** selectors control each independently, including mixed states, and reset with the other samples. They are preview controls, not booking actions. A future integration must supply trustworthy booking status; changing the sample never creates or verifies a reservation.
