@@ -4,6 +4,7 @@ import { PreferenceSettings, preferenceDraft, preferenceLabels, preferenceSaved 
 import './account.css';
 import { AccountIdentity } from './AccountIdentity';
 import { AccountSecurity } from './AccountSecurity';
+import { AccountIcon } from './AccountIcon';
 
 export const ACCOUNT_SETTINGS = [
   { id: 'name', label: 'Your name', group: 'Personal details' },
@@ -173,13 +174,13 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   if (!profile) return null;
 
   return <div className="account-page" data-theme={theme}>
-    <header className="account-header"><span className="account-brand">✳ travella</span><button disabled={busy} onClick={() => guard(onNavigatePlans)}>My plans</button><span aria-current="page">Account</span>
-      <div className="account-theme" aria-label="Appearance">{['light', 'dark'].map(value => <button key={value} aria-label={value === 'light' ? 'Light mode' : 'Dark mode'} aria-pressed={theme === value} onClick={() => setTheme(value)}>{value === 'light' ? '☀ Light' : '☾ Dark'}</button>)}</div>
+    <header className="account-header"><span className="account-brand"><AccountIcon name="brand" /> travella</span><button disabled={busy} onClick={() => guard(onNavigatePlans)}>My plans</button><span aria-current="page">Account</span>
+      <div className="account-theme" aria-label="Appearance">{['light', 'dark'].map(value => <button key={value} aria-label={value === 'light' ? 'Light mode' : 'Dark mode'} aria-pressed={theme === value} onClick={() => setTheme(value)}><AccountIcon name={value} /> {value === 'light' ? 'Light' : 'Dark'}</button>)}</div>
     </header>
     <main className="account-layout">
       <div className="account-heading"><div><p className="account-kicker">YOUR TRAVEL COMPANION</p><h1>Account &amp; preferences</h1></div><p>Small details. Better journeys.</p></div>
       <div className="account-workspace">
-        <aside className="account-master"><p><span aria-hidden="true">{account?.identity ? `${account.identity.first_name?.[0] || ''}${account.identity.last_name?.[0] || ''}` || '◯' : '◯'}</span> {account?.identity ? `${account.identity.first_name} ${account.identity.last_name}`.trim() || 'Your traveler profile' : 'Your traveler profile'}</p>{groups.map(group => <nav key={group} aria-label={group}><h2>{group}</h2>{ACCOUNT_SETTINGS.filter(item => item.group === group).map(item => <button key={item.id} disabled={busy || identityBusy} aria-current={selected === item.id ? 'page' : undefined} onClick={() => { if (item.id !== selected) guard(() => setSelected(item.id)); }}>{item.label}<span aria-hidden="true">›</span></button>)}</nav>)}</aside>
+        <aside className="account-master"><p><span aria-hidden="true">{account?.identity ? `${account.identity.first_name?.[0] || ''}${account.identity.last_name?.[0] || ''}` || <AccountIcon name="person" /> : <AccountIcon name="person" />}</span> {account?.identity ? `${account.identity.first_name} ${account.identity.last_name}`.trim() || 'Your traveler profile' : 'Your traveler profile'}</p>{groups.map(group => <nav key={group} aria-label={group}><h2>{group}</h2>{ACCOUNT_SETTINGS.filter(item => item.group === group).map(item => <button key={item.id} disabled={busy || identityBusy} aria-current={selected === item.id ? 'page' : undefined} onClick={() => { if (item.id !== selected) guard(() => setSelected(item.id)); }}><span className="account-setting-label"><AccountIcon name={item.id} />{item.label}</span><AccountIcon name="chevron" /></button>)}</nav>)}</aside>
         <label className="account-mobile-setting">Choose a setting<select value={selected} disabled={busy || identityBusy} onChange={event => { const next = event.target.value; guard(() => setSelected(next)); }}>{groups.map(group => <optgroup key={group} label={group}>{ACCOUNT_SETTINGS.filter(item => item.group === group).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>)}</select></label>
         <section className="account-detail" aria-labelledby="account-setting-heading">
           <p className="account-kicker">{setting.group}</p><h2 ref={detailHeading} tabIndex={-1} id="account-setting-heading">{setting.label}</h2>
