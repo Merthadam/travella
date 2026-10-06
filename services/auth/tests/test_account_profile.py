@@ -1,12 +1,18 @@
 """Account tracer: real cookie gateway, independent CRUD JWT validation and SQL."""
 
 from uuid import uuid4
+from unittest.mock import Mock
 
+import httpx
 import jwt
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import select
 
-from services.auth.tests.test_crud_client import gateway, login  # noqa: F401
-from services.crud.models import TravelerProfile
+from services.auth.api import create_app
+from services.auth.agent_client import AgentClient
+from services.auth.tests.test_crud_client import gateway, login, HEADERS, ORIGIN, CREDENTIALS  # noqa: F401
+from services.crud.models import Base, TravelerProfile
 from services.crud.tests.test_api import create, system  # noqa: F401
 
 PATH = "/v1/traveler-profile"
@@ -163,3 +169,57 @@ def test_account_interests_allow_zero_and_one_while_onboarding_requires_five(gat
                    {"interest_ids": [], "custom_interests": [f"Interest {i}" for i in range(21)]}]:
         assert section_write(client, "interests", values, saved["revision"]).status_code == 422
         assert client.get(PATH).json() == saved
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_incomplete_account_edits_mirror_canonical_clears_without_changing_plans(gateway, failure):
+    import json
+    from services.shared.traveler_profile import profile_context
+
+    captured = []
+    def mirror(request):
+        captured.append(json.loads(request.content))
+        assert request.extensions["timeout"]["read"] == 10
+        if failure:
+            raise httpx.ReadTimeout("isolated timeout", request=request)
+        return httpx.Response(200, json={"status": "synced"})
+
+    provider = Mock()
+    provider.sign_in.return_value = {"AuthenticationResult": {"AccessToken": gateway.system.token, "RefreshToken": "isolated-refresh"}}
+    provider.get_user.return_value = {"UserAttributes": [{"Name": "sub", "Value": "traveler-one"}, {"Name": "email_verified", "Value": "true"}]}
+    app = create_app(provider, gateway.system.verifier, gateway.store, origin=ORIGIN,
+                     clock=lambda: gateway.now[0], crud_client=gateway.adapter,
+                     agent_client=AgentClient("http://agent.test", transport=httpx.MockTransport(mirror)))
+    create(gateway.system)
+    def snapshot():
+        with gateway.system.factory() as db:
+            return {table.name: [dict(row) for row in db.execute(select(table)).mappings()]
+                    for table in Base.metadata.sorted_tables if table.name != "traveler_profiles"}
+    before = snapshot()
+    with TestClient(app, base_url=ORIGIN, headers=HEADERS) as client:
+        assert client.post("/auth/sign-in", json=CREDENTIALS).status_code == 200
+        saved = client.get(PATH).json()
+        for section, values in [("home", HOME), ("citizenship", {"citizenships": ["AT"]}),
+                                ("needs", {"food_needs": "Vegetarian", "accessibility_needs": "Step-free"}),
+                                ("interests", {"interest_ids": ["hiking"], "custom_interests": ["Quiet walks"]}),
+                                ("home", HOME | {"default_airport": None}), ("citizenship", {"citizenships": []}),
+                                ("needs", {"food_needs": "", "accessibility_needs": ""}),
+                                ("interests", {"interest_ids": [], "custom_interests": []})]:
+            response = section_write(client, section, values, saved["revision"])
+            assert response.status_code == 200
+            acknowledged = response.json()
+            saved = client.get(PATH).json()
+            assert captured, "Every account write must mirror even an incomplete profile"
+            assert acknowledged.pop("memory_sync") == ("unavailable" if failure else "synced")
+            assert acknowledged == saved
+            assert saved["onboarding_complete"] is False
+            assert saved["onboarding"]["completed_version"] == 0
+            assert captured[-1] == profile_context(saved) | {"updated_at": saved["updated_at"]}
+            assert "address" not in captured[-1]["home_city"]
+            with gateway.system.factory() as db:
+                assert db.get(TravelerProfile, "traveler-one").payload["revision"] == saved["revision"]
+        assert len(captured) == 8
+        assert captured[-1]["default_airport"] is None
+        assert captured[-1]["food_needs"] == captured[-1]["accessibility_needs"] == captured[-1]["travel_interests"] == ""
+        assert captured[-1]["citizenships"] == captured[-1]["interest_ids"] == captured[-1]["custom_interests"] == []
+    assert snapshot() == before
