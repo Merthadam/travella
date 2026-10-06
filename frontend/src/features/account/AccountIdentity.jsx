@@ -66,7 +66,7 @@ export function AccountIdentity({ setting, account, onSaved, onExpired, onProtec
       {uncertain && <button type="button" disabled={busy} onClick={() => save()}>Check saved details</button>}
       {conflict && <button type="button" disabled={busy} onClick={() => run(refresh)}>Review latest details</button>}
       <div className="account-actions"><button type="button" disabled={busy} onClick={() => cancel(() => { setDraft(null); setLatest(null); setError(''); setUncertain(false); })}>Cancel</button><button className="account-primary" disabled={busy || uncertain || conflict}>{busy ? 'Saving…' : 'Save changes'}</button></div>
-    </form> : <><p className="account-values">{[identity.first_name, identity.last_name].filter(Boolean).join(' ') || 'Your name has not been added.'}</p><button className="account-primary" onClick={() => { setDraft(names); setNotice(''); }}>Edit your name</button></>}</> : <EmailIdentity account={account} onSaved={onSaved} onExpired={onExpired} onProtected={onProtected} onBusy={onBusy} cancel={cancel} />}
+    </form> : <><p>How we address you across Travella.</p><dl className="account-values"><dt>First name</dt><dd>{identity.first_name || 'Not provided'}</dd><dt>Last name</dt><dd>{identity.last_name || 'Not provided'}</dd></dl><button className="account-primary" onClick={() => { setDraft(names); setNotice(''); }}>Edit your name</button></>}</> : <EmailIdentity account={account} onSaved={onSaved} onExpired={onExpired} onProtected={onProtected} onBusy={onBusy} cancel={cancel} />}
   </div>;
 }
 

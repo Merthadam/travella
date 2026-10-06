@@ -117,7 +117,7 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
   return <div aria-busy={busy}>
     {error && <p id="account-security-error" ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
     {!account ? <p>Status unavailable</p> : ['summary', 'confirm'].includes(stage) ? <>
-      {setting === 'password' && (account.capabilities?.password_change?.available ? <button className="account-primary" onClick={() => { leave(); setNotice(''); setStage('password'); }}>Change password</button> : <p>Password changes are unavailable right now.</p>)}
+      {setting === 'password' && <><p>Update the password you use to sign in.</p>{account.capabilities?.password_change?.available ? <><p>Password is set</p><button className="account-primary" onClick={() => { leave(); setNotice(''); setStage('password'); }}>Change password</button></> : <p>Password changes are unavailable right now.</p>}</>}
       {setting === 'authenticator' && <>
         <p>{account.mfa?.status === 'on' ? 'On · Authenticator app' : account.mfa?.status === 'off' ? 'Off' : 'Status unavailable'}</p>
         {account.mfa?.status === 'unavailable' && <p>A previous change may be unconfirmed. Check your current authenticator access before explicitly starting a new change; fresh verification is required.</p>}
