@@ -15,6 +15,8 @@ from cryptography.fernet import Fernet
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
+_ACCOUNT_LOCKS = tuple(threading.RLock() for _ in range(128))
+
 
 def _timestamp(value: float) -> datetime:
     return datetime.fromtimestamp(value, tz=timezone.utc)
@@ -277,3 +279,50 @@ class SessionStore:
 
     def close(self):
         self.engine.dispose()
+
+    @contextmanager
+    def account_guard(self, subject: str):
+        """Serialize provider stages without rolling back already committed intents."""
+        key = int.from_bytes(hashlib.sha256(subject.encode()).digest()[:8], "big", signed=True)
+        if self._sqlite:
+            # SQLite deployment is explicitly single worker; striped locks stay bounded.
+            with _ACCOUNT_LOCKS[key % len(_ACCOUNT_LOCKS)]:
+                yield
+        else:
+            with self.engine.connect() as connection:
+                connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": key})
+                connection.commit()
+                try:
+                    yield
+                finally:
+                    connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
+                    connection.commit()
+
+    def expiry(self, token: str) -> float:
+        with self._operation() as connection:
+            row = connection.execute(text("SELECT expires_at FROM auth_sessions WHERE id=:id"),
+                                     {"id": self.digest(token)}).fetchone()
+            return _epoch(row.expires_at) if row else 0
+
+    def account_records(self, subject: str, now: float) -> list[dict]:
+        with self._operation() as connection:
+            rows = connection.execute(text("SELECT payload FROM auth_sessions WHERE expires_at > :now"),
+                                      {"now": _timestamp(now)}).fetchall()
+            values = [json.loads(self.cipher.decrypt(bytes(row.payload))) for row in rows]
+            return [v for v in values if v.get("kind") == "account_operation" and v.get("subject") == subject]
+
+    def create_account_record(self, payload: dict, expires: float, now: float) -> dict:
+        with self.transaction():
+            value = dict(payload, kind="account_operation")
+            token = self.create(value, expires, now)
+            value["id"] = token
+            self.update(token, value)
+        return value
+
+    def recovery_count(self, subject: str) -> int:
+        with self._operation() as connection:
+            row = connection.execute(text("SELECT payload FROM auth_recovery_codes WHERE subject=:subject"),
+                                     {"subject": subject}).fetchone()
+            if not row:
+                return 0
+            return len(json.loads(self.cipher.decrypt(bytes(row.payload)))["hashes"])

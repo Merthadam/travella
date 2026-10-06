@@ -4,6 +4,22 @@ from unittest.mock import Mock
 from services.auth.cognito_adapter import CognitoAdapter
 
 
+def test_account_reads_and_name_write_use_exact_botocore_shapes():
+    import boto3
+    from botocore.stub import Stubber
+    client = boto3.client('cognito-idp', region_name='eu-north-1', aws_access_key_id='fixture', aws_secret_access_key='fixture')
+    adapter = CognitoAdapter(client, 'eu-north-1_fixture', 'fixture')
+    with Stubber(client) as stub:
+        stub.add_response('describe_user_pool', {'UserPool': {'Id': 'eu-north-1_fixture'}}, {'UserPoolId': 'eu-north-1_fixture'})
+        stub.add_response('describe_user_pool_client', {'UserPoolClient': {'ClientId': 'fixture'}}, {'UserPoolId': 'eu-north-1_fixture', 'ClientId': 'fixture'})
+        stub.add_response('get_user_pool_mfa_config', {'MfaConfiguration': 'OPTIONAL'}, {'UserPoolId': 'eu-north-1_fixture'})
+        assert adapter._account_configuration(client)['mfa']['MfaConfiguration'] == 'OPTIONAL'
+        stub.add_response('update_user_attributes', {}, {'AccessToken': 'access', 'UserAttributes': [
+            {'Name': 'given_name', 'Value': 'Ada'}, {'Name': 'family_name', 'Value': 'Traveler'}]})
+        adapter.update_names('access', 'Ada', 'Traveler')
+        stub.assert_no_pending_responses()
+
+
 class CognitoAdapterTests(unittest.TestCase):
     def test_register_maps_product_attributes(self):
         client = Mock()

@@ -73,3 +73,18 @@ def test_unsafe_email_cannot_write_and_validation_is_private(account):
     a.provider.update_email.assert_not_called()
     response = a.client.patch(PATH + '/name', json={'first_name': 'secret-in-extra', 'subject': 'other'})
     assert response.status_code == 422 and 'secret-in-extra' not in response.text
+
+
+@pytest.mark.parametrize('configuration', [None, {}, {'pool': {}, 'client': {}, 'mfa': {}},
+    {'pool': {'UserAttributeUpdateSettings': {'AttributesRequireVerificationBeforeUpdate': 'email'}, 'AutoVerifiedAttributes': ['email']}, 'client': {}, 'mfa': {}}])
+def test_unknown_or_malformed_capability_fails_closed(account, configuration):
+    account.provider.account_configuration.return_value = configuration
+    result = account.client.get(PATH)
+    assert result.status_code == 200
+    assert result.json()['capabilities']['email_change']['available'] is False
+
+
+def test_provider_permission_error_does_not_hide_names(account):
+    from botocore.exceptions import ClientError
+    account.provider.account_configuration.side_effect = ClientError({'Error': {'Code': 'AccessDeniedException', 'Message': 'private'}}, 'Read')
+    assert account.client.get(PATH).json()['identity']['first_name'] == 'Ada'

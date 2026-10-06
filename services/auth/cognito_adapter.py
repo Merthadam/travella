@@ -34,6 +34,33 @@ class CognitoAdapter:
     def get_user(self, access_token: str) -> dict[str, Any]:
         return self.client.get_user(AccessToken=access_token)
 
+    def update_names(self, access_token: str, first_name: str, last_name: str):
+        return self.client.update_user_attributes(AccessToken=access_token, UserAttributes=[
+            {"Name": "given_name", "Value": first_name},
+            {"Name": "family_name", "Value": last_name},
+        ])
+
+    def account_configuration(self):
+        # A separate read-only client bounds management-plane capability probes.
+        from botocore.config import Config
+        import boto3
+
+        client = boto3.client("cognito-idp", region_name=self.client.meta.region_name,
+                              config=Config(connect_timeout=2, read_timeout=3,
+                                            retries={"total_max_attempts": 1}))
+        try:
+            return self._account_configuration(client)
+        finally:
+            client.close()
+
+    def _account_configuration(self, client):
+        return {
+            "pool": client.describe_user_pool(UserPoolId=self.user_pool_id)["UserPool"],
+            "client": client.describe_user_pool_client(UserPoolId=self.user_pool_id,
+                ClientId=self.app_client_id)["UserPoolClient"],
+            "mfa": client.get_user_pool_mfa_config(UserPoolId=self.user_pool_id),
+        }
+
     def sign_in(self, email: str, password: str) -> dict[str, Any]:
         return self.client.initiate_auth(
             ClientId=self.app_client_id,

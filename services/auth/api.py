@@ -79,6 +79,7 @@ def create_app(
     clock: Callable[[], float] = time.time,
     crud_client: CrudClient | None = None,
     agent_client: AgentClient | None = None,
+    capability_reader: Callable | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Travella account access", docs_url=None, redoc_url=None)
     cookie = "__Host-travella" if secure_cookies else "travella_local"
@@ -696,4 +697,6 @@ def create_app(
         clear(response)
         return {"state": "sign_in"}
 
+    from .account import register_account_routes
+    register_account_routes(app, provider, verifier, store, current_session, ready, clock, capability_reader)
     return app

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { readTravelerProfile, request } from '../../api';
 import { PreferenceSettings, preferenceDraft, preferenceLabels, preferenceSaved } from './PreferenceSettings';
 import './account.css';
+import { AccountIdentity } from './AccountIdentity';
 
 export const ACCOUNT_SETTINGS = [
   { id: 'name', label: 'Your name', group: 'Personal details' },
@@ -22,6 +23,10 @@ function initialTheme() {
 
 export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans, navigationGuard, onProfileSaved }) {
   const [profile, setProfile] = useState(initialProfile);
+  const [account, setAccount] = useState(null);
+  const [identityProtected, setIdentityProtected] = useState(false);
+  const [identityBusy, setIdentityBusy] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
   const [selected, setSelected] = useState('home');
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -41,7 +46,8 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   const errorBox = useRef(null);
   const setting = ACCOUNT_SETTINGS.find(item => item.id === selected);
   const invalid = error === 'Check the highlighted fields and try again.';
-  const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(preferenceDraft(selected, profile));
+  const dirty = identityProtected || (draft !== null && JSON.stringify(draft) !== JSON.stringify(preferenceDraft(selected, profile)));
+  useEffect(() => { let active = true; request('/auth/account').then(value => { if (active) setAccount(value); }).catch(err => { if (active && err.status === 401) onExpired(); }); return () => { active = false; }; }, [onExpired]);
 
   useEffect(() => { alive.current = true; return () => { alive.current = false; attempt.current = null; }; }, []);
   useEffect(() => {
@@ -58,18 +64,19 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     else if (error) errorBox.current?.focus();
   }, [error, invalid]);
   useEffect(() => {
-    if (!dirty && !busy && !uncertain) return;
+    if (!dirty && !busy && !identityBusy && !uncertain) return;
     const protect = event => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', protect);
     return () => window.removeEventListener('beforeunload', protect);
-  }, [dirty, busy, uncertain]);
+  }, [dirty, busy, identityBusy, uncertain]);
 
   function resetEditor() {
+    setIdentityProtected(false); setEditorKey(value => value + 1);
     setDraft(null); setError(''); setNotice(''); setConflict(false); setLatest(null);
     setUncertain(false); attempt.current = null;
   }
   function guard(action) {
-    if (lock.current) return false;
+    if (lock.current || identityBusy) return false;
     if (dirty || uncertain) { setPendingExit(() => action); return false; }
     resetEditor(); action(); return true;
   }
@@ -138,6 +145,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     return <PreferenceSettings setting={selected} profile={saved} />;
   }
   function summary() {
+    if (selected === 'name' || selected === 'email') return <AccountIdentity key={`${selected}-${editorKey}`} setting={selected} account={account} onSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} cancel={guard} />;
     if (preferenceLabels[selected]) return <>{values(profile)}<button className="account-primary" onClick={() => { setDraft(preferenceDraft(selected, profile)); setNotice(''); }}>Edit {preferenceLabels[selected]}</button></>;
     return <p className="account-values">We couldn't load this setting. Try again.</p>;
   }
@@ -150,7 +158,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     <main className="account-layout">
       <div className="account-heading"><div><p className="account-kicker">YOUR TRAVEL COMPANION</p><h1>Account &amp; preferences</h1></div><p>Small details. Better journeys.</p></div>
       <div className="account-workspace">
-        <aside className="account-master"><p><span aria-hidden="true">◯</span> Your traveler profile</p>{groups.map(group => <nav key={group} aria-label={group}><h2>{group}</h2>{ACCOUNT_SETTINGS.filter(item => item.group === group).map(item => <button key={item.id} disabled={busy} aria-current={selected === item.id ? 'page' : undefined} onClick={() => { if (item.id !== selected) guard(() => setSelected(item.id)); }}>{item.label}<span aria-hidden="true">›</span></button>)}</nav>)}</aside>
+        <aside className="account-master"><p><span aria-hidden="true">{account?.identity ? `${account.identity.first_name?.[0] || ''}${account.identity.last_name?.[0] || ''}` || '◯' : '◯'}</span> {account?.identity ? `${account.identity.first_name} ${account.identity.last_name}`.trim() || 'Your traveler profile' : 'Your traveler profile'}</p>{groups.map(group => <nav key={group} aria-label={group}><h2>{group}</h2>{ACCOUNT_SETTINGS.filter(item => item.group === group).map(item => <button key={item.id} disabled={busy || identityBusy} aria-current={selected === item.id ? 'page' : undefined} onClick={() => { if (item.id !== selected) guard(() => setSelected(item.id)); }}>{item.label}<span aria-hidden="true">›</span></button>)}</nav>)}</aside>
         <label className="account-mobile-setting">Choose a setting<select value={selected} disabled={busy} onChange={event => { const next = event.target.value; guard(() => setSelected(next)); }}>{groups.map(group => <optgroup key={group} label={group}>{ACCOUNT_SETTINGS.filter(item => item.group === group).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup>)}</select></label>
         <section className="account-detail" aria-labelledby="account-setting-heading">
           <p className="account-kicker">{setting.group}</p><h2 ref={detailHeading} tabIndex={-1} id="account-setting-heading">{setting.label}</h2>
