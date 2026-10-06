@@ -1,9 +1,9 @@
 ---
 phase: "13"
 slug: account-settings-and-travel-preferences
-status: planned
+status: executed-with-baseline-debt
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: "2026-10-06"
 ---
 # Phase 13 — Validation Strategy
@@ -19,19 +19,19 @@ Five sequential waves are specified in 13-01 through 13-05. All new test files b
 
 | Task | Requirements | Executable automated check | Status |
 |---|---|---|---|
-| 13-01-01 | 01, 02, 06 | `uv run --locked pytest services/auth/tests/test_account_profile.py services/crud/tests/test_api.py -q`; `npm --prefix frontend test -- src/features/account/AccountSettingsPage.test.jsx`; `npm --prefix frontend run build` | Planned |
-| 13-01-02 | 01, 02 | `npm --prefix frontend test -- src/AccountApp.test.jsx src/PlansApp.test.jsx src/features/account/AccountSettingsPage.test.jsx` | Planned |
-| 13-01-03 | 01 | `npm --prefix frontend run build`; `git cat-file -e prototype/account-settings:frontend/src/prototypes/AccountSettingsPrototype.jsx` | Planned |
-| 13-02-01 | 01, 02, 06 | `uv run --locked pytest services/auth/tests/test_account_profile.py -q`; `npm --prefix frontend test -- src/features/account/PreferenceSettings.test.jsx src/features/account/AccountSettingsPage.test.jsx` | Planned |
-| 13-02-02 | 02 | `uv run --locked pytest services/auth/tests/test_account_profile.py -q`; `npm --prefix frontend test -- src/features/account/PreferenceSettings.test.jsx` | Planned |
-| 13-02-03 | 05, 06 | `uv run --locked pytest services/auth/tests/test_account_profile.py services/agent/tests/test_agent_turn.py services/agent/tests/test_agentcore_memory.py -q` | Planned |
-| 13-03-01/02 | 03, 04, 06 | `uv run --locked pytest services/auth/tests/test_account.py services/auth/tests/test_cognito_adapter.py -q`; `npm --prefix frontend test -- src/features/account/AccountIdentity.test.jsx` | Planned |
-| 13-03-03 | 03, 04, 06 | `uv run --locked pytest services/auth/tests/test_account.py services/auth/tests/test_api.py services/auth/tests/test_crud_client.py services/auth/tests/test_session_store.py -q` | Planned |
-| 13-04-01 | 04, 06 | `uv run --locked pytest services/auth/tests/test_account_security.py services/auth/tests/test_cognito_adapter.py -q`; `npm --prefix frontend test -- src/features/account/AccountSecurity.test.jsx` | Planned |
-| 13-04-02 | 04, 06 | `uv run --locked pytest services/auth/tests/test_account_security.py services/auth/tests/test_api.py services/auth/tests/test_cognito_adapter.py -q`; `npm --prefix frontend test -- src/features/account/AccountSecurity.test.jsx` | Planned |
-| 13-04-03 | 04, 06 | `uv run --locked pytest services/auth/tests/test_account_security.py services/auth/tests/test_session_store.py -q`; `npm --prefix frontend test -- src/features/account/AccountSecurity.test.jsx`; `npm --prefix frontend run build` | Planned |
-| 13-05-01 | 01–06 | `uv run --locked pytest services/crud/tests/test_account_postgres.py services/auth/tests services/crud/tests services/agent/tests/test_agent_turn.py services/agent/tests/test_agentcore_memory.py -q`; `npm --prefix frontend test`; `npm --prefix frontend run build` | Planned |
-| 13-05-02 | 01–06 | Exact Python evidence-file assertion in 13-05-PLAN; actual Chrome interactions/inspection additionally required | Planned |
+| 13-01-01 | 01, 02, 06 | `uv run --locked pytest services/auth/tests/test_account_profile.py services/crud/tests/test_api.py -q`; `npm --prefix frontend test -- src/features/account/AccountSettingsPage.test.jsx`; `npm --prefix frontend run build` | Executed — see sign-off |
+| 13-01-02 | 01, 02 | `npm --prefix frontend test -- src/AccountApp.test.jsx src/PlansApp.test.jsx src/features/account/AccountSettingsPage.test.jsx` | Executed — see sign-off |
+| 13-01-03 | 01 | `npm --prefix frontend run build`; `git cat-file -e prototype/account-settings:frontend/src/prototypes/AccountSettingsPrototype.jsx` | Executed — see sign-off |
+| 13-02-01 | 01, 02, 06 | `uv run --locked pytest services/auth/tests/test_account_profile.py -q`; `npm --prefix frontend test -- src/features/account/PreferenceSettings.test.jsx src/features/account/AccountSettingsPage.test.jsx` | Executed — see sign-off |
+| 13-02-02 | 02 | `uv run --locked pytest services/auth/tests/test_account_profile.py -q`; `npm --prefix frontend test -- src/features/account/PreferenceSettings.test.jsx` | Executed — see sign-off |
+| 13-02-03 | 05, 06 | `uv run --locked pytest services/auth/tests/test_account_profile.py services/agent/tests/test_agent_turn.py services/agent/tests/test_agentcore_memory.py -q` | Executed — see sign-off |
+| 13-03-01/02 | 03, 04, 06 | `uv run --locked pytest services/auth/tests/test_account.py services/auth/tests/test_cognito_adapter.py -q`; `npm --prefix frontend test -- src/features/account/AccountIdentity.test.jsx` | Executed — see sign-off |
+| 13-03-03 | 03, 04, 06 | `uv run --locked pytest services/auth/tests/test_account.py services/auth/tests/test_api.py services/auth/tests/test_crud_client.py services/auth/tests/test_session_store.py -q` | Executed — see sign-off |
+| 13-04-01 | 04, 06 | `uv run --locked pytest services/auth/tests/test_account_security.py services/auth/tests/test_cognito_adapter.py -q`; `npm --prefix frontend test -- src/features/account/AccountSecurity.test.jsx` | Executed — see sign-off |
+| 13-04-02 | 04, 06 | `uv run --locked pytest services/auth/tests/test_account_security.py services/auth/tests/test_api.py services/auth/tests/test_cognito_adapter.py -q`; `npm --prefix frontend test -- src/features/account/AccountSecurity.test.jsx` | Executed — see sign-off |
+| 13-04-03 | 04, 06 | `uv run --locked pytest services/auth/tests/test_account_security.py services/auth/tests/test_session_store.py -q`; `npm --prefix frontend test -- src/features/account/AccountSecurity.test.jsx`; `npm --prefix frontend run build` | Executed — see sign-off |
+| 13-05-01 | 01–06 | `uv run --locked pytest services/crud/tests/test_account_postgres.py services/auth/tests services/crud/tests services/agent/tests/test_agent_turn.py services/agent/tests/test_agentcore_memory.py -q`; `npm --prefix frontend test`; `npm --prefix frontend run build` | Executed — see sign-off |
+| 13-05-02 | 01–06 | Exact Python evidence-file assertion in 13-05-PLAN; actual Chrome interactions/inspection additionally required | Executed — see sign-off |
 
 Requirement suffixes above are ACCOUNT-13-NN. HTTP tests use actual Auth/CRUD handlers and SQL; provider fixtures isolate sensitive mutations. Isolated PostgreSQL tests must execute without environment skips before the concurrency gate can pass.
 
@@ -49,10 +49,16 @@ Requirement suffixes above are ACCOUNT-13-NN. HTTP tests use actual Auth/CRUD ha
 - 13-03-01 creates managed-identity/account HTTP and adapter fixtures with real encrypted local-store persistence; 13-04-01 adds security fixtures.
 - Each frontend slice creates its corresponding interaction tests before implementing behavior, using exact plan interface contracts.
 - 13-02-03 adds explicit Agent canonical-clear regressions; 13-05-01 adds guarded PostgreSQL concurrency tests.
-- `wave_0_complete` remains false until these actual test scaffolds exist and run. No prospective pass or missing-test command is treated as coverage.
+- `wave_0_complete` is now true: the named scaffolds exist and ran. Historical command mapping does not imply that unrelated baseline failures passed.
 
 ## Manual-Only Verifications
 Use mandatory docs/skills/travella-testing/SKILL.md and .agents/skills/travella-local/SKILL.md. Preserve screenshot evidence from selected C before implementation. Authenticate with supplied example account without printing credentials. Use non-sensitive temporary preference values, record old values privately and restore only the verification change, never overwrite concurrent changes. Check desktop/mobile and both themes, error/dirty/save/reload/back. Sensitive flows must use isolated provider fixtures; don't claim live success from fixtures. Current Cognito email-before-update policy is unsafe; live email change is blocked without separately authorized configuration change.
 
 ## Validation Sign-Off
-Concrete task mapping complete; execution pending. `nyquist_compliant` and `wave_0_complete` remain false until tests and required evidence have actually run. Current unsafe email policy must refuse initiation; conditional successful flows are fixture-tested, not live provider-mutation evidence. Existing signed-out recovery debt remains separate. Update this section only with commands, observed results, inspected screenshot links and exact blockers from `artifacts/testing/2026-10-06-account-settings/verification.md`.
+Execution completed 2026-10-06. The five plan summaries and [verification record](../../../artifacts/testing/2026-10-06-account-settings/verification.md) contain actual commands, HTTP/SQL assertions and inspected Chrome evidence. All test scaffolds exist and ran, so `wave_0_complete` is true. `nyquist_compliant` remains conservatively false while the broad regression suites have unresolved baseline failures; this is not a missing account browser/SQL gate.
+
+- 13-01/02 preference/routing implementation checks passed, except the documented unchanged AccountApp/PlansApp fixture failures in the broad route selection.
+- 13-03/04 identity/security checks passed; final 13-04 auth suite 139 passed, account UI 30 passed, build passed. Successful sensitive provider operations are fixture evidence only.
+- 13-05 isolated PostgreSQL profile concurrency/replay and independent-store recovery rotation passed (2 tests). After live-login hardening, account PostgreSQL plus SessionStore selection passed 6 tests. Full prescribed Python selection: 203 passed, 2 failed, 1 error from unchanged Plan confirmation/migration/fixture debt. Full frontend: 48 passed, 17 unchanged failures; build passed.
+- 13-05 Chrome gate passed at localhost:5174: real preference Save/reload/clears/restoration, five unchanged Plan/brief snapshots during preference edits, selected Plan return/history, all nine sections, desktop/mobile light/dark, 320px overflow and native keyboard modal review. Pending/422/conflict/lost-response conditions were explicitly simulated; real persistence remained exercised. Seven final screenshots were captured and individually opened/inspected; the exact artifact check passed. Four changed-source/container hashes matched; final console had no application errors.
+- Current unsafe email policy refuses initiation; live email remains unavailable. Shared-account identity/factors were not changed. Existing signed-out recovery and broader baseline test debt remain separate and open.

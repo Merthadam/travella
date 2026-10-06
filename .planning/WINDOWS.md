@@ -2,9 +2,9 @@
 schema_version: 1
 open_count: 4
 waived_count: 0
-fixed_count: 1
-total_count: 5
-last_updated: 2026-10-06T17:23:50.030Z
+fixed_count: 2
+total_count: 6
+last_updated: 2026-10-06T17:39:29.635Z
 ---
 
 # Broken Windows Ledger
@@ -17,9 +17,10 @@ last_updated: 2026-10-06T17:23:50.030Z
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
 | 1 | 10 | deviation | services/agent/service.py |  | Added a validated source projection so only read-page citations attach to the answer. | open |  | 2026-10-04T11:55:06.521Z |  |
 | 2 | 10 | deviation | services/mcps/research_server.py |  | Extended the existing search operation to support factual queries and scoped sources without candidates. | open |  | 2026-10-04T11:55:15.842Z |  |
-| 3 | 13 | unrun-verify | frontend/src/features/account/AccountSettingsPage.jsx |  | 13-01 browser save/reload, selected Plan return, responsive/theme screenshots and console/network checks remain the explicit 13-05 gate. | open |  | 2026-10-06T14:19:35.433Z |  |
+| 3 | 13 | unrun-verify | frontend/src/features/account/AccountSettingsPage.jsx |  | 13-01 browser save/reload, selected Plan return, responsive/theme screenshots and console/network checks remain the explicit 13-05 gate. | fixed |  | 2026-10-06T14:19:35.433Z | 2026-10-06T17:39:07.220Z |
 | 4 | 13 | stub | frontend/src/features/account/AccountSettingsPage.jsx | 145 | Account security rows and security capabilities are intentionally unavailable until plan 13-04. Preferences completed in 13-02 and canonical identity/conditional email in 13-03; browser gate remains open in entry 3. | fixed |  | 2026-10-06T14:19:50.022Z | 2026-10-06T17:23:50.030Z |
 | 5 | 13 | unmet-truth | .planning/phases/13-account-settings-and-travel-preferences/deferred-items.md |  | Full requested frontend regression run has 12 pre-existing failures reproduced from 49e6d526; new account tests pass. | open |  | 2026-10-06T14:19:50.112Z |  |
+| 6 | 13 | unmet-truth | .planning/phases/13-account-settings-and-travel-preferences/deferred-items.md |  | 13-05 broad regression run additionally exposes five unchanged frontend failures and PostgreSQL fixture/expectation debt; all account-specific SQL and browser checks pass. | open |  | 2026-10-06T17:39:29.635Z |  |
 
 ````json
 [
@@ -56,10 +57,10 @@ last_updated: 2026-10-06T17:23:50.030Z
     "file": "frontend/src/features/account/AccountSettingsPage.jsx",
     "line": null,
     "description": "13-01 browser save/reload, selected Plan return, responsive/theme screenshots and console/network checks remain the explicit 13-05 gate.",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-10-06T14:19:35.433Z",
-    "resolved_at": null,
+    "resolved_at": "2026-10-06T17:39:07.220Z",
     "milestone": null
   },
   {
@@ -85,6 +86,19 @@ last_updated: 2026-10-06T17:23:50.030Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-06T14:19:50.112Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 6,
+    "kind": "unmet-truth",
+    "phase": "13",
+    "file": ".planning/phases/13-account-settings-and-travel-preferences/deferred-items.md",
+    "line": null,
+    "description": "13-05 broad regression run additionally exposes five unchanged frontend failures and PostgreSQL fixture/expectation debt; all account-specific SQL and browser checks pass.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-06T17:39:29.635Z",
     "resolved_at": null,
     "milestone": null
   }

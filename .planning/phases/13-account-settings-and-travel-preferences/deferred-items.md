@@ -9,7 +9,9 @@
 
 These are pre-existing test-fixture debts, not verified application regressions. Resolve in an authorized follow-up; do not claim the complete frontend suite passed.
 
-## Planned browser gate
+## Browser gate completed
+
+13-05 completed the required real Chrome interactions, SQL concurrency, container freshness and seven inspected screenshots. See the current account verification record. The original 13-01 note below describes its then-pending gate, which is now closed; WINDOWS entry 3 is fixed.
 
 ## Additional baseline debt observed by 13-05 full suites
 

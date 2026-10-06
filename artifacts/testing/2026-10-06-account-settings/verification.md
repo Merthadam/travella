@@ -93,3 +93,42 @@ The disposable `travella_account_verify_1305` database was created in the existi
 Two execution fixes were necessary. The disposable fixture omitted `research_contexts`, leaving that table behind between tests; cleanup now includes it. More importantly, real example-account login returned 500 because the new reconciliation scan decrypted legacy sessions encrypted with a different key. A committed failing regression (`13-05-red.json`, RED_EVIDENCE_OK) proves this case. Reconciliation/account-record scans now ignore unreadable unrelated ciphertext without deleting or modifying it. Valid current-key sessions reconcile normally; targeted regression and live startup now pass. No encryption keys were changed.
 
 The account concurrency additions are tests of already implemented behavior, so they passed on first valid execution; no artificial failing production behavior was introduced. The actual login regression followed RED → GREEN.
+
+## Plan 13-05 — real Chrome delivery gate (2026-10-06)
+
+**Passed.** Used the installed Chrome DevTools MCP server with its isolated headless Chrome profile via a local stdio bridge. The already-open default Chrome profile was left alone. This was the real application at `http://localhost:5174/account`, authenticated as the required example account with credentials read privately from its configured file. No alternate browser, screenshot-only substitute, cloud mutation or live identity/factor change was used.
+
+### Build freshness and local readiness
+
+The local skill's read-only AWS pool/client precheck passed. `bash scripts/start-local-ready.sh` rebuilt the checkout and exposed the mixed-key login defect recorded above. After the fix, the same command passed sign-in → session → temporary sign-out and reported the canonical localhost origin. Compose `ps -q app` identified the running container. SHA-256 comparisons matched all four representative files: `frontend/src/features/account/AccountSettingsPage.jsx`, `frontend/src/features/account/AccountSecurity.jsx`, `services/auth/session_store.py`, and `services/crud/profile.py`. Application volumes remained intact. The disposable PostgreSQL test database was dropped after the test run.
+
+### Executed interactions and persistence
+
+| Journey | Observed result |
+|---|---|
+| Direct authenticated `/account` and reload | Selected-C layout loads; Home base is default; canonical home map and airport render. Theme persists across reload and viewport changes. |
+| Needs edit and dirty navigation | Temporary synthetic values entered through real controls. Keep editing retained the draft; Discard changes restored the saved values. Real Save acknowledged; HTTP canonical readback and page reload showed both temporary values. |
+| Home, citizenship and interests | Optional airport cleared with Save and readback. Citizenship clear+Cancel retained saved citizenship, explicit empty Save persisted. Zero interests saved without the onboarding minimum. Home/interests clear+Cancel preserved originals. Needs clear persisted empty fields and was restored. |
+| Pending/error/conflict | **Simulated transport only:** held one save response to inspect disabled controls, released 422 and observed retained draft/useful focus. Injected 409 displayed conflict review; Review latest details fetched canonical values without overwriting the draft. Screenshot explicitly documents this simulated conflict. |
+| Unknown-result reconciliation | **Simulated response loss after a real server commit:** fetch completed the ordinary save then threw. UI showed uncertainty and disabled a new Save. Check saved details replayed the identical event and read current canonical state; saved synthetic value was confirmed. |
+| Restoration and Plan isolation | Original preferences/Plan snapshots stored privately outside evidence. Before restoration, canonical profile exactly matched the last test result. Each of four restoration PATCHes carried a fresh event and current expected revision. All original profile fields and onboarding state matched afterward (revision/timestamp legitimately advanced). All five Plan and brief snapshots were exactly equal before/after preference edits. A later needs clear/restore used the same revision guard and rechecked original fields. |
+| Existing Plan return/history | Opened an existing Plan through My plans, entered Account, returned to the same Plan, and used browser Back/Forward successfully. Normal Plan-open activity bookkeeping occurs; preference saves did not change Plan/brief snapshots. |
+| Nine settings/security | Visited all nine rows. Canonical name, email and factor/recovery states loaded. Email correctly says unavailable. Only client password mismatch validation was submitted; focus moved to confirmation and zero sensitive HTTP writes were made. Cancel discarded the dummy form values. Provider success is established by isolated fixtures, not this shared-account journey. |
+| Responsive/keyboard | 1440×1050 desktop and 390×844 mobile in both themes; every setting also selected at 320px without horizontal page overflow. Mobile selector contains three groups/nine options. Tab reaches editor controls. Native modal initially focuses Keep editing, excludes background controls, and Escape keeps the draft; Chromium may visit browser chrome between modal tab cycles. |
+| Console/network | Inspected Chrome DevTools console and fetch/XHR requests. Final application console has no errors, only the existing Lit development-mode warning. Relevant canonical reads, ordinary saves/replays/restores and Plan requests returned 200. Injected 422/409/lost-response states are the simulated checks above. No raw auth payloads, private URLs, tokens or credentials were retained. |
+
+### Inspected screenshots
+
+All seven final files were opened with the image viewer after capture, not merely checked for existence. Text, focus indicators, contrast, button states and selected-C hierarchy are readable; no clipping or overlap was observed. Full-page images may exceed viewport height naturally. Mobile images use synthetic needs values; the email capture masks only the rendered email text, leaving tested server state unchanged. No original home address, personal needs, credentials or recovery secrets are included in the final captures.
+
+- [Desktop light](implementation/account-desktop-light.png) and [desktop dark](implementation/account-desktop-dark.png): 1440px, saved synthetic preference summary.
+- [Mobile light](implementation/account-mobile-light.png) and [mobile dark](implementation/account-mobile-dark.png): 390px, grouped selector and full summary/actions.
+- [Real save and reload](implementation/account-save-reload.png): persisted synthetic values after reload.
+- [Simulated dirty conflict](implementation/account-dirty-conflict.png): retained draft, focused explanation and explicit review action.
+- [Live unavailable email capability](implementation/account-security-unavailable.png): safe unavailable state with email masked.
+
+The pre-implementation [selected-C planning evidence](../2026-10-05-account-prototypes/verification.md) and prototype branch remain available. The plan's exact Python seven-file existence check also passed, after interaction and image review. The mandatory testing skill was re-read before completion. WINDOWS entry 3 is fixed; unrelated regression debt stays open.
+
+### Honest limits
+
+The current managed-identity pool does not enable safe email-before-update verification; live email change remains unavailable by design. Password, factor replacement, recovery rotation and successful email verification were not performed on the shared account. Their successful/error/ownership states are covered by actual HTTP handlers, encrypted SQL and isolated provider fixtures. Earlier signed-out recovery remains unverified and unchanged. Full broad Python/frontend suites are **not green** for the baseline failures documented above; account-specific checks, build, isolated concurrency and this required browser gate passed.
