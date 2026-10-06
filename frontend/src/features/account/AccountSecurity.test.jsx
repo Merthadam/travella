@@ -99,5 +99,31 @@ test('MFA-off recovery link opens actual authenticator setting', async () => {
   await page(user, 'Recovery codes');
   await user.click(screen.getByText('Set up authenticator'));
   expect(screen.getByRole('heading', { name: 'Two-factor authentication' })).toBeTruthy();
-  expect(fetch.mock.calls).toHaveLength(1);
+    expect(fetch.mock.calls).toHaveLength(1);
+});
+
+test('lost recovery disclosure reconciles count without replaying or redisclosing', async () => {
+  const user = userEvent.setup();
+  const capable = { ...account, mfa: { status: 'on' }, capabilities: { ...account.capabilities, recovery_codes: { rotate: true } } };
+  backend(path => {
+    if (path.endsWith('/rotate')) throw new TypeError('offline');
+    return response(path.endsWith('/verification') ? { state: 'verified', verification_id: 'proof' } : { state: 'complete', account: { ...capable, recovery_codes: { status: 'available', remaining: 10 } } });
+  }, capable);
+  await page(user, 'Recovery codes');
+  await user.click(screen.getByText('Generate recovery codes'));
+  await user.type(screen.getByLabelText('Current password'), 'current-fixture'); await user.click(screen.getByText('Continue'));
+  await user.click(await screen.findByText('Check account status'));
+  await screen.findByText('10 codes remaining');
+  expect(screen.queryByLabelText('Your new recovery codes')).toBeNull();
+  expect(screen.getByText('Replace recovery codes')).toBeTruthy();
+  expect(fetch.mock.calls.filter(([path]) => path.endsWith('/rotate'))).toHaveLength(1);
+});
+
+test('session expiry hides private content and secrets without a security write', async () => {
+  const user = userEvent.setup();
+  backend(() => response({ message: 'Sign-in required.' }, 401));
+  await page(user); await passwords(user);
+  expect(screen.queryByLabelText('Current password')).toBeNull();
+  expect(screen.queryByText('Ada Traveler')).toBeNull();
+  expect(fetch.mock.calls.some(([path]) => path.endsWith('/password'))).toBe(false);
 });

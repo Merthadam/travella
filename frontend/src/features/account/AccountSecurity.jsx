@@ -28,7 +28,7 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
   useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy, onBusy]);
   useEffect(() => { onDisclosure?.(stage === 'codes'); return () => onDisclosure?.(false); }, [stage, onDisclosure]);
   useEffect(() => { form.current?.querySelector('input')?.focus(); }, [stage]);
-  useEffect(() => { if (error) alert.current?.focus(); }, [error]);
+  useEffect(() => { if (error === "Your new passwords don't match.") form.current?.querySelector('[name="confirmation"]')?.focus(); else if (error) alert.current?.focus(); }, [error]);
   useEffect(() => {
     if (!expiresAt) return;
     const timer = setTimeout(() => { clearSecrets(); operation.current = null; setStage('summary'); setError('Verification expired. Confirm it is you again to continue.'); }, Math.max(0, expiresAt - Date.now()));
@@ -101,7 +101,7 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
     catch { if (alive.current) setError("Couldn't copy the codes. Select and copy them manually."); }
   }
   return <div aria-busy={busy}>
-    {error && <p ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
+    {error && <p id="account-security-error" ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
     {!account ? <p>Status unavailable</p> : stage === 'summary' ? <>
       {setting === 'password' && (account.capabilities?.password_change?.available ? <button className="account-primary" onClick={() => { leave(); setNotice(''); setStage('password'); }}>Change password</button> : <p>Password changes are unavailable right now.</p>)}
       {setting === 'authenticator' && <>
@@ -126,7 +126,7 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
           <p>{policy ? `Use at least ${policy.minimum_length || 1} characters${policy.require_uppercase ? ', an uppercase letter' : ''}${policy.require_lowercase ? ', a lowercase letter' : ''}${policy.require_numbers ? ', a number' : ''}${policy.require_symbols ? ', a symbol' : ''}.` : 'Your new password must meet your account password policy.'}</p>
           <label>Current password<input type="password" autoComplete="current-password" required maxLength={256} value={password} onChange={event => setPassword(event.target.value)} /></label>
           <label>New password<input type="password" autoComplete="new-password" required maxLength={256} minLength={policy?.minimum_length || 1} value={nextPassword} onChange={event => setNextPassword(event.target.value)} /></label>
-          <label>Confirm new password<input type="password" autoComplete="new-password" required maxLength={256} value={confirmation} onChange={event => setConfirmation(event.target.value)} /></label>
+          <label>Confirm new password<input name="confirmation" type="password" autoComplete="new-password" required maxLength={256} aria-invalid={error === "Your new passwords don't match." || undefined} aria-describedby={error === "Your new passwords don't match." ? 'account-security-error' : undefined} value={confirmation} onChange={event => setConfirmation(event.target.value)} /></label>
         </>}
         {stage === 'enrollment' && <><p>Enter this setup key in your authenticator app, then enter its six-digit code. The key is shown only during this setup.</p><label>Setup key<input readOnly value={setupKey} autoComplete="off" /></label></>}
         {['factor', 'enrollment'].includes(stage) && <label>Authenticator code<input inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value)} /></label>}
