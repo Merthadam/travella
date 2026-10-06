@@ -1,6 +1,26 @@
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 from services.auth.session_store import SessionStore
+
+
+def test_account_scans_ignore_unreadable_unrelated_sessions_without_deleting_them(tmp_path):
+    path = str(tmp_path / 'mixed-key.sqlite3')
+    old = SessionStore(path, Fernet.generate_key().decode())
+    old_sid = old.create({'kind': 'session', 'subject': 'other', 'email': 'private@example.test'}, 500, 10)
+    old_payload = old.db.execute('SELECT payload FROM auth_sessions').fetchone()[0]
+    current = SessionStore(path, Fernet.generate_key().decode())
+    sid = current.create({'kind': 'session', 'subject': 'one', 'email': 'old@example.test'}, 500, 10)
+    try:
+        current.reconcile_email('one', 'new@example.test')
+    except InvalidToken:
+        assert False, 'An unrelated unreadable session must not break current-account reconciliation'
+    assert current.get(sid, 20)['email'] == 'new@example.test'
+    assert len(current.live_records(20)) == 1
+    assert current.account_records('one', 20) == []
+    assert old.get(old_sid, 20)['email'] == 'private@example.test'
+    assert old.db.execute('SELECT payload FROM auth_sessions WHERE id=?', (old.digest(old_sid),)).fetchone()[0] == old_payload
+    old.close()
+    current.close()
 
 
 def test_session_survives_restart_but_not_its_original_expiry(tmp_path):
