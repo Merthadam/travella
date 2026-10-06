@@ -132,3 +132,55 @@ The pre-implementation [selected-C planning evidence](../2026-10-05-account-prot
 ### Honest limits
 
 The current managed-identity pool does not enable safe email-before-update verification; live email change remains unavailable by design. Password, factor replacement, recovery rotation and successful email verification were not performed on the shared account. Their successful/error/ownership states are covered by actual HTTP handlers, encrypted SQL and isolated provider fixtures. Earlier signed-out recovery remains unverified and unchanged. Full broad Python/frontend suites are **not green** for the baseline failures documented above; account-specific checks, build, isolated concurrency and this required browser gate passed.
+
+## Review fixes — 2026-10-06
+
+**Changed-path verification passed at source commit `c2dfb88`.** Original phase execution and audit evidence above remains historical. The code review's CR-01 and eleven UI findings are mapped in [13-REVIEW-FIX.md](../../../.planning/phases/13-account-settings-and-travel-preferences/13-REVIEW-FIX.md).
+
+### Automated checks and execution location
+
+| Check | Observed result |
+|---|---|
+| `uv run --locked pytest services/auth/tests/test_account.py services/auth/tests/test_account_security.py -q` | **57 passed** in isolated review-fix worktree; actual FastAPI handlers and encrypted SQLite stores with isolated provider fixtures. |
+| New omitted-list HTTP regression | GET account reports Off/setup enabled; fresh password proof authorizes acknowledged password change and is stored consumed; first authenticator setup succeeds. No live provider mutation. |
+| New malformed-list HTTP regressions | Five malformed shapes remain unavailable; proof issuance returns sanitized 503 without provider sign-in; consumption returns 403 without password mutation and leaves proof unconsumed. Existing active-factor, provider-failure and changed-assurance tests remain passing. |
+| `NODE_OPTIONS=--no-experimental-webstorage npm --prefix frontend test -- src/features/account/AccountIdentity.test.jsx src/features/account/AccountSecurity.test.jsx src/features/account/AccountSettingsPage.test.jsx` | **29 passed** in isolated worktree: 7 identity, 10 security, 12 settings. |
+| Identity correction regression, same runtime flag, AccountIdentity test file | **7 passed** after Chrome revealed and we corrected focus loss while typing after blank-name validation. |
+| `npm --prefix frontend run build` | Passed in isolated worktree, and again from the final canonical checkout after the scoped icon CSS fix; existing bundle-size warning remains. |
+| AST parsing / `git diff --check` | Passed for changed Python/source sections. |
+
+The initial settings test invocation without the Node 26 flag failed in existing localStorage test setup; it passed with experimental Web Storage disabled so jsdom owns storage. No broad previously failing suite was rerun or relabeled green.
+
+### Canonical local stack
+
+Applied the mandatory local skill. Existing Cognito pool/client precheck was read-only and passed. `bash scripts/start-local-ready.sh` rebuilt the canonical supplied checkout and passed example-account sign-in, session and temporary sign-out. Rebuilt again after the two browser-discovered presentation/focus corrections.
+
+SHA-256 comparisons all matched the running Compose app: `services/auth/account.py`; AccountSettingsPage.jsx, AccountIdentity.jsx, AccountSecurity.jsx, AccountIcon.jsx and account.css under `frontend/src/features/account/`. The final production build ran in the canonical checkout, not an orphan worktree. Database volumes, AWS settings and shared-account credentials/factors were preserved.
+
+### Actual Chrome interactions
+
+Used the installed Chrome DevTools MCP through the same local bridge on port 9326, authenticated as the required example account. Its task-owned isolated browser was restarted after per-page operations stalled; the user's default browser was not touched. An initial navigation immediately after sign-in interrupted that in-flight browser request; the completed subsequent sign-in succeeded. No rejected-password retry or credential reset occurred.
+
+| Changed path | Observed result |
+|---|---|
+| Live MFA read/setup affordance | Account GET 200; Two-factor authentication shows **Off**, and **Set up authenticator** is visible. Entering setup focuses an empty current-password field. Cancel/discard exits; no verification or factor mutation submitted. |
+| Account loading/failure/retry | **Labeled simulated transport:** first account read held, showing Loading account details without a false error; released as 503, showing local Retry. Retry fetches canonical account and recovers the same selected Your name setting. Exactly two read attempts. |
+| Name validation/conflict/focus | **Labeled simulated identity:** blank Save focuses/associates first-name feedback with zero writes; correcting it retains the complete typed Draft value. Held mocked PATCH disables mobile selection; released mocked 409 retains Draft/Traveler and focuses the alert. Review latest details shows Latest/Saved beside Your unsaved changes without another PATCH. All name writes were intercepted, never sent to the server. |
+| Consequential security confirmation | **Labeled simulated active-factor state:** turn-off, replace-authenticator and replace-recovery dialogs display their exact consequence and safe action. Safe action receives focus; Tab remains within native dialog; Escape closes and restores opener focus. No password/code entry or security request occurred. Successful fresh-proof mutation sequence is covered by isolated tests. |
+| Copy/status | Live verified email and unchanged-address unavailable copy present; email rendered text masked only for screenshot. Missing names use individual Not provided fields, and Password summary is capability gated. |
+| Responsive/theme | Desktop 1440×1050 and exact emulated CSS viewports 390×844 in both themes. Asserted actual `innerWidth` at 390 and 320 plus no horizontal document overflow for live MFA and the retained name-conflict form. Controls and full-page vertical flow remain readable. |
+| Console/network | Final live console: no errors, existing Lit development-mode warning only. Account and session reads 200. Fixtures intercept simulated failures/writes; no raw credentials, tokens or provider payloads retained. |
+
+Changing Chrome's mobile/touch emulation can reload the page and correctly trigger dirty-unload protection. Final responsive checks used exact viewport emulation without changing mobile/touch mode, so drafts remained in place; this is responsive CSS evidence, not a claim of physical-device testing.
+
+### Refreshed screenshots
+
+All thirteen final review screenshots were captured by Chrome DevTools and opened with the image viewer. No clipping, overlap, secret material or unrelated personal fields were observed. The screenshot tool could not write directly to this workspace root; its returned image bytes were saved locally without modifying the pixels. The final captures replace intermediate verification captures only; the seven original phase screenshots remain unchanged.
+
+- Live MFA Off: [desktop light](implementation/review-mfa-off-light.png), [desktop dark](implementation/review-mfa-off-dark.png), [390px light](implementation/review-mfa-off-mobile-light.png), [390px dark](implementation/review-mfa-off-mobile-dark.png).
+- Account read states: [loading](implementation/review-loading-simulated.png), [retry](implementation/review-retry-simulated.png), visibly labeled simulated transport.
+- Name comparison: [desktop](implementation/review-name-conflict-simulated.png), [390px light](implementation/review-name-conflict-mobile-light.png), [390px dark](implementation/review-name-conflict-mobile-dark.png), visibly labeled fixture identity.
+- Confirmations: [disable authenticator](implementation/review-disable-confirmation-simulated.png), [replace authenticator](implementation/review-replace-confirmation-simulated.png), [replace recovery codes](implementation/review-recovery-confirmation-simulated.png), visibly labeled fixture factors.
+- [Verified email / unavailable changes](implementation/review-email-unavailable.png), actual live capability with rendered email hidden.
+
+The selected-C [planning screenshots](../2026-10-05-account-prototypes/verification.md) remain the approved visual baseline; desktop C was reopened during this review fix. The mandatory testing skill was reread before delivery. No ordinary preference persistence paths, provider mutation success or complete regression-suite coverage are claimed to have been repeated here. Existing baseline failures and unavailable live email change remain unchanged.
