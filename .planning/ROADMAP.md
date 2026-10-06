@@ -336,22 +336,51 @@ Plans:
 **Depends on:** Existing A2UI Trip Brief renderer and accepted compact-card prototype pattern; no dependency on an absent Phase 13 or unfinished legacy workspace plans.
 **Scope:** Component schemas, pure renderers, local editing/navigation, simulated generation and desktop/mobile design review. Live agent, AG-UI, CRUD, Maps and LiteAPI integrations deferred.
 **Success Criteria:**
+
 1. All seven components render independently from validated A2UI fixture messages.
 2. Composed canvas has consistent responsive placement and simulated create/update/hide without duplicate cards.
 3. Flight/stay containers open distinct local preview views; map/findings/links have honest sample/loading/error states.
 4. No model/provider/backend calls or persisted Plan changes occur in the component gallery.
 5. User receives working preview and inspected desktop/mobile evidence before later integration.
 
-**Plans:** 4 implementation slices delivered in the standalone component studio. Human design approval pending; see14-VERIFICATION.md.
+**Plans:** 4 implementation slices delivered. User approved the studio and booking states on 2026-10-06; technical evidence remains in 14-VERIFICATION.md.
 
 **Wave 1**
+
 - [x] 14-01-PLAN.md — A2UI gallery and Trip Essentials
 
 **Wave 2** *(after Wave 1)*
+
 - [x] 14-02-PLAN.md — Destination Map and Trip Themes
 - [x] 14-03-PLAN.md — Travel containers, findings and links
 
 **Wave 3** *(after both Wave 2 plans)*
-- [ ] 14-04-PLAN.md — Implementation and browser checks done; awaiting user design review
+
+- [x] 14-04-PLAN.md — Implementation/browser checks delivered; user design approval received 2026-10-06
 
 **Cross-cutting constraints:** Standalone fixture state only; seven allowlisted component types; no production chat/navigation changes; no live agent/provider/persistence integration; no tests or paid calls unless requested.
+
+### Phase 15: Bounded agentic canvas generation
+
+**Goal:** Generate the approved editable planning canvas from current Plan context using state mapping and bounded Claude Agent SDK workers, then save the exact reviewed snapshot through an explicit Save plan action.
+**Requirements:** GEN-15-01, GEN-15-02, GEN-15-03, GEN-15-04, GEN-15-05, GEN-15-06, GEN-15-07, GEN-15-08, GEN-15-09, GEN-15-10, GEN-15-11, GEN-15-12
+**Depends on:** Approved Phase 14 designs and current AgentCore/LangGraph/SDK code, including the initial themes worker. Obsolete legacy workspace plans do not determine this scope.
+**Status:** Planned; no execution in this task.
+**Scope:** Two focused SDK worker groups, deterministic state mapping, destination-centered map, typed AG-UI/A2UI delivery, local draft editing and explicit atomic save/reopen. No RAG, LiteAPI search or booking integration.
+**Success Criteria:**
+1. Themes generation reads bounded complete context, respects corrections and saved-preference labels, and renders the approved editable component.
+2. Each model group performs one review and at most one revision within aggregate limits; mapped components require no model call.
+3. Essentials/travel cards map current state and map viewport follows the chosen destination without resetting manual navigation on unrelated changes.
+4. Findings and websites use observed source evidence, show uncertainty and arrive as validated component updates with cancellation/stale-run protection.
+5. Only explicit Save plan commits the exact reviewed snapshot; failed saves preserve edits, conflicts do not overwrite, and reopening restores the last saved canvas.
+6. Manual Chrome/CRUD evidence and requested live-model checks document observed behavior and limits before verification is claimed.
+
+**Plans:** 5 plans in 5 sequential waves.
+
+- [ ] 15-01-PLAN.md — Themes generation from chat to editable canvas (wave 1)
+- [ ] 15-02-PLAN.md — State-mapped cards and destination map (wave 2; after 15-01)
+- [ ] 15-03-PLAN.md — Supported findings and websites (wave 3; after 15-02)
+- [ ] 15-04-PLAN.md — Explicit save and saved-canvas recovery (wave 4; after 15-03)
+- [ ] 15-05-PLAN.md — Connected-flow validation and measured limits (wave 5; after 15-04)
+
+**Cross-cutting:** Keep approved appearance; current user decisions outrank older docs; Claude Agent SDK only for model work; no automatic durable mutation; one active generation per Plan; no tests or paid calls during planning; no automatic execution after planning.

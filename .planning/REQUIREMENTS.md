@@ -245,3 +245,22 @@ Deferred: preferences editor, NoSQL migration, AI onboarding, new orchestration 
 - [x] **CANVAS-14-06**: Findings and useful links have source/purpose/uncertainty presentation and bounded safe inputs.
 - [ ] **CANVAS-14-07**: All components compose consistently, simulate generation and pass manual desktop/mobile design review.
 - [x] **CANVAS-14-08**: Map supports multiple colored/icon category pins with local add/edit/remove, filtering and details; visual hierarchy is more distinctive.
+
+## Phase 15 — Bounded agentic canvas generation
+
+Current-session scope; earlier product requirements remain historical and do not expand this phase.
+
+| ID | Requirement | Plan |
+|---|---|---|
+| GEN-15-01 | Generate Themes & preferences first from authorized context into the approved editable component. | 15-01 |
+| GEN-15-02 | Preserve earlier preferences and latest corrections with explicit bounded-history coverage and read-only saved memory. | 15-01 |
+| GEN-15-03 | Code validation, one semantic review and at most one revision per generated group under aggregate limits. | 15-01, 15-03 |
+| GEN-15-04 | Map essentials directly from state, preserving unknown/flexible/no-budget values. | 15-02 |
+| GEN-15-05 | Center/zoom the map to the chosen destination with provider data and category pins. | 15-02 |
+| GEN-15-06 | Map compact flight/stay containers with need separate from Booked / Not booked. | 15-02 |
+| GEN-15-07 | Deliver only validated typed component updates through existing AgentCore/AG-UI/A2UI with Plan isolation. | 15-01, 15-03 |
+| GEN-15-08 | Produce findings and useful websites from read, sufficiently fresh evidence and show uncertainty/conflicts. | 15-03 |
+| GEN-15-09 | Support cancel, partial completion, group retry and protection against stale output/user-edit replacement. | 15-03 |
+| GEN-15-10 | Explicit Save plan atomically persists the exact reviewed snapshot with revisions/idempotency. | 15-04 |
+| GEN-15-11 | Reopen saved canvas; retain unsaved edits on failures/conflicts and distinguish saved from draft. | 15-04 |
+| GEN-15-12 | Record real UI/CRUD evidence and requested model-quality/cost checks without claiming unrun checks passed. | 15-05 |
