@@ -31,3 +31,6 @@ The later integration phase must reconcile current state ownership and traveler-
 
 ## Visual reference
 Existing compact-card previews: artifacts/testing/2026-10-05-planning-cards/plan/. Combined planning sketch: artifacts/testing/2026-10-06-dynamic-canvas-plan/plan/canvas-layout.html. This is a review sketch, not a claimed final user-approved design. Keep existing throwaway prototype code off main; future execution should carry only these planning artifacts onto the integration branch.
+
+## Execution refinement
+User requested a separate design-system folder for approval. Implementation lives under frontend/src/design-system/ with components, a2ui and preview directories. Production app imports remain unchanged.

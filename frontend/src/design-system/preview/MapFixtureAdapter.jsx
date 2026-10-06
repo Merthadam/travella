@@ -1,0 +1,6 @@
+import React from 'react';
+import { categories } from '../schemas';
+import { Icon } from '../components/primitives';
+export function MapFixtureAdapter({ places, selectedId, onSelect }) {
+  return <div className="ds-schematic" aria-label="Schematic map with sample places"><div className="ds-river"/><div className="ds-road road-one"/><div className="ds-road road-two"/><div className="ds-road road-three"/><span className="ds-map-area area-one">THE OLD TOWN</span><span className="ds-map-area area-two">BY THE WATER</span><div className="ds-pin-layer">{places.slice(0,8).map((p) => { const known = {'stay-1':0,'airport-1':1,'food-1':2,'activity-1':3}; const i = known[p.id] ?? ([...p.id].reduce((sum,c)=>sum+c.charCodeAt(0),0)%8); return <button key={p.id} className={`ds-map-pin ${p.id === selectedId ? 'selected' : ''}`} style={{ '--category': categories[p.category].color, left: `${[33,73,19,66,44,80,15,55][i]}%`, top: `${[34,17,62,68,12,42,17,47][i]}%` }} aria-label={`Inspect ${p.name}`} aria-pressed={selectedId === p.id} onClick={() => onSelect(p.id)} title={p.name}><Icon name={categories[p.category].icon} size={15}/><span>{p.name}</span></button>; })}</div>{places.length>8 && <span className="ds-more-pins">+{places.length-8} more in the place list</span>}<span className="ds-map-disclaimer">SCHEMATIC · SAMPLE POSITIONS</span></div>;
+}

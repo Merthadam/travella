@@ -1,0 +1,7 @@
+import React from 'react';
+import { Card, Icon } from './primitives';
+export function ResearchFindings({ data, onAction, disabled }) {
+  return <Card title="Good to know" eyebrow="A LITTLE LOCAL KNOWLEDGE" icon="book" className="ds-findings" data={data} onAction={onAction} action={<span className="ds-tag">Sample research</span>} empty="Useful discoveries will collect here, with their sources close by.">
+    {!data.items.length && <p className="ds-muted">No findings yet.</p>}{data.items.map((item,n) => <details className="ds-finding" key={item.id} onToggle={e => { if (e.currentTarget.open) onAction('expand_finding', { id: item.id }); }}><summary><span className="ds-finding-number">{String(n+1).padStart(2,'0')}</span><div><h3>{item.title}</h3><span className={`ds-certainty ${item.certainty}`}>{{supported:'Source attached',uncertain:'Worth double-checking',conflicting:'Sources disagree',unavailable:'Source unavailable'}[item.certainty]}</span></div><Icon name="plus" size={17}/></summary><div className="ds-finding-body"><p>{item.summary}</p><div className="ds-source-list">{item.sources.map(s => <button key={s.url} onClick={() => onAction('open_source', { url: s.url })}><Icon name="link" size={14}/>{s.title} ↗</button>)}</div><div className="ds-finding-foot"><small>{item.researchedAt || 'Date not provided'} · illustrative content</small><button className="ds-text-button" disabled={disabled} onClick={() => onAction('remove_finding', { id: item.id })}>Remove</button></div></div></details>)}
+  </Card>;
+}

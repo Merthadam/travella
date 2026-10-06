@@ -1,0 +1,2 @@
+/* Public design tokens. Consumers can override these on their own container. */
+:root{--ds-ink:#243e34;--ds-muted:#617165;--ds-paper:#f6f7f1;--ds-surface:#fff;--ds-line:#e0e5d9;--ds-green:#254e3d;--ds-lime:#d8e7b5;--ds-radius:18px;--ds-font:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ds-display:Georgia,"Times New Roman",serif;--ds-shadow:0 4px 20px #263e3005}

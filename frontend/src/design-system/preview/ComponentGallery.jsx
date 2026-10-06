@@ -1,0 +1,52 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CanvasSurface } from '../a2ui/CanvasSurface';
+import { definitions, ids, safeUrl } from '../schemas';
+import { Icon } from '../components/primitives';
+import { MapFixtureAdapter } from './MapFixtureAdapter';
+import { fixtures } from './fixtures';
+export function ComponentGallery() {
+  const [resetVersion,setResetVersion]=useState(0); const [selected,setSelected]=useState('canvas'); const [data,setData]=useState(fixtures); const [scenario,setScenario]=useState('ready'); const [hidden,setHidden]=useState([]); const [visibleGeneration,setVisibleGeneration]=useState(null); const [busy,setBusy]=useState(false); const [reviewed,setReviewed]=useState([]); const [screen,setScreen]=useState(null); const [events,setEvents]=useState([]); const [messages,setMessages]=useState([]); const [notice,setNotice]=useState(''); const [inspector,setInspector]=useState(false); const [mobile,setMobile]=useState(false); const timer=useRef(null);
+  useEffect(()=>()=>clearInterval(timer.current),[]);
+  function log(component,name,payload){setEvents(e=>[{component,name,payload},...e].slice(0,20));}
+  function stop(){clearInterval(timer.current);setBusy(false);}
+  function reset(next='ready'){stop();setResetVersion(v=>v+1);setData(fixtures(next));setScenario(next);setHidden([]);setVisibleGeneration(null);setNotice('Sample data restored.');setScreen(null);}
+  function choose(id){setSelected(id);setScreen(null);setNotice('');}
+  function generate(){stop();setSelected('canvas');setScreen(null);setHidden([]);setVisibleGeneration([]);setBusy(true);let n=0;timer.current=setInterval(()=>{n++;setVisibleGeneration(ids.slice(0,n));if(n===ids.length){clearInterval(timer.current);setBusy(false);setNotice('Seven components created from local A2UI messages.');}},220);}
+  function action(id,name,payload){
+    log(id,name,payload);
+    if(name==='open_flights'||name==='open_accommodation'){setScreen(name==='open_flights'?'flights':'accommodation');return;}
+    if(name==='open_link'||name==='open_source'){if(safeUrl.safeParse(payload.url).success)setNotice(`Preview link: ${payload.url} — no website opened.`);return;}
+    if(['inspect_place','filter_pins','expand_finding'].includes(name))return;
+    if(busy||scenario==='busy')return;
+    setData(previous=>{
+      const next=structuredClone(previous);const item=next[id];
+      if(name==='retry')item.status='ready';
+      if(name==='edit_essentials')next[id]=payload;
+      if(name==='choose_destination')item.final=true;
+      const collections={theme:'items',pin:'pins',finding:'items',link:'items'};
+      for(const [kind,field] of Object.entries(collections)){
+        if(name===`add_${kind}`)item[field].push(payload);
+        if(name===`edit_${kind}`)item[field]=item[field].map(x=>x.id===payload.id?payload:x);
+        if(name===`remove_${kind}`)item[field]=item[field].filter(x=>x.id!==payload.id);
+      }
+      return next;
+    });
+    setNotice('Sample updated. Nothing is saved to your account.');
+  }
+  const shown=useMemo(()=>(selected==='canvas'?(visibleGeneration??ids):[selected]).filter(id=>!hidden.includes(id)),[selected,visibleGeneration,hidden]);
+  function exportReview(){const file=new Blob([JSON.stringify({reviewed,scope:'Standalone design review; sample data only',events},null,2)],{type:'application/json'});const u=URL.createObjectURL(file);const a=document.createElement('a');a.href=u;a.download='travella-component-review.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+  return <div className="studio"><aside className="studio-sidebar"><a className="studio-brand" href="/">travella<span>✳</span></a><div className="studio-label">COMPONENT STUDIO <span>01</span></div><button className={`studio-nav canvas-nav ${selected==='canvas'?'active':''}`} onClick={()=>choose('canvas')}><span className="studio-grid-icon">▦</span>Canvas overview<small>07</small></button><div className="studio-nav-label">THE BUILDING BLOCKS</div><nav aria-label="Component library">{ids.map((id,i)=><button key={id} className={`studio-nav ${selected===id?'active':''}`} onClick={()=>choose(id)}><Icon name={definitions[id].icon} size={18}/><span>{definitions[id].title}</span>{reviewed.includes(id)?<Icon name="check" size={15}/>:<small>{String(i+1).padStart(2,'0')}</small>}</button>)}</nav><div className="studio-sidebar-foot"><div className="studio-review-meter"><span style={{width:`${reviewed.length/7*100}%`}}/></div><p>{reviewed.length} of 7 reviewed this session</p><button className="ds-text-button" onClick={exportReview}>Export review notes ↗</button><small>Local design workspace.<br/>No agent. No account changes.</small></div></aside>
+  <div className="studio-main"><header className="studio-topbar"><div><span>Design library</span><span>/</span><b>{selected==='canvas'?'Planning canvas':definitions[selected].title}</b></div><span className="studio-status"><i/>Disconnected preview</span></header><main><div className="studio-page-heading"><div><span className="ds-eyebrow">TRAVELLA / DESIGN SYSTEM</span><h1>{selected==='canvas'?'A trip, taking shape.':definitions[selected].title}</h1><p>{selected==='canvas'?'Seven building blocks. One thoughtful planning experience.':'A standalone component. Explore the details before connecting it.'}</p></div><div className="studio-heading-actions"><button className="ds-button" onClick={()=>reset()}>Reset samples</button><button className="ds-button primary" onClick={generate} disabled={busy}><Icon name="spark" size={17}/>{busy?'Generating…':'Simulate generation'}</button></div></div>
+    <div className="studio-toolbar"><label>State<select aria-label="Component state" value={scenario} onChange={e=>reset(e.target.value)}>{[['ready','Populated'],['empty','Empty'],['loading','Loading'],['error','Error'],['partial','Missing details'],['long','Long content'],['many','Many map pins'],['busy','Busy / locked']].map(([k,t])=><option key={k} value={k}>{t}</option>)}</select></label><div className="studio-toolbar-actions"><button className={mobile?'selected':''} aria-pressed={mobile} onClick={()=>setMobile(!mobile)}>Mobile width</button><button aria-pressed={inspector} onClick={()=>setInspector(!inspector)}>A2UI inspector <span>⌘</span></button></div></div>
+    <div className="studio-sample-note"><span className="studio-sample-dot"/>Sample data · edits stay in this tab · refresh resets everything{busy&&<button onClick={stop}>Stop</button>}</div>
+    {selected!=='canvas'&&<div className="studio-component-review"><span>Component {String(ids.indexOf(selected)+1).padStart(2,'0')} / 07</span><button className={`ds-button small ${reviewed.includes(selected)?'reviewed':''}`} onClick={()=>setReviewed(r=>r.includes(selected)?r.filter(x=>x!==selected):[...r,selected])}><Icon name="check" size={16}/>{reviewed.includes(selected)?'Reviewed this session':'Mark reviewed'}</button></div>}
+    {screen?<section className="studio-browse"><button className="ds-text-button" autoFocus onClick={()=>{const previous=screen;setScreen(null);setTimeout(()=>document.querySelector(`.ds-${previous} .ds-travel-link`)?.focus(),0);}}>← Back to canvas</button><div className={`studio-browse-art ${screen}`}><Icon name={screen==='flights'?'plane':'bed'} size={64}/></div><span className="ds-eyebrow">{screen==='flights'?'THE WAY THERE':'YOUR HOME AWAY'}</span><h2>{screen==='flights'?'Find your way to Lisbon.':'Stay somewhere that feels right.'}</h2><p>{data[screen].title}</p><div className="studio-browse-details">{data[screen].subtitle}<span>·</span>{data[screen].detail}</div><div className="studio-browse-note"><Icon name="link"/><div><strong>A space for exploration</strong><p>This is the browsing-view design boundary. LiteAPI search will connect later; no live offers or prices are shown.</p></div></div></section>:<div className={`studio-preview ${selected==='canvas'?'composed':'isolated'} ${mobile?'mobile-width':''}`}>{selected==='canvas'&&<div className="studio-trip-cover"><span className="ds-eyebrow">YOUR NEXT CHAPTER</span><h2>A slower week<br/>in Lisbon.</h2><p>Good food. Coastal air. Room to wander.</p><span className="studio-cover-stamp">LESS RUSH<br/><Icon name="spark" size={30}/><br/>MORE DISCOVERY</span></div>}
+    <CanvasSurface key={resetVersion} data={data} visible={shown} onAction={action} disabled={busy||scenario==='busy'} mapAdapter={MapFixtureAdapter} onMessages={setMessages}/>
+    {!shown.length&&<div className="studio-empty"><Icon name="spark" size={36}/><h2>Room for your next adventure.</h2><p>Simulate generation or restore a component below.</p></div>}
+    </div>}
+    {!screen&&<div className="studio-visibility"><span>Visible components</span>{ids.map(id=><button key={id} aria-pressed={!hidden.includes(id)} onClick={()=>setHidden(h=>h.includes(id)?h.filter(x=>x!==id):[...h,id])}>{!hidden.includes(id)?'✓':'+'} {definitions[id].title}</button>)}</div>}
+    <div className="studio-notice" role="status" aria-live="polite">{notice||'Ready to explore. All interactions use local sample data.'}</div>
+    {inspector&&<section className="studio-inspector"><header><h2>A2UI, under the surface</h2><button className="ds-button small" onClick={()=>{setData(d=>({...d,unsupported:{}}));setNotice('Sent an invalid component fixture. Reset samples to restore.');}}>Try invalid payload</button></header><p>Real v0.9 catalog messages. No model or transport connected.</p><details open><summary>Latest renderer messages</summary><pre>{JSON.stringify(messages,null,2)}</pre></details><details><summary>Local action log ({events.length})</summary><pre>{JSON.stringify(events,null,2)}</pre></details></section>}
+    <footer className="studio-footer"><span>Designed for the journey, not just the destination.</span><span>Travella components · v0.1</span></footer>
+  </main></div></div>;
+}
