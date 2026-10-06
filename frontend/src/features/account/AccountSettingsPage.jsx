@@ -164,7 +164,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   function summary() {
     if (['name', 'email', 'password', 'authenticator', 'recovery'].includes(selected)) {
       if (accountRead === 'loading') return <p role="status" aria-live="polite">Loading account details…</p>;
-      if (accountRead === 'error') return <><p role="alert">We couldn't load this setting. Try again.</p><button onClick={() => setAccountReadAttempt(value => value + 1)}>Retry</button></>;
+      if (accountRead === 'error') return <><p role="alert"><AccountIcon name="error" /> We couldn't load this setting. Try again.</p><button onClick={() => setAccountReadAttempt(value => value + 1)}>Retry</button></>;
     }
     if (['password', 'authenticator', 'recovery'].includes(selected)) return <AccountSecurity key={`${selected}-${editorKey}`} setting={selected} account={account} onAccountSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} onDisclosure={setCodeDisclosure} onAuthenticator={() => guard(() => setSelected('authenticator'))} cancel={guard} />;
     if (selected === 'name' || selected === 'email') return <AccountIdentity key={`${selected}-${editorKey}`} setting={selected} account={account} onSaved={setAccount} onExpired={expired} onProtected={setIdentityProtected} onBusy={setIdentityBusy} cancel={guard} />;
@@ -185,7 +185,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
         <section className="account-detail" aria-labelledby="account-setting-heading">
           <p className="account-kicker">{setting.group}</p><h2 ref={detailHeading} tabIndex={-1} id="account-setting-heading">{setting.label}</h2>
           {selected === 'needs' && <p>Share as much or as little as you like. Clear a field to remove it.</p>}
-          {error && <p ref={errorBox} id="account-save-error" tabIndex={-1} role="alert">{error}</p>}
+          {error && <p ref={errorBox} id="account-save-error" tabIndex={-1} role="alert"><AccountIcon name="error" />{error}</p>}
           <p role="status" aria-live="polite">{notice}</p>
           {uncertain && <button disabled={busy} onClick={() => save(null, true)}>Check saved details</button>}
           {conflict && <button disabled={busy} onClick={reviewLatest}>Review latest details</button>}

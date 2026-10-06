@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { request } from '../../api';
+import { AccountIcon } from './AccountIcon';
 
 export function AccountIdentity({ setting, account, onSaved, onExpired, onProtected, onBusy, cancel }) {
   const [draft, setDraft] = useState(null);
@@ -57,9 +58,9 @@ export function AccountIdentity({ setting, account, onSaved, onExpired, onProtec
       onSaved(saved); setDraft(null); setLatest(null); setUncertain(false); attempt.current = null; setNotice('Your name was saved.');
     });
   }
-  if (!identity) return <><p role="alert">We couldn't load this setting. Try again.</p><button onClick={() => run(refresh)} disabled={busy}>Try again</button></>;
+  if (!identity) return <><p role="alert"><AccountIcon name="error" /> We couldn't load this setting. Try again.</p><button onClick={() => run(refresh)} disabled={busy}>Retry</button></>;
   return <div aria-busy={busy}>
-    {error && <p id="account-name-error" ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
+    {error && <p id="account-name-error" ref={alert} tabIndex={-1} role="alert"><AccountIcon name="error" />{error}</p>}<p role="status">{notice}</p>
     {setting === 'name' ? <>{draft ? <form ref={form} onSubmit={save} noValidate>
       {latest && <div><h3>Latest saved details</h3><dl className="account-values"><dt>First name</dt><dd>{latest.first_name || 'Not provided'}</dd><dt>Last name</dt><dd>{latest.last_name || 'Not provided'}</dd></dl><h3>Your unsaved changes</h3></div>}
       <fieldset disabled={busy || uncertain || conflict}>{['first_name', 'last_name'].map((field, index) => <label key={field}>{index ? 'Last name' : 'First name'}<input name={field} required maxLength={128} aria-invalid={invalidField === field || undefined} aria-describedby={error ? 'account-name-error' : undefined} autoComplete={index ? 'family-name' : 'given-name'} value={draft[field]} onChange={event => { attempt.current = null; setInvalidField(null); setDraft({ ...draft, [field]: event.target.value }); }} /></label>)}</fieldset>
@@ -142,7 +143,7 @@ function EmailIdentity({ account, onSaved, onExpired, onProtected, onBusy, cance
   }
   return <div aria-busy={busy}>
     <div className="account-values"><p>{account.identity.email}</p><p>{account.identity.email_verified ? 'Verified' : 'Verification status unavailable'}</p></div>
-    {error && <p id="account-email-error" ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
+    {error && <p id="account-email-error" ref={alert} tabIndex={-1} role="alert"><AccountIcon name="error" />{error}</p>}<p role="status">{notice}</p>
     {uncertain && <button disabled={busy} onClick={() => run(check)}>Check saved details</button>}
     {stage === 'summary' ? <>{pending ? <><p>{pending.resumable ? 'Awaiting verification. Verify your new email address to complete the change.' : 'An email change is pending in another session.'}</p>{pending.resumable && <button onClick={() => { operation.current = pending.operation_id; setEmail(pending.new_email); setStage('pending'); }}>Resume email change</button>}</> : account.capabilities.email_change.available ? <button className="account-primary" onClick={() => setStage('password')}>Change email address</button> : <p>Email changes are unavailable right now. Your current email address is unchanged.</p>}
       <button disabled={busy} onClick={() => run(check)}>Check availability</button></> : <form ref={form} onSubmit={submit}>

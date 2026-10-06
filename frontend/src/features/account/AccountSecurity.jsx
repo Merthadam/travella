@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { request } from '../../api';
+import { AccountIcon } from './AccountIcon';
 
 const unknownCopy = "We couldn't confirm the result. Check account status before starting another change.";
 
@@ -115,7 +116,7 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
     catch { if (alive.current) setError("Couldn't copy the codes. Select and copy them manually."); }
   }
   return <div aria-busy={busy}>
-    {error && <p id="account-security-error" ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
+    {error && <p id="account-security-error" ref={alert} tabIndex={-1} role="alert"><AccountIcon name="error" />{error}</p>}<p role="status">{notice}</p>
     {!account ? <p>Status unavailable</p> : ['summary', 'confirm'].includes(stage) ? <>
       {setting === 'password' && <><p>Update the password you use to sign in.</p>{account.capabilities?.password_change?.available ? <><p>Password is set</p><button className="account-primary" onClick={() => { leave(); setNotice(''); setStage('password'); }}>Change password</button></> : <p>Password changes are unavailable right now.</p>}</>}
       {setting === 'authenticator' && <>
