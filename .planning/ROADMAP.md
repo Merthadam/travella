@@ -343,12 +343,12 @@ Plans:
 4. Saved travel edits reach subsequent advisory context without changing confirmed Plan data; stale mirrors cannot resurrect cleared values.
 5. Authenticated browser/API checks cover persistence, validation, ownership, failure and responsive behavior with sanitized screenshot evidence.
 
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 
 - [x] 13-01-PLAN.md — Production selected-C account tracer, needs persistence, route/theme/dirty guards and prototype cleanup.
 - [x] 13-02-PLAN.md — All reusable travel preferences, optional clearing and canonical future-suggestion context.
 - [x] 13-03-PLAN.md — Canonical personal details, fresh verification and fail-closed verified email support.
-- [ ] 13-04-PLAN.md — Password, authenticator and one-time recovery-code management.
+- [x] 13-04-PLAN.md — Password, authenticator and one-time recovery-code management.
 - [ ] 13-05-PLAN.md — SQL concurrency, authenticated Chrome verification and inspected evidence.
