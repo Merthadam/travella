@@ -88,3 +88,87 @@ def test_provider_permission_error_does_not_hide_names(account):
     from botocore.exceptions import ClientError
     account.provider.account_configuration.side_effect = ClientError({'Error': {'Code': 'AccessDeniedException', 'Message': 'private'}}, 'Read')
     assert account.client.get(PATH).json()['identity']['first_name'] == 'Ada'
+
+
+def safe_email(a):
+    a.provider.account_configuration.return_value['pool']['UserAttributeUpdateSettings']['AttributesRequireVerificationBeforeUpdate'] = ['email']
+
+
+def proof(a, purpose='email_change'):
+    result = a.client.post(PATH + '/verification', json={'purpose': purpose, 'password': 'fixture-password'})
+    assert result.status_code == 200
+    return result.json()['verification_id']
+
+
+def start_email(a, verification_id=None):
+    return a.client.post(PATH + '/email/start', json={'new_email': 'new@example.com',
+        'verification_id': verification_id or proof(a), 'event_id': str(uuid4())})
+
+
+def test_session_bound_email_journey_preserves_old_email_until_verified(account):
+    a = account
+    safe_email(a)
+    a.store.put_recovery_codes('one', 'old@example.com', ['hash-one'], a.now[0])
+    expiry = a.store.expiry(a.sid)
+    verified = proof(a)
+    a.provider.sign_in.assert_called_with('canonical-user', 'fixture-password')
+    a.provider.revoke.assert_called_once_with('temporary')
+    result = start_email(a, verified)
+    assert result.status_code == 200
+    operation = result.json()['operation_id']
+    assert result.json()['account']['identity']['email'] == 'old@example.com'
+    assert a.client.get(PATH).json()['pending_email']['operation_id'] == operation
+    assert a.client.post(PATH + '/email/resend', json={'operation_id': operation}).json()['state'] == 'awaiting_verification'
+    a.provider.verify_email.side_effect = lambda access, code: a.attrs.update(email='new@example.com')
+    result = a.client.post(PATH + '/email/verify', json={'operation_id': operation, 'code': '123456'})
+    assert result.status_code == 200 and result.json()['state'] == 'complete'
+    assert a.store.get(a.sid, a.now[0])['email'] == 'new@example.com'
+    assert a.store.expiry(a.sid) == expiry
+    assert a.store.recovery_count('one') == 1
+    assert a.client.cookies.get('__Host-travella') == a.sid
+    assert start_email(a, verified).status_code == 403
+
+
+def test_verification_requires_same_subject_and_purpose(account):
+    a = account
+    safe_email(a)
+    wrong = proof(a, 'password_change')
+    assert start_email(a, wrong).status_code == 403
+    a.verifier.side_effect = lambda access: ValidatedIdentity('other' if access == 'fresh-other' else 'one', 'client', frozenset(), 900, 9000)
+    a.provider.sign_in.return_value['AuthenticationResult']['AccessToken'] = 'fresh-other'
+    result = a.client.post(PATH + '/verification', json={'purpose': 'email_change', 'password': 'fixture-password'})
+    assert result.status_code == 400 and result.json()['code'] == 'verification_failed'
+    assert 'set-cookie' not in result.headers
+    a.provider.update_email.assert_not_called()
+
+
+def test_totp_required_before_proof_and_challenge_is_single_use(account):
+    a = account
+    safe_email(a)
+    a.provider.sign_in.return_value = {'ChallengeName': 'SOFTWARE_TOKEN_MFA', 'Session': 'secret-challenge', 'ChallengeParameters': {'USER_ID_FOR_SRP': 'canonical-user'}}
+    a.provider.answer_challenge.return_value = {'AuthenticationResult': {'AccessToken': 'access', 'RefreshToken': 'temporary'}}
+    result = a.client.post(PATH + '/verification', json={'purpose': 'email_change', 'password': 'fixture-password'})
+    assert result.json()['state'] == 'mfa_required'
+    verification = result.json()['verification_id']
+    assert start_email(a, verification).status_code == 403
+    result = a.client.post(PATH + '/verification/complete', json={'verification_id': verification, 'code': '123456'})
+    assert result.json()['state'] == 'verified'
+    assert a.client.post(PATH + '/verification/complete', json={'verification_id': verification, 'code': '123456'}).status_code == 403
+    assert start_email(a, verification).status_code == 200
+
+
+def test_expired_proof_and_other_session_cannot_start_or_resume(account):
+    a = account
+    safe_email(a)
+    verification = proof(a)
+    a.now[0] += 301
+    assert start_email(a, verification).status_code == 403
+    result = start_email(a)
+    assert result.status_code == 200
+    operation = result.json()['operation_id']
+    another = a.store.create(a.store.get(a.sid, a.now[0]), 10000, a.now[0])
+    a.client.cookies.set('__Host-travella', another)
+    pending = a.client.get(PATH).json()['pending_email']
+    assert pending == {'operation_id': None, 'new_email': None, 'state': 'awaiting_verification', 'resumable': False}
+    assert a.client.post(PATH + '/email/verify', json={'operation_id': operation, 'code': '123456'}).status_code == 403
+    assert start_email(a).json()['code'] == 'operation_pending'

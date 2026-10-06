@@ -1,0 +1,10 @@
+{
+  "command": "uv run --locked pytest services/auth/tests/test_account.py -q",
+  "exitCode": 1,
+  "targetTest": "test_session_bound_email_journey_preserves_old_email_until_verified",
+  "targetFile": "services/auth/tests/test_account.py",
+  "expected": "fresh verification returns 200 before email workflow",
+  "actual": "404 != 200",
+  "output": "not ok 1 - test_session_bound_email_journey_preserves_old_email_until_verified\n# tests 12\n# pass 8\n# fail 4",
+  "adapter": "Observed pytest assertion; other new flow tests fail on absent routes"
+}
