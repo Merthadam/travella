@@ -98,6 +98,10 @@ test('blank name validation focuses and associates the missing field without a w
   expect(document.activeElement).toBe(screen.getByLabelText('First name'));
   expect(screen.getByLabelText('First name').getAttribute('aria-describedby')).toBe('account-name-error');
   expect(fetch).not.toHaveBeenCalled();
+  await user.type(screen.getByLabelText('First name'), 'Grace');
+  expect(screen.getByLabelText('First name').value).toBe('Grace');
+  expect(document.activeElement).toBe(screen.getByLabelText('First name'));
+  expect(screen.queryByRole('alert')).toBeNull();
 });
 
 test('unknown start result clears secrets and requires readback before another mutation', async () => {
