@@ -1,0 +1,86 @@
+"""Account tracer: real cookie gateway, independent CRUD JWT validation and SQL."""
+
+from uuid import uuid4
+
+import jwt
+import pytest
+
+from services.auth.tests.test_crud_client import gateway, login  # noqa: F401
+from services.crud.models import TravelerProfile
+from services.crud.tests.test_api import create, system  # noqa: F401
+
+PATH = "/v1/traveler-profile"
+
+
+def mutation(revision=0, **values):
+    return {"section": "needs", "values": {"food_needs": "  Vegetarian  ",
+            "accessibility_needs": " Step-free ", **values},
+            "expected_revision": revision, "event_id": str(uuid4())}
+
+
+def test_account_needs_save_replay_clear_and_sql_persistence(gateway):
+    login(gateway)
+    client = gateway.client
+    initial = client.put(PATH, json={"departure_base": "Vienna", "citizenships": ["AT"],
+                         "onboarding_complete": True}).json()
+    plan = create(gateway.system)
+    body = mutation(initial["revision"])
+    response = client.patch(PATH + "/sections", json=body)
+    assert response.status_code == 200, response.text
+    saved = response.json()
+    assert saved["food_needs"] == "Vegetarian"
+    assert saved["accessibility_needs"] == "Step-free"
+    assert saved["revision"] == initial["revision"] + 1
+    assert saved["onboarding"] == initial["onboarding"]
+    assert saved["onboarding_complete"] is True
+    assert saved["departure_base"] == "Vienna" and saved["citizenships"] == ["AT"]
+    assert client.get(PATH).json() == saved
+    assert client.patch(PATH + "/sections", json=body).json() == saved
+    assert client.patch(PATH + "/sections", json=body | {
+        "values": body["values"] | {"food_needs": "Vegan"}}).json()["code"] == "request_reused"
+    assert client.patch(PATH + "/sections", json=mutation(initial["revision"])).json()["code"] == "revision_conflict"
+    with gateway.system.factory() as db:
+        row = db.get(TravelerProfile, "traveler-one")
+        assert row.payload["food_needs"] == "Vegetarian"
+        assert len(row.payload["_account_events"]) == 1
+        assert row.payload["revision"] == saved["revision"]
+    cleared = client.patch(PATH + "/sections", json=mutation(saved["revision"],
+                           food_needs="", accessibility_needs="")).json()
+    assert cleared["food_needs"] == cleared["accessibility_needs"] == ""
+    assert client.get(PATH).json() == cleared
+    assert gateway.system.client.get(f"/v1/plans/{plan['plan_id']}").json() == plan
+    assert "_account_events" not in cleared and "traveler_subject" not in cleared
+
+
+@pytest.mark.parametrize("change", [
+    {"subject": "another-traveler"}, {"expected_revision": True},
+    {"section": "home"}, {"values": {"food_needs": "x", "accessibility_needs": "", "extra": "x"}},
+    {"values": {"food_needs": "x" * 1001, "accessibility_needs": ""}},
+])
+def test_account_invalid_input_never_creates_profile(gateway, change):
+    login(gateway)
+    response = gateway.client.patch(PATH + "/sections", json=mutation() | change)
+    assert response.status_code == 422
+    assert response.json()["code"] == "invalid_profile"
+    assert gateway.client.get(PATH).json()["exists"] is False
+
+
+def test_account_token_ownership_and_cross_origin(gateway):
+    client = gateway.client
+    assert client.patch(PATH + "/sections", json=mutation()).status_code == 401
+    login(gateway)
+    assert client.patch(PATH + "/sections", json=mutation(),
+                        headers={"Origin": "https://foreign.test"}).status_code == 403
+    assert client.get(PATH).json()["exists"] is False
+    assert gateway.system.client.patch(PATH + "/sections", json=mutation(),
+              headers={"Authorization": "Bearer invalid"}).status_code == 401
+    foreign = jwt.encode(gateway.system.claims | {"sub": "another-traveler"},
+                         gateway.system.private, algorithm="RS256")
+    response = gateway.system.client.patch(PATH + "/sections", json=mutation(),
+                                           headers={"Authorization": f"Bearer {foreign}"})
+    assert response.status_code == 200
+    assert response.json()["onboarding_complete"] is False
+    assert client.get(PATH).json()["exists"] is False
+    with gateway.system.factory() as db:
+        assert db.get(TravelerProfile, "traveler-one") is None
+        assert db.get(TravelerProfile, "another-traveler").payload["food_needs"] == "Vegetarian"
