@@ -123,6 +123,11 @@ class TravelerProfileRepository:
             return ProfileOutput.model_validate(receipts[event_id]["response"])
         if payload.get("revision", 0) != mutation.expected_revision:
             raise LifecycleProblem("revision_conflict")
+        if mutation.section == "citizenship":
+            allowed = {item["code"] for item in reference_catalog("countries")}
+            allowed.update(payload.get("citizenships", []))
+            if any(value not in allowed for value in mutation.values["citizenships"]):
+                raise LifecycleProblem("invalid_profile")
         payload.update(mutation.values)
         derive_legacy_fields(payload, mutation.section)
         payload["revision"] = mutation.expected_revision + 1

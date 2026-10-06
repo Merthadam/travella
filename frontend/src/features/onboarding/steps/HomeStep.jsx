@@ -5,7 +5,7 @@ import { countryName } from '../components/ProfilePreview';
 import { HomeLocationMap } from '../components/HomeLocationMap';
 import { GoogleAddressSearch } from '../components/GoogleAddressSearch';
 
-export function HomeStep({ data, update, disabled }) {
+export function HomeStep({ data, update, disabled, account = false }) {
   const [manual, setManual] = useState(data.home_city?.source === 'manual');
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -132,8 +132,8 @@ export function HomeStep({ data, update, disabled }) {
     </>}
     {manual && <>
       <p className="ts-help">Manual entry · this address has not been verified on the map.</p>
-      <label htmlFor="ts-manual-address">Full home address <span>Required</span></label>
-      <input ref={manualAddress} id="ts-manual-address" required maxLength={500} autoComplete="street-address" value={data.home_city?.address || ''} onChange={event => editManual('address', event.target.value)} placeholder="Street address, city and postal code" />
+      <label htmlFor="ts-manual-address">Full home address <span>{account ? 'Optional' : 'Required'}</span></label>
+      <input ref={manualAddress} id="ts-manual-address" required={!account} maxLength={500} autoComplete="street-address" value={data.home_city?.address || ''} onChange={event => editManual('address', event.target.value)} placeholder="Street address, city and postal code" />
       <div className="ts-manual-location">
         <div><label htmlFor="ts-city-name">City <span>Required</span></label><input id="ts-city-name" required minLength={2} maxLength={110} autoComplete="address-level2" value={data.home_city?.name || ''} onChange={event => editManual('name', event.target.value)} /></div>
         <div><label htmlFor="ts-home-country">Country or territory <span>Required</span></label><select id="ts-home-country" required value={data.home_city?.country_code || ''} onChange={event => editManual('country_code', event.target.value)}><option value="">Choose country</option>{countries.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}</select></div>
@@ -141,7 +141,7 @@ export function HomeStep({ data, update, disabled }) {
       <button type="button" className="ts-text-button" onClick={() => { invalidateHome(); setManual(false); setEditing(false); update({ home_city: null, default_airport: null }); }}>Search for an address instead</button>
     </>}
     {selectedHome && !manual && <div className="ts-confirmed-address" role="status"><span aria-hidden="true">⌂</span><div><strong>{data.home_city.address}</strong><small>{data.home_city.name} · {countryName(data.home_city.country_code)}</small></div><span aria-label="Address selected">✓</span></div>}
-    <HomeLocationMap location={location} airports={airportResults} selectedAirport={selectedAirport} onSelectAirport={chooseAirport} restoring={restoring} restoreError={restoreError} onRetryRestore={() => { restoredPlace.current = null; setRestoreAttempt(value => value + 1); }} />
+    <HomeLocationMap location={location} airports={airportResults} selectedAirport={selectedAirport} onSelectAirport={chooseAirport} restoring={restoring} restoreError={restoreError} onRetryRestore={() => { restoredPlace.current = null; setRestoreAttempt(value => value + 1); }} caption={account ? 'Choose an airport on the map or from the list below. Your selection saves with Save changes.' : undefined} />
     <div className="ts-field-heading"><div><h3>Your departure airport</h3><p>{location ? 'Nearby airports appear automatically. You choose your departure.' : 'Choose your usual airport, or decide later.'}</p></div><span>Optional</span></div>
     {airportNotice && <p className="ts-help" role="status">{airportNotice}</p>}
     {selectedAirport && <div className="ts-selected-airport"><span aria-hidden="true">✈</span><div><strong>{selectedAirport.code} · {selectedAirport.name}</strong><small>Your preferred departure airport</small></div><button type="button" aria-label="Clear selected airport" onClick={() => update({ default_airport: null })}>×</button></div>}

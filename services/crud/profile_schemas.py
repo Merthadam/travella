@@ -200,9 +200,9 @@ class AccountSectionMutation(BaseModel):
 
     @model_validator(mode="after")
     def section_values(self):
-        if self.section != "needs":
+        if self.section == "interests":
             raise ValueError("This profile section is not available.")
-        self.values = NeedsValues.model_validate(self.values).model_dump(mode="json")
+        self.values = STEP_SCHEMAS[self.section].model_validate(self.values).model_dump(mode="json")
         return self
 
 

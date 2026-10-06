@@ -38,6 +38,30 @@
 .account-values dt { color:var(--account-muted); font-size:14px; }
 .account-values dd { margin:4px 0 24px; white-space:pre-wrap; overflow-wrap:anywhere; }
 .account-values dd:last-child { margin-bottom:0; }
+.account-values small { display:block; font-size:14px; color:var(--account-muted); margin-top:8px; }
+.account-page .ts-fields { display:grid; gap:16px; margin-top:24px; min-width:0; }
+.account-page .ts-fields :is(input,select,textarea) { width:100%; min-width:0; }
+.account-page :is(.ts-manual-location,.ts-country-grid) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.account-page :is(.ts-wallet,.ts-airports) { display:grid; gap:16px; }
+.account-page :is(.ts-passport,.ts-confirmed-address,.ts-selected-airport,.ts-legacy) { padding:16px; border:1px solid var(--account-line); border-radius:12px; background:var(--account-soft); overflow-wrap:anywhere; }
+.account-page :is(.ts-passport-top,.ts-selected-airport,.ts-airport-search-row,.ts-airport,.ts-confirmed-address) { display:flex; align-items:center; gap:16px; }
+.account-page :is(.ts-passport-top,.ts-selected-airport) { justify-content:space-between; }
+.account-page :is(.ts-passport-foot,.ts-passport-top > span) { display:none; }
+.account-page :is(.ts-help,.ts-lookup-error,.ts-airport-source,.ts-google-attribution,.ts-field-heading p,small) { font-size:14px; color:var(--account-muted); }
+.account-page .ts-passport { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.account-page .ts-passport-top { order:1; margin-left:auto; }
+.account-page .ts-passport > span:last-of-type { flex-basis:100%; }
+.account-page .ts-airport { text-align:left; width:100%; }
+.account-page .ts-airport.selected { background:var(--account-active); border-color:var(--account-accent); }
+.account-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.account-chips > span { padding:8px 16px; border:1px solid var(--account-line); border-radius:8px; }
+.account-page .ts-home-map-wrap { border:1px solid var(--account-line); border-radius:12px; overflow:hidden; margin:16px 0; background:var(--account-soft); }
+.account-page .ts-home-map { position:relative; height:288px; background:var(--account-soft); }
+.account-page .ts-home-map-canvas, .account-page .ts-home-map gmp-map { display:block; width:100%; height:100%; }
+.account-page .ts-home-map-placeholder { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:8px; padding:24px; text-align:center; background:var(--account-soft); }
+.account-page :is(.ts-map-heading,.ts-map-caption) { display:flex; flex-wrap:wrap; gap:8px; padding:16px; font-size:14px; color:var(--account-muted); }
+.account-page .ts-map-pin { display:flex; justify-content:center; align-items:center; padding:8px; border:2px solid var(--account-panel); background:var(--account-accent); color:var(--account-panel); border-radius:8px; font-size:14px; }
+@media(max-width:760px) { .account-page :is(.ts-manual-location,.ts-country-grid) { grid-template-columns:1fr; } .account-page .ts-airport-search-row { flex-wrap:wrap; } }
 .account-page .account-primary { background:var(--account-accent); color:var(--account-panel); border-color:var(--account-accent); }
 .account-actions { display:flex; gap:8px; justify-content:flex-end; border-top:1px solid var(--account-line); padding-top:24px; margin-top:24px; }
 .account-page .account-note { border-top:1px solid var(--account-line); margin-top:32px; padding-top:24px; font-size:14px; }

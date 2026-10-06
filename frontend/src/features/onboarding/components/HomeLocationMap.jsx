@@ -3,7 +3,7 @@ import { loadGoogleMaps } from '../../../lib/googleMaps';
 
 const validPosition = point => Number.isFinite(point?.lat) && Number.isFinite(point?.lng);
 
-export function HomeLocationMap({ location, airports, selectedAirport, onSelectAirport, restoring, restoreError, onRetryRestore }) {
+export function HomeLocationMap({ location, airports, selectedAirport, onSelectAirport, restoring, restoreError, onRetryRestore, caption }) {
   const canvas = useRef(null);
   const selectAirport = useRef(onSelectAirport);
   const [mapState, setMapState] = useState(null);
@@ -81,6 +81,6 @@ export function HomeLocationMap({ location, airports, selectedAirport, onSelectA
         {(mapError || restoreError) && <button type="button" className="ts-text-button" onClick={() => { setAttempt(value => value + 1); onRetryRestore(); }}>Retry map</button>}
       </div>}
     </div>
-    <p className="ts-map-caption">Choose an airport on the map or from the list below. Your selection saves with Continue.</p>
+    <p className="ts-map-caption">{caption || 'Choose an airport on the map or from the list below. Your selection saves with Continue.'}</p>
   </div>;
 }

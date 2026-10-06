@@ -19,6 +19,7 @@ test('production account saves exact needs contract and renders only acknowledge
   const user = userEvent.setup();
   render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   const food = screen.getByLabelText('Food preferences & allergies');
   await user.clear(food); await user.type(food, '  Vegan  ');
@@ -38,6 +39,7 @@ test('production account saves exact needs contract and renders only acknowledge
 test('failed needs save retains the draft', async () => {
   const user = userEvent.setup(); render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
   fetch.mockResolvedValue(response(422, { code: 'invalid_profile', message: 'Check your changes.' }));
@@ -49,6 +51,7 @@ test('failed needs save retains the draft', async () => {
 test('dirty cancel and setting navigation keep editing until explicit discard', async () => {
   const user = userEvent.setup(); render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
   await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
@@ -77,6 +80,7 @@ test('appearance persists only a theme and restores document scheme on exit', as
 test('unknown result reconciles the identical request before another write', async () => {
   const user = userEvent.setup(); render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
   fetch.mockRejectedValueOnce(new TypeError('offline'));
@@ -93,6 +97,7 @@ test('unknown result reconciles the identical request before another write', asy
 test('conflict retains draft and requires latest detail review before new revision save', async () => {
   const user = userEvent.setup(); render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
   fetch.mockImplementation(async path => path.endsWith('/sections') ? response(409, { code: 'revision_conflict' }) : response(200, { ...profile, food_needs: 'Vegan', revision: 6 }));
@@ -111,6 +116,7 @@ test('conflict retains draft and requires latest detail review before new revisi
 test('direct account entry guards repeated back and forward without losing the draft', async () => {
   const user = userEvent.setup(); render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
   act(() => history.back());
@@ -130,6 +136,7 @@ test('direct account entry guards repeated back and forward without losing the d
 test('transient session failure preserves editor and expiry rejects late save', async () => {
   const user = userEvent.setup(); render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.type(screen.getByLabelText('Accessibility needs'), 'Private draft');
   fetch.mockResolvedValueOnce(response(503, {})); act(() => window.dispatchEvent(new Event('focus')));
@@ -150,6 +157,7 @@ test('denied appearance storage leaves edits usable and unchanged Cancel leaves 
   const user = userEvent.setup(); render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
   await user.click(screen.getByRole('button', { name: 'Dark mode' }));
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -163,6 +171,7 @@ test('dirty forward navigation restores position and waits for explicit discard'
   await screen.findByRole('heading', { name: 'My plans' });
   act(() => history.back());
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
   act(() => history.forward());
@@ -180,6 +189,7 @@ test('dirty forward navigation restores position and waits for explicit discard'
 test('dirty My plans and desktop setting selection share the confirmation', async () => {
   const user = userEvent.setup(); render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
   await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
   await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
   await user.click(screen.getByRole('button', { name: 'My plans', exact: true }));

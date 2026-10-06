@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { readTravelerProfile, request } from '../../api';
+import { PreferenceSettings, preferenceDraft, preferenceLabels, preferenceSaved } from './PreferenceSettings';
 import './account.css';
 
-const needs = profile => ({ food_needs: profile.food_needs || '', accessibility_needs: profile.accessibility_needs || '' });
 export const ACCOUNT_SETTINGS = [
   { id: 'name', label: 'Your name', group: 'Personal details' },
   { id: 'email', label: 'Email address', group: 'Personal details' },
@@ -22,7 +22,7 @@ function initialTheme() {
 
 export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans, navigationGuard, onProfileSaved }) {
   const [profile, setProfile] = useState(initialProfile);
-  const [selected, setSelected] = useState('needs');
+  const [selected, setSelected] = useState('home');
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +41,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   const errorBox = useRef(null);
   const setting = ACCOUNT_SETTINGS.find(item => item.id === selected);
   const invalid = error === 'Check the highlighted fields and try again.';
-  const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(needs(profile));
+  const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(preferenceDraft(selected, profile));
 
   useEffect(() => { alive.current = true; return () => { alive.current = false; attempt.current = null; }; }, []);
   useEffect(() => {
@@ -94,7 +94,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     if (lock.current || (uncertain && !reconcile) || conflict) return;
     lock.current = true; setBusy(true); setError('');
     if (!reconcile && (!attempt.current || JSON.stringify(attempt.current.values) !== JSON.stringify(draft))) {
-      attempt.current = { section: 'needs', values: { ...draft }, expected_revision: profile.revision, event_id: crypto.randomUUID() };
+      attempt.current = { section: selected, values: { ...draft }, expected_revision: profile.revision, event_id: crypto.randomUUID() };
     }
     try {
       const saved = await request('/v1/traveler-profile/sections', attempt.current, { method: 'PATCH' });
@@ -104,7 +104,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
       if (!alive.current) return;
       setProfile(canonical); onProfileSaved?.(canonical); setDraft(null); attempt.current = null;
       setUncertain(false); setLatest(null);
-      setNotice('Your food and accessibility preferences were saved.');
+      setNotice(preferenceSaved[selected]);
     } catch (err) {
       if (!alive.current) return;
       if (err.status === 401) { expired(); return; }
@@ -135,12 +135,10 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     } finally { lock.current = false; if (alive.current) setBusy(false); }
   }
   function values(saved) {
-    return <dl className="account-values"><dt>Food preferences &amp; allergies</dt><dd>{saved.food_needs || 'Not provided'}</dd><dt>Accessibility needs</dt><dd>{saved.accessibility_needs || 'Not provided'}</dd></dl>;
+    return <PreferenceSettings setting={selected} profile={saved} />;
   }
   function summary() {
-    if (selected === 'needs') return <>{values(profile)}<button className="account-primary" onClick={() => { setDraft(needs(profile)); setNotice(''); }}>Edit food &amp; accessibility</button></>;
-    if (selected === 'home') return <dl className="account-values"><dt>Home base</dt><dd>{profile.home_city?.address || profile.home_city?.name || profile.departure_base || 'No home base saved'}</dd><dt>Preferred airport</dt><dd>{profile.default_airport || 'No preference'}</dd></dl>;
-    if (selected === 'citizenship') return <p className="account-values">{profile.citizenships?.join(', ') || 'No citizenships added'}</p>;
+    if (preferenceLabels[selected]) return <>{values(profile)}<button className="account-primary" onClick={() => { setDraft(preferenceDraft(selected, profile)); setNotice(''); }}>Edit {preferenceLabels[selected]}</button></>;
     if (selected === 'interests') return <p className="account-values">{profile.travel_interests || 'No interests selected'}</p>;
     return <p className="account-values">We couldn't load this setting. Try again.</p>;
   }
@@ -164,8 +162,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
           {conflict && <button disabled={busy} onClick={reviewLatest}>Review latest details</button>}
           {latest && <div><h3>Latest saved details</h3>{values(latest)}<h3>Your unsaved changes</h3></div>}
           {draft ? <form onSubmit={save} aria-busy={busy}><fieldset disabled={busy || uncertain}>
-            <label>Food preferences &amp; allergies<textarea id="account-food-needs" aria-invalid={invalid || undefined} aria-describedby={invalid ? 'account-save-error' : undefined} disabled={busy || uncertain} maxLength={1000} value={draft.food_needs} onChange={e => setDraft({ ...draft, food_needs: e.target.value })} /></label>
-            <label>Accessibility needs<textarea aria-invalid={invalid || undefined} aria-describedby={invalid ? 'account-save-error' : undefined} disabled={busy || uncertain} maxLength={1000} value={draft.accessibility_needs} onChange={e => setDraft({ ...draft, accessibility_needs: e.target.value })} /></label>
+            <PreferenceSettings setting={selected} profile={profile} draft={draft} onDraftChange={setDraft} editing disabled={busy || uncertain} invalid={invalid} />
           </fieldset><div className="account-actions"><button disabled={busy} type="button" onClick={() => guard(() => {})}>Cancel</button><button disabled={busy || uncertain || conflict} className="account-primary" type="submit">{busy ? 'Saving…' : 'Save changes'}</button></div></form> : summary()}
           <p className="account-note">These preferences help shape future suggestions. Your confirmed Plan details will not change.</p>
         </section>
