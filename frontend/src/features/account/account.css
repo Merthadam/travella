@@ -5,7 +5,7 @@
 .account-page button { font:600 14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:inherit; border-radius:8px; padding:8px 16px; min-height:44px; min-width:44px; background:transparent; border:1px solid var(--account-muted); cursor:pointer; }
 .account-page button:hover { background:var(--account-soft); }
 .account-page button:disabled { opacity:.6; cursor:wait; }
-.account-page :is(button,a,input,select,textarea):focus-visible { outline:3px solid var(--account-accent); outline-offset:2px; }
+.account-page :is(button,a,input,select,textarea):focus-visible, .account-page [tabindex="-1"]:focus { outline:3px solid var(--account-accent); outline-offset:2px; }
 .account-page input, .account-page textarea, .account-page select { width:100%; min-width:0; min-height:44px; border:1px solid var(--account-muted); border-radius:8px; padding:16px; color:var(--account-text); background:var(--account-panel); font:400 16px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
 .account-page textarea { resize:vertical; min-height:112px; }
 .account-page fieldset { margin:0; padding:0; border:0; min-width:0; }
