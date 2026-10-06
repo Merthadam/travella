@@ -315,3 +315,36 @@ def test_account_inherits_origin_bounds_and_private_validation(account):
     result = a.client.post(PATH + '/verification', json={'purpose': 'email_change', 'password': 'secret', 'subject': 'victim'})
     assert result.status_code == 422 and result.json()['code'] == 'invalid_account'
     assert 'secret' not in result.text and 'victim' not in result.text
+
+
+def test_login_cannot_recreate_old_email_during_reconciliation(account, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    from threading import Event
+    a = account
+    safe_email(a)
+    operation = start_email(a).json()['operation_id']
+    creating, release = Event(), Event()
+    original = a.store.create
+    def delayed_create(payload, expires, now):
+        if payload.get('kind') == 'session':
+            creating.set()
+            assert release.wait(3)
+        return original(payload, expires, now)
+    monkeypatch.setattr(a.store, 'create', delayed_create)
+    a.provider.verify_email.side_effect = lambda access, code: a.attrs.update(email='new@example.com')
+    def login():
+        with TestClient(a.client.app, base_url=ORIGIN, headers={'origin': ORIGIN, 'x-travella-request': '1'}) as client:
+            return client.post('/auth/sign-in', json={'email': 'old@example.com', 'password': 'fixture-password'})
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        signing_in = pool.submit(login)
+        assert creating.wait(3)
+        verifying = pool.submit(a.client.post, PATH + '/email/verify', json={'operation_id': operation, 'code': '123456'})
+        try:
+            verifying.result(timeout=0.1)
+        except TimeoutError:
+            pass  # the guarded login is allowed to finish before reconciliation
+        finally:
+            release.set()
+        signed_in = signing_in.result()
+        assert signed_in.status_code == 200 and verifying.result().status_code == 200
+    assert a.store.get(signed_in.cookies.get('__Host-travella'), a.now[0])['email'] == 'new@example.com'

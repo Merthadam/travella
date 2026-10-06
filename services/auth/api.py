@@ -269,26 +269,23 @@ def create_app(
     def finish(result: dict, response: Response, email: str):
         tokens = result["AuthenticationResult"]
         principal = identity(tokens["AccessToken"])
-        user = provider.get_user(tokens['AccessToken'])
-        attributes = {a['Name']: a['Value'] for a in user.get('UserAttributes', [])}
-        if attributes.get('sub') != principal.subject or attributes.get('email_verified') != 'true' or not attributes.get('email'):
-            raise TokenValidationError('Canonical verified email required')
-        email = attributes['email']
-        store.reconcile_email(principal.subject, email)
-        now = clock()
-        sid = store.create(
-            {
-                "kind": "session",
-                "subject": principal.subject,
-                "email": email,
-                "access": tokens["AccessToken"],
-                "refresh": tokens["RefreshToken"],
-                "started": now,
-                "access_expires": principal.expires_at,
-            },
-            now + MAX_AGE,
-            now,
-        )
+        # Acquire the subject guard before beginning SQL work; the account writer uses
+        # this same order so login cannot resurrect an obsolete email after reconciliation.
+        with store.account_guard(principal.subject), store.transaction():
+            user = provider.get_user(tokens['AccessToken'])
+            attributes = {a['Name']: a['Value'] for a in user.get('UserAttributes', [])}
+            if attributes.get('sub') != principal.subject or attributes.get('email_verified') != 'true' or not attributes.get('email'):
+                raise TokenValidationError('Canonical verified email required')
+            email = attributes['email']
+            store.reconcile_email(principal.subject, email)
+            now = clock()
+            sid = store.create(
+                {
+                    "kind": "session", "subject": principal.subject, "email": email,
+                    "access": tokens["AccessToken"], "refresh": tokens["RefreshToken"],
+                    "started": now, "access_expires": principal.expires_at,
+                }, now + MAX_AGE, now,
+            )
         set_cookie(response, sid, MAX_AGE)
         return {"state": "signed_in", "destination": "/plans"}
 
@@ -521,33 +518,21 @@ def create_app(
     @app.post("/auth/sign-in")
     def sign_in(data: SignInInput, request: Request, response: Response):
         ready()
-        with store.transaction():
-            store.delete(request.cookies.get(cookie))
-            try:
-                result = provider.sign_in(str(data.email), data.password.get_secret_value())
-                if result.get("ChallengeName") == "SOFTWARE_TOKEN_MFA":
-                    now = clock()
-                    username = result.get("ChallengeParameters", {}).get(
-                        "USER_ID_FOR_SRP", str(data.email)
-                    )
-                    sid = store.create(
-                        {
-                            "kind": "challenge",
-                            "session": result["Session"],
-                            "username": username,
-                            "email": str(data.email),
-                        },
-                        now + 180,
-                        now,
-                    )
-                    set_cookie(response, sid, 180)
-                    return {"state": "mfa_challenge"}
-                if "AuthenticationResult" not in result:
-                    raise TokenValidationError("Unsupported challenge")
-                return finish(result, response, str(data.email))
-            except (ClientError, TokenValidationError, KeyError):
-                # Raise outside transaction so the deletion commits.
-                pass
+        store.delete(request.cookies.get(cookie))
+        try:
+            result = provider.sign_in(str(data.email), data.password.get_secret_value())
+            if result.get("ChallengeName") == "SOFTWARE_TOKEN_MFA":
+                now = clock()
+                username = result.get("ChallengeParameters", {}).get("USER_ID_FOR_SRP", str(data.email))
+                sid = store.create({"kind": "challenge", "session": result["Session"],
+                    "username": username, "email": str(data.email)}, now + 180, now)
+                set_cookie(response, sid, 180)
+                return {"state": "mfa_challenge"}
+            if "AuthenticationResult" not in result:
+                raise TokenValidationError("Unsupported challenge")
+            return finish(result, response, str(data.email))
+        except (ClientError, TokenValidationError, KeyError):
+            pass
         raise HTTPException(401, SIGN_IN_ERROR)
 
     @app.post("/auth/mfa/challenge")
@@ -557,20 +542,14 @@ def create_app(
             sid = request.cookies.get(cookie)
             challenge = store.get(sid, clock())
             store.delete(sid)  # one-use browser challenge, even on failure
-            try:
-                if not challenge or challenge["kind"] != "challenge":
-                    raise TokenValidationError("Challenge expired")
-                result = provider.answer_challenge(
-                    challenge["session"],
-                    "SOFTWARE_TOKEN_MFA",
-                    {
-                        "USERNAME": challenge["username"],
-                        "SOFTWARE_TOKEN_MFA_CODE": data.code,
-                    },
-                )
-                return finish(result, response, challenge["email"])
-            except (ClientError, TokenValidationError, KeyError):
-                pass
+        try:
+            if not challenge or challenge["kind"] != "challenge":
+                raise TokenValidationError("Challenge expired")
+            result = provider.answer_challenge(challenge["session"], "SOFTWARE_TOKEN_MFA",
+                {"USERNAME": challenge["username"], "SOFTWARE_TOKEN_MFA_CODE": data.code})
+            return finish(result, response, challenge["email"])
+        except (ClientError, TokenValidationError, KeyError):
+            pass
         raise HTTPException(401, SIGN_IN_ERROR)
 
     @app.post("/auth/mfa/recovery")
@@ -625,25 +604,17 @@ def create_app(
             sid = request.cookies.get(cookie)
             recovery = store.get(sid, clock())
             store.delete(sid)
-            try:
-                if not recovery or recovery.get("kind") != "recovery_enrollment":
-                    raise TokenValidationError("Recovery setup expired")
-                result = provider.verify_software_token(
-                    data.code, session=recovery["enrollment_session"]
-                )
-                if result.get("Status") != "SUCCESS":
-                    raise TokenValidationError("Replacement code rejected")
-                result = provider.answer_challenge(
-                    recovery["challenge_session"],
-                    "SOFTWARE_TOKEN_MFA",
-                    {
-                        "USERNAME": recovery["username"],
-                        "SOFTWARE_TOKEN_MFA_CODE": data.code,
-                    },
-                )
-                return finish(result, response, recovery["email"])
-            except (ClientError, BotoCoreError, TokenValidationError, KeyError):
-                pass
+        try:
+            if not recovery or recovery.get("kind") != "recovery_enrollment":
+                raise TokenValidationError("Recovery setup expired")
+            result = provider.verify_software_token(data.code, session=recovery["enrollment_session"])
+            if result.get("Status") != "SUCCESS":
+                raise TokenValidationError("Replacement code rejected")
+            result = provider.answer_challenge(recovery["challenge_session"], "SOFTWARE_TOKEN_MFA",
+                {"USERNAME": recovery["username"], "SOFTWARE_TOKEN_MFA_CODE": data.code})
+            return finish(result, response, recovery["email"])
+        except (ClientError, BotoCoreError, TokenValidationError, KeyError):
+            pass
         raise HTTPException(401, SIGN_IN_ERROR)
 
     @app.post("/auth/refresh")
