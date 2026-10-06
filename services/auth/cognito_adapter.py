@@ -102,6 +102,10 @@ class CognitoAdapter:
     def change_password(self, access_token: str, previous: str, proposed: str):
         return self.client.change_password(AccessToken=access_token, PreviousPassword=previous, ProposedPassword=proposed)
 
+    def set_software_token_preference(self, access_token: str, enabled: bool):
+        return self.client.set_user_mfa_preference(AccessToken=access_token,
+            SoftwareTokenMfaSettings={'Enabled': enabled, 'PreferredMfa': enabled})
+
     def refresh(self, refresh_token: str) -> dict[str, Any]:
         return self.client.get_tokens_from_refresh_token(
             ClientId=self.app_client_id,

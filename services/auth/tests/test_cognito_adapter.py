@@ -45,6 +45,23 @@ def test_password_operation_has_only_access_previous_and_proposed():
         stub.assert_no_pending_responses()
 
 
+def test_authenticator_shapes_access_token_needs_no_session_and_explicit_preference():
+    import boto3
+    from botocore.stub import Stubber
+    client = boto3.client('cognito-idp', region_name='eu-north-1', aws_access_key_id='fixture', aws_secret_access_key='fixture')
+    adapter = CognitoAdapter(client, 'pool', 'client')
+    with Stubber(client) as stub:
+        stub.add_response('associate_software_token', {'SecretCode': 'FIXTUREKEYABCDEF'}, {'AccessToken': 'access'})
+        stub.add_response('verify_software_token', {'Status': 'SUCCESS'}, {'AccessToken': 'access', 'UserCode': '123456'})
+        stub.add_response('set_user_mfa_preference', {}, {'AccessToken': 'access', 'SoftwareTokenMfaSettings': {'Enabled': True, 'PreferredMfa': True}})
+        stub.add_response('set_user_mfa_preference', {}, {'AccessToken': 'access', 'SoftwareTokenMfaSettings': {'Enabled': False, 'PreferredMfa': False}})
+        assert adapter.associate_software_token(access_token='access') == {'SecretCode': 'FIXTUREKEYABCDEF'}
+        adapter.verify_software_token('123456', access_token='access')
+        adapter.set_software_token_preference('access', True)
+        adapter.set_software_token_preference('access', False)
+        stub.assert_no_pending_responses()
+
+
 class CognitoAdapterTests(unittest.TestCase):
     def test_register_maps_product_attributes(self):
         client = Mock()

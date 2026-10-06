@@ -145,7 +145,7 @@ def test_authenticator_partial_activation_and_wrong_code_never_claim_success(acc
 def test_enrollment_expiry_other_session_and_legacy_routes_cannot_bypass(account):
     a = account
     mfa_provider(a)
-    assert a.client.post('/auth/mfa/enrollment/start').status_code == 422
+    assert a.client.post('/auth/mfa/enrollment/start', json={}).status_code == 422
     assert a.client.post('/auth/mfa/enrollment/verify', json={'code': '123456'}).status_code == 422
     a.provider.associate_software_token.assert_not_called()
     body, result = start_mfa(a)
@@ -167,3 +167,48 @@ def test_disable_is_proof_and_policy_guarded(account, required):
     else:
         assert result.json()['account']['mfa']['status'] == 'off'
         a.provider.set_software_token_preference.assert_called_once_with('access', False)
+
+
+def test_acknowledged_activation_with_failed_readback_reconciles_without_repeating(account):
+    a = account
+    state = mfa_provider(a)
+    body, result = start_mfa(a)
+    operation = result.json()['operation_id']
+    original = a.provider.get_user.side_effect
+    def read(access):
+        if state['enabled']:
+            raise EndpointConnectionError(endpoint_url='https://fixture.test')
+        return original(access)
+    a.provider.get_user.side_effect = read
+    assert a.client.post(PATH + '/authenticator/verify', json={'operation_id': operation, 'code': '123456'}).json()['code'] == 'result_unknown'
+    a.provider.get_user.side_effect = original
+    result = a.client.post(PATH + '/operation-status', json={'event_id': body['event_id']})
+    assert result.json()['state'] == 'complete'
+    assert result.json()['account']['mfa']['status'] == 'on'
+    a.provider.verify_software_token.assert_called_once()
+    a.provider.set_software_token_preference.assert_called_once()
+
+
+def test_bound_legacy_aliases_work_and_other_session_cannot_verify(account):
+    a = account
+    mfa_provider(a)
+    body = {'mode': 'setup', 'verification_id': security_proof(a, 'mfa_setup'), 'event_id': str(uuid4())}
+    started = a.client.post('/auth/mfa/enrollment/start', json=body)
+    assert started.status_code == 200
+    operation = started.json()['operation_id']
+    another = a.store.create(a.store.get(a.sid, a.now[0]), 10000, a.now[0])
+    a.client.cookies.set('__Host-travella', another)
+    assert a.client.post('/auth/mfa/enrollment/verify', json={'operation_id': operation, 'code': '123456'}).status_code == 403
+    a.provider.verify_software_token.assert_not_called()
+    a.client.cookies.set('__Host-travella', a.sid)
+    assert a.client.post('/auth/mfa/enrollment/verify', json={'operation_id': operation, 'code': '123456'}).json()['state'] == 'complete'
+
+
+def test_active_replacement_cannot_be_overlapped_or_disabled(account):
+    a = account
+    mfa_provider(a, True)
+    assert start_mfa(a, 'replace')[1].status_code == 200
+    assert start_mfa(a, 'replace')[1].json()['code'] == 'operation_pending'
+    data = {'verification_id': security_proof(a, 'mfa_disable'), 'event_id': str(uuid4())}
+    assert a.client.post(PATH + '/authenticator/disable', json=data).json()['code'] == 'operation_pending'
+    a.provider.set_software_token_preference.assert_not_called()

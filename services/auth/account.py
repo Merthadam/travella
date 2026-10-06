@@ -21,6 +21,7 @@ class AccountError(Exception):
 MESSAGES = {
     "current_password_incorrect": "Your current password is incorrect.",
     "password_policy": "Your new password doesn't meet the password policy. Choose another password.",
+    "disclosure_unavailable": "This secret can only be shown once. Check account status before starting a new change.",
     "capability_unavailable": "This setting is currently unavailable. Check availability later.",
     "provider_unavailable": "We couldn't load this setting. Try again.",
     "result_unknown": "We couldn't confirm the result. Check saved details before trying again.",
@@ -93,6 +94,14 @@ class PasswordInput(SecurityInput):
     new_password: SecretStr = Field(min_length=1, max_length=256)
 
 
+class AuthenticatorStart(SecurityInput):
+    mode: Literal['setup', 'replace']
+
+
+class AuthenticatorVerify(OperationInput):
+    code: SecretStr = Field(min_length=6, max_length=6)
+
+
 class AccountService:
     def __init__(self, provider, verifier, store, current_session, ready, clock, capability_reader):
         self.provider, self.verifier, self.store = provider, verifier, store
@@ -157,13 +166,16 @@ class AccountService:
             pending = None
         methods = user.get("UserMFASettingList")
         mfa = ("on" if "SOFTWARE_TOKEN_MFA" in methods else "off") if isinstance(methods, list) else "unavailable"
+        if any(r.get('purpose', '').startswith('mfa_') and r.get('record_type') == 'security'
+               and r.get('status') == 'result_unknown' for r in self.store.account_records(session['subject'], self.clock())):
+            mfa = 'unavailable'
         count = self.store.recovery_count(session["subject"])
         unavailable = {"available": False, "reason": "capability_unavailable"}
         return {"identity": {"first_name": attrs.get("given_name", ""), "last_name": attrs.get("family_name", ""),
                              "email": attrs["email"], "email_verified": True},
                 "capabilities": {"email_change": {"available": self.email_available(), "reason": None if self.email_available() else "capability_unavailable"},
                     "password_change": {"available": True, "reason": None},
-                    "authenticator": {"setup": False, "replace": False, "disable": False, "reason": "capability_unavailable"},
+                    "authenticator": self.authenticator_capabilities(mfa),
                     "recovery_codes": {"rotate": False, "reason": "capability_unavailable"}},
                 "password_policy": self.password_policy(), "mfa": {"status": mfa},
                 "recovery_codes": {"status": "available" if count else "empty", "remaining": count},
@@ -181,6 +193,15 @@ class AccountService:
         return {label: policy[key] for key, label in fields.items()
                 if key in policy and type(policy[key]) is (int if key == 'MinimumLength' else bool)} or None
 
+    def authenticator_capabilities(self, status, fresh=False):
+        config = self.configuration(fresh)
+        policy = config['mfa'] if config else {}
+        enabled = policy.get('SoftwareTokenMfaConfiguration', {}).get('Enabled') is True
+        known = enabled and policy.get('MfaConfiguration') in ('OPTIONAL', 'ON')
+        return {'setup': known and status == 'off', 'replace': known and status == 'on',
+                'disable': known and status == 'on' and policy.get('MfaConfiguration') == 'OPTIONAL',
+                'reason': None if known and status != 'unavailable' else 'capability_unavailable'}
+
     def security_receipt(self, sid, session, data, purpose):
         # Deliberately no input digest: passwords and password-derived values never persist.
         prior = self.receipt(session, data.event_id, purpose)
@@ -197,8 +218,106 @@ class AccountService:
     def security_intent(self, sid, session, data, purpose):
         with self.store.transaction():
             self.consume_proof(sid, session, data.verification_id, purpose)
-            return self.record(sid, session, purpose, record_type='security', event_id=str(data.event_id),
-                               request_digest=purpose, status='result_unknown')
+            return self.store.create_account_record(dict(subject=session['subject'], owner_sid_hash=self.store.digest(sid),
+                purpose=purpose, record_type='security', event_id=str(data.event_id), request_digest=purpose,
+                status='result_unknown'), self.store.expiry(sid), self.clock())
+
+    def mfa_status(self, session):
+        user, _ = self.user(session)
+        methods = user.get('UserMFASettingList')
+        return ('on' if 'SOFTWARE_TOKEN_MFA' in methods else 'off') if isinstance(methods, list) else 'unavailable'
+
+    def start_authenticator(self, sid, session, data):
+        purpose = 'mfa_' + data.mode
+        with self.store.account_guard(session['subject']):
+            if self.security_receipt(sid, session, data, purpose):
+                raise AccountError('disclosure_unavailable', 409)
+            if not self.authenticator_capabilities(self.mfa_status(session), fresh=True)[data.mode]:
+                raise AccountError('capability_unavailable')
+            pending = [r for r in self.store.account_records(session['subject'], self.clock())
+                       if r.get('record_type') == 'security' and r.get('purpose', '').startswith('mfa_')
+                       and r.get('status') not in ('complete', 'failed')]
+            if any(r.get('enrollment_expires', 0) > self.clock() or r['status'] == 'result_unknown' for r in pending):
+                raise AccountError('operation_pending', 409)
+            record = self.security_intent(sid, session, data, purpose)
+            record['stage'] = 'associating'
+            record['enrollment_expires'] = min(self.clock() + 300, self.store.expiry(sid))
+            self.store.update(record['id'], record)
+            try:
+                result = self.provider.associate_software_token(access_token=session['access'])
+                secret = result.get('SecretCode')
+                if not isinstance(secret, str) or not secret:
+                    raise AccountError('result_unknown')
+                record.update(status='enrollment_required', stage='associated')
+                self.store.update(record['id'], record)
+                return {'state': 'enrollment_required', 'operation_id': record['id'], 'secret_code': secret,
+                        'expires_in': max(0, int(record['enrollment_expires'] - self.clock()))}
+            except (ClientError, BotoCoreError):
+                raise AccountError('result_unknown') from None
+
+    def finish_authenticator(self, sid, session, record):
+        expected = 'off' if record['purpose'] == 'mfa_disable' else 'on'
+        if record.get('stage') == 'preference_acknowledged' and self.mfa_status(session) == expected:
+            record['status'] = 'complete'
+            self.store.update(record['id'], record)
+        return self.security_result(sid, session, record)
+
+    def activate_authenticator(self, sid, session, record, enabled):
+        record.update(status='result_unknown', stage='activating')
+        self.store.update(record['id'], record)
+        try:
+            self.provider.set_software_token_preference(session['access'], enabled)
+            record['stage'] = 'preference_acknowledged'
+            self.store.update(record['id'], record)
+            result = self.finish_authenticator(sid, session, record)
+            if result['state'] != 'complete':
+                raise AccountError('result_unknown')
+            return result
+        except (ClientError, BotoCoreError, SQLAlchemyError, AccountError):
+            raise AccountError('result_unknown') from None
+
+    def verify_authenticator(self, sid, session, data):
+        with self.store.account_guard(session['subject']):
+            record = self.owned_record(sid, session, data.operation_id)
+            if record.get('record_type') != 'security' or record.get('purpose') not in ('mfa_setup', 'mfa_replace'):
+                raise AccountError('verification_required', 403)
+            if record['status'] != 'enrollment_required':
+                return self.finish_authenticator(sid, session, record)
+            if record.get('enrollment_expires', 0) <= self.clock():
+                record['status'] = 'failed'
+                self.store.update(record['id'], record)
+                raise AccountError('obsolete_operation', 400)
+            record.update(status='result_unknown', stage='verifying')
+            self.store.update(record['id'], record)
+            try:
+                result = self.provider.verify_software_token(data.code.get_secret_value(), access_token=session['access'])
+            except ClientError as exc:
+                if exc.response.get('Error', {}).get('Code') in ('CodeMismatchException', 'EnableSoftwareTokenMFAException', 'ExpiredCodeException'):
+                    record.update(status='enrollment_required', stage='associated')
+                    self.store.update(record['id'], record)
+                    raise AccountError('invalid_code', 400) from None
+                raise AccountError('result_unknown') from None
+            except BotoCoreError:
+                raise AccountError('result_unknown') from None
+            if result.get('Status') != 'SUCCESS':
+                record.update(status='enrollment_required', stage='associated')
+                self.store.update(record['id'], record)
+                raise AccountError('invalid_code', 400)
+            return self.activate_authenticator(sid, session, record, True)
+
+    def disable_authenticator(self, sid, session, data):
+        with self.store.account_guard(session['subject']):
+            prior = self.security_receipt(sid, session, data, 'mfa_disable')
+            if prior:
+                return self.finish_authenticator(sid, session, prior)
+            if any(r.get('record_type') == 'security' and r.get('purpose', '').startswith('mfa_')
+                   and r.get('status') == 'enrollment_required' and r.get('enrollment_expires', 0) > self.clock()
+                   for r in self.store.account_records(session['subject'], self.clock())):
+                raise AccountError('operation_pending', 409)
+            if not self.authenticator_capabilities(self.mfa_status(session), fresh=True)['disable']:
+                raise AccountError('capability_unavailable')
+            record = self.security_intent(sid, session, data, 'mfa_disable')
+            return self.activate_authenticator(sid, session, record, False)
 
     def change_password(self, sid, session, data):
         with self.store.account_guard(session['subject']):
@@ -232,6 +351,8 @@ class AccountService:
             record = next((r for r in self.store.account_records(session['subject'], self.clock())
                            if r.get('event_id') == str(data.event_id) and r.get('owner_sid_hash') == self.store.digest(sid)
                            and r.get('record_type') == 'security'), None)
+            if record and record.get('stage') == 'preference_acknowledged':
+                return self.finish_authenticator(sid, session, record)
             state = 'not_found' if not record else 'complete' if record['status'] == 'complete' else 'result_unknown'
             return {'state': state, 'account': self.output(sid, session)}
 
@@ -515,5 +636,22 @@ def register_account_routes(app, provider, verifier, store, current_session, rea
     def operation_status(data: EventInput, request: Request):
         sid, session, _ = service.context(request)
         return service.operation_status(sid, session, data)
+
+    @app.post('/auth/account/authenticator/start')
+    @app.post('/auth/mfa/enrollment/start')
+    def authenticator_start(data: AuthenticatorStart, request: Request):
+        sid, session, _ = service.context(request)
+        return service.start_authenticator(sid, session, data)
+
+    @app.post('/auth/account/authenticator/verify')
+    @app.post('/auth/mfa/enrollment/verify')
+    def authenticator_verify(data: AuthenticatorVerify, request: Request):
+        sid, session, _ = service.context(request)
+        return service.verify_authenticator(sid, session, data)
+
+    @app.post('/auth/account/authenticator/disable')
+    def authenticator_disable(data: SecurityInput, request: Request):
+        sid, session, _ = service.context(request)
+        return service.disable_authenticator(sid, session, data)
 
     return service

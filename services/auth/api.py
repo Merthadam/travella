@@ -473,48 +473,6 @@ def create_app(
             traveler_key(principal)
             return {"state": "authorized", "destination": "/plans"}
 
-    @app.post("/auth/mfa/enrollment/start")
-    def start_enrollment(request: Request):
-        ready()
-        with store.transaction():
-            _, session, principal = current_session(request)
-            result = provider.associate_software_token(access_token=session["access"])
-            enrollment_session = result.get("Session")
-            secret_code = result.get("SecretCode")
-            if not enrollment_session or not secret_code:
-                raise HTTPException(503, "Authenticator setup is temporarily unavailable.")
-            store.put_enrollment(
-                principal.subject,
-                {"session": enrollment_session, "access": session["access"]},
-                clock() + ENROLLMENT_AGE,
-            )
-            return {
-                "state": "mfa_enrollment",
-                "secret_code": secret_code,
-                "otpauth_uri": f"otpauth://totp/Travella?secret={secret_code}&issuer=Travella",
-            }
-
-    @app.post("/auth/mfa/enrollment/verify")
-    def verify_enrollment(data: MfaInput, request: Request):
-        ready()
-        with store.transaction():
-            _, session, principal = current_session(request)
-            enrollment = store.get_enrollment(principal.subject, clock())
-            if not enrollment:
-                raise HTTPException(400, "Authenticator setup expired. Start again.")
-            try:
-                result = provider.verify_software_token(data.code, access_token=session["access"])
-                if result.get("Status") != "SUCCESS":
-                    raise ValueError("Authenticator code rejected")
-            except (ClientError, BotoCoreError, ValueError):
-                store.delete_enrollment(principal.subject)
-                raise HTTPException(400, "Authenticator code could not be verified.") from None
-            codes = [secrets.token_hex(4).upper() for _ in range(10)]
-            hashes = [hashlib.sha256(code.encode()).hexdigest() for code in codes]
-            store.put_recovery_codes(principal.subject, session["email"], hashes, clock())
-            store.delete_enrollment(principal.subject)
-            return {"state": "recovery_codes", "codes": codes}
-
     @app.post("/auth/sign-in")
     def sign_in(data: SignInInput, request: Request, response: Response):
         ready()
