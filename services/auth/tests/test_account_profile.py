@@ -18,6 +18,47 @@ def mutation(revision=0, **values):
             "expected_revision": revision, "event_id": str(uuid4())}
 
 
+HOME = {"home_city": {"name": "Vienna", "country_code": "AT", "source": "manual",
+                       "address": "Private home address"}, "default_airport": "VIE"}
+
+
+def section_write(client, section, values, revision):
+    return client.patch(PATH + "/sections", json={"section": section, "values": values,
+                        "expected_revision": revision, "event_id": str(uuid4())})
+
+
+def test_account_home_and_citizenship_round_trips_preserve_onboarding(gateway):
+    login(gateway)
+    client = gateway.client
+    initial = client.put(PATH, json={"food_needs": "Vegetarian", "onboarding_complete": True,
+                                    "citizenships": ["Legacy country"]}).json()
+    saved = initial
+    for section, values in [("home", HOME), ("citizenship", {"citizenships": ["AT", "HU", "Legacy country"]}),
+                            ("home", HOME | {"default_airport": None}),
+                            ("citizenship", {"citizenships": []})]:
+        response = section_write(client, section, values, saved["revision"])
+        assert response.status_code == 200, response.text
+        saved = response.json()
+        assert client.get(PATH).json() == saved
+        assert saved["onboarding"] == initial["onboarding"]
+        assert saved["onboarding_complete"] is True
+        assert saved["food_needs"] == "Vegetarian"
+        with gateway.system.factory() as db:
+            payload = db.get(TravelerProfile, "traveler-one").payload
+            assert all(payload[key] == value for key, value in values.items()
+                       if key != "home_city")
+            assert payload["home_city"]["address"] == HOME["home_city"]["address"]
+    assert saved["default_airport"] is None
+    assert saved["departure_base"] == "Vienna"
+    assert saved["citizenships"] == []
+    for section, values in [("home", HOME | {"default_airport": "XXX"}),
+                            ("home", HOME | {"home_city": None}),
+                            ("citizenship", {"citizenships": ["New free text"]}),
+                            ("citizenship", {"citizenships": ["Legacy country"]})]:
+        assert section_write(client, section, values, saved["revision"]).status_code == 422
+        assert client.get(PATH).json() == saved
+
+
 def test_account_needs_save_replay_clear_and_sql_persistence(gateway):
     login(gateway)
     client = gateway.client
