@@ -52,3 +52,42 @@ test('citizenships support accessible removal, catalog add and explicit clear vi
   expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ section: 'citizenship', values: { citizenships: [] } });
   expect(screen.getByText('No citizenships added')).toBeTruthy();
 });
+
+test('interests allow keyboard add, duplicate feedback, individual removal and zero save', async () => {
+  const user = userEvent.setup(); page();
+  await user.click(screen.getByRole('button', { name: 'Your interests' }));
+  await user.click(screen.getByRole('button', { name: 'Edit your interests' }));
+  expect(screen.getByText('No interests selected')).toBeTruthy();
+  await user.type(screen.getByLabelText('Something else you love?'), '  Quiet   walks{Enter}');
+  expect(screen.getByText('1 interest selected')).toBeTruthy();
+  await user.type(screen.getByLabelText('Something else you love?'), 'quiet walks{Enter}');
+  expect(screen.getByText('That interest is already selected.')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Hiking', exact: true }));
+  expect(screen.getByText('2 interests selected')).toBeTruthy();
+  screen.getByRole('button', { name: 'Remove Quiet walks interest' }).focus();
+  await user.keyboard('{Enter}');
+  expect(screen.getByText('1 interest selected')).toBeTruthy();
+  expect(fetch).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  await screen.findByText('Your interests were saved.');
+  expect(JSON.parse(fetch.mock.calls[0][1].body).values).toEqual({ interest_ids: ['hiking'], custom_interests: [] });
+  await user.click(screen.getByRole('button', { name: 'Edit your interests' }));
+  await user.click(screen.getByRole('button', { name: 'Clear all interests' }));
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  await screen.findByText('Your interests were saved.');
+  expect(JSON.parse(fetch.mock.calls[1][1].body).values).toEqual({ interest_ids: [], custom_interests: [] });
+});
+
+test('twenty custom interests remain removable and cannot exceed the maximum', async () => {
+  const user = userEvent.setup(); page({ ...profile, interest_ids: [], custom_interests: Array.from({ length: 20 }, (_, i) => `Interest ${i}`) });
+  await user.click(screen.getByRole('button', { name: 'Your interests' }));
+  await user.click(screen.getByRole('button', { name: 'Edit your interests' }));
+  expect(screen.getByText('20 interests selected')).toBeTruthy();
+  expect(screen.getByLabelText('Something else you love?').maxLength).toBe(60);
+  await user.type(screen.getByLabelText('Something else you love?'), 'One more{Enter}');
+  expect(screen.getByText(/up to 40 curated and 20 custom interests/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Remove One more interest' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Remove Interest 0 interest' }));
+  await user.click(screen.getByRole('button', { name: 'Add interest' }));
+  expect(screen.getByRole('button', { name: 'Remove One more interest' })).toBeTruthy();
+});

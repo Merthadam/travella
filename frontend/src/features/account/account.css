@@ -54,6 +54,11 @@
 .account-page .ts-airport { text-align:left; width:100%; }
 .account-page .ts-airport.selected { background:var(--account-active); border-color:var(--account-accent); }
 .account-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.account-chips button { white-space:normal; overflow-wrap:anywhere; max-width:100%; }
+.account-chips button[aria-pressed=true] { background:var(--account-active); border-color:var(--account-accent); }
+.account-interest-editor { display:grid; gap:16px; margin-top:24px; }
+.account-interest-add { display:flex; flex-wrap:wrap; gap:8px; }
+.account-interest-add input { flex:1 1 180px; }
 .account-chips > span { padding:8px 16px; border:1px solid var(--account-line); border-radius:8px; }
 .account-page .ts-home-map-wrap { border:1px solid var(--account-line); border-radius:12px; overflow:hidden; margin:16px 0; background:var(--account-soft); }
 .account-page .ts-home-map { position:relative; height:288px; background:var(--account-soft); }
