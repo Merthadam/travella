@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountSettingsPage } from './AccountSettingsPage';
 
@@ -69,8 +69,39 @@ test('replacement warns before proof and policy-disallowed disable stays absent'
   await page(user, 'Two-factor authentication');
   expect(screen.queryByText('Turn off authenticator')).toBeNull();
   await user.click(screen.getByText('Replace authenticator'));
+  const dialog = screen.getByRole('dialog', { name: 'Replace your authenticator?' });
+  expect(document.activeElement).toBe(within(dialog).getByText('Keep current authenticator'));
+  expect(fetch.mock.calls).toHaveLength(1);
+  await user.click(within(dialog).getByText('Replace authenticator'));
   expect(screen.getByText(/Verifying the new authenticator will invalidate your old authenticator/)).toBeTruthy();
   expect(fetch.mock.calls).toHaveLength(1);
+});
+
+test.each([
+  ['Two-factor authentication', 'Turn off authenticator', 'Turn off two-factor authentication?', 'Keep it on', '/authenticator/disable'],
+  ['Recovery codes', 'Replace recovery codes', 'Replace recovery codes?', 'Keep current codes', '/recovery-codes/rotate'],
+])('sensitive %s requires explicit confirmation and then fresh verification', async (setting, action, title, safe, endpoint) => {
+  const user = userEvent.setup();
+  const capable = { ...account, mfa: { status: 'on' }, recovery_codes: { status: 'available', remaining: 3 },
+    capabilities: { ...account.capabilities, authenticator: { disable: true }, recovery_codes: { rotate: true } } };
+  backend(path => response(path.endsWith('/verification') ? { state: 'mfa_required', verification_id: 'proof' } : path.endsWith('/complete') ? { state: 'verified', verification_id: 'proof' } : { state: 'complete', account: capable }), capable);
+  await page(user, setting);
+  const opener = screen.getByText(action);
+  await user.click(opener);
+  let dialog = screen.getByRole('dialog', { name: title });
+  expect(document.activeElement).toBe(within(dialog).getByText(safe));
+  await user.click(within(dialog).getByText(safe));
+  expect(document.activeElement).toBe(opener);
+  expect(fetch.mock.calls).toHaveLength(1);
+  await user.click(opener);
+  dialog = screen.getByRole('dialog', { name: title });
+  await user.click(within(dialog).getByText(action));
+  await user.type(screen.getByLabelText('Current password'), 'fixture-current');
+  await user.click(screen.getByText('Continue'));
+  expect(fetch.mock.calls.some(([path]) => path.endsWith(endpoint))).toBe(false);
+  await user.type(screen.getByLabelText('Authenticator code'), '123456');
+  await user.click(screen.getByText('Continue'));
+  expect(fetch.mock.calls.filter(([path]) => path.endsWith(endpoint))).toHaveLength(1);
 });
 
 test('recovery codes copy follows actual clipboard outcome and navigation requires disclosure confirmation', async () => {

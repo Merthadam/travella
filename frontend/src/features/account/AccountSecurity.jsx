@@ -23,11 +23,25 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
   const lock = useRef(false);
   const form = useRef(null);
   const alert = useRef(null);
+  const confirmationDialog = useRef(null);
+  const safeAction = useRef(null);
+  const confirmationCopy = setting === 'recovery'
+    ? { title: 'Replace recovery codes?', body: 'Your previous recovery codes will stop working. Save the new codes somewhere private.', safe: 'Keep current codes', action: 'Replace recovery codes' }
+    : mode === 'disable'
+      ? { title: 'Turn off two-factor authentication?', body: "You won't need an authenticator code to sign in.", safe: 'Keep it on', action: 'Turn off authenticator' }
+      : { title: 'Replace your authenticator?', body: 'Your current authenticator will stop working when the new one is verified.', safe: 'Keep current authenticator', action: 'Replace authenticator' };
   useEffect(() => { alive.current = true; return () => { alive.current = false; proof.current = null; eventId.current = null; operation.current = null; }; }, []);
   useEffect(() => { onProtected?.(stage !== 'summary'); return () => onProtected?.(false); }, [stage, onProtected]);
   useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy, onBusy]);
   useEffect(() => { onDisclosure?.(stage === 'codes'); return () => onDisclosure?.(false); }, [stage, onDisclosure]);
   useEffect(() => { form.current?.querySelector('input')?.focus(); }, [stage]);
+  useEffect(() => {
+    if (stage !== 'confirm') return;
+    const opener = document.activeElement;
+    const dialog = confirmationDialog.current;
+    dialog?.showModal(); safeAction.current?.focus();
+    return () => { dialog?.close(); if (opener?.isConnected) opener.focus(); };
+  }, [stage]);
   useEffect(() => { if (error === "Your new passwords don't match.") form.current?.querySelector('[name="confirmation"]')?.focus(); else if (error) alert.current?.focus(); }, [error]);
   useEffect(() => {
     if (!expiresAt) return;
@@ -102,16 +116,16 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
   }
   return <div aria-busy={busy}>
     {error && <p id="account-security-error" ref={alert} tabIndex={-1} role="alert">{error}</p>}<p role="status">{notice}</p>
-    {!account ? <p>Status unavailable</p> : stage === 'summary' ? <>
+    {!account ? <p>Status unavailable</p> : ['summary', 'confirm'].includes(stage) ? <>
       {setting === 'password' && (account.capabilities?.password_change?.available ? <button className="account-primary" onClick={() => { leave(); setNotice(''); setStage('password'); }}>Change password</button> : <p>Password changes are unavailable right now.</p>)}
       {setting === 'authenticator' && <>
         <p>{account.mfa?.status === 'on' ? 'On · Authenticator app' : account.mfa?.status === 'off' ? 'Off' : 'Status unavailable'}</p>
         {account.mfa?.status === 'unavailable' && <p>A previous change may be unconfirmed. Check your current authenticator access before explicitly starting a new change; fresh verification is required.</p>}
-        {['setup', 'replace', 'disable'].filter(action => account.capabilities?.authenticator?.[action]).map(action => <button key={action} onClick={() => { leave(); setMode(action); setStage('verify-password'); }}>{action === 'setup' ? 'Set up authenticator' : action === 'replace' ? 'Replace authenticator' : 'Turn off authenticator'}</button>)}
+        {['setup', 'replace', 'disable'].filter(action => account.capabilities?.authenticator?.[action]).map(action => <button key={action} onClick={() => { leave(); setMode(action); setStage(action === 'setup' ? 'verify-password' : 'confirm'); }}>{action === 'setup' ? 'Set up authenticator' : action === 'replace' ? 'Replace authenticator' : 'Turn off authenticator'}</button>)}
         {!['setup', 'replace', 'disable'].some(action => account.capabilities?.authenticator?.[action]) && <p>Authenticator changes are unavailable right now.</p>}
       </>}
       {setting === 'recovery' && <><p>{recoveryLabel}</p><p>Manage your backup sign-in codes.</p>
-        {account.capabilities?.recovery_codes?.rotate ? <button className="account-primary" onClick={() => { leave(); setNotice(''); setStage('verify-password'); }}>{count > 0 ? 'Replace recovery codes' : 'Generate recovery codes'}</button> : account.mfa?.status === 'off' ? <><p>Set up an authenticator before generating recovery codes.</p><button onClick={onAuthenticator}>Set up authenticator</button></> : <p>Recovery code changes are unavailable right now.</p>}
+        {account.capabilities?.recovery_codes?.rotate ? <button className="account-primary" onClick={() => { leave(); setNotice(''); setStage(count > 0 ? 'confirm' : 'verify-password'); }}>{count > 0 ? 'Replace recovery codes' : 'Generate recovery codes'}</button> : account.mfa?.status === 'off' ? <><p>Set up an authenticator before generating recovery codes.</p><button onClick={onAuthenticator}>Set up authenticator</button></> : <p>Recovery code changes are unavailable right now.</p>}
       </>}
     </> : stage === 'codes' ? <><label>Your new recovery codes<textarea readOnly autoComplete="off" rows={10} value={codes.join('\n')} /></label><div className="account-actions"><button onClick={copyCodes}>Copy codes</button><button onClick={() => { leave(); setNotice('Keep your recovery codes somewhere safe.'); }}>I've saved my codes</button></div></> : stage === 'unknown' ? <><p>No change will be submitted again automatically.</p><button disabled={busy} onClick={() => run(check)}>Check account status</button><button disabled={busy} onClick={() => cancel(leave)}>Close</button></> : <form ref={form} onSubmit={submit}>
       <fieldset disabled={busy}>
@@ -133,5 +147,9 @@ export function AccountSecurity({ setting, account, onAccountSaved, onExpired, o
       </fieldset>
       <div className="account-actions"><button type="button" disabled={busy} onClick={() => cancel(leave)}>Cancel</button><button className="account-primary" disabled={busy}>{busy ? 'Checking…' : stage === 'password' ? 'Save password' : stage === 'enrollment' ? 'Verify authenticator' : 'Continue'}</button></div>
     </form>}
+    {stage === 'confirm' && <dialog ref={confirmationDialog} className="account-discard" aria-labelledby="security-confirm-title" aria-describedby="security-confirm-body" onCancel={event => { event.preventDefault(); leave(); }}>
+      <h2 id="security-confirm-title">{confirmationCopy.title}</h2><p id="security-confirm-body">{confirmationCopy.body}</p>
+      <div className="account-actions"><button ref={safeAction} onClick={leave}>{confirmationCopy.safe}</button><button onClick={() => setStage('verify-password')}>{confirmationCopy.action}</button></div>
+    </dialog>}
   </div>;
 }
