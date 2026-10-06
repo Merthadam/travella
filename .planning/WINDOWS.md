@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 2
+open_count: 5
 waived_count: 0
 fixed_count: 0
-total_count: 2
-last_updated: 2026-10-04T11:55:15.842Z
+total_count: 5
+last_updated: 2026-10-06T14:19:50.112Z
 ---
 
 # Broken Windows Ledger
@@ -17,6 +17,9 @@ last_updated: 2026-10-04T11:55:15.842Z
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
 | 1 | 10 | deviation | services/agent/service.py |  | Added a validated source projection so only read-page citations attach to the answer. | open |  | 2026-10-04T11:55:06.521Z |  |
 | 2 | 10 | deviation | services/mcps/research_server.py |  | Extended the existing search operation to support factual queries and scoped sources without candidates. | open |  | 2026-10-04T11:55:15.842Z |  |
+| 3 | 13 | unrun-verify | frontend/src/features/account/AccountSettingsPage.jsx |  | 13-01 browser save/reload, selected Plan return, responsive/theme screenshots and console/network checks remain the explicit 13-05 gate. | open |  | 2026-10-06T14:19:35.433Z |  |
+| 4 | 13 | stub | frontend/src/features/account/AccountSettingsPage.jsx | 145 | Account identity/security rows are intentionally unavailable until plans 13-03 and 13-04; remaining preference editors arrive in 13-02. | open |  | 2026-10-06T14:19:50.022Z |  |
+| 5 | 13 | unmet-truth | .planning/phases/13-account-settings-and-travel-preferences/deferred-items.md |  | Full requested frontend regression run has 12 pre-existing failures reproduced from 49e6d526; new account tests pass. | open |  | 2026-10-06T14:19:50.112Z |  |
 
 ````json
 [
@@ -43,6 +46,45 @@ last_updated: 2026-10-04T11:55:15.842Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-04T11:55:15.842Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 3,
+    "kind": "unrun-verify",
+    "phase": "13",
+    "file": "frontend/src/features/account/AccountSettingsPage.jsx",
+    "line": null,
+    "description": "13-01 browser save/reload, selected Plan return, responsive/theme screenshots and console/network checks remain the explicit 13-05 gate.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-06T14:19:35.433Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 4,
+    "kind": "stub",
+    "phase": "13",
+    "file": "frontend/src/features/account/AccountSettingsPage.jsx",
+    "line": 145,
+    "description": "Account identity/security rows are intentionally unavailable until plans 13-03 and 13-04; remaining preference editors arrive in 13-02.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-06T14:19:50.022Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 5,
+    "kind": "unmet-truth",
+    "phase": "13",
+    "file": ".planning/phases/13-account-settings-and-travel-preferences/deferred-items.md",
+    "line": null,
+    "description": "Full requested frontend regression run has 12 pre-existing failures reproduced from 49e6d526; new account tests pass.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-06T14:19:50.112Z",
     "resolved_at": null,
     "milestone": null
   }
