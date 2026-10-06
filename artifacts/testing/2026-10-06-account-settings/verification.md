@@ -75,3 +75,7 @@ The selected-C planning captures linked above remain the before-state evidence. 
 ## Plan 13-03 — canonical identity and conditional email
 
 See [13-03-verification.md](13-03-verification.md) for executed commands, real handler/encrypted SQL persistence checks, TDD evidence and isolated-provider limitations. Expanded backend run: 87 passed; final account/API/store regression after refresh serialization: 70 passed. Account components: 22 passed. Production build passed. Chrome and live email activation remain unverified; security controls continue in 13-04. No shared credentials, factors or cloud configuration were changed.
+
+## Plan 13-04 — password, authenticator and recovery codes
+
+See [13-04-verification.md](13-04-verification.md) for real HTTP/encrypted SQL checks, exact provider request shapes, all three TDD gates, concurrency/privacy assertions and live-operation limits. Final auth suite: **139 passed**; account UI suites: **30 passed**; production build passed. Required Chrome production screenshots and interactions remain **unverified pending 13-05**. Security row stubs are replaced; WINDOWS entry 3 retains the browser gate. No shared account credentials/factors or cloud configuration were changed.
