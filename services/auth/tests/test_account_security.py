@@ -299,3 +299,25 @@ def test_recovery_wrong_and_expired_proof_cannot_rotate(account):
         if purpose == 'recovery_rotate': a.now[0] += 301
         assert a.client.post(PATH + '/recovery-codes/rotate', json=body).status_code == 403
     assert a.store.recovery_count('one') == 0
+
+
+def test_proof_issued_before_factor_activation_cannot_bypass_current_factor(account):
+    a = account
+    state = mfa_provider(a)
+    verification = security_proof(a, 'recovery_rotate')
+    state['enabled'] = True
+    result = a.client.post(PATH + '/recovery-codes/rotate', json={'verification_id': verification, 'event_id': str(uuid4())})
+    assert result.status_code == 403
+    assert a.store.recovery_count('one') == 0
+
+
+def test_reload_repairs_acknowledged_mfa_readback_without_event_in_browser(account):
+    a = account
+    state = mfa_provider(a)
+    _, started = start_mfa(a)
+    original = a.provider.get_user.side_effect
+    a.provider.get_user.side_effect = lambda access: (_ for _ in ()).throw(EndpointConnectionError(endpoint_url='https://fixture.test')) if state['enabled'] else original(access)
+    assert a.client.post(PATH + '/authenticator/verify', json={'operation_id': started.json()['operation_id'], 'code': '123456'}).status_code == 503
+    a.provider.get_user.side_effect = original
+    assert a.client.get(PATH).json()['mfa']['status'] == 'on'
+    a.provider.set_software_token_preference.assert_called_once()

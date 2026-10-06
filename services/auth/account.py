@@ -168,6 +168,11 @@ class AccountService:
             pending = None
         methods = user.get("UserMFASettingList")
         mfa = ("on" if "SOFTWARE_TOKEN_MFA" in methods else "off") if isinstance(methods, list) else "unavailable"
+        for record in self.store.account_records(session['subject'], self.clock()):
+            expected = 'off' if record.get('purpose') == 'mfa_disable' else 'on'
+            if record.get('record_type') == 'security' and record.get('stage') == 'preference_acknowledged' and mfa == expected:
+                record['status'] = 'complete'
+                self.store.update(record['id'], record)
         if any(r.get('purpose', '').startswith('mfa_') and r.get('record_type') == 'security'
                and r.get('status') == 'result_unknown' for r in self.store.account_records(session['subject'], self.clock())):
             mfa = 'unavailable'
@@ -476,6 +481,9 @@ class AccountService:
         record = self.owned_record(sid, session, token, purpose=purpose, status='verified')
         if record.get('record_type') != 'proof':
             raise AccountError('verification_required', 403)
+        # A proof minted while MFA was off cannot authorize operations after it turns on.
+        if self.mfa_status(session) != 'off' and not record.get('factor_verified'):
+            raise AccountError('verification_required', 403)
         record['status'] = 'consumed'
         self.store.update(token, record)
 
@@ -492,6 +500,7 @@ class AccountService:
             except (ClientError, BotoCoreError, TokenValidationError, KeyError) as exc:
                 self.provider_failure(exc)
             record['status'] = 'verified'
+            record['factor_verified'] = True
             self.store.update(record['id'], record)
             return {'state': 'verified', 'verification_id': record['id'],
                     'expires_in': max(0, int(self.store.expiry(record['id']) - self.clock()))}
