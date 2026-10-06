@@ -620,8 +620,12 @@ def create_app(
     @app.post("/auth/refresh")
     def refresh(request: Request, response: Response):
         ready()
-        with store.transaction():
-            sid = request.cookies.get(cookie)
+        sid = request.cookies.get(cookie)
+        snapshot = store.get(sid, clock())
+        if not snapshot or snapshot.get('kind') != 'session':
+            store.delete(sid)
+            raise HTTPException(401, 'Sign-in required.')
+        with store.account_guard(snapshot['subject']), store.transaction():
             session = store.get(sid, clock())
             if session and session["kind"] == "session":
                 try:
