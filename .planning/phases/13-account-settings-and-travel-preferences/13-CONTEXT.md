@@ -21,3 +21,6 @@ Reuse project auth/cookie boundary, CRUD ownership, revision/idempotency and mem
 
 ## Delivery gates
 Follow docs/skills/travella-testing/SKILL.md: real HTTP CRUD integration with test DB, Chrome DevTools authenticated journey using the example account, screenshots and sanitized evidence, read-back/reload, ownership and failure checks. Read .agents/skills/travella-local/SKILL.md before local rebuild. Record exact external blockers without overstating completion. Existing earlier-phase verification debt must not be relabeled complete.
+# Storage follow-up decision (2026-10-06)
+
+During implementation the user explicitly chose: “Finish the settings page on SQL; plan DynamoDB next.” Phase 13 retains the existing SQL persistence. Plan a subsequent traveler-profile DynamoDB migration; do not migrate this delivery or move identity/security ownership from Cognito/Auth. Keep CRUD as the durable profile owner and AgentCore Memory advisory.
