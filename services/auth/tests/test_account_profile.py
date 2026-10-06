@@ -33,6 +33,12 @@ def section_write(client, section, values, revision):
                         "expected_revision": revision, "event_id": str(uuid4())})
 
 
+def saved_profile(response):
+    value = response.json()
+    value.pop("memory_sync", None)
+    return value
+
+
 def test_account_home_and_citizenship_round_trips_preserve_onboarding(gateway):
     login(gateway)
     client = gateway.client
@@ -44,7 +50,7 @@ def test_account_home_and_citizenship_round_trips_preserve_onboarding(gateway):
                             ("citizenship", {"citizenships": []})]:
         response = section_write(client, section, values, saved["revision"])
         assert response.status_code == 200, response.text
-        saved = response.json()
+        saved = saved_profile(response)
         assert client.get(PATH).json() == saved
         assert saved["onboarding"] == initial["onboarding"]
         assert saved["onboarding_complete"] is True
@@ -74,7 +80,7 @@ def test_account_needs_save_replay_clear_and_sql_persistence(gateway):
     body = mutation(initial["revision"])
     response = client.patch(PATH + "/sections", json=body)
     assert response.status_code == 200, response.text
-    saved = response.json()
+    saved = saved_profile(response)
     assert saved["food_needs"] == "Vegetarian"
     assert saved["accessibility_needs"] == "Step-free"
     assert saved["revision"] == initial["revision"] + 1
@@ -82,7 +88,7 @@ def test_account_needs_save_replay_clear_and_sql_persistence(gateway):
     assert saved["onboarding_complete"] is True
     assert saved["departure_base"] == "Vienna" and saved["citizenships"] == ["AT"]
     assert client.get(PATH).json() == saved
-    assert client.patch(PATH + "/sections", json=body).json() == saved
+    assert saved_profile(client.patch(PATH + "/sections", json=body)) == saved
     assert client.patch(PATH + "/sections", json=body | {
         "values": body["values"] | {"food_needs": "Vegan"}}).json()["code"] == "request_reused"
     assert client.patch(PATH + "/sections", json=mutation(initial["revision"])).json()["code"] == "revision_conflict"
@@ -91,8 +97,8 @@ def test_account_needs_save_replay_clear_and_sql_persistence(gateway):
         assert row.payload["food_needs"] == "Vegetarian"
         assert len(row.payload["_account_events"]) == 1
         assert row.payload["revision"] == saved["revision"]
-    cleared = client.patch(PATH + "/sections", json=mutation(saved["revision"],
-                           food_needs="", accessibility_needs="")).json()
+    cleared = saved_profile(client.patch(PATH + "/sections", json=mutation(saved["revision"],
+                           food_needs="", accessibility_needs="")))
     assert cleared["food_needs"] == cleared["accessibility_needs"] == ""
     assert client.get(PATH).json() == cleared
     assert gateway.system.client.get(f"/v1/plans/{plan['plan_id']}").json() == plan
@@ -149,7 +155,7 @@ def test_account_interests_allow_zero_and_one_while_onboarding_requires_five(gat
                    {"interest_ids": [], "custom_interests": []}]:
         response = section_write(client, "interests", values, saved["revision"])
         assert response.status_code == 200, response.text
-        saved = response.json()
+        saved = saved_profile(response)
         assert saved["onboarding"] == initial["onboarding"] and saved["onboarding_complete"]
         assert client.get(PATH).json() == saved
         assert len(saved["interest_ids"]) <= 1
@@ -174,6 +180,9 @@ def test_account_interests_allow_zero_and_one_while_onboarding_requires_five(gat
 @pytest.mark.parametrize("failure", [False, True])
 def test_incomplete_account_edits_mirror_canonical_clears_without_changing_plans(gateway, failure):
     import json
+    from datetime import datetime, timezone
+    from uuid import UUID
+    from services.crud.models import DestinationPin, PlanningBrief
     from services.shared.traveler_profile import profile_context
 
     captured = []
@@ -190,7 +199,14 @@ def test_incomplete_account_edits_mirror_canonical_clears_without_changing_plans
     app = create_app(provider, gateway.system.verifier, gateway.store, origin=ORIGIN,
                      clock=lambda: gateway.now[0], crud_client=gateway.adapter,
                      agent_client=AgentClient("http://agent.test", transport=httpx.MockTransport(mirror)))
-    create(gateway.system)
+    plan = create(gateway.system)
+    # Populate existing Plan-owned rows, so equality is not an empty-table check.
+    with gateway.system.factory() as db:
+        db.add(PlanningBrief(plan_id=UUID(plan["plan_id"]), payload={"interests": "Confirmed museums"},
+                             provenance={"interests": "traveler"}, inactive={}, updated_at=datetime.now(timezone.utc)))
+        db.add(DestinationPin(plan_id=UUID(plan["plan_id"]), place_id="confirmed-lisbon", name="Lisbon",
+                              address="Lisbon", latitude=38.7223, longitude=-9.1393, created_at=datetime.now(timezone.utc)))
+        db.commit()
     def snapshot():
         with gateway.system.factory() as db:
             return {table.name: [dict(row) for row in db.execute(select(table)).mappings()]

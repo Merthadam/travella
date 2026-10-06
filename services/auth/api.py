@@ -1,5 +1,7 @@
 """Local FastAPI authentication boundary. All provider tokens stay server-side."""
 
+from services.shared.traveler_profile import profile_context
+
 import hashlib
 import secrets
 import time
@@ -342,12 +344,12 @@ def create_app(
             )
             if request.method in {"PUT", "PATCH"} and status == 200 and isinstance(data, dict):
                 complete = data.get("onboarding", {}).get("completed_version") == 2
-                # Draft step saves never wait for AgentCore. A completed profile
-                # is already durable even if this bounded mirror attempt fails.
-                if request.method == "PUT" or complete:
+                # Account edits and completed onboarding mirror only advisory fields.
+                # The SQL save is already durable if this bounded attempt fails.
+                if request.method == "PUT" or complete or request.url.path.endswith("/sections"):
                     try:
                         data["memory_sync"] = (
-                            agent_client.sync_profile(token=token, profile=data)
+                            agent_client.sync_profile(token=token, profile=profile_context(data) | {"updated_at": data.get("updated_at")})
                             if agent_client is not None else "not_configured"
                         )
                     except Exception:
