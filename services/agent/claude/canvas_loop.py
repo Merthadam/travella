@@ -76,7 +76,7 @@ async def reviewed_candidate(*, invoke, payload, schema, validate, budget, revie
                 if not isinstance(old_items, list) or not isinstance(new_items, list):
                     continue
                 for index, old in enumerate(old_items):
-                    if issue.item_id in {str(index), f"item-{index}", str(old.get("id", ""))}:
+                    if issue.item_id in {str(index), f"item-{index}", str(old.get("id", "")) if isinstance(old, dict) else ""}:
                         new_items[:] = [item for item in new_items if item != old]
         raw = revised
     return validate(raw)
