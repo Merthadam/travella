@@ -8,7 +8,7 @@ import json
 from ..canvas_contracts import ThemeComponentItem, ThemesComponent, ThemesSummary
 from ..config import ResearchWorkerConfig
 from ..turn import TurnContext
-from .canvas_loop import CanvasBudget, canvas_prompt, reviewed_candidate
+from .canvas_loop import CanvasBudget, canvas_prompt, report_canvas_usage, reviewed_candidate
 from .research_worker import ClaudeResearchWorker, ResearchWorkerError
 
 
@@ -79,13 +79,13 @@ class ClaudeThemesWorker:
         self.worker = worker if worker is not None else ClaudeResearchWorker(config)
 
     async def run(self, *, context: TurnContext, message: str = "", usage: dict | None = None) -> dict:
+        budget = CanvasBudget(min(self.config.max_budget_usd, 0.10),
+                              min(self.config.timeout_seconds, 45))
+        complete = cancelled = False
         try:
             sources = summary_sources(context, message)
-            budget = CanvasBudget(min(self.config.max_budget_usd, 0.10),
-                                  min(self.config.timeout_seconds, 45))
             if not sources:
-                if usage is not None:
-                    usage.update(calls=0, cost_usd=0.0)
+                complete = True
                 return ThemesComponent(items=[]).model_dump()
             async with asyncio.timeout(min(self.config.timeout_seconds, 45)):
                 with self.worker.session() as session:
@@ -101,12 +101,14 @@ class ClaudeThemesWorker:
                         schema=ThemesSummary.model_json_schema(),
                         validate=lambda raw: themes_projection(raw, sources), budget=budget,
                     )
-            if usage is not None:
-                usage.update(calls=budget.calls, cost_usd=budget.cost)
+            complete = True
             return result
         except asyncio.CancelledError:
+            cancelled = True
             raise
         except ResearchWorkerError:
             raise
         except Exception:
             raise ResearchWorkerError("canvas_summary_unavailable") from None
+        finally:
+            report_canvas_usage(budget, usage, group="themes", complete=complete, cancelled=cancelled)

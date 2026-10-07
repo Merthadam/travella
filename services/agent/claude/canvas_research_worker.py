@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 
 from ..canvas_contracts import CanvasResearchSummary
 from ..config import ResearchWorkerConfig
-from .canvas_loop import CanvasBudget, canvas_prompt, reviewed_candidate
+from .canvas_loop import CanvasBudget, canvas_prompt, report_canvas_usage, reviewed_candidate
 from .research_result import ReadEvidence
 from .research_worker import ClaudeResearchWorker, ResearchWorkerError, _EvidenceObserver
 
@@ -108,11 +108,15 @@ class ClaudeCanvasResearchWorker:
                   reusable_evidence: list[dict] | None = None, usage: dict | None = None,
                   evidence_sink: list[dict] | None = None) -> dict:
         if not destination.strip():
+            if usage is not None:
+                usage.update(calls=0, cost_usd=0.0, usage_complete=True, stage="prepare", searches=0, reads=0)
             return {"findings": {"status": "empty", "items": []},
                     "links": {"status": "empty", "items": []}}
         observer = _CanvasObserver(self.config, _recent_evidence(reusable_evidence or []))
         budget = CanvasBudget(min(self.config.max_budget_usd, 0.25),
                               min(self.config.timeout_seconds, 90))
+        complete = cancelled = False
+
         def evidence():
             return [item.model_dump() for item in observer.evidence.values()]
         try:
@@ -142,15 +146,17 @@ class ClaudeCanvasResearchWorker:
                         validate=lambda raw: research_projection(raw, observer), budget=budget,
                         review_sources=evidence,
                     )
-            if usage is not None:
-                usage.update(calls=budget.calls, cost_usd=budget.cost,
-                             searches=observer.searches, reads=observer.fetches)
             if evidence_sink is not None:
                 evidence_sink.extend(evidence())
+            complete = True
             return result
         except asyncio.CancelledError:
+            cancelled = True
             raise
         except ResearchWorkerError:
             raise
         except Exception:
             raise ResearchWorkerError("canvas_research_unavailable") from None
+        finally:
+            report_canvas_usage(budget, usage, group="research", complete=complete,
+                                cancelled=cancelled, searches=observer.searches, reads=observer.fetches)

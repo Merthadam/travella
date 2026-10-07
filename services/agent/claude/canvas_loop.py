@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import time
 from pathlib import Path
@@ -26,6 +27,7 @@ class CanvasBudget:
         self.deadline = time.monotonic() + seconds
         self.cost = 0.0
         self.calls = 0
+        self.stage = "prepare"
 
     def allowance(self) -> float:
         remaining = self.ceiling - self.cost
@@ -44,6 +46,7 @@ class CanvasBudget:
 
 async def reviewed_candidate(*, invoke, payload, schema, validate, budget, review_sources=None):
     """Always review a parseable candidate, including one requiring schema repair."""
+    budget.stage = "generate"
     raw, cost = await invoke("generate", payload, schema, budget.allowance())
     budget.charge(cost)
     if not isinstance(raw, dict) or len(json.dumps(raw)) > 48000:
@@ -57,12 +60,14 @@ async def reviewed_candidate(*, invoke, payload, schema, validate, budget, revie
     review_payload = {**payload, "candidate": raw, "validation_errors": errors}
     if review_sources:
         review_payload["read_evidence"] = review_sources()
+    budget.stage = "review"
     review_raw, cost = await invoke(
         "review", review_payload, CanvasReview.model_json_schema(), budget.allowance()
     )
     budget.charge(cost)
     review = CanvasReview.model_validate(review_raw)
     if errors or review.verdict == "revise" or review.issues:
+        budget.stage = "revise"
         revised, cost = await invoke("revise", {
             **review_payload, "review": review.model_dump(),
         }, schema, budget.allowance())
@@ -80,3 +85,21 @@ async def reviewed_candidate(*, invoke, payload, schema, validate, budget, revie
                         new_items[:] = [item for item in new_items if item != old]
         raw = revised
     return validate(raw)
+
+
+def report_canvas_usage(budget: CanvasBudget, usage: dict | None, *, group: str,
+                        complete: bool, cancelled: bool, searches: int = 0, reads: int = 0) -> None:
+    """Known completed-call spend is a lower bound when an SDK call failed."""
+    metadata = {"calls": budget.calls, "cost_usd": budget.cost,
+                "usage_complete": complete, "stage": budget.stage,
+                "searches": searches, "reads": reads}
+    if usage is not None:
+        usage.update(metadata)
+    if cancelled:
+        # Cancellation exits the graph before service-level result logging.
+        # Fixed group/stage labels and numeric counts only: no prompt or identity.
+        logging.getLogger(__name__).info(
+            "canvas_cancelled group=%s stage=%s calls=%s known_cost_usd=%s "
+            "usage_complete=false searches=%s reads=%s",
+            group, budget.stage, budget.calls, budget.cost, searches, reads,
+        )
