@@ -1,0 +1,80 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { CanvasSurface } from '../../../design-system/a2ui/CanvasSurface';
+import { ids } from '../../../design-system/schemas';
+import { Icon } from '../../../design-system/components/primitives';
+import { CanvasDestinationMap, searchCanvasPlaces } from './CanvasDestinationMap';
+import { usePlanningCanvas } from '../usePlanningCanvas';
+import '../../../design-system/tokens.css';
+import '../../../design-system/components.css';
+import './planning-canvas.css';
+
+const groupLabel = { all: 'plan', themes: 'themes and preferences', research: 'research and useful websites' };
+
+export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDirtyChange, onBusyChange, autoGenerate = false }) {
+  const canvas = usePlanningCanvas({ selected, api, onExpired, onSaved });
+  const [screen, setScreen] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const started = useRef(false);
+  const dialog = useRef(null);
+  const returnFocus = useRef(null);
+  const dirty = canvas.dirty || canvas.editing;
+  const busy = Boolean(canvas.activeGroup || canvas.saving);
+  const callbacks = useRef({ onDirtyChange, onBusyChange }); callbacks.current = { onDirtyChange, onBusyChange };
+
+  useEffect(() => { callbacks.current.onDirtyChange?.(dirty); }, [dirty]);
+  useEffect(() => { callbacks.current.onBusyChange?.(busy); }, [busy]);
+  useEffect(() => () => { callbacks.current.onDirtyChange?.(false); callbacks.current.onBusyChange?.(false); }, []);
+  useEffect(() => {
+    const warn = event => { if (dirty || busy) { event.preventDefault(); event.returnValue = ''; } };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, busy]);
+  useEffect(() => {
+    if (!autoGenerate || started.current || canvas.loading || !canvas.data) return;
+    started.current = true;
+    if (canvas.saved) setConfirm({ kind: 'generate', group: 'all' });
+    else void canvas.generate('all');
+  }, [autoGenerate, canvas.loading, canvas.data, canvas.saved]);
+  useEffect(() => {
+    if (confirm) { returnFocus.current = document.activeElement; dialog.current?.showModal(); }
+    else { dialog.current?.close(); returnFocus.current?.focus?.(); }
+  }, [confirm]);
+
+  function generate(group) {
+    if (canvas.editing || busy) return;
+    const components = group === 'themes' ? ['themes'] : group === 'research' ? ['findings', 'links'] : ['themes', 'findings', 'links'];
+    if (components.some(id => canvas.data?.[id]?.items?.length)) setConfirm({ kind: 'generate', group });
+    else void canvas.generate(group);
+  }
+  function leave() { if (dirty || busy) setConfirm({ kind: 'leave' }); else onBack(); }
+  function reload() { if (dirty) setConfirm({ kind: 'reload' }); else canvas.reload(); }
+  async function confirmed() {
+    const choice = confirm; setConfirm(null);
+    if (choice.kind === 'generate') void canvas.generate(choice.group);
+    if (choice.kind === 'reload') canvas.reload();
+    if (choice.kind === 'leave') { if (canvas.activeGroup) await canvas.stop(); onBack(); }
+  }
+  function action(id, name, payload) {
+    if (name === 'open_flights' || name === 'open_accommodation') { if (canvas.editing) return; setScreen(name === 'open_flights' ? 'flights' : 'accommodation'); return; }
+    if (name === 'retry') { generate(id === 'themes' ? 'themes' : id === 'findings' || id === 'links' ? 'research' : 'all'); return; }
+    canvas.action(id, name, payload);
+  }
+  const progress = canvas.activeGroup ? canvas.notice || 'Preparing your trip…' : canvas.saving ? 'Saving your plan…' : canvas.dirty || canvas.editing ? 'Unsaved changes' : canvas.saved ? 'Saved' : 'Ready to plan';
+  return <main className="planning-canvas" aria-label="Planning canvas">
+    <div className="planning-canvas-inner">
+      <header className="canvas-page-heading"><div><button type="button" className="ds-text-button" onClick={leave} disabled={canvas.saving}>← Back to conversation</button><span className="ds-eyebrow">YOUR PLAN, TAKING SHAPE</span><h1>{selected.title || 'Your travel plan'}</h1><p>Review the details, make it yours, and save when you’re ready.</p></div><div className="canvas-main-actions"><span className="canvas-save-state" role="status" aria-live="polite">{progress}</span>{canvas.activeGroup ? <button type="button" className="ds-button" onClick={canvas.stop}>Stop generation</button> : <button type="button" className="ds-button" disabled={canvas.loading || canvas.saving || canvas.editing || !canvas.data} onClick={() => generate('all')}><Icon name="spark" size={16}/>{canvas.saved || canvas.data?.themes.items.length ? 'Regenerate plan' : 'Generate plan'}</button>}<button type="button" className="ds-button primary" disabled={canvas.loading || busy || canvas.editing || !canvas.valid || canvas.conflict || !canvas.dirty} onClick={canvas.save}>{canvas.saving ? 'Saving…' : 'Save plan'}</button></div></header>
+      {canvas.loading && <p role="status" className="canvas-notice">Loading your saved plan…</p>}
+      {canvas.error && <div className="canvas-error" role="alert"><p>{canvas.error}</p>{(!canvas.data || canvas.conflict) && <button className="ds-button small" disabled={busy} onClick={reload}>{canvas.conflict ? 'Review latest saved plan' : 'Retry loading'}</button>}</div>}
+      {canvas.staleContext && <div className="canvas-notice"><p>The conversation has newer trip details. This canvas still shows the version you reviewed. Regenerate the plan to bring the current details into this draft.</p></div>}
+      {canvas.editing && <p className="canvas-notice" role="status">Finish or cancel the open card edit before saving, generating, or opening travel search.</p>}
+      {!busy && canvas.notice && <p className="canvas-notice" role="status">{canvas.notice}</p>}
+      {canvas.data && <div className="canvas-group-actions" aria-label="Generate individual plan sections">{['themes', 'research'].map(group => <div key={group}><span>{group === 'themes' ? 'Themes & preferences' : 'Research & websites'}</span><button type="button" className="ds-text-button" disabled={busy || canvas.editing} onClick={() => generate(group)}>{canvas.groups[group] === 'error' ? 'Retry' : 'Regenerate'}</button>{canvas.groups[group] === 'error' && <small role="status">Couldn’t finish. Completed details are still here.</small>}</div>)}</div>}
+      {screen ? <section className="canvas-provider-empty"><button className="ds-text-button" autoFocus onClick={() => { const mode = screen; setScreen(null); requestAnimationFrame(() => document.querySelector(`.planning-canvas .ds-${mode} .ds-travel-link`)?.focus()); }}>← Back to canvas</button><Icon name={screen === 'flights' ? 'plane' : 'bed'} size={44}/><h2>{screen === 'flights' ? 'Flight search is not available yet.' : 'Accommodation search is not available yet.'}</h2><p>Your travel requirements are saved only when you choose Save plan. No supplier offers or booking have been created.</p></section> : canvas.renderData && <CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placeSearch={searchCanvasPlaces} preview={false}/>}
+      <dialog className="canvas-confirm" ref={dialog} aria-labelledby="canvas-confirm-title" onCancel={event => { event.preventDefault(); setConfirm(null); }}>
+        <h2 id="canvas-confirm-title">{confirm?.kind === 'generate' ? `Replace the draft ${groupLabel[confirm.group]}?` : confirm?.kind === 'reload' ? 'Discard edits and load the saved plan?' : 'Leave without saving?'}</h2>
+        <p>{confirm?.kind === 'generate' ? 'New results replace the selected generated sections, including edits in those sections. Your essentials and saved map places stay in the draft. Save plan is still required to keep the result.' : 'Your unsaved canvas edits will be discarded. Your last saved plan will remain available.'}</p>
+        <div><button type="button" className="ds-button" autoFocus onClick={() => setConfirm(null)}>Keep editing</button><button type="button" className="ds-button primary" onClick={confirmed}>{confirm?.kind === 'generate' ? 'Replace draft sections' : confirm?.kind === 'reload' ? 'Load saved plan' : 'Leave canvas'}</button></div>
+      </dialog>
+    </div>
+  </main>;
+}

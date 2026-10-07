@@ -25,20 +25,20 @@ const implementations = ids.map(id => createBinderlessComponentImplementation({
   const checked = definitions[id].schema.safeParse(data);
   if (!checked.success) return <div className="ds-component-unavailable" role="status">Waiting for valid {definitions[id].title.toLowerCase()} data…</div>;
   const View = views[id];
-  return <View data={checked.data} disabled={options.disabled} mapAdapter={options.mapAdapter} onAction={(name,payload) => void context.dispatchAction({ event: { name, context: payload } })}/>;
+  return <View data={checked.data} disabled={options.disabled} mapAdapter={options.mapAdapter} placeSearch={options.placeSearch} preview={options.preview !== false} onAction={(name,payload) => void context.dispatchAction({ event: { name, context: payload } })}/>;
 }));
 const Root = createBinderlessComponentImplementation({ name: 'PlanningCanvas', schema: z.object({ children: z.array(z.enum(ids)).max(7).describe('REF:common_types.json#/$defs/ChildList') }).strict() }, ({ context, buildChild }) => <div className="ds-canvas-grid">{context.componentModel.properties.children.map(id => <div className={`ds-slot slot-${id} ${!context.componentModel.properties.children.includes({map:'themes',themes:'map',flights:'accommodation',accommodation:'flights',findings:'links',links:'findings'}[id]) ? 'span-all' : ''}`} key={id}>{buildChild(id)}</div>)}</div>);
 export const catalog = new Catalog(catalogId, 'v0.9', [Root, ...implementations], []);
 // Public projection is intentionally small. Validate the entire batch before mutating the renderer.
-export function projectCanvas(data, visible, create = false) {
+export function projectCanvas(data, visible, create = false, targetSurfaceId = surfaceId) {
   if (new TextEncoder().encode(JSON.stringify(data)).length > 65536) throw new Error('The component payload is too large.');
   if (!Array.isArray(visible) || visible.length > 7 || new Set(visible).size !== visible.length || visible.some(id => !ids.includes(id))) throw new Error('Unknown or duplicate component.');
   if (Object.keys(data).some(id => !ids.includes(id))) throw new Error('Unknown component data.');
   const parsed = Object.fromEntries(Object.entries(data).map(([id,value]) => [id,definitions[id].schema.parse(value)]));
   if (visible.some(id => !parsed[id])) throw new Error('Missing component data.');
   const messages = [];
-  if (create) messages.push({ version: 'v0.9', createSurface: { surfaceId, catalogId } });
-  messages.push({ version: 'v0.9', updateComponents: { surfaceId, components: [{ id: 'root', component: 'PlanningCanvas', children: visible }, ...visible.map(id => ({ id, component: definitions[id].type, value: { path: `/components/${id}` } }))] } });
-  messages.push({ version: 'v0.9', updateDataModel: { surfaceId, path: '/components', value: parsed } });
+  if (create) messages.push({ version: 'v0.9', createSurface: { surfaceId: targetSurfaceId, catalogId } });
+  messages.push({ version: 'v0.9', updateComponents: { surfaceId: targetSurfaceId, components: [{ id: 'root', component: 'PlanningCanvas', children: visible }, ...visible.map(id => ({ id, component: definitions[id].type, value: { path: `/components/${id}` } }))] } });
+  messages.push({ version: 'v0.9', updateDataModel: { surfaceId: targetSurfaceId, path: '/components', value: parsed } });
   return messages;
 }

@@ -1,0 +1,122 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { loadGoogleMaps } from '../../../lib/googleMaps';
+import { categories } from '../../../design-system/schemas';
+
+function pinIcon(category) {
+  const paths = {
+    stay: ['M3 18V7m18 11V9M3 15h18M3 9h18v6', 'M6 9V6h5v3m2 0V6h5v3'],
+    airport: ['m3 11 7 2 1 7 2-1 1-6 6-8-1-2-8 6-6-1z', 'm14 13 5 4-2 2-4-5'],
+    food: ['M5 8h11v6a5 5 0 0 1-10 0V8m11 1h2a3 3 0 0 1 0 6h-2M4 21h15M8 2v3m5-3v3'],
+    activity: ['m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z'],
+    other: ['M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z'],
+  };
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  for (const [key, value] of Object.entries({ viewBox: '0 0 24 24', width: '16', height: '16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) svg.setAttribute(key, value);
+  for (const path of paths[category] || paths.other) { const element = document.createElementNS('http://www.w3.org/2000/svg', 'path'); element.setAttribute('d', path); svg.append(element); }
+  return svg;
+}
+
+async function geocode(request) {
+  const { libraries } = await loadGoogleMaps({ libraries: ['geocoding'] });
+  try {
+    const { results } = await new libraries.geocoding.Geocoder().geocode(request);
+    return (results || []).filter(result => result.geometry?.location).slice(0, 5);
+  } catch (error) { if (error.code === 'ZERO_RESULTS') return []; throw error; }
+}
+
+// Coordinates and viewports originate only from the provider. Resolving a viewport
+// changes the local map view; it does not select or save a Plan destination.
+export async function searchCanvasPlaces(query, destination) {
+  const { libraries } = await loadGoogleMaps({ libraries: ['places'] });
+  const { places = [] } = await libraries.places.Place.searchByText({
+    textQuery: `${query}${destination ? ` in ${destination}` : ''}`,
+    fields: ['id', 'displayName', 'formattedAddress', 'location'], maxResultCount: 5,
+  });
+  return places.filter(place => place.location).map(place => ({
+    id: place.id, name: place.displayName, address: place.formattedAddress,
+    position: place.location.toJSON(),
+  }));
+}
+
+export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect }) {
+  const canvas = useRef(null);
+  const selection = useRef(onSelect); selection.current = onSelect;
+  const [runtime, setRuntime] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [candidates, setCandidates] = useState([]);
+  const [resolved, setResolved] = useState(null);
+  const [mapError, setMapError] = useState(false);
+  const usableDestination = final && destination;
+
+  useEffect(() => {
+    let alive = true;
+    let map;
+    setMapError(false);
+    loadGoogleMaps({ libraries: ['maps', 'marker'] }).then(({ maps, libraries }) => {
+      if (!alive || !canvas.current) return;
+      map = new libraries.maps.Map(canvas.current, {
+        mapId: 'DEMO_MAP_ID', center: { lat: 20, lng: 0 }, zoom: 2,
+        fullscreenControl: false, streetViewControl: false, mapTypeControl: false, gestureHandling: 'cooperative',
+      });
+      setRuntime({ map, maps, Marker: libraries.marker.AdvancedMarkerElement });
+    }).catch(() => { if (alive) setMapError(true); });
+    return () => { alive = false; if (map) window.google?.maps?.event.clearInstanceListeners(map); setRuntime(null); };
+  }, [attempt]);
+
+  useEffect(() => {
+    let alive = true;
+    setCandidates([]); setResolved(null); setError('');
+    if (!usableDestination) { setLoading(false); return; }
+    setLoading(true);
+    geocode({ address: destination }).then(results => {
+      if (!alive) return;
+      setLoading(false);
+      if (!results.length) setError('We couldn’t locate this destination. Check its name in the conversation, or retry.');
+      else if (results.length > 1 || results[0].partial_match) setCandidates(results);
+      else setResolved(results[0]);
+    }).catch(() => { if (alive) { setLoading(false); setError('The destination map couldn’t load. Your Plan details are still here.'); } });
+    return () => { alive = false; };
+  }, [destination, usableDestination, attempt]);
+
+  useEffect(() => {
+    if (!runtime || !resolved) return;
+    if (resolved.geometry.viewport) runtime.map.fitBounds(resolved.geometry.viewport, 24);
+    else { runtime.map.setCenter(resolved.geometry.location); runtime.map.setZoom(resolved.types?.includes('country') ? 5 : 12); }
+  }, [runtime, resolved]);
+
+  useEffect(() => {
+    if (!runtime) return;
+    const markers = []; const listeners = [];
+    for (const place of places) {
+      const category = categories[place.category];
+      const content = document.createElement('span');
+      content.className = `canvas-map-pin ${place.id === selectedId ? 'selected' : ''}`;
+      content.style.setProperty('--category', category.color);
+      const icon = pinIcon(place.category);
+      const label = document.createElement('span'); label.textContent = place.name;
+      content.append(icon, label);
+      const marker = new runtime.Marker({ map: runtime.map, position: place.position, title: `Inspect ${place.name}`, content });
+      listeners.push(marker.addListener('click', () => selection.current(place.id))); markers.push(marker);
+    }
+    return () => { listeners.forEach(listener => listener.remove()); markers.forEach(marker => { marker.map = null; }); };
+  }, [runtime, places, selectedId]);
+
+  function showAll() {
+    if (!runtime || !places.length) return;
+    const bounds = new runtime.maps.LatLngBounds(); places.forEach(place => bounds.extend(place.position));
+    runtime.map.fitBounds(bounds, 48);
+    if (places.length === 1) runtime.map.setZoom(14);
+  }
+  const message = !usableDestination ? 'Choose a destination in the conversation to frame your map.' : loading ? 'Finding your destination…' : mapError ? 'The map is unavailable. Your places remain in the list below.' : error;
+  return <div className="canvas-map-adapter">
+    <div className="canvas-google-map" ref={canvas} aria-label={destination ? `Map of ${destination}` : 'Destination map'}/>
+    {(message || candidates.length > 0) && <div className="canvas-map-message" role="status">
+      {message && <p>{message}</p>}
+      {candidates.length > 0 && <><p>Which location should the map show? This only adjusts your map view.</p>{candidates.map(result => <button type="button" className="ds-button small" key={result.place_id} onClick={() => { setResolved(result); setCandidates([]); }}>{result.formatted_address}</button>)}</>}
+      {(error || mapError) && <button type="button" className="ds-button small" onClick={() => setAttempt(value => value + 1)}>Retry map</button>}
+    </div>}
+    <button type="button" className="ds-text-button" disabled={!runtime || !places.length} onClick={showAll}>Show all places</button>
+  </div>;
+}

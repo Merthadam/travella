@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 export function Icon({ name = 'spark', size = 20, ...props }) {
   const paths = {
     plane: <><path d="m3 11 7 2 1 7 2-1 1-6 6-8-1-2-8 6-6-1z"/><path d="m14 13 5 4-2 2-4-5"/></>,
@@ -17,11 +17,18 @@ export function Icon({ name = 'spark', size = 20, ...props }) {
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name] || paths.spark}</svg>;
 }
-export function Card({ title, eyebrow, icon, className = '', children, action, data, onAction, empty = 'Add a few details to make this yours.' }) {
+export function Card({ title, eyebrow, icon, className = '', children, action, data, onAction, editableEmpty = false, empty = 'Add a few details to make this yours.' }) {
   return <section className={`ds-card ${className}`} aria-label={title}>
-    <header className="ds-card-head"><div>{eyebrow && <span className="ds-eyebrow">{eyebrow}</span>}<h2>{icon && <Icon name={icon}/>} {title}</h2></div>{React.isValidElement(action) && (action.type === 'button' || action.type === EditButton) && data?.status !== 'ready' ? React.cloneElement(action, { disabled: true }) : action}</header>
-    {data?.status === 'loading' ? <div role="status" className="ds-loading"><div/><div/><div/><span>Gathering the details…</span></div> : data?.status === 'error' ? <div role="alert" className="ds-empty"><Icon name="pin"/><h3>A little detour</h3><p>{data.error || 'This component couldn’t load. Your other details are still here.'}</p><button className="ds-button" onClick={() => onAction?.('retry', {})}>Try again</button></div> : data?.status === 'empty' ? <div className="ds-empty"><Icon name={icon} size={28}/><h3>A little room for possibility</h3><p>{empty}</p></div> : children}
+    <header className="ds-card-head"><div>{eyebrow && <span className="ds-eyebrow">{eyebrow}</span>}<h2>{icon && <Icon name={icon}/>} {title}</h2></div>{React.isValidElement(action) && (action.type === 'button' || action.type === EditButton) && data?.status !== 'ready' && !(editableEmpty && data?.status === 'empty') ? React.cloneElement(action, { disabled: true }) : action}</header>
+    {data?.status === 'loading' ? <div role="status" className="ds-loading"><div/><div/><div/><span>Gathering the details…</span></div> : data?.status === 'error' ? <div role="alert" className="ds-empty"><Icon name="pin"/><h3>A little detour</h3><p>{data.error || 'This component couldn’t load. Your other details are still here.'}</p><button className="ds-button" onClick={() => onAction?.('retry', {})}>Try again</button></div> : data?.status === 'empty' ? <div className="ds-empty"><Icon name={icon} size={28}/><h3>A little room for possibility</h3><p>{empty}</p></div> : null}{(data?.status === 'ready' || (editableEmpty && data?.status === 'empty')) && children}
   </section>;
 }
 export function EditButton({ onClick, label = 'Edit details', disabled }) { return <button className="ds-icon-button" aria-label={label} title={label} onClick={onClick} disabled={disabled}><Icon name="edit" size={17}/></button>; }
 export function FormActions({ cancel, busy = false }) { return <div className="ds-form-actions"><button type="button" className="ds-button ghost" onClick={cancel}>Cancel</button><button className="ds-button primary" disabled={busy}>Save changes</button></div>; }
+
+// An open card editor is a local draft, so the containing canvas cannot save an older value.
+export function useDraftEditor(draft, onAction) {
+  const callback = useRef(onAction); callback.current = onAction;
+  const editing = Boolean(draft);
+  useEffect(() => { callback.current?.('editor_state', { editing }); return () => callback.current?.('editor_state', { editing: false }); }, [editing]);
+}

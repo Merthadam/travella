@@ -18,14 +18,14 @@ export const safeUrl = z.string().max(2048).refine(value => {
 }, 'Use a public HTTPS website without credentials.');
 const date = z.string().refine(v => !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0,10) === v), 'Use a valid date.');
 export const essentialsSchema = z.object({ ...state,
-  dates: z.object({ start: date, end: date, note: text(120), flexible: z.boolean() }).strict(),
+  dates: z.object({ start: date, end: date, note: text(200), flexible: z.boolean() }).strict(),
   travelers: z.number().int().min(1).max(50).nullable(),
-  budget: z.object({ label: text(120), noFixedBudget: z.boolean() }).strict(),
+  budget: z.object({ label: text(200), noFixedBudget: z.boolean() }).strict(),
 }).strict().refine(d => !d.dates.start || !d.dates.end || d.dates.end >= d.dates.start, 'End date must follow start.').refine(d => !d.dates.flexible || (!d.dates.start && !d.dates.end), 'Flexible dates cannot include exact dates.').refine(d => !d.budget.noFixedBudget || !d.budget.label, 'Choose an amount or no fixed budget.');
 export const themeItem = z.object({ id, kind: z.enum(['theme','pace','priority','must_do','avoid']), text: z.string().min(1).max(160), source: text(40).optional() }).strict();
 export const themesSchema = z.object({ ...state, items: z.array(themeItem).max(20).refine(unique, 'Duplicate ids.') }).strict();
 export const pinSchema = z.object({ id, name: z.string().min(1).max(120), category: z.enum(['stay','airport','food','activity','other']), position: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).strict(), description: text(240) }).strict();
-export const mapSchema = z.object({ ...state, destination: text(120), final: z.boolean(), pins: z.array(pinSchema).max(50).refine(unique, 'Duplicate ids.') }).strict();
+export const mapSchema = z.object({ ...state, destination: text(100), final: z.boolean(), pins: z.array(pinSchema).max(50).refine(unique, 'Duplicate ids.') }).strict();
 export const travelSchema = z.object({ ...state, need: z.enum(['undecided','needed','not-needed']), bookingStatus: z.enum(['booked','not-booked']), title: text(160), subtitle: text(160), detail: text(160), availability: z.enum(['preview','unavailable','ready']) }).strict();
 const source = z.object({ title: text(120), url: safeUrl }).strict();
 export const findingsSchema = z.object({ ...state, items: z.array(z.object({ id, title: z.string().min(1).max(120), summary: text(600), sources: z.array(source).max(5), certainty: z.enum(['supported','uncertain','conflicting','unavailable']), researchedAt: text(40).optional() }).strict()).max(30).refine(unique, 'Duplicate ids.') }).strict();
