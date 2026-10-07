@@ -14,6 +14,7 @@ def upgrade():
         "planning_canvases",
         sa.Column("plan_id", sa.UUID(), sa.ForeignKey("plans.id", ondelete="CASCADE"), primary_key=True),
         sa.Column("payload", JSONB(), nullable=False),
+        sa.Column("context_revision", sa.Integer(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("jsonb_typeof(payload) = 'object'", name="ck_planning_canvas_payload_object"),
     )

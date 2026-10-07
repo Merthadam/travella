@@ -93,6 +93,9 @@ class Plan(Base):
     conversation: Mapped["Conversation"] = relationship(
         back_populates="plan", uselist=False, cascade="all, delete-orphan"
     )
+    canvas: Mapped["PlanningCanvas | None"] = relationship(
+        back_populates="plan", uselist=False, cascade="all, delete-orphan"
+    )
     receipts: Mapped[list["PlanActionReceipt"]] = relationship(
         back_populates="plan", cascade="all, delete-orphan"
     )
@@ -242,8 +245,11 @@ class PlanningCanvas(Base):
 
     __tablename__ = "planning_canvases"
 
+    plan: Mapped["Plan"] = relationship(back_populates="canvas")
+
     plan_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("plans.id", ondelete="CASCADE"), primary_key=True
     )
     payload: Mapped[dict[str, object]] = mapped_column(JSON_OBJECT, nullable=False)
+    context_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -173,7 +173,7 @@ COMPONENT_MODELS = {"essentials": Essentials, "map": MapComponent, "themes": The
 class CanvasSnapshot(Strict):
     version: Literal[1] = 1
     components: dict[str, dict] = Field(max_length=7)
-    evidence: dict[ItemId, Annotated[str, Field(max_length=64)]] = Field(default_factory=dict, max_length=30)
+    evidence: dict[ItemId, Annotated[str, Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")]] = Field(default_factory=dict, max_length=30)
 
     @model_validator(mode="after")
     def valid_components(self):
@@ -181,10 +181,33 @@ class CanvasSnapshot(Strict):
             raise ValueError("unknown component")
         for name, data in self.components.items():
             component = COMPONENT_MODELS[name].model_validate(data)
+            # The renderer allows these fields to be omitted, never explicit null.
+            if "error" in data and data["error"] is None:
+                raise ValueError("component error must be text when present")
+            optional_item_key = {"themes": "source", "findings": "researchedAt"}.get(name)
+            if optional_item_key and any(optional_item_key in item and item[optional_item_key] is None
+                                         for item in data.get("items", [])):
+                raise ValueError("optional item field must be text when present")
             items = getattr(component, "items", getattr(component, "pins", []))
             if len({item.id for item in items}) != len(items):
                 raise ValueError("duplicate item ids")
-        if len(json.dumps(self.model_dump(), ensure_ascii=False).encode()) > 65536:
+        serialized = json.dumps(self.model_dump(), ensure_ascii=False)
+        try:
+            size = len(serialized.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise ValueError("canvas contains invalid Unicode") from None
+        # PostgreSQL JSONB rejects null characters even when escaped in JSON.
+        def contains_null(value):
+            if isinstance(value, str):
+                return "\x00" in value
+            if isinstance(value, dict):
+                return any(contains_null(key) or contains_null(item) for key, item in value.items())
+            if isinstance(value, list):
+                return any(contains_null(item) for item in value)
+            return False
+        if contains_null(self.components):
+            raise ValueError("canvas contains null characters")
+        if size > 65536:
             raise ValueError("canvas too large")
         return self
 
@@ -200,6 +223,7 @@ class CanvasOutput(BaseModel):
     context_revision: int
     snapshot: CanvasSnapshot | None
     saved_at: str | None
+    saved_context_revision: int | None
 
 
 class CanvasChallengeOutput(BaseModel):
@@ -248,7 +272,8 @@ class CanvasRepository:
         return {"plan_id": str(plan_id), "revision": plan.revision,
                 "context_revision": context.revision if context else 1,
                 "snapshot": row.payload if row else None,
-                "saved_at": as_utc(row.updated_at).isoformat() if row else None}
+                "saved_at": as_utc(row.updated_at).isoformat() if row else None,
+                "saved_context_revision": row.context_revision if row else None}
 
     def _validate_evidence(self, subject, plan_id, snapshot):
         if snapshot is None:
@@ -305,7 +330,9 @@ class CanvasRepository:
                 row.payload = snapshot
                 row.updated_at = now
             else:
-                self.session.add(PlanningCanvas(plan_id=plan_id, payload=snapshot, updated_at=now))
+                row = PlanningCanvas(plan_id=plan_id, payload=snapshot, updated_at=now,
+                                     context_revision=mutation.context_revision)
+                self.session.add(row)
             # Map pins are canonical in this snapshot, committed with the same transaction.
             # They are places of interest, not destination candidates.
             # Essentials and need states are the same facts consumed by resumed chat.
@@ -325,8 +352,18 @@ class CanvasRepository:
             if "map" in components:
                 map_data = components["map"]
                 changed["finalDestination"] = map_data["destination"] if map_data["final"] else ""
-                if changed["finalDestination"] and changed["finalDestination"] not in data["candidates"]:
-                    data["candidates"].append(changed["finalDestination"])
+                destination = changed["finalDestination"]
+                if destination and destination not in data["candidates"]:
+                    matching = next((index for index, candidate in enumerate(data["candidates"])
+                                     if candidate.casefold() == destination.casefold()), None)
+                    if matching is not None:
+                        # Preserve the exact reviewed spelling without creating a duplicate.
+                        data["candidates"][matching] = destination
+                    elif len(data["candidates"]) >= 20:
+                        raise LifecycleProblem("canvas_destination_limit")
+                    else:
+                        data["candidates"].append(destination)
+                    data["provenance"]["candidates"] = {"source": "user_edit", "updated_at": now.isoformat()}
                 plan.destination_summary = changed["finalDestination"] or None
             for field, value in changed.items():
                 if data[field] != value:
@@ -344,6 +381,7 @@ class CanvasRepository:
                 else:
                     context = ResearchContext(plan_id=plan_id, payload=data, revision=2, updated_at=now)
                     self.session.add(context)
+            row.context_revision = context.revision if context else 1
             plan.last_working_view = WorkingView.WORKSPACE
         plan.revision += 1
         plan.updated_at = now
