@@ -9,12 +9,15 @@ def mapped_components(context: dict) -> dict:
             "start": trip.dateStart, "end": trip.dateEnd, "note": trip.dateNote,
             "flexible": trip.flexibleDates}, "travelers": trip.travelers,
             "budget": {"label": trip.budget, "noFixedBudget": trip.noFixedBudget}},
-        "map": {"status": "ready" if trip.finalDestination else "empty",
+        "map": {"status": "ready",
                 "destination": trip.finalDestination, "final": bool(trip.finalDestination), "pins": []},
     }
-    for key, title in (("flights", "Flights"), ("accommodation", "Accommodation")):
+    detail = ("Flexible dates" if trip.flexibleDates else
+              " → ".join(value for value in (trip.dateStart, trip.dateEnd) if value) or "Dates not set")
+    subtitle = f"{trip.travelers} travelers" if trip.travelers else "Travelers not set"
+    for key, prefix in (("flights", "Flights to"), ("accommodation", "Stay in")):
+        title = f"{prefix} {trip.finalDestination}" if trip.finalDestination else "Destination not set"
         result[key] = {"status": "ready", "need": getattr(trip, key),
                        "bookingStatus": "not-booked", "title": title,
-                       "subtitle": "Explore options for your trip",
-                       "detail": "Search will be available here soon.", "availability": "unavailable"}
+                       "subtitle": subtitle, "detail": detail, "availability": "unavailable"}
     return result
