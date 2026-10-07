@@ -2,3 +2,16 @@
 @media(max-width:900px){.planning-canvas-inner{padding:20px 20px 48px}.canvas-page-heading{align-items:flex-start;flex-direction:column;gap:18px}.canvas-main-actions{justify-content:flex-start;max-width:none}.canvas-save-state{text-align:left}.canvas-page-heading h1{font-size:32px}}
 @media(max-width:700px){.planning-canvas{overflow:visible;flex:none;width:100%}.planning-canvas-inner{padding:12px 16px 40px}.canvas-group-actions{gap:4px;flex-direction:column}.canvas-google-map{height:270px}.canvas-provider-empty{padding:24px}.canvas-main-actions .ds-button{font-size:12px;padding:10px 12px}.canvas-confirm{padding:24px}}
 @media(prefers-reduced-motion:reduce){.planning-canvas *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* Keep live canvas controls independent of the app shell's generic buttons. */
+.planning-canvas .ds-button{border:1px solid #d7dfd0;border-radius:9px;background:var(--ds-surface);color:var(--ds-ink);font-weight:500}
+.planning-canvas .ds-button.primary,.planning-canvas .ds-button.primary:hover{border-color:var(--ds-green);background:var(--ds-green);color:#fff;font-weight:500}
+.planning-canvas .ds-button.ghost{border-color:transparent;background:transparent}
+.planning-canvas .ds-icon-button{padding:0;color:var(--ds-muted);background:transparent;border:1px solid var(--ds-line);border-radius:50%}
+.planning-canvas .ds-icon-button:hover:not(:disabled){background:#f3f5ee}
+.planning-canvas .ds-icon-button>svg{flex-shrink:0}
+.planning-canvas .ds-pin-details .ds-icon-button{border:0}
+.planning-canvas .ds-text-button{border:0;background:transparent;color:var(--ds-green)}
+.planning-canvas .ds-text-button.danger{color:#9b493b}
+.planning-canvas .ds-form label{margin:0 0 16px}
+.planning-canvas .canvas-place-result{color:var(--ds-ink)}
