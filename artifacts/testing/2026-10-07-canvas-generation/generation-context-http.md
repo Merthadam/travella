@@ -33,3 +33,27 @@ Fixtures: two newly created Plans (one example-owned, one synthetic other-owner)
 Temporary login session signed out: True.
 
 This evidence covers generation-history reads and their boundaries. Canvas CRUD/browser/model checks are reported separately.
+
+## Canvas HTTP ownership and missing-record boundaries
+
+Follow-up verification on the rebuilt container used two fresh disposable Plans and a fresh temporary example-user session. Each write request supplied a valid-shaped `snapshot: null`, `context_revision: 1`, fresh Idempotency-Key, If-Match: 1 and a nonempty placeholder challenge header. Thus malformed request shape did not mask ownership enforcement. No new account was provisioned.
+
+| Actual HTTP request | Result | Observed response / stored outcome |
+|---|---|---|
+| Unauthenticated: GET /canvas | PASS | status=401, code=unauthenticated |
+| Unauthenticated: POST /canvas/challenge | PASS | status=401, code=unauthenticated |
+| Unauthenticated: PUT /canvas | PASS | status=401, code=unauthenticated |
+| Unauthenticated: DELETE /canvas | PASS | status=401, code=unauthenticated |
+| Missing Plan: GET /canvas | PASS | status=404, code=not_found |
+| Missing Plan: POST /canvas/challenge | PASS | status=404, code=not_found |
+| Missing Plan: PUT /canvas | PASS | status=404, code=not_found |
+| Missing Plan: DELETE /canvas | PASS | status=404, code=not_found |
+| Other owner: GET /canvas | PASS | status=404, code=not_found |
+| Other owner: POST /canvas/challenge | PASS | status=404, code=not_found |
+| Other owner: PUT /canvas | PASS | status=404, code=not_found |
+| Other owner: DELETE /canvas | PASS | status=404, code=not_found |
+| Denied requests made no fixture mutations | PASS | plan_revisions=[1, 1], canvases=0, challenges=0, initial_create_receipts=2 |
+| Boundary fixtures and their create receipts cleaned up | PASS | remaining_plans=0, remaining_receipts=0 |
+
+Temporary follow-up session signed out: True.
+Existing example-account Plans were not modified. No automated test suite or model calls ran.
