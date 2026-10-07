@@ -57,6 +57,7 @@ class LifecycleProblem(Exception):
 
 
 PROBLEMS = {
+    "canvas_inconsistent": (422, "Trip cards disagree with the dates, travelers, or destination. Review the draft before saving."),
     "canvas_destination_limit": (422, "Remove a destination candidate from the Trip Brief before choosing a new destination."),
     "canvas_evidence_invalid": (422, "A finding changed or cannot be verified. Review it as uncertain before saving."),
     "invalid_profile": (422, "Check your profile details and try again."),

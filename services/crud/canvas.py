@@ -286,11 +286,37 @@ class CanvasRepository:
             if not expected or not hmac.compare_digest(expected, supplied):
                 raise LifecycleProblem("canvas_evidence_invalid")
 
+    def _validate_consistency(self, snapshot, context_row):
+        """Reject stale duplicated display facts without rewriting the reviewed draft."""
+        if snapshot is None:
+            return
+        components = snapshot.components
+        context = TripContext.model_validate(context_row.payload) if context_row else TripContext()
+        essentials = components.get("essentials")
+        dates = essentials["dates"] if essentials else {
+            "start": context.dateStart, "end": context.dateEnd, "flexible": context.flexibleDates,
+        }
+        travelers = essentials["travelers"] if essentials else context.travelers
+        map_data = components.get("map")
+        destination = map_data["destination"] if map_data else context.finalDestination
+        subtitle = f"{travelers} travelers" if travelers else "Travelers not set"
+        detail = "Flexible dates" if dates["flexible"] else (
+            " → ".join(value for value in (dates["start"], dates["end"]) if value) or "Dates not set"
+        )
+        for name, prefix in (("flights", "Flights to"), ("accommodation", "Stay in")):
+            if name not in components:
+                continue
+            title = f"{prefix} {destination}" if destination else "Destination not set"
+            card = components[name]
+            if (card["title"], card["subtitle"], card["detail"]) != (title, subtitle, detail):
+                raise LifecycleProblem("canvas_inconsistent")
+
     def challenge(self, subject, plan_id, request_id, revision, mutation):
         validate_request_id(request_id, self.plans.clock())
         self._active(subject, plan_id)
         self._validate_evidence(subject, plan_id, mutation.snapshot)
-        self._context(subject, plan_id, mutation.context_revision)
+        context = self._context(subject, plan_id, mutation.context_revision)
+        self._validate_consistency(mutation.snapshot, context)
         token = self.plans.issue_challenge(subject, plan_id, "canvas_save", revision,
                                           mutation.model_dump())
         return {"challenge": token, "revision": revision, "expires_in": 300}
@@ -314,6 +340,7 @@ class CanvasRepository:
         if plan.revision != revision:
             raise LifecycleProblem("revision_conflict")
         context = self._context(subject, plan_id, mutation.context_revision)
+        self._validate_consistency(mutation.snapshot, context)
         self._validate_evidence(subject, plan_id, mutation.snapshot)
         if not challenge:
             raise LifecycleProblem("challenge_invalid")
