@@ -32,3 +32,12 @@ For each item, return the exact source_id and an exact contiguous source_quote
 supporting it. The server checks those against the supplied sources and assigns
 the component id and source label. Do not fabricate a supporting quote.
 If no usable preferences were expressed, return an empty items array.
+
+Sources have a role and active flag. Inactive trip facts are tombstones: do not
+resurrect them from older conversation or memory. Conversation includes assistant
+messages for resolving explicit acceptance only; suggestions alone are never
+preferences. When source_id refers to an assistant suggestion, acceptance must
+contain the later user source_id and exact source_quote explicitly accepting it.
+Otherwise acceptance is null. Current explicit corrections override old sources.
+If revising, repair validation errors and the single review's issues. Remove
+unsupported items you cannot fix. Never ask for another review or research.
