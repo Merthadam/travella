@@ -18,6 +18,7 @@ from services.trip_context import (
 )
 
 from .auth import identity_dependency
+from .canvas import CanvasChallengeOutput, CanvasMutation, CanvasOutput, CanvasRepository
 from .contracts import LifecycleProblem
 from .profile import TravelerProfileRepository
 from .profile_schemas import OnboardingMutation, ProfileInput, ProfileOutput
@@ -148,6 +149,40 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
     @router.get("/{plan_id}/agent-context", response_model=dict)
     def agent_context(plan_id: UUID, repo: Repo, me=Depends(identity), limit: int = Query(12, ge=1, le=50)):
         return repo.agent_context(me.subject, plan_id, limit)
+
+    @router.get("/{plan_id}/generation-context", response_model=dict)
+    def generation_context(plan_id: UUID, repo: Repo, me=Depends(identity),
+                           after_sequence: int = Query(0, ge=0),
+                           cutoff_sequence: int | None = Query(None, ge=0),
+                           limit: int = Query(50, ge=1, le=50),
+                           expected_revision: int | None = Query(None, ge=1)):
+        return repo.generation_context(me.subject, plan_id, after_sequence=after_sequence,
+                                       cutoff_sequence=cutoff_sequence, limit=limit,
+                                       expected_revision=expected_revision)
+
+    @router.get("/{plan_id}/canvas", response_model=CanvasOutput)
+    def get_canvas(plan_id: UUID, repo: Repo, me=Depends(identity)):
+        return CanvasRepository(repo).read(me.subject, plan_id)
+
+    @router.post("/{plan_id}/canvas/challenge", response_model=CanvasChallengeOutput)
+    def canvas_challenge(plan_id: UUID, data: CanvasMutation, request_id: WriteId,
+                         if_match: Revision, repo: Repo, me=Depends(identity)):
+        return CanvasRepository(repo).challenge(me.subject, plan_id, request_id,
+                                                if_match, data)
+
+    @router.put("/{plan_id}/canvas", response_model=CanvasOutput)
+    def save_canvas(plan_id: UUID, data: CanvasMutation, request_id: WriteId,
+                    if_match: Revision, challenge: Challenge, repo: Repo, me=Depends(identity)):
+        return CanvasRepository(repo).save(me.subject, plan_id, request_id, if_match,
+                                          data, challenge)
+
+    @router.delete("/{plan_id}/canvas", response_model=CanvasOutput)
+    def clear_canvas(plan_id: UUID, data: CanvasMutation, request_id: WriteId,
+                     if_match: Revision, challenge: Challenge, repo: Repo, me=Depends(identity)):
+        if data.snapshot is not None:
+            raise LifecycleProblem("invalid_request")
+        return CanvasRepository(repo).save(me.subject, plan_id, request_id, if_match,
+                                          data, challenge)
 
     @router.get("/{plan_id}/destinations", response_model=list[DestinationOutput])
     def destinations(plan_id: UUID, repo: Repo, me=Depends(identity)):

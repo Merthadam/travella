@@ -15,7 +15,7 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from .contracts import BriefRef, ConversationRef, DestinationRef, LifecycleProblem, PlanRef
@@ -26,8 +26,8 @@ from .models import (
     Plan,
     PlanActionReceipt,
     PlanChallenge,
-    PlanningBrief,
     PlanLifecycle,
+    PlanningBrief,
     ReceiptStatus,
     TitleSource,
     WorkingView,
@@ -275,7 +275,7 @@ class PlanRepository:
         ttl: timedelta = timedelta(minutes=5),
     ) -> str:
         now = self.clock()
-        if operation not in {"rename", "delete", "restore"}:
+        if operation not in {"rename", "delete", "restore", "canvas_save"}:
             raise LifecycleProblem("invalid_request", "Request could not be processed.")
         plan = self._locked_plan(subject, plan_id)
         wanted = PlanLifecycle.DELETED if operation == "restore" else PlanLifecycle.ACTIVE
@@ -391,6 +391,42 @@ class PlanRepository:
         inactive = brief.inactive if brief else {}
         brief_entries = {key: {"value": value, "origin": provenance.get(key, "traveler_stated"), "active": key not in inactive} for key, value in payload.items()}
         return {"plan_id": str(plan.id), "conversation_id": str(plan.conversation.id), "revision": plan.revision, "brief": brief_entries, "inactive": inactive, "messages": self.conversation_messages(subject, plan_id, limit)}
+
+    def generation_context(self, subject: str, plan_id: UUID, *, after_sequence: int = 0,
+                           cutoff_sequence: int | None = None, limit: int = 50,
+                           expected_revision: int | None = None) -> dict:
+        """A complete bounded conversation span, fixed at the first page's cutoff.
+
+        Current chat's twelve-message prompt limit intentionally does not apply here.
+        Callers must stop before model work when coverage_incomplete is true.
+        """
+        plan = self._locked_plan(subject, plan_id)
+        if plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
+            raise LifecycleProblem("not_found")
+        if expected_revision is not None and expected_revision != plan.revision:
+            raise LifecycleProblem("revision_conflict")
+        conversation_id = plan.conversation.id
+        latest = self.session.scalar(select(func.max(ConversationMessage.sequence)).where(
+            ConversationMessage.conversation_id == conversation_id)) or 0
+        cutoff = latest if cutoff_sequence is None else cutoff_sequence
+        if cutoff < 0 or cutoff > latest or after_sequence < 0 or after_sequence > cutoff:
+            raise LifecycleProblem("invalid_cursor")
+        bound = (ConversationMessage.conversation_id == conversation_id,
+                 ConversationMessage.sequence <= cutoff)
+        total = self.session.scalar(select(func.count()).select_from(ConversationMessage).where(*bound)) or 0
+        result = self.agent_context(subject, plan_id, 1)
+        result.update(messages=[], cutoff_sequence=cutoff, next_after_sequence=None,
+                      coverage_incomplete=total > 500, total_messages=total)
+        if total > 500:
+            return result
+        size = max(1, min(limit, 50))
+        rows = self.session.scalars(select(ConversationMessage).where(
+            *bound, ConversationMessage.sequence > after_sequence
+        ).order_by(ConversationMessage.sequence).limit(size + 1)).all()
+        result["messages"] = [self._message_projection(row) for row in rows[:size]]
+        if len(rows) > size:
+            result["next_after_sequence"] = rows[size - 1].sequence
+        return result
 
     def update_brief(self, subject: str, plan_id: UUID, request_id: str, expected_revision: int, data: dict) -> BriefRef:
         now = self.clock(); validate_request_id(request_id, now)

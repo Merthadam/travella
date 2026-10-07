@@ -235,3 +235,15 @@ class TravelerProfile(Base):
     payload: Mapped[dict[str, object]] = mapped_column(JSON_OBJECT, nullable=False, default=dict)
     onboarding_complete: Mapped[bool] = mapped_column(default=False, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PlanningCanvas(Base):
+    """One confirmed canvas per Plan; soft-delete follows Plan lifecycle."""
+
+    __tablename__ = "planning_canvases"
+
+    plan_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("plans.id", ondelete="CASCADE"), primary_key=True
+    )
+    payload: Mapped[dict[str, object]] = mapped_column(JSON_OBJECT, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

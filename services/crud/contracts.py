@@ -57,6 +57,7 @@ class LifecycleProblem(Exception):
 
 
 PROBLEMS = {
+    "canvas_evidence_invalid": (422, "A finding changed or cannot be verified. Review it as uncertain before saving."),
     "invalid_profile": (422, "Check your profile details and try again."),
     "context_locked": (409, "Travella is replying. Try editing the Trip Brief when it finishes."),
     "revision_conflict": (409, "Plan changed. Refresh and try again."),

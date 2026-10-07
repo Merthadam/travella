@@ -54,8 +54,7 @@ class PlanOutput(BaseModel):
             conversation=ConversationOutput(
                 conversation_id=ref.conversation.conversation_id, plan_id=ref.plan_id
             ),
-            # Workspace is a later phase; the available view is always Conversation.
-            resume_target="conversation",
+            resume_target=ref.last_working_view.value,
         )
 
 
