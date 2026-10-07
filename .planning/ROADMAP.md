@@ -365,7 +365,7 @@ Plans:
 **Goal:** Generate the approved editable planning canvas from current Plan context using state mapping and bounded Claude Agent SDK workers, then save the exact reviewed snapshot through an explicit Save plan action.
 **Requirements:** GEN-15-01, GEN-15-02, GEN-15-03, GEN-15-04, GEN-15-05, GEN-15-06, GEN-15-07, GEN-15-08, GEN-15-09, GEN-15-10, GEN-15-11, GEN-15-12
 **Depends on:** Approved Phase 14 designs and current AgentCore/LangGraph/SDK code, including the initial themes worker. Obsolete legacy workspace plans do not determine this scope.
-**Status:** Planned; no execution in this task.
+**Status:** Implemented; manual UI/CRUD checks recorded, live generation and remaining UAT pending (2026-10-07).
 **Scope:** Two focused SDK worker groups, deterministic state mapping, destination-centered map, typed AG-UI/A2UI delivery, local draft editing and explicit atomic save/reopen. No RAG, LiteAPI search or booking integration.
 **Success Criteria:**
 1. Themes generation reads bounded complete context, respects corrections and saved-preference labels, and renders the approved editable component.
@@ -377,10 +377,10 @@ Plans:
 
 **Plans:** 5 plans in 5 sequential waves.
 
-- [ ] 15-01-PLAN.md — Themes generation from chat to editable canvas (wave 1)
-- [ ] 15-02-PLAN.md — State-mapped cards and destination map (wave 2; after 15-01)
-- [ ] 15-03-PLAN.md — Supported findings and websites (wave 3; after 15-02)
-- [ ] 15-04-PLAN.md — Explicit save and saved-canvas recovery (wave 4; after 15-03)
-- [ ] 15-05-PLAN.md — Connected-flow validation and measured limits (wave 5; after 15-04)
+- [x] 15-01-PLAN.md — Themes generation from chat to editable canvas (wave 1)
+- [x] 15-02-PLAN.md — State-mapped cards and destination map (wave 2; after 15-01)
+- [x] 15-03-PLAN.md — Supported findings and websites (wave 3; after 15-02)
+- [x] 15-04-PLAN.md — Explicit save and saved-canvas recovery (wave 4; after 15-03)
+- [ ] 15-05-PLAN.md — Manual UI/CRUD evidence recorded; live generation, measured limits and remaining UAT pending
 
 **Cross-cutting:** Keep approved appearance; current user decisions outrank older docs; Claude Agent SDK only for model work; no automatic durable mutation; one active generation per Plan; no tests or paid calls during planning; no automatic execution after planning.
