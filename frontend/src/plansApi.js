@@ -8,15 +8,16 @@ export function normalizeTitle(value) {
   return { title, count, error };
 }
 const path = id => `/v1/plans/${encodeURIComponent(id)}`;
+const canvasSaveAttempts = new Map();
 const agentPath = plan => `/v1/agent/plans/${encodeURIComponent(plan.plan_id)}/events`;
 
-async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwardedProps }) {
+async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwardedProps, canvasAction, contextRevision, canvasThemes }) {
   let response;
   try {
     response = await fetch(`${agentPath(plan)}/stream`, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json', 'X-Travella-Request': '1', Accept: 'text/event-stream' },
-      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(forwardedProps ? { forwardedProps } : {}) }),
+      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(forwardedProps ? { forwardedProps } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
@@ -43,8 +44,8 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwar
       onEvent({ type: event.type, messageId: String(event.messageId || '') });
     } else if (event.type === 'CUSTOM' && event.name === 'a2ui' && event.value && typeof event.value === 'object') {
       onEvent({ type: 'CUSTOM', name: 'a2ui', value: event.value });
-    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot?.trip_context) {
-      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { trip_context: event.snapshot.trip_context } });
+    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft)) {
+      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}) } });
     } else if (event.type === 'TERMINAL') {
       terminal = {
         type: 'TERMINAL',
@@ -101,6 +102,34 @@ export const plansApi = {
   },
   agentTurn: (plan, message, eventId) => request(`${agentPath(plan)}`, { plan_id: plan.plan_id, event_id: eventId, message }),
   agentTurnStream,
+  canvas: plan => request(`${path(plan.plan_id)}/canvas`),
+  generateCanvas: (plan, options, id, stream) => agentTurnStream(plan, '', id, {
+    ...stream, canvasAction: { all: 'generate_plan', themes: 'generate_themes', research: 'generate_research' }[options.group || 'all'],
+    contextRevision: options.context_revision, canvasThemes: options.themes ? { status: 'ready', items: options.themes.items.map(item => ({ ...item, source: ['Conversation', 'Trip context', 'Saved preference'].includes(item.source) ? item.source : 'Conversation' })) } : undefined,
+  }),
+  saveCanvas: async (plan, payload, id) => {
+    const identity = JSON.stringify({ planId: plan.plan_id, revision: plan.revision, payload });
+    let attempt = canvasSaveAttempts.get(id);
+    if (attempt && attempt.identity !== identity) throw new ApiError('Review your changed draft before saving again.', 409);
+    if (!attempt) {
+      const headers = { 'Idempotency-Key': requestId(), 'If-Match': String(plan.revision) };
+      const challenge = await request(`${path(plan.plan_id)}/canvas/challenge`, payload, { headers });
+      attempt = { identity, challenge: challenge.challenge };
+      if (canvasSaveAttempts.size >= 30) canvasSaveAttempts.delete(canvasSaveAttempts.keys().next().value);
+      canvasSaveAttempts.set(id, attempt);
+    }
+    try {
+      const result = await request(`${path(plan.plan_id)}/canvas`, payload, {
+        method: payload.snapshot === null ? 'DELETE' : 'PUT',
+        headers: { 'Idempotency-Key': id, 'If-Match': String(plan.revision), 'X-Plan-Challenge': attempt.challenge },
+      });
+      canvasSaveAttempts.delete(id);
+      return result;
+    } catch (error) {
+      if (error.status && error.status < 500 && error.code !== 'request_pending') canvasSaveAttempts.delete(id);
+      throw error;
+    }
+  },
   cancelAgentTurn: (plan, eventId) => request(`${agentPath(plan)}/${encodeURIComponent(eventId)}/cancel`, {}),
   brief: plan => request(`${path(plan.plan_id)}/brief`),
   updateBrief: (plan, brief, id) => request(`${path(plan.plan_id)}/brief`, brief, { method: 'PATCH', headers: { 'Idempotency-Key': id, 'If-Match': String(plan.revision) } }),

@@ -213,13 +213,15 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
       const sourceEvidence = validEvidence(result.snapshot?.evidence);
       base.current = { ...selected, revision: result.revision, context_revision: result.context_revision };
       const canonical = { version: 1, components, evidence: sourceEvidence };
+      editedComponents.current = new Set();
       setData(components); setEvidence(sourceEvidence); setSaved(canonical); setNotice('Saved. Your plan is ready to reopen.'); setConflict(false); setStaleContext(false); pendingSave.current = null;
       callbacks.current.onSaved?.(result);
     } catch (err) {
       if (epoch.current !== currentEpoch) return;
       if (err.status === 401) callbacks.current.onExpired?.();
-      setConflict(err.status === 409);
-      setError(err.status === 409 ? 'This Plan changed elsewhere. Your edits are still here. Reload the saved plan to review the latest version.' : 'Your plan could not be saved. Your edits are still here. Retry Save plan.');
+      const temporarilyBusy = ['context_locked', 'request_pending'].includes(err.code);
+      setConflict(err.status === 409 && !temporarilyBusy);
+      setError(temporarilyBusy ? 'The current request is still finishing. Your edits are safe. Retry Save plan in a moment.' : err.status === 409 ? 'This Plan changed elsewhere. Your edits are still here. Reload the saved plan to review the latest version.' : 'Your plan could not be saved. Your edits are still here. Retry Save plan.');
       setNotice('Unsaved changes');
     } finally { if (epoch.current === currentEpoch) { savingRef.current = false; setSaving(false); } }
   }

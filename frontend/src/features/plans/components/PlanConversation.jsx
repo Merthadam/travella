@@ -30,7 +30,7 @@ function SourceLinks({ sources }) {
 
 function messageKey(message) { return message.message_id || `${message.role}-${message.event_id || message.sequence || message.created_at}`; }
 
-export function PlanConversation({ selected, api, onExpired, onBack }) {
+export function PlanConversation({ selected, api, onExpired, onBack, onCanvas }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -145,6 +145,7 @@ export function PlanConversation({ selected, api, onExpired, onBack }) {
 
   return <div className="chat-layout">
     <main className="chat-page" id="conversation-main">
+    {onCanvas && <div className="chat-canvas-entry"><button type="button" onClick={() => onCanvas(false)} disabled={Boolean(active) || brief.loading || brief.locked}>Open plan canvas</button><button type="button" className="primary" onClick={() => onCanvas(true)} disabled={Boolean(active) || brief.loading || brief.locked}>Generate plan</button></div>}
     <section className="chat-transcript" aria-label="Plan conversation" aria-busy={loading || Boolean(active)} ref={history} onScroll={event => {
       const node = event.currentTarget;
       nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100;

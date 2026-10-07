@@ -60,7 +60,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
     canvas.action(id, name, payload);
   }
   const progress = canvas.activeGroup ? canvas.notice || 'Preparing your trip…' : canvas.saving ? 'Saving your plan…' : canvas.dirty || canvas.editing ? 'Unsaved changes' : canvas.saved ? 'Saved' : 'Ready to plan';
-  return <main className="planning-canvas" aria-label="Planning canvas">
+  return <main id="canvas-main" className="planning-canvas" aria-label="Planning canvas" tabIndex={-1}>
     <div className="planning-canvas-inner">
       <header className="canvas-page-heading"><div><button type="button" className="ds-text-button" onClick={leave} disabled={canvas.saving}>← Back to conversation</button><span className="ds-eyebrow">YOUR PLAN, TAKING SHAPE</span><h1>{selected.title || 'Your travel plan'}</h1><p>Review the details, make it yours, and save when you’re ready.</p></div><div className="canvas-main-actions"><span className="canvas-save-state" role="status" aria-live="polite">{progress}</span>{canvas.activeGroup ? <button type="button" className="ds-button" onClick={canvas.stop}>Stop generation</button> : <button type="button" className="ds-button" disabled={canvas.loading || canvas.saving || canvas.editing || !canvas.data} onClick={() => generate('all')}><Icon name="spark" size={16}/>{canvas.saved || canvas.data?.themes.items.length ? 'Regenerate plan' : 'Generate plan'}</button>}<button type="button" className="ds-button primary" disabled={canvas.loading || busy || canvas.editing || !canvas.valid || canvas.conflict || !canvas.dirty} onClick={canvas.save}>{canvas.saving ? 'Saving…' : 'Save plan'}</button></div></header>
       {canvas.loading && <p role="status" className="canvas-notice">Loading your saved plan…</p>}

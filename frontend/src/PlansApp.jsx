@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { normalizeTitle, plansApi, requestId } from './plansApi';
 import { PlanDrawer } from './features/plans/components/PlanDrawers';
 import { TravelCardsPrototype } from './features/plans/prototypes/TravelCardsPrototype';
+import { PlanningCanvas } from './features/plans/components/PlanningCanvas';
 import { PlanConversation } from './features/plans/components/PlanConversation';
 import { PlanWorkspace } from './features/plans/components/PlanWorkspace';
 import { emptyBrief } from './features/plans/components/PlanDetails';
@@ -113,6 +114,14 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const mapInstance = useRef(null);
   const markerInstances = useRef([]);
   const [conversationPage, setConversationPage] = useState(false);
+  const [canvasPage, setCanvasPage] = useState(false);
+  const [generateCanvas, setGenerateCanvas] = useState(false);
+  const canvasDirty = useRef(false), canvasBusy = useRef(false);
+  function leaveCanvas() {
+    if ((canvasDirty.current || canvasBusy.current) && !window.confirm('Leave this canvas? Unsaved changes will be discarded and generation will stop.')) return false;
+    canvasDirty.current = false; canvasBusy.current = false; setCanvasPage(false); return true;
+  }
+  function showCanvas(generate) { setGenerateCanvas(generate); setCanvasPage(true); }
   const [planDrawerOpen, setPlanDrawerOpen] = useState(false);
   const drawerTrigger = useRef(null), drawerCloseButton = useRef(null), planDrawerElement = useRef(null);
   const [drawerPlans, setDrawerPlans] = useState([]);
@@ -175,6 +184,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   }
   function url(path) { if (window.location.pathname !== path) window.history.pushState({}, '', path); }
   async function load(nextView = 'active', nextCursor = null) {
+    if (!leaveCanvas()) return;
     const ticket = ++generation.current;
     setLoading(true); setError(null); setView(nextView); setSelected(null); setConversationPage(false);
     if (!nextCursor) { setPlans([]); setCursor(null); }
@@ -190,6 +200,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     finally { if (active(ticket)) { setLoading(false); heading.current?.focus(); } }
   }
   async function open(id, recordActivity = true, restored = false) {
+    if (!leaveCanvas()) return;
     const ticket = ++generation.current;
     setLoading(true); setSelected(null); setConversationPage(true); setSavedDestinations([]); setBrief(null); setBriefOpen(false); setBriefError(''); setError(null); setCursor(null); url(`/plans/${id}`);
     try {
@@ -198,6 +209,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
       catch (err) { if (err.status !== 404) throw err; plan = await api.get(id, 'deleted'); }
       if (!active(ticket)) return;
       setSelected(plan); setView('detail');
+      if (plan.resume_target === 'workspace') { setGenerateCanvas(false); setCanvasPage(true); }
       if (api.destinations) {
         try { setSavedDestinations(await api.destinations(plan)); }
         catch (destinationError) { if (destinationError.status === 401) { fail(destinationError, null, ticket); return; } if (active(ticket)) setError({ message: 'Your plan opened, but its destinations could not be loaded.', retry: () => open(id, false) }); }
@@ -316,19 +328,19 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     } catch (err) { if (err.status === 401) onExpired(); else setError({ message: err.message || 'Could not remove this destination.' }); }
   }
   return <div className={`plans-app${conversationPage ? ' chat-app' : ''}`}>
-    <a className="skip-link" href={conversationPage ? '#conversation-main' : '#plans-main'}>{conversationPage ? 'Skip to conversation' : 'Skip to plans'}</a>
+    <a className="skip-link" href={conversationPage ? (canvasPage ? '#canvas-main' : '#conversation-main') : '#plans-main'}>{conversationPage ? (canvasPage ? 'Skip to plan canvas' : 'Skip to conversation') : 'Skip to plans'}</a>
     <header className={`plans-header${conversationPage ? ' chat-header' : ''}`}><div>
       {conversationPage ? <div className="chat-nav-leading">
         <button type="button" className="sidebar-toggle" aria-label={planDrawerOpen ? 'Close plans navigation' : 'Open plans navigation'} aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}><span /><span /><span /></button>
         <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
       </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}
       <nav className="app-nav" aria-label="Application navigation">
-        <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
-        <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
+        <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={() => { if (leaveCanvas()) onAccount(); }}>Account</button>
+        <button className="nav-button subtle" disabled={accountBusy || busy} onClick={() => { if (leaveCanvas()) onSignOut(); }}>Sign out</button>
       </nav>
     </div></header>
     {planDrawerOpen && <PlanDrawer drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
-    {import.meta.env.DEV && new URLSearchParams(location.search).get('prototype') === 'travel-cards' ? <TravelCardsPrototype /> : conversationPage && selected ? <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} /> : <main id="plans-main" className="plans-main" tabIndex={-1}>
+    {import.meta.env.DEV && new URLSearchParams(location.search).get('prototype') === 'travel-cards' ? <TravelCardsPrototype /> : conversationPage && selected ? (canvasPage ? <PlanningCanvas key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} autoGenerate={generateCanvas} onBack={() => { canvasDirty.current = false; setCanvasPage(false); }} onDirtyChange={dirty => { canvasDirty.current = dirty; }} onBusyChange={active => { canvasBusy.current = active; }} onSaved={result => setSelected(current => current ? { ...current, revision: result.revision } : current)} /> : <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} onCanvas={showCanvas} />) : <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>
         {!selected && view === 'active' && <button className="primary" disabled={busy || loading} onClick={createPlan}>{busy ? 'Creating plan…' : 'New plan'}</button>}</div>
       {notice && <p className="plan-notice" role="status">{notice}</p>}

@@ -41,6 +41,12 @@ class AgentState(TypedDict, total=False):
     candidate_action: dict[str, Any] | None
     canvas_action: str | None
     canvas_draft: dict[str, Any] | None
+    generation_messages: list[dict[str, Any]]
+    generation_cutoff: int
+    context_revision: int
+    _canvas_usage: dict[str, Any]
+    _canvas_evidence: list[dict[str, Any]]
+    reusable_evidence: list[dict[str, Any]]
     status: str
     question: str | None
     candidates: list[dict[str, Any]]

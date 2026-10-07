@@ -8,9 +8,11 @@ from langgraph.graph import END, START, StateGraph
 
 from ..request_context import (
     bind_authorization_token,
+    bind_canvas_callback,
     bind_text_delta_callback,
     bind_traveler_profile,
     reset_authorization_token,
+    reset_canvas_callback,
     reset_text_delta_callback,
     reset_traveler_profile,
 )
@@ -54,13 +56,16 @@ class AgentGraph:
         authorization_token: str | None = None,
         traveler_profile: dict[str, Any] | None = None,
         on_text_delta: Any | None = None,
+        on_canvas_draft: Any | None = None,
     ) -> dict[str, Any]:
         context_token = bind_authorization_token(authorization_token)
         profile_token = bind_traveler_profile(traveler_profile)
         text_token = bind_text_delta_callback(on_text_delta)
+        canvas_token = bind_canvas_callback(on_canvas_draft)
         try:
             result = await self.compiled.ainvoke(state, config={"recursion_limit": 12})
         finally:
+            reset_canvas_callback(canvas_token)
             reset_text_delta_callback(text_token)
             reset_traveler_profile(profile_token)
             reset_authorization_token(context_token)
@@ -73,9 +78,9 @@ class AgentGraph:
         }
         if state.get("canvas_action"):
             # A canvas request has no conversational or research output to project.
-            if status == "canvas_draft_ready":
+            if result.get("canvas_draft"):
                 projection["canvas_draft"] = result.get("canvas_draft")
-            elif result.get("error"):
+            if result.get("error"):
                 projection["error"] = result["error"]
             return {**result, "projection": projection}
         if status == "shortlist_ready":

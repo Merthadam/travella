@@ -54,7 +54,7 @@ class CrudClient:
         else:
             profile_route = False
             match = re.fullmatch(
-            r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|research-context|destinations|conversation/messages)(?:/([0-9a-fA-F-]{36}))?)?)?",
+            r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|research-context|destinations|conversation/messages|canvas/challenge|canvas)(?:/([0-9a-fA-F-]{36}))?)?)?",
             path,
             )
             if not match:
@@ -71,6 +71,8 @@ class CrudClient:
                     "research-context": {"GET", "PATCH"},
                     "destinations": {"GET", "POST"},
                     "conversation/messages": {"GET"},
+                    "canvas": {"GET", "PUT", "DELETE"},
+                    "canvas/challenge": {"POST"},
                 }[action]
                 if plan_id
                 else {"GET", "POST"}
@@ -114,7 +116,12 @@ class CrudClient:
                 return response.status_code, {"code": code, "message": SAFE_ERRORS[code]}
             if response.status_code != 200:
                 raise ValueError("Unexpected upstream status")
+            from services.crud.canvas import CanvasChallengeOutput, CanvasOutput
+
             schema = (
+                CanvasOutput if action == "canvas"
+                else CanvasChallengeOutput if action == "canvas/challenge"
+                else
                 (ContextSurface if method == "GET" else ContextSnapshot)
                 if action == "research-context"
                 else

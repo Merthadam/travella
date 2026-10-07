@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -41,6 +42,7 @@ class AgentTurnService:
         self.candidates = candidates
         self.receipts = receipts
         self.memory = memory
+        self._canvas_evidence: dict[tuple[str, str], tuple[float, list[dict]]] = {}
         self._active_streams: dict[tuple[str, str, str], dict[str, Any]] = {}
 
     async def _read_plan(self, subject: str, plan_id: UUID, token: str) -> dict[str, Any]:
@@ -66,6 +68,7 @@ class AgentTurnService:
         authorization: str | None,
         *,
         on_text_delta: Callable[[str], Any] | None = None,
+        on_canvas_draft: Callable[[dict], Any] | None = None,
     ) -> AgentResponse:
         token = (authorization or "")[7:].strip()
         plan = await self._read_plan(subject, request.plan_id, token)
@@ -151,6 +154,12 @@ class AgentTurnService:
                 context_snapshot = await self.context_reader.context_run(
                     request.plan_id, token, event_id=request.event_id, action="begin",
                 )
+            if request.canvas_action:
+                if not self.context_reader or not hasattr(self.context_reader, "generation_context"):
+                    raise HTTPException(503, "Canvas context is unavailable.")
+                if request.context_revision is not None and context_snapshot and request.context_revision != context_snapshot["revision"]:
+                    raise HTTPException(409, "Trip details changed. Reload the canvas before generating.")
+                context = await self.context_reader.generation_context(request.plan_id, token)
             action_name = action.get("action") if action else None
             if action_name in {"explore", "reject"}:
                 if prior is None:
@@ -259,29 +268,54 @@ class AgentTurnService:
                 "message": query,
                 "candidate_action": action,
                 "canvas_action": request.canvas_action,
-                "canvas_draft": None,
+                "canvas_draft": {"components": {"themes": request.canvas_themes.model_dump()}} if request.canvas_themes else None,
+                "reusable_evidence": self._canvas_evidence.get((subject, plan_id), (0, []))[1] if self._canvas_evidence.get((subject, plan_id), (0, []))[0] > time.monotonic() else [],
+                "generation_messages": context.get("messages", []) if request.canvas_action else [],
+                "generation_cutoff": context.get("cutoff_sequence", 0),
+                "context_revision": context_snapshot["revision"] if context_snapshot else 1,
             }
+            def prepare_canvas(value):
+                from services.crud.canvas import issue_canvas_evidence
+
+                from .canvas_contracts import CanvasDraft
+                draft = CanvasDraft.model_validate(value).model_dump(mode="json", exclude_none=True)
+                draft.update(generation_id=request.event_id,
+                             context_revision=graph_state["context_revision"],
+                             plan_revision=graph_state["plan_revision"])
+                draft["evidence"] = issue_canvas_evidence(subject, plan_id, draft.get("components", {}))
+                return draft
+
+            async def emit_canvas_if_current(value):
+                if on_canvas_draft and await self.candidates.generation_current(subject, plan_id, generation):
+                    await on_canvas_draft({"canvas_draft": prepare_canvas(value),
+                                           "trip_context": context_snapshot})
+
+            invoke_options = {"authorization_token": token, "traveler_profile": traveler_profile}
             if on_text_delta:
-                result = await self.graph.invoke(
-                    graph_state,
-                    authorization_token=token,
-                    traveler_profile=traveler_profile,
-                    on_text_delta=emit_if_current if on_text_delta else None,
-                )
-            else:
-                result = await self.graph.invoke(
-                    graph_state,
-                    authorization_token=token,
-                    traveler_profile=traveler_profile,
-                )
+                invoke_options["on_text_delta"] = emit_if_current
+            if request.canvas_action:
+                invoke_options["on_canvas_draft"] = emit_canvas_if_current
+            result = await self.graph.invoke(graph_state, **invoke_options)
             if not await self.candidates.generation_current(subject, plan_id, generation):
                 return await finish(self._interrupted(plan_id, request.event_id, generation, prior))
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
                 raise HTTPException(502, "Agent response was invalid.")
             if request.canvas_action:
+                for group, details in result.get("_canvas_usage", {}).items():
+                    logging.getLogger(__name__).info("canvas_usage group=%s calls=%s cost_usd=%s searches=%s reads=%s usage_complete=%s stage=%s",
+                        group, details.get("calls"), details.get("cost_usd"), details.get("searches"), details.get("reads"), details.get("usage_complete", False), details.get("stage"))
+                if isinstance(result.get("_canvas_evidence"), list) and result["_canvas_evidence"]:
+                    # Bounded, scoped transient reuse; private excerpts never enter browser snapshots.
+                    if len(self._canvas_evidence) >= 100:
+                        self._canvas_evidence.pop(next(iter(self._canvas_evidence)))
+                    self._canvas_evidence[(subject, plan_id)] = (time.monotonic() + 1800, result["_canvas_evidence"][:12])
                 # A generated component is a draft, not a chat message or saved Plan edit.
                 # finish still enforces generation freshness and event replay handling.
+                if projection.get("canvas_draft"):
+                    projection["canvas_draft"] = prepare_canvas(projection["canvas_draft"])
+                if context_snapshot:
+                    projection["trip_context"] = {**context_snapshot, "locked": False}
                 return await finish(projection)
             is_candidate_research = (
                 projection.get("status") == "shortlist_ready"
@@ -438,6 +472,7 @@ class AgentTurnService:
             return
         queue: asyncio.Queue[tuple[str, Any] | None] = asyncio.Queue()
         emitted: list[str] = []
+        public_snapshot: dict[str, Any] = {}
         state: dict[str, Any] = {"reason": None, "task": None}
         message_id = f"{request.event_id}:assistant"
         self._active_streams[key] = state
@@ -448,6 +483,10 @@ class AgentTurnService:
             emitted.append(value)
             await queue.put(("content", value))
 
+        async def on_canvas_draft(value: dict) -> None:
+            if not state["reason"]:
+                await queue.put(("snapshot", value))
+
         async def run_turn() -> None:
             try:
                 response = await self.handle(
@@ -455,6 +494,7 @@ class AgentTurnService:
                     subject,
                     authorization,
                     on_text_delta=on_text_delta,
+                    on_canvas_draft=on_canvas_draft,
                 )
                 final = response.model_dump(mode="json")
                 if not emitted:
@@ -505,15 +545,17 @@ class AgentTurnService:
                 kind, value = item
                 if kind == "content":
                     yield self._sse({"type": "TEXT_MESSAGE_CONTENT", "messageId": message_id, "delta": value})
+                elif kind == "snapshot":
+                    public_snapshot.update({name: item for name, item in value.items() if item is not None})
+                    yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
                 else:
-                    if value.get("canvas_draft"):
-                        yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": {
-                            "canvas_draft": value["canvas_draft"],
-                        }})
+                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context") if value.get(name) is not None}
+                    if snapshot:
+                        public_snapshot.update(snapshot)
+                        yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
                     if value.get("trip_context"):
                         for message in a2ui_messages(ContextSnapshot.model_validate(value["trip_context"])):
                             yield self._sse({"type": "CUSTOM", "name": "a2ui", "value": message})
-                        yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": {"trip_context": value["trip_context"]}})
                     yield self._sse({"type": "TEXT_MESSAGE_END", "messageId": message_id})
                     yield self._sse({"type": "TERMINAL", **value})
                     yield self._sse({"type": "RUN_FINISHED", "threadId": str(request.plan_id), "runId": request.event_id})

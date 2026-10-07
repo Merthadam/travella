@@ -42,6 +42,35 @@ class CrudContextReader:
             raise HTTPException(503, "Plan context unavailable.")
         return response.json()
 
+    async def generation_context(self, plan_id: UUID, token: str) -> dict[str, Any]:
+        """Read one stable authorized history span without the chat last-12 limit."""
+        messages, cursor, cutoff, revision = [], 0, None, None
+        async with httpx.AsyncClient(timeout=10) as client:
+            while True:
+                params = {"after_sequence": cursor, "limit": 50}
+                if cutoff is not None:
+                    params.update(cutoff_sequence=cutoff, expected_revision=revision)
+                response = await client.get(
+                    f"{self.base_url}/v1/plans/{plan_id}/generation-context",
+                    headers={"Authorization": f"Bearer {token}"}, params=params,
+                )
+                if response.status_code >= 400:
+                    raise HTTPException(response.status_code if response.status_code in {401, 404, 409} else 503,
+                                        "Trip context changed or could not be loaded. Please retry.")
+                page = response.json()
+                if page.get("coverage_incomplete"):
+                    raise HTTPException(422, "This conversation is too large to summarize completely. Your existing draft is unchanged.")
+                messages.extend(page.get("messages", []))
+                if len(messages) > 500:
+                    raise HTTPException(422, "This conversation is too large to summarize completely.")
+                cutoff, revision = page["cutoff_sequence"], page["revision"]
+                next_cursor = page.get("next_after_sequence")
+                if next_cursor is None:
+                    return {**page, "messages": messages}
+                if next_cursor <= cursor:
+                    raise HTTPException(503, "Conversation history could not be loaded.")
+                cursor = next_cursor
+
     async def context_run(self, plan_id: UUID, token: str, **payload) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(

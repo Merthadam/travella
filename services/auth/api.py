@@ -294,7 +294,7 @@ def create_app(
         return sid, session, principal
 
     @app.api_route("/v1/plans", methods=["GET", "POST"])
-    @app.api_route("/v1/plans/{suffix:path}", methods=["GET", "POST", "PATCH", "DELETE"])
+    @app.api_route("/v1/plans/{suffix:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     async def lifecycle_proxy(request: Request):
         ready()
         body = await request.body()

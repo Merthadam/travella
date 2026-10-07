@@ -351,3 +351,7 @@ body { background: #eef3f8; }
   .chat-transcript { padding: 20px 0; }
 }
 @media (max-width: 420px) { .chat-layout { grid-template-rows: minmax(0, 37dvh) minmax(0, 1fr); padding-inline: 12px; } .trip-brief-date-fields { gap: 6px; } }
+
+.chat-canvas-entry { display:flex; justify-content:flex-end; gap:10px; padding:12px 24px; border-bottom:1px solid var(--border, #dce3dc); }
+.chat-canvas-entry button { min-height:40px; border-radius:12px; padding:8px 14px; }
+@media (max-width:600px) { .chat-canvas-entry { padding:8px 12px; } .chat-canvas-entry button { font-size:13px; } }

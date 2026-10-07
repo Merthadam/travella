@@ -67,3 +67,21 @@ async def emit_text_delta(value: str) -> None:
     result = callback(value)
     if isinstance(result, Awaitable):
         await result
+
+
+_CANVAS_CALLBACK: ContextVar[Callable[[dict], Any] | None] = ContextVar(
+    "travella_canvas_callback", default=None
+)
+
+def bind_canvas_callback(value):
+    return _CANVAS_CALLBACK.set(value)
+
+def reset_canvas_callback(token):
+    _CANVAS_CALLBACK.reset(token)
+
+async def emit_canvas_draft(value: dict) -> None:
+    callback = _CANVAS_CALLBACK.get()
+    if callback is not None:
+        result = callback(value)
+        if isinstance(result, Awaitable):
+            await result

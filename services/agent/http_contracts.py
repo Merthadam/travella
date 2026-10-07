@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from services.crud.profile_schemas import HomeCity
 from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
 
-from .canvas_contracts import CanvasDraft
+from .canvas_contracts import CanvasDraft, ThemesComponent
 
 
 class CandidateAction(BaseModel):
@@ -27,10 +27,14 @@ class AgentRequest(BaseModel):
     message: str = Field(default="", max_length=2000)
     candidate_action: CandidateAction | None = None
     forwardedProps: ForwardedProps | None = None
-    canvas_action: Literal["generate_themes"] | None = None
+    canvas_action: Literal["generate_themes", "generate_research", "generate_plan"] | None = None
+    context_revision: int | None = Field(default=None, ge=1)
+    canvas_themes: ThemesComponent | None = None
 
     @model_validator(mode="after")
     def separate_canvas_action(self):
+        if (self.canvas_themes is not None or self.context_revision is not None) and not self.canvas_action:
+            raise ValueError("Canvas context requires a canvas action.")
         if self.canvas_action and (self.candidate_action or self.forwardedProps):
             raise ValueError("Send canvas generation separately from other actions.")
         return self
