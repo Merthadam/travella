@@ -5,6 +5,7 @@ import { PlanConversation } from './features/plans/components/PlanConversation';
 import { PlanWorkspace } from './features/plans/components/PlanWorkspace';
 import { emptyBrief } from './features/plans/components/PlanDetails';
 import { getGoogleMapsApiKey, loadGoogleMaps } from './lib/googleMaps';
+import { AppHeader } from './components/AppHeader';
 
 const unknown = error => !error.status || error.status >= 500 || error.code === 'request_pending';
 const date = value => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'long' });
@@ -325,16 +326,13 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   }
   return <div className={`plans-app${conversationPage ? ' chat-app' : ''}`}>
     <a className="skip-link" href={conversationPage ? '#conversation-main' : '#plans-main'}>{conversationPage ? 'Skip to conversation' : 'Skip to plans'}</a>
-    <header className={`plans-header${conversationPage ? ' chat-header' : ''}`}><div>
-      {conversationPage ? <div className="chat-nav-leading">
+    <AppHeader className={conversationPage ? 'chat-header' : ''} leading={conversationPage ? <div className="chat-nav-leading">
         <button type="button" className="sidebar-toggle" aria-label={planDrawerOpen ? 'Close plans navigation' : 'Open plans navigation'} aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}><span /><span /><span /></button>
         <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
-      </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}
-      <nav className="app-nav" aria-label="Application navigation">
+      </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}>
         <button className="nav-button" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
-      </nav>
-    </div></header>
+    </AppHeader>
     {planDrawerOpen && <PlanDrawer drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
     {conversationPage && selected ? <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} /> : <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>

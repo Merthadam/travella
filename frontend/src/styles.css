@@ -224,6 +224,7 @@ body { background: #eef3f8; }
 .app-nav .nav-button { color: #d7e7f2; font-weight: 650; }
 .app-nav .nav-button[aria-expanded="true"], .app-nav .nav-button:hover { color: #071b2b; background: #63e6c1; }
 .app-nav .nav-button.subtle { color: #b8cad9; }
+.app-nav .nav-current { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: 12px; color: #071b2b; background: #63e6c1; font-size: 14px; font-weight: 650; }
 .plans-main { max-width: 1240px; padding: 34px 32px 72px; }
 .plans-heading { margin: 4px 0 26px; }
 .plans-heading h1 { color: #17263a; font-size: clamp(2rem, 5vw, 3.5rem); letter-spacing: -.06em; }
