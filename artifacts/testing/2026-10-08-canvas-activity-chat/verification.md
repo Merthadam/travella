@@ -2,7 +2,7 @@
 
 Date: 2026-10-08. Workflow: GSD sketch + UI prototype, approved by the user.
 Question: how should a few Google Maps-style activity choices appear inside the
-canvas side chat? No winning design has been selected.
+canvas side chat? User selected C — Place explorer on 2026-10-08.
 
 ## Running preview
 
@@ -55,4 +55,4 @@ The production container and its data are unchanged.
 - Search, ratings, map geometry, chat replies and saves are simulated and labeled.
 - Representative photos are bundled with [credits](../../../.planning/sketches/004-canvas-activity-chat/assets/PHOTO-SOURCES.md).
 - No real account, Plan or preference was modified. No cleanup of application data was needed.
-- Preserve source on `prototype/canvas-activity-chat`; implementation follows the user's selection.
+- Preserve source on `prototype/canvas-activity-chat`; implementation will follow the selected C design.

@@ -2,7 +2,7 @@
 sketch: 004
 name: canvas-activity-chat
 question: "How should a few Maps-style activity suggestions appear beside the planning canvas?"
-winner: null
+winner: "C"
 tags: [canvas, chat, a2ui, activities, maps]
 ---
 
@@ -20,7 +20,7 @@ From the repository root:
 python3 -m http.server 5178 --bind 127.0.0.1 --directory .planning/sketches
 ```
 
-Open http://localhost:5178/004-canvas-activity-chat/?variant=A
+Open http://localhost:5178/004-canvas-activity-chat/?variant=C
 
 ## Compare
 
@@ -45,5 +45,12 @@ Representative Salzburg photos are bundled locally so opening the prototype
 does not make image-provider requests. See [photo sources](assets/PHOTO-SOURCES.md)
 for origins and licenses. These are not live Google Places photos.
 
-Question and variants were authorized in the conversation. Selection remains
-pending; keep this prototype on branch `prototype/canvas-activity-chat`.
+## Selected direction — C
+
+User selected C on 2026-10-08: "C would be perfect."
+
+Carry forward the compact activity list with one expanded place preview inside
+the automatically opened canvas side chat. Keep the continuous Plan conversation,
+Show on map preview, explicit Add to plan, Added state, and separate Save plan.
+Maps MCP, the editing graph and live A2UI rendering remain implementation work.
+Preserve all variants on branch `prototype/canvas-activity-chat`.
