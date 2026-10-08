@@ -147,6 +147,8 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | 261008-rfo | One SDK chat/research loop; canvas remains separate; obsolete agent paths removed; live chat/state/research passed | 2026-10-08 | See quick summary | Implemented; remaining regression checks documented | [261008-rfo](./quick/261008-rfo-consolidate-chat-and-research-into-one-c/) |
 
+| 261008-uan | Approved C activity editing chat, dedicated SDK node and scoped Maps MCP; live search/add/save/resume and mobile checks passed | 2026-10-08 | 9663a20 | Complete | [261008-uan](./quick/261008-uan-implement-approved-c-canvas-side-chat-an/) |
+
 ### Roadmap Evolution — 2026-10-06
 
 - Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.

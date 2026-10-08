@@ -1,10 +1,10 @@
 # Travella MCP tools
 
-These private FastMCP servers expose the first Phase 3B capability boundary:
+These private FastMCP servers expose provider tools:
 
-- `research_server.py` calls Tavily and returns at most five compact destination candidates with source references.
-- `map_server.py` resolves candidate names through Google Geocoding and returns temporary map projections.
-- `services/agent/memory.py` currently disables long-term memory. No AgentCore Memory calls are made in the local setup; a local persistent-memory adapter is a separate follow-up.
+- `map_server.py` resolves candidate names, resolves destination bounds, searches Google Places inside a geographic rectangle, and retrieves compact place details. The canvas editor uses these tools through `services/agent/maps_client.py`.
+- `research_server.py` is a retained legacy Tavily server. Current chat/research uses Claude Agent SDK native web tools and does not call it.
+- Traveler memory is handled separately by `services/agent/memory.py`; see `docs/agent/llm-flow.md` for the current profile and memory behavior.
 
 Copy `.env.example` to `.env` and fill in the provider keys. The keys are read only by these server processes and are never returned by a tool. Keep the Google server key separate from the browser key used by the frontend.
 
@@ -13,7 +13,21 @@ provisioning AgentCore. `bash scripts/start-local.sh` creates an ignored,
 permission-restricted service-auth file, then starts the stack. The Agent uses the
 official MCP client to call the local Streamable HTTP servers. Their service-token
 and signed Plan-scope checks remain enabled. Provider keys are still needed for
-Tavily and Google Maps and are read only by the MCP containers.
+Google Maps and are read only by the Maps MCP container. Tavily is not required by the current agent flow.
+
+## Canvas editing Maps tools
+
+- `resolve_destination_area(destination, plan_id)` returns a provider-supplied rectangle or an honest empty/ambiguous/unavailable status.
+- `search_places(query, area, category, plan_id)` uses Places New `locationRestriction.rectangle`, checks coordinates again, and returns at most five suggestions.
+- `get_place_details(place_id, plan_id)` returns a bounded place projection.
+
+All require authenticated Plan scope. None writes a Plan. Results include only
+name, address, coordinates, place identity, actual rating/count when available,
+types and a Google Maps link. Place cards carry Google Maps attribution.
+The editor forwards only observed IDs and reasons to the UI; temporary place
+provenance uses the existing private `CANVAS_EVIDENCE_SIGNING_KEY` (at least 32
+characters) and expires after an hour. Explicit Save plan persists selected pins
+through CRUD. Enable Geocoding and Places API (New) for the server key.
 
 For target development, run each server manually from the repository root:
 
