@@ -160,6 +160,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 | 261005-uaq | Three interactive account settings layouts with light/dark mode; Chrome desktop/mobile checks complete; user selected C | 2026-10-05 | prototype/account-settings | Prototype | [261005-uaq](./quick/261005-uaq-prototype-three-account-settings-layouts/) |
 | 261008-nb6 | Aligned Account with Plans design; Chrome desktop/mobile light/dark, guarded navigation and retry passed | 2026-10-08 | 73a57a4 | Verified | [261008-nb6-align-account-settings-with-the-main-tra](./quick/261008-nb6-align-account-settings-with-the-main-tra/) |
 | 261008-qgn | Global light/dark appearance; 41 tests and Chrome desktop/mobile navigation, reload and sign-in persistence passed | 2026-10-08 | 756aee6 | Verified | [261008-qgn-apply-the-selected-light-or-dark-appeara](./quick/261008-qgn-apply-the-selected-light-or-dark-appeara/) |
+| 261008-tuc | Researched LiteAPI; hotel and flight sandbox searches passed; experiences access denied; hosted hotel checkout documented | 2026-10-08 | 9988ec9 | Complete | [261008-tuc-explore-liteapi-trip-inventory-and-booki](./quick/261008-tuc-explore-liteapi-trip-inventory-and-booki/) |
 
 | 261009-0ti | Merged canvas generation/editor and Maps area fix with main account settings; build and browser navigation checks passed | 2026-10-09 | 47fac26 | Complete | [261009-0ti](./quick/261009-0ti-merge-completed-canvas-editing-work-into/) |
 
