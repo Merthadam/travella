@@ -197,7 +197,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
           {draft ? <form onSubmit={save} aria-busy={busy}><fieldset disabled={busy || uncertain}>
             <PreferenceSettings setting={selected} profile={profile} draft={draft} onDraftChange={setDraft} editing disabled={busy || uncertain} invalid={invalid} />
           </fieldset><div className="account-actions"><button disabled={busy} type="button" onClick={() => guard(() => {})}>Cancel</button><button disabled={busy || uncertain || conflict} className="account-primary" type="submit">{busy ? 'Saving…' : 'Save changes'}</button></div></form> : summary()}
-          <p className="account-note">These preferences help shape future suggestions. Your confirmed Plan details will not change.</p>
+          {setting.group === 'Travel preferences' && <p className="account-note">These preferences help shape future suggestions. Your confirmed Plan details will not change.</p>}
         </section>
       </div>
     </main>

@@ -222,3 +222,30 @@ test('dirty My plans and desktop setting selection share the confirmation', asyn
   await user.click(screen.getByRole('button', { name: 'Discard changes', exact: true }));
   expect(screen.getByRole('heading', { name: 'Home base' })).toBeTruthy();
 });
+
+test('shared brand navigation protects a draft and exits only after explicit discard', async () => {
+  const user = userEvent.setup(); const navigate = vi.fn();
+  render(<AccountSettingsPage initialProfile={profile} onExpired={vi.fn()} onNavigatePlans={navigate} />);
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
+  await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
+  await user.type(screen.getByLabelText('Accessibility needs'), 'Step-free');
+  await user.click(screen.getByRole('link', { name: 'Travella' }));
+  expect(navigate).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+  expect(screen.getByLabelText('Accessibility needs').value).toBe('Step-free');
+  await user.click(screen.getByRole('link', { name: 'Travella' }));
+  await user.click(screen.getByRole('button', { name: 'Discard changes', exact: true }));
+  expect(navigate).toHaveBeenCalledTimes(1);
+});
+
+test('future suggestions guidance belongs only to travel preferences', async () => {
+  const user = userEvent.setup();
+  render(<AccountSettingsPage initialProfile={profile} onExpired={vi.fn()} />);
+  expect(screen.getByText(/These preferences help shape future suggestions/)).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Your name' }));
+  expect(screen.queryByText(/These preferences help shape future suggestions/)).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Password', exact: true }));
+  expect(screen.queryByText(/These preferences help shape future suggestions/)).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Your interests' }));
+  expect(screen.getByText(/These preferences help shape future suggestions/)).toBeTruthy();
+});
