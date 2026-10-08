@@ -67,7 +67,7 @@ class MapsClient:
             raise ValueError("Maps result invalid")
         # Return only the Maps capability contract, never transport/provider internals.
         return {key: value for key, value in structured.items()
-                if key in {"status", "area", "label", "places", "place", "attribution"}}
+                if key in {"status", "area", "area_source", "label", "places", "place", "attribution"}}
 
     async def call(
         self,

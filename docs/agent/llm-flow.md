@@ -54,8 +54,13 @@ messages, trip context and advisory traveler profile. Its own prompt and
 
 The SDK exposes only its skill, structured output and three Maps tools. Those
 tools forward through the private authenticated MCP boundary. Destination
-geocoding supplies the default rectangle; a traveler can explicitly use the
-visible map area instead. Google Places search uses an actual geographic
+geocoding supplies the default rectangle. If either span is under 5 km (for
+example a ski-area name resolving to an office pin), the connector expands it
+to include a vicinity rectangle roughly 25 km in each direction. Larger bounds
+are preserved. The tool reports `destination_vicinity` so the agent describes
+nearby results without claiming administrative boundaries or driving distances.
+A traveler can explicitly use the visible map area instead; that rectangle is
+never expanded. Google Places search uses an actual geographic
 restriction and results are checked against the rectangle again before display.
 Search/details calls are capped at three per turn. The existing low effort,
 time and cost ceilings apply; there is no extra routing model call.

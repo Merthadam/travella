@@ -56,6 +56,7 @@ class _MapsObserver:
         self.authorization_token = authorization_token
         self.destination = str(draft.components.get("map", {}).get("destination", ""))
         self.area = area
+        self.area_source = "selected_map" if area is not None else "destination_bounds"
         self.resolution_attempted = False
         self.calls = 0
         self.unavailable = False
@@ -91,13 +92,16 @@ class _MapsObserver:
         self.resolution_attempted = True
         response = await self._call("resolve_destination_area", {"destination": self.destination})
         self.area = MapArea.model_validate(response.get("area"))
+        if response.get("area_source") == "destination_vicinity":
+            self.area_source = "destination_vicinity"
         return self.area
 
     async def invoke(self, name, arguments):
         try:
             if name == "resolve_destination_area":
                 area = await self.resolve()
-                payload = {"area": area.model_dump(), "destination": self.destination}
+                payload = {"area": area.model_dump(), "destination": self.destination,
+                           "area_source": self.area_source}
             else:
                 if self.calls >= 3:
                     raise ResearchWorkerError("maps_call_limit")
@@ -129,7 +133,8 @@ class _MapsObserver:
                     self.places[place.id] = place
                     projected.append(place.model_dump())
                 self._sync_urls()
-                payload = {"places": projected, "area": area.model_dump(), "attribution": "Google Maps"}
+                payload = {"places": projected, "area": area.model_dump(),
+                           "area_source": self.area_source, "attribution": "Google Maps"}
             return {"content": [{"type": "text", "text": json.dumps(payload)}]}
         except asyncio.CancelledError:
             raise

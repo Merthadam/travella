@@ -108,6 +108,11 @@ async def get_candidate_map_projection(candidate_names: list[str], plan_id: str)
 PLACES_URL = "https://places.googleapis.com/v1/places"
 PLACE_FIELDS = "id,displayName,formattedAddress,location,rating,userRatingCount,types,googleMapsUri"
 CATEGORIES = {"stay", "airport", "food", "activity", "other"}
+# Geocoding viewports around POIs are display hints, often only 200–300 m wide.
+# Only tiny automatic areas get a vicinity fallback; selected map bounds never do.
+MIN_DESTINATION_SPAN_KM = 5.0
+DESTINATION_VICINITY_HALF_SPAN_KM = 25.0
+KM_PER_LATITUDE_DEGREE = math.pi * 6371.0088 / 180
 
 
 def _unavailable() -> dict:
@@ -142,6 +147,34 @@ def _inside(position: dict, area: dict) -> bool:
         else longitude >= area["west"] or longitude <= area["east"]
     )
     return area["south"] <= latitude <= area["north"] and longitude_inside
+
+
+def _destination_search_area(area: dict) -> tuple[dict, str]:
+    """Keep real destination bounds; expand tiny POI viewports for nearby discovery.
+
+    The fallback is a rectangle, not a driving-distance radius or a claim about
+    the destination's administrative boundary. Never use this for user rectangles.
+    """
+    latitude = (area["south"] + area["north"]) / 2
+    longitude_span = (area["east"] - area["west"]) % 360
+    longitude_scale = KM_PER_LATITUDE_DEGREE * max(math.cos(math.radians(latitude)), 1e-6)
+    height_km = (area["north"] - area["south"]) * KM_PER_LATITUDE_DEGREE
+    width_km = longitude_span * longitude_scale
+    if min(height_km, width_km) >= MIN_DESTINATION_SPAN_KM:
+        return area, "destination_bounds"
+    # Keep wrapped provider bounds intact: the current editor cannot represent a
+    # date-line-crossing rectangle. Do not turn it into a near-worldwide search.
+    if area["west"] > area["east"]:
+        return area, "destination_bounds"
+    longitude = (area["west"] + area["east"]) / 2
+    latitude_delta = DESTINATION_VICINITY_HALF_SPAN_KM / KM_PER_LATITUDE_DEGREE
+    longitude_delta = min(180, DESTINATION_VICINITY_HALF_SPAN_KM / longitude_scale)
+    return {
+        "south": max(-90, min(area["south"], latitude - latitude_delta)),
+        "north": min(90, max(area["north"], latitude + latitude_delta)),
+        "west": max(-180, min(area["west"], longitude - longitude_delta)),
+        "east": min(180, max(area["east"], longitude + longitude_delta)),
+    }, "destination_vicinity"
 
 
 def _place(raw: object) -> dict | None:
@@ -210,7 +243,7 @@ async def _google_request(method: str, url: str, **kwargs: object) -> dict | Non
 
 @map_mcp.tool()
 async def resolve_destination_area(destination: str, plan_id: str) -> dict:
-    """Resolve the chosen destination to a Google viewport for restricted place searches."""
+    """Resolve destination bounds, using a nearby area when Google returns a tiny POI viewport."""
     require_tool_context(plan_id=plan_id)
     destination = " ".join(destination.split())
     if not destination or len(destination) > 240:
@@ -241,7 +274,8 @@ async def resolve_destination_area(destination: str, plan_id: str) -> dict:
                   "north": northeast.get("lat"), "east": northeast.get("lng")})
     if area is None:
         return _unavailable()
-    return {"status": "ready", "area": area,
+    area, area_source = _destination_search_area(area)
+    return {"status": "ready", "area": area, "area_source": area_source,
             "label": str(result.get("formatted_address") or destination)[:240],
             "attribution": "Google Maps"}
 
