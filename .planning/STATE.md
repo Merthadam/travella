@@ -6,8 +6,8 @@ status: verifying
 stopped_at: Phase 15 implemented; live generation acceptance pending
 last_updated: "2026-10-08T22:35:24Z"
 last_activity: 2026-10-09
-last_activity_desc: Merging completed canvas/editor work with shipped account settings
-state_head: be57fdd
+last_activity_desc: Canvas generation and editing merged to origin/main with account settings
+state_head: 47fac26
 progress:
   total_phases: 11
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
 Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-07 — Implemented Phase 15 and rebuilt localhost:5174. Saved-canvas CRUD, Google map pin and responsive browser evidence recorded. No automated tests or paid model calls.
+Last activity: 2026-10-09 - Completed quick task 261009-0ti: merged canvas work to origin/main; desktop/mobile navigation and local authentication passed.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -160,6 +160,8 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 | 261005-uaq | Three interactive account settings layouts with light/dark mode; Chrome desktop/mobile checks complete; user selected C | 2026-10-05 | prototype/account-settings | Prototype | [261005-uaq](./quick/261005-uaq-prototype-three-account-settings-layouts/) |
 | 261008-nb6 | Aligned Account with Plans design; Chrome desktop/mobile light/dark, guarded navigation and retry passed | 2026-10-08 | 73a57a4 | Verified | [261008-nb6-align-account-settings-with-the-main-tra](./quick/261008-nb6-align-account-settings-with-the-main-tra/) |
 | 261008-qgn | Global light/dark appearance; 41 tests and Chrome desktop/mobile navigation, reload and sign-in persistence passed | 2026-10-08 | 756aee6 | Verified | [261008-qgn-apply-the-selected-light-or-dark-appeara](./quick/261008-qgn-apply-the-selected-light-or-dark-appeara/) |
+
+| 261009-0ti | Merged canvas generation/editor and Maps area fix with main account settings; build and browser navigation checks passed | 2026-10-09 | 47fac26 | Complete | [261009-0ti](./quick/261009-0ti-merge-completed-canvas-editing-work-into/) |
 
 ### Roadmap Evolution — 2026-10-06
 
