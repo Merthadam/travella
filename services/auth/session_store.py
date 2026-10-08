@@ -11,9 +11,11 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
+
+_ACCOUNT_LOCKS = tuple(threading.RLock() for _ in range(128))
 
 
 def _timestamp(value: float) -> datetime:
@@ -277,3 +279,81 @@ class SessionStore:
 
     def close(self):
         self.engine.dispose()
+
+    @contextmanager
+    def account_guard(self, subject: str):
+        """Serialize provider stages without rolling back already committed intents."""
+        key = int.from_bytes(hashlib.sha256(subject.encode()).digest()[:8], "big", signed=True)
+        if self._sqlite:
+            # SQLite deployment is explicitly single worker; striped locks stay bounded.
+            with _ACCOUNT_LOCKS[key % len(_ACCOUNT_LOCKS)]:
+                yield
+        else:
+            with self.engine.connect() as connection:
+                connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": key})
+                connection.commit()
+                try:
+                    yield
+                finally:
+                    connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
+                    connection.commit()
+
+    def expiry(self, token: str) -> float:
+        with self._operation() as connection:
+            row = connection.execute(text("SELECT expires_at FROM auth_sessions WHERE id=:id"),
+                                     {"id": self.digest(token)}).fetchone()
+            return _epoch(row.expires_at) if row else 0
+
+    def live_records(self, now: float) -> list[dict]:
+        with self._operation() as connection:
+            rows = connection.execute(text("SELECT payload FROM auth_sessions WHERE expires_at > :now"),
+                                      {"now": _timestamp(now)}).fetchall()
+            records = []
+            for row in rows:
+                try:
+                    records.append(json.loads(self.cipher.decrypt(bytes(row.payload))))
+                except InvalidToken:
+                    # Legacy ciphertext is not authority for this key. Preserve it,
+                    # but don't let an unrelated unusable session block the account.
+                    continue
+            return records
+
+    def account_records(self, subject: str, now: float) -> list[dict]:
+        return [v for v in self.live_records(now) if v.get("kind") == "account_operation" and v.get("subject") == subject]
+
+    def create_account_record(self, payload: dict, expires: float, now: float) -> dict:
+        with self.transaction():
+            value = dict(payload, kind="account_operation")
+            token = self.create(value, expires, now)
+            value["id"] = token
+            self.update(token, value)
+        return value
+
+    def recovery_count(self, subject: str) -> int:
+        with self._operation() as connection:
+            row = connection.execute(text("SELECT payload FROM auth_recovery_codes WHERE subject=:subject"),
+                                     {"subject": subject}).fetchone()
+            if not row:
+                return 0
+            return len(json.loads(self.cipher.decrypt(bytes(row.payload)))["hashes"])
+
+    def reconcile_email(self, subject: str, email: str):
+        """Update both recovery copies and all same-subject sessions atomically."""
+        with self.transaction(), self._operation() as connection:
+            rows = connection.execute(text("SELECT id, payload FROM auth_sessions")).fetchall()
+            for row in rows:
+                try:
+                    value = json.loads(self.cipher.decrypt(bytes(row.payload)))
+                except InvalidToken:
+                    continue
+                if value.get("kind") == "session" and value.get("subject") == subject:
+                    value["email"] = email
+                    connection.execute(text("UPDATE auth_sessions SET payload=:payload WHERE id=:id"),
+                        {"id": row.id, "payload": self.cipher.encrypt(json.dumps(value).encode())})
+            row = connection.execute(text("SELECT payload FROM auth_recovery_codes WHERE subject=:subject"),
+                                     {"subject": subject}).fetchone()
+            if row:
+                value = json.loads(self.cipher.decrypt(bytes(row.payload)))
+                value["email"] = email
+                connection.execute(text("UPDATE auth_recovery_codes SET email=:email, payload=:payload WHERE subject=:subject"),
+                    {"subject": subject, "email": email, "payload": self.cipher.encrypt(json.dumps(value).encode())})

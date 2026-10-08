@@ -60,6 +60,7 @@ def postgres_engine() -> Iterator[Engine]:
                 "auth_recovery_codes",
                 "auth_sessions",
                 "traveler_profiles",
+                "research_contexts",
                 "planning_briefs",
                 "conversation_messages",
                 "destination_pins",

@@ -47,9 +47,9 @@ class CrudClient:
             return False
 
     def request(self, method: str, path: str, *, token: str, headers, params, body: bytes):
-        if path in {"/v1/traveler-profile", "/v1/traveler-profile/onboarding"}:
+        if path in {"/v1/traveler-profile", "/v1/traveler-profile/onboarding", "/v1/traveler-profile/sections"}:
             plan_id = action = destination_id = None
-            allowed = {"PATCH"} if path.endswith("/onboarding") else {"GET", "PUT"}
+            allowed = {"GET", "PUT"} if path == "/v1/traveler-profile" else {"PATCH"}
             profile_route = True
         else:
             profile_route = False

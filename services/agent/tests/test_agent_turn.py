@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from services.agent.graph.builder import AgentGraph
 from services.agent.http_contracts import AgentRequest
 from services.agent.service import AgentTurnService
@@ -118,7 +120,7 @@ def test_plan_turn_uses_only_agentcore_profile_matching_current_crud_version():
     assert response.status == "needs your input"
     assert graph.profile == {
         "departure_base": "Budapest", "citizenships": ["Hungarian"],
-        "food_needs": "Peanut allergy", "travel_interests": "Museums",
+        "food_needs": "Peanut allergy", "travel_interests": "Museums", "accessibility_needs": "",
     }
 
 
@@ -206,3 +208,39 @@ def test_plan_turn_keeps_current_crud_profile_when_agentcore_is_unavailable():
         "verified-subject", "Bearer access-token",
     ))
     assert graph.profile == {"departure_base": "Budapest"}
+
+
+@pytest.mark.parametrize("timestamp", ["old-version", "current-version"])
+def test_plan_turn_canonical_clears_beat_stale_mirror_even_with_matching_timestamp(timestamp):
+    from services.shared.traveler_profile import profile_context
+    plan_id = "00000000-0000-0000-0000-000000000126"
+    current = {"departure_base": "Vienna", "home_city": {"name": "Vienna", "country_code": "AT", "source": "manual", "address": "Private address"},
+               "default_airport": None, "citizenships": [], "food_needs": "", "accessibility_needs": "",
+               "interest_ids": [], "custom_interests": [], "travel_interests": "", "updated_at": "current-version",
+               "email": "private@example.test", "onboarding": {"completed_version": 2}, "_account_events": {"private": {}}}
+    class ContextReader:
+        async def context(self, plan_id, token):
+            return {"revision": 1, "brief": {"destination": "Confirmed Lisbon"}}
+        async def profile(self, token):
+            return current
+        async def append(self, *args, **kwargs):
+            return None
+    class Memory:
+        enabled = True
+        async def retrieve_relevant_memory(self, subject, topic):
+            return {**current, "updated_at": timestamp, "default_airport": "BUD", "citizenships": ["HU"],
+                    "food_needs": "Vegan", "accessibility_needs": "Step-free", "interest_ids": ["hiking"],
+                    "custom_interests": ["Quiet walks"], "travel_interests": "Hiking, Quiet walks"}
+    class Graph:
+        async def invoke(self, state, *, traveler_profile, **kwargs):
+            assert traveler_profile == profile_context(current)
+            assert state["brief"] == {"destination": "Confirmed Lisbon"}
+            assert "traveler_profile" not in state
+            return {"projection": {"status": "needs your input", "plan_id": plan_id,
+                    "event_id": state["event_id"], "generation": state["generation"], "assistant_text": "What dates work?"}}
+    service = AgentTurnService(plan_reader=lambda *args: {"lifecycle": "active", "revision": 1},
+                               context_reader=ContextReader(), graph=Graph(),
+                               runs=PlanRunStore(), receipts=ProcessReceiptCache(), memory=Memory())
+    response = asyncio.run(service.handle(AgentRequest(plan_id=plan_id, event_id="cleared", message="A weekend trip"),
+                                          "verified-subject", "Bearer access-token"))
+    assert response.status == "needs your input"

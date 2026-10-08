@@ -329,6 +329,32 @@ Plans:
 - [x] 12-03-PLAN.md — Complete B's four-screen UI
 - [ ] 12-04-PLAN.md — Prefilled rollout, memory projection and manual verification
 
+### Phase 13: Account settings and travel preferences
+
+**Status:** Complete — 2026-10-06; independent verification passed (14/14).
+
+**Goal:** Travelers manage their identity, reusable travel preferences and account security through selected design C, with light/dark mode and durable explicit saves.
+**Depends on:** Existing account access and Phase 12 profile foundations; earlier unrelated verification debt is not silently closed.
+**Requirements:** ACCOUNT-13-01, ACCOUNT-13-02, ACCOUNT-13-03, ACCOUNT-13-04, ACCOUNT-13-05, ACCOUNT-13-06
+**Scope:** Personal details, verified email change, password/authenticator/recovery management, all onboarding preferences, account theme, selected C desktop/mobile layout. No account deletion or new cloud provisioning.
+**Success Criteria:**
+
+1. Authenticated Account navigation opens C and returns to the prior Plan; direct refresh works and both themes are usable on desktop/mobile.
+2. Profile sections read canonical data, save explicitly with concurrency/idempotency protection, allow optional clearing and preserve onboarding completion and unrelated fields.
+3. Name/email/password/security updates use server-owned managed identity; incomplete verification and provider failures never appear as success.
+4. Saved travel edits reach subsequent advisory context without changing confirmed Plan data; stale mirrors cannot resurrect cleared values.
+5. Authenticated browser/API checks cover persistence, validation, ownership, failure and responsive behavior with sanitized screenshot evidence.
+
+**Plans:** 5/5 plans complete
+
+Plans:
+
+- [x] 13-01-PLAN.md — Production selected-C account tracer, needs persistence, route/theme/dirty guards and prototype cleanup.
+- [x] 13-02-PLAN.md — All reusable travel preferences, optional clearing and canonical future-suggestion context.
+- [x] 13-03-PLAN.md — Canonical personal details, fresh verification and fail-closed verified email support.
+- [x] 13-04-PLAN.md — Password, authenticator and one-time recovery-code management.
+- [x] 13-05-PLAN.md — SQL concurrency, authenticated Chrome verification and inspected evidence.
+
 ### Phase 14: Standalone A2UI Planning Components
 
 **Goal:** Design and build seven standalone A2UI components in a fixture-driven preview, ready to connect to an agent later.

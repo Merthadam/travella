@@ -34,3 +34,12 @@
 @media (max-width: 640px) {
   .markdown { @apply text-[15px]; }
 }
+
+/* Semantic colors follow the application appearance in both themes. */
+.markdown { color: var(--app-text); }
+.markdown :is(h1,h2,h3,h4,h5,h6) { color: var(--app-text); }
+.markdown a { color: var(--app-link); }
+.markdown blockquote { color: var(--app-muted); border-color: var(--app-active-line); }
+.markdown :is(hr,pre,th,td), .tableScroll { border-color: var(--app-line); }
+.markdown :is(code,pre,th) { background: var(--app-soft); }
+.markdown pre code { background: transparent; }

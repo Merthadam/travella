@@ -1,0 +1,10 @@
+{
+  "command": "npm --prefix frontend test -- src/features/account/AccountSettingsPage.test.jsx --reporter=tap-flat",
+  "exitCode": 1,
+  "targetTest": "src/features/account/AccountSettingsPage.test.jsx > dirty cancel and setting navigation keep editing until explicit discard",
+  "targetFile": "AccountSettingsPage.test.jsx",
+  "expected": "Dirty Cancel asks Keep editing/Discard changes",
+  "actual": "Cancel silently removed draft; dialog absent",
+  "adapter": "Only actual TAP-flat test result lines retained; Node summary counts derived from these lines.",
+  "output": "ok 1 - src/features/account/AccountSettingsPage.test.jsx > production account saves exact needs contract and renders only acknowledged values # time=87.78ms\nok 2 - src/features/account/AccountSettingsPage.test.jsx > failed needs save retains the draft # time=47.51ms\nnot ok 3 - src/features/account/AccountSettingsPage.test.jsx > dirty cancel and setting navigation keep editing until explicit discard # time=1044.21ms\nnot ok 4 - src/features/account/AccountSettingsPage.test.jsx > appearance persists only a theme and restores document scheme on exit # time=15.80ms\nnot ok 5 - src/features/account/AccountSettingsPage.test.jsx > unknown result reconciles the identical request before another write # time=48.18ms\nnot ok 6 - src/features/account/AccountSettingsPage.test.jsx > conflict retains draft and requires latest detail review before new revision save # time=46.11ms\nnot ok 7 - src/features/account/AccountSettingsPage.test.jsx > direct account entry guards repeated back and forward without losing the draft # time=1039.11ms\nok 8 - src/features/account/AccountSettingsPage.test.jsx > transient session failure preserves editor and expiry rejects late save # time=81.58ms\n# tests 8\n# pass 3\n# fail 5\n"
+}

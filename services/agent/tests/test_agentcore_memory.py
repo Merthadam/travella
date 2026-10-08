@@ -64,3 +64,19 @@ def test_disabled_agentcore_memory_is_a_noop():
     assert memory.enabled is False
     assert asyncio.run(memory.sync_profile("subject", {"food_needs": "allergy"})) is False
     assert asyncio.run(memory.retrieve_relevant_memory("subject", "profile")) is None
+
+
+def test_mirror_replace_retains_explicit_empty_values_and_excludes_private_metadata():
+    client = FakeMemoryClient()
+    memory = AgentCoreMemory(client, "memory-id")
+    assert asyncio.run(memory.sync_profile("subject", {"default_airport": "VIE", "food_needs": "Vegetarian", "citizenships": ["AT"]}))
+    cleared = {"departure_base": "Vienna", "home_city": {"name": "Vienna", "country_code": "AT", "source": "manual", "address": "Private address"},
+               "default_airport": None, "food_needs": "", "accessibility_needs": "", "citizenships": [],
+               "interest_ids": [], "custom_interests": [], "travel_interests": "", "updated_at": "current",
+               "email": "private@example.test", "given_name": "Private", "_account_events": {"receipt": {}}, "onboarding_complete": True}
+    assert asyncio.run(memory.sync_profile("subject", cleared))
+    remembered = asyncio.run(memory.retrieve_relevant_memory("subject", "travel"))
+    from services.shared.traveler_profile import profile_context
+    assert remembered == profile_context(cleared) | {"updated_at": "current"}
+    encoded = client.updated[0]["records"][0]["content"]["text"]
+    assert all(value not in encoded for value in ["Private address", "private@example.test", "given_name", "_account_events", "onboarding_complete"])

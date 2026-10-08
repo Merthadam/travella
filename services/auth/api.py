@@ -1,5 +1,7 @@
 """Local FastAPI authentication boundary. All provider tokens stay server-side."""
 
+from services.shared.traveler_profile import profile_context
+
 import hashlib
 import secrets
 import time
@@ -77,6 +79,7 @@ def create_app(
     clock: Callable[[], float] = time.time,
     crud_client: CrudClient | None = None,
     agent_client: AgentClient | None = None,
+    capability_reader: Callable | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Travella account access", docs_url=None, redoc_url=None)
     cookie = "__Host-travella" if secure_cookies else "travella_local"
@@ -152,7 +155,8 @@ def create_app(
             }
         )
         return JSONResponse(
-            {"message": "Check the highlighted fields.", "fields": fields}, status_code=422
+            {"message": "Check the highlighted fields.", "fields": fields,
+             **({"code": "invalid_account"} if request.url.path.startswith('/auth/account') else {})}, status_code=422
         )
 
     @app.exception_handler(HTTPException)
@@ -236,6 +240,7 @@ def create_app(
     def reset_password(data: ResetInput):
         ready()
         email = str(data.email)
+        app.state.account.reconcile_before_reset(email)
         try:
             provider.reset_password(
                 email, data.code.get_secret_value(), data.new_password.get_secret_value()
@@ -264,20 +269,23 @@ def create_app(
     def finish(result: dict, response: Response, email: str):
         tokens = result["AuthenticationResult"]
         principal = identity(tokens["AccessToken"])
-        now = clock()
-        sid = store.create(
-            {
-                "kind": "session",
-                "subject": principal.subject,
-                "email": email,
-                "access": tokens["AccessToken"],
-                "refresh": tokens["RefreshToken"],
-                "started": now,
-                "access_expires": principal.expires_at,
-            },
-            now + MAX_AGE,
-            now,
-        )
+        # Acquire the subject guard before beginning SQL work; the account writer uses
+        # this same order so login cannot resurrect an obsolete email after reconciliation.
+        with store.account_guard(principal.subject), store.transaction():
+            user = provider.get_user(tokens['AccessToken'])
+            attributes = {a['Name']: a['Value'] for a in user.get('UserAttributes', [])}
+            if attributes.get('sub') != principal.subject or attributes.get('email_verified') != 'true' or not attributes.get('email'):
+                raise TokenValidationError('Canonical verified email required')
+            email = attributes['email']
+            store.reconcile_email(principal.subject, email)
+            now = clock()
+            sid = store.create(
+                {
+                    "kind": "session", "subject": principal.subject, "email": email,
+                    "access": tokens["AccessToken"], "refresh": tokens["RefreshToken"],
+                    "started": now, "access_expires": principal.expires_at,
+                }, now + MAX_AGE, now,
+            )
         set_cookie(response, sid, MAX_AGE)
         return {"state": "signed_in", "destination": "/plans"}
 
@@ -321,6 +329,7 @@ def create_app(
 
     @app.api_route("/v1/traveler-profile", methods=["GET", "PUT"])
     @app.patch("/v1/traveler-profile/onboarding")
+    @app.patch("/v1/traveler-profile/sections")
     async def traveler_profile_proxy(request: Request):
         ready()
         body = await request.body()
@@ -341,12 +350,12 @@ def create_app(
             )
             if request.method in {"PUT", "PATCH"} and status == 200 and isinstance(data, dict):
                 complete = data.get("onboarding", {}).get("completed_version") == 2
-                # Draft step saves never wait for AgentCore. A completed profile
-                # is already durable even if this bounded mirror attempt fails.
-                if request.method == "PUT" or complete:
+                # Account edits and completed onboarding mirror only advisory fields.
+                # The SQL save is already durable if this bounded attempt fails.
+                if request.method == "PUT" or complete or request.url.path.endswith("/sections"):
                     try:
                         data["memory_sync"] = (
-                            agent_client.sync_profile(token=token, profile=data)
+                            agent_client.sync_profile(token=token, profile=profile_context(data) | {"updated_at": data.get("updated_at")})
                             if agent_client is not None else "not_configured"
                         )
                     except Exception:
@@ -446,78 +455,24 @@ def create_app(
             traveler_key(principal)
             return {"state": "authorized", "destination": "/plans"}
 
-    @app.post("/auth/mfa/enrollment/start")
-    def start_enrollment(request: Request):
-        ready()
-        with store.transaction():
-            _, session, principal = current_session(request)
-            result = provider.associate_software_token(access_token=session["access"])
-            enrollment_session = result.get("Session")
-            secret_code = result.get("SecretCode")
-            if not enrollment_session or not secret_code:
-                raise HTTPException(503, "Authenticator setup is temporarily unavailable.")
-            store.put_enrollment(
-                principal.subject,
-                {"session": enrollment_session, "access": session["access"]},
-                clock() + ENROLLMENT_AGE,
-            )
-            return {
-                "state": "mfa_enrollment",
-                "secret_code": secret_code,
-                "otpauth_uri": f"otpauth://totp/Travella?secret={secret_code}&issuer=Travella",
-            }
-
-    @app.post("/auth/mfa/enrollment/verify")
-    def verify_enrollment(data: MfaInput, request: Request):
-        ready()
-        with store.transaction():
-            _, session, principal = current_session(request)
-            enrollment = store.get_enrollment(principal.subject, clock())
-            if not enrollment:
-                raise HTTPException(400, "Authenticator setup expired. Start again.")
-            try:
-                result = provider.verify_software_token(data.code, access_token=session["access"])
-                if result.get("Status") != "SUCCESS":
-                    raise ValueError("Authenticator code rejected")
-            except (ClientError, BotoCoreError, ValueError):
-                store.delete_enrollment(principal.subject)
-                raise HTTPException(400, "Authenticator code could not be verified.") from None
-            codes = [secrets.token_hex(4).upper() for _ in range(10)]
-            hashes = [hashlib.sha256(code.encode()).hexdigest() for code in codes]
-            store.put_recovery_codes(principal.subject, session["email"], hashes, clock())
-            store.delete_enrollment(principal.subject)
-            return {"state": "recovery_codes", "codes": codes}
-
     @app.post("/auth/sign-in")
     def sign_in(data: SignInInput, request: Request, response: Response):
         ready()
-        with store.transaction():
-            store.delete(request.cookies.get(cookie))
-            try:
-                result = provider.sign_in(str(data.email), data.password.get_secret_value())
-                if result.get("ChallengeName") == "SOFTWARE_TOKEN_MFA":
-                    now = clock()
-                    username = result.get("ChallengeParameters", {}).get(
-                        "USER_ID_FOR_SRP", str(data.email)
-                    )
-                    sid = store.create(
-                        {
-                            "kind": "challenge",
-                            "session": result["Session"],
-                            "username": username,
-                            "email": str(data.email),
-                        },
-                        now + 180,
-                        now,
-                    )
-                    set_cookie(response, sid, 180)
-                    return {"state": "mfa_challenge"}
-                if "AuthenticationResult" not in result:
-                    raise TokenValidationError("Unsupported challenge")
-                return finish(result, response, str(data.email))
-            except (ClientError, TokenValidationError, KeyError):
-                # Raise outside transaction so the deletion commits.
-                pass
+        store.delete(request.cookies.get(cookie))
+        try:
+            result = provider.sign_in(str(data.email), data.password.get_secret_value())
+            if result.get("ChallengeName") == "SOFTWARE_TOKEN_MFA":
+                now = clock()
+                username = result.get("ChallengeParameters", {}).get("USER_ID_FOR_SRP", str(data.email))
+                sid = store.create({"kind": "challenge", "session": result["Session"],
+                    "username": username, "email": str(data.email)}, now + 180, now)
+                set_cookie(response, sid, 180)
+                return {"state": "mfa_challenge"}
+            if "AuthenticationResult" not in result:
+                raise TokenValidationError("Unsupported challenge")
+            return finish(result, response, str(data.email))
+        except (ClientError, TokenValidationError, KeyError):
+            pass
         raise HTTPException(401, SIGN_IN_ERROR)
 
     @app.post("/auth/mfa/challenge")
@@ -527,20 +482,14 @@ def create_app(
             sid = request.cookies.get(cookie)
             challenge = store.get(sid, clock())
             store.delete(sid)  # one-use browser challenge, even on failure
-            try:
-                if not challenge or challenge["kind"] != "challenge":
-                    raise TokenValidationError("Challenge expired")
-                result = provider.answer_challenge(
-                    challenge["session"],
-                    "SOFTWARE_TOKEN_MFA",
-                    {
-                        "USERNAME": challenge["username"],
-                        "SOFTWARE_TOKEN_MFA_CODE": data.code,
-                    },
-                )
-                return finish(result, response, challenge["email"])
-            except (ClientError, TokenValidationError, KeyError):
-                pass
+        try:
+            if not challenge or challenge["kind"] != "challenge":
+                raise TokenValidationError("Challenge expired")
+            result = provider.answer_challenge(challenge["session"], "SOFTWARE_TOKEN_MFA",
+                {"USERNAME": challenge["username"], "SOFTWARE_TOKEN_MFA_CODE": data.code})
+            return finish(result, response, challenge["email"])
+        except (ClientError, TokenValidationError, KeyError):
+            pass
         raise HTTPException(401, SIGN_IN_ERROR)
 
     @app.post("/auth/mfa/recovery")
@@ -595,32 +544,28 @@ def create_app(
             sid = request.cookies.get(cookie)
             recovery = store.get(sid, clock())
             store.delete(sid)
-            try:
-                if not recovery or recovery.get("kind") != "recovery_enrollment":
-                    raise TokenValidationError("Recovery setup expired")
-                result = provider.verify_software_token(
-                    data.code, session=recovery["enrollment_session"]
-                )
-                if result.get("Status") != "SUCCESS":
-                    raise TokenValidationError("Replacement code rejected")
-                result = provider.answer_challenge(
-                    recovery["challenge_session"],
-                    "SOFTWARE_TOKEN_MFA",
-                    {
-                        "USERNAME": recovery["username"],
-                        "SOFTWARE_TOKEN_MFA_CODE": data.code,
-                    },
-                )
-                return finish(result, response, recovery["email"])
-            except (ClientError, BotoCoreError, TokenValidationError, KeyError):
-                pass
+        try:
+            if not recovery or recovery.get("kind") != "recovery_enrollment":
+                raise TokenValidationError("Recovery setup expired")
+            result = provider.verify_software_token(data.code, session=recovery["enrollment_session"])
+            if result.get("Status") != "SUCCESS":
+                raise TokenValidationError("Replacement code rejected")
+            result = provider.answer_challenge(recovery["challenge_session"], "SOFTWARE_TOKEN_MFA",
+                {"USERNAME": recovery["username"], "SOFTWARE_TOKEN_MFA_CODE": data.code})
+            return finish(result, response, recovery["email"])
+        except (ClientError, BotoCoreError, TokenValidationError, KeyError):
+            pass
         raise HTTPException(401, SIGN_IN_ERROR)
 
     @app.post("/auth/refresh")
     def refresh(request: Request, response: Response):
         ready()
-        with store.transaction():
-            sid = request.cookies.get(cookie)
+        sid = request.cookies.get(cookie)
+        snapshot = store.get(sid, clock())
+        if not snapshot or snapshot.get('kind') != 'session':
+            store.delete(sid)
+            raise HTTPException(401, 'Sign-in required.')
+        with store.account_guard(snapshot['subject']), store.transaction():
             session = store.get(sid, clock())
             if session and session["kind"] == "session":
                 try:
@@ -675,4 +620,6 @@ def create_app(
         clear(response)
         return {"state": "sign_in"}
 
+    from .account import register_account_routes
+    register_account_routes(app, provider, verifier, store, current_session, ready, clock, capability_reader)
     return app

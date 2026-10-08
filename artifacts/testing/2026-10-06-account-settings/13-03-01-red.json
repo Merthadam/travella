@@ -1,0 +1,10 @@
+{
+  "command": "uv run --locked pytest services/auth/tests/test_account.py -q",
+  "exitCode": 1,
+  "targetTest": "test_canonical_account_and_name_readback",
+  "targetFile": "services/auth/tests/test_account.py",
+  "expected": "GET canonical account returns 200",
+  "actual": "404 != 200; three target assertion failures",
+  "output": "not ok 1 - test_canonical_account_and_name_readback\nnot ok 2 - test_name_conflict_and_false_readback\nnot ok 3 - test_unsafe_email_cannot_write_and_validation_is_private\n# tests 3\n# pass 0\n# fail 3",
+  "adapter": "TAP summary of observed pytest assertions"
+}

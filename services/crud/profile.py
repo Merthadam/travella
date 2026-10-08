@@ -11,7 +11,7 @@ from services.shared.traveler_profile import derive_legacy_fields, reference_cat
 
 from .contracts import LifecycleProblem
 from .models import TravelerProfile
-from .profile_schemas import OnboardingMutation, OnboardingProgress, ProfileOutput
+from .profile_schemas import AccountSectionMutation, OnboardingMutation, OnboardingProgress, ProfileOutput
 
 
 class TravelerProfileRepository:
@@ -106,6 +106,40 @@ class TravelerProfileRepository:
             receipts = dict(sorted(receipts.items(),
                                    key=lambda item: item[1]["response"]["revision"])[-64:])
         row.payload = {**payload, "_onboarding_events": receipts}
+        self.session.commit()
+        return result
+
+    def save_section(self, subject: str, mutation: AccountSectionMutation) -> ProfileOutput:
+        self._lock(subject)
+        row = self.get(subject)
+        payload = dict(row.payload) if row else {}
+        event_id = str(mutation.event_id)
+        digest = hashlib.sha256(json.dumps(mutation.model_dump(mode="json"),
+                                          sort_keys=True).encode()).hexdigest()
+        receipts = dict(payload.get("_account_events", {}))
+        if event_id in receipts:
+            if receipts[event_id]["digest"] != digest:
+                raise LifecycleProblem("request_reused")
+            return ProfileOutput.model_validate(receipts[event_id]["response"])
+        if payload.get("revision", 0) != mutation.expected_revision:
+            raise LifecycleProblem("revision_conflict")
+        if mutation.section == "citizenship":
+            allowed = {item["code"] for item in reference_catalog("countries")}
+            allowed.update(payload.get("citizenships", []))
+            if any(value not in allowed for value in mutation.values["citizenships"]):
+                raise LifecycleProblem("invalid_profile")
+        payload.update(mutation.values)
+        derive_legacy_fields(payload, mutation.section)
+        payload["revision"] = mutation.expected_revision + 1
+        row = self._store(subject, row, payload, bool(row and row.onboarding_complete))
+        # Read database-normalized timestamps before capturing the replay receipt.
+        self.session.flush()
+        self.session.refresh(row)
+        result = ProfileOutput.from_row(row)
+        receipts[event_id] = {"digest": digest, "response": result.model_dump(mode="json")}
+        receipts = dict(sorted(receipts.items(),
+                               key=lambda item: item[1]["response"]["revision"])[-64:])
+        row.payload = {**payload, "_account_events": receipts}
         self.session.commit()
         return result
 

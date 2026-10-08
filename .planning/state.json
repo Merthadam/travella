@@ -49,15 +49,25 @@
       "status": "in_progress"
     },
     {
+      "number": "13",
+      "name": "Account settings and travel preferences",
+      "status": "complete"
+    },
+    {
+      "number": "14",
+      "name": "Standalone A2UI Planning Components",
+      "status": "in_progress"
+    },
+    {
       "number": "15",
       "name": "Bounded agentic canvas generation",
-      "status": "planned"
+      "status": "in_progress"
     }
   ],
   "next": {
-    "command": "/gsd:execute-phase 15",
-    "label": "Execute canvas generation phase",
-    "reason": "Phase 15 planning complete; await user execution request"
+    "command": "/gsd:discuss-phase",
+    "label": "Discuss flight and stay browsing",
+    "reason": "User outlined manual browsing with agent suggestions; not yet planned or implemented. DynamoDB profile storage remains queued separately."
   },
-  "updated_at": "2026-10-06T19:28:35.597Z"
+  "updated_at": "2026-10-08T22:35:24Z"
 }

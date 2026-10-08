@@ -21,7 +21,7 @@ from .auth import identity_dependency
 from .canvas import CanvasChallengeOutput, CanvasMutation, CanvasOutput, CanvasRepository
 from .contracts import LifecycleProblem
 from .profile import TravelerProfileRepository
-from .profile_schemas import OnboardingMutation, ProfileInput, ProfileOutput
+from .profile_schemas import AccountSectionMutation, OnboardingMutation, ProfileInput, ProfileOutput
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
 from .research_context import ResearchContextRepository
 from .schemas import (
@@ -292,5 +292,9 @@ def create_profile_router(session_factory, verifier, *, required_scope, clock=No
     @router.patch("/onboarding", response_model=ProfileOutput)
     def save_onboarding_step(data: OnboardingMutation, repo: Repo, me=Depends(identity)):
         return repo.save_step(me.subject, data)
+
+    @router.patch("/sections", response_model=ProfileOutput)
+    def save_account_section(data: AccountSectionMutation, repo: Repo, me=Depends(identity)):
+        return repo.save_section(me.subject, data)
 
     return router

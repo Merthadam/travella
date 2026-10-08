@@ -235,6 +235,15 @@ Current user discussion and selected B prototype control this phase.
 
 Deferred: preferences editor, NoSQL migration, AI onboarding, new orchestration flow.
 
+## Phase 13 — Account settings and travel preferences
+
+- [x] **ACCOUNT-13-01:** Selected C authenticated account route, desktop inline editor/mobile setting selector, return navigation, light/dark appearance.
+- [x] **ACCOUNT-13-02:** Read/update all onboarding preference sections with explicit save/cancel, optional clearing, no interest minimum, revision and idempotency protection, no onboarding reset.
+- [x] **ACCOUNT-13-03:** Canonical name editing and verified email-change flow; no private identity derived from browser-supplied user IDs.
+- [x] **ACCOUNT-13-04:** Password change and authenticator/recovery-code management with required verification and honest state, keeping secrets out of projections/logs/URLs.
+- [x] **ACCOUNT-13-05:** Saved/cleared preferences reach future agent suggestions through canonical profile/memory contracts without mutating Plans.
+- [x] **ACCOUNT-13-06:** API persistence/ownership/failure tests plus example-account Chrome desktop/mobile/theme verification and screenshots.
+
 ## Phase 14 — Standalone A2UI Planning Components
 
 - [x] **CANVAS-14-01**: A local catalog and isolated gallery render declarative fixture messages with no live connections.
