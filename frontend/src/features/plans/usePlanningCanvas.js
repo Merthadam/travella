@@ -156,13 +156,16 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
             const incoming = validateCanvasComponents(draft.components || {});
             const sourceEvidence = validEvidence(draft.evidence);
             const statuses = Object.fromEntries(Object.entries(draft.group_status || {}).filter(([key, value]) => runGroups.includes(key) && ['loading', 'ready', 'error'].includes(value)));
-            for (const [key, status] of Object.entries(statuses)) if (status === 'ready') run.completed.add(key);
             const replacement = Object.fromEntries(Object.entries(incoming).filter(([key, value]) => groupIds[group].includes(key) && !['loading', 'error'].includes(value.status)));
             if (group === 'all') {
               for (const key of ['essentials', 'flights', 'accommodation']) if (editedComponents.current.has(key)) delete replacement[key];
               if (replacement.map) replacement.map = { ...replacement.map, pins: dataRef.current.map.pins };
             }
             const next = validateCanvasComponents({ ...dataRef.current, ...replacement }, true);
+            for (const [key, status] of Object.entries(statuses)) {
+              if (status === 'ready') run.completed.add(key);
+              else run.completed.delete(key);
+            }
             dataRef.current = next; setData(next);
             if (replacement.findings) setEvidence(sourceEvidence);
             if (group === 'all') { base.current.context_revision = run.contextRevision; setStaleContext(false); }
@@ -174,11 +177,19 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
       });
       if (active.current !== run || epoch.current !== currentEpoch) return;
       if (result?.status === 'error' || result?.status === 'interrupted') throw new Error('Generation could not finish. Your completed draft is still here. Retry the affected group.');
+      if (result?.status !== 'stopped' && runGroups.some(key => !run.completed.has(key))) {
+        setNotice('Your completed details are still here. Nothing has been saved.');
+        throw new Error('Some parts of your plan could not be generated. Retry the affected group.');
+      }
       setNotice(result?.status === 'stopped' ? 'Generation stopped. Completed draft details are unsaved.' : 'Draft ready to review. Nothing is saved until you choose Save plan.');
     } catch (err) {
       if (active.current !== run || epoch.current !== currentEpoch) return;
       if (err.status === 401) callbacks.current.onExpired?.();
       setError(err.name === 'AbortError' ? '' : err.message || 'Generation could not finish. Retry the affected group.');
+      setNotice('Your completed details are still here. Nothing has been saved.');
+      // A broken stream may leave the server run holding the context lease.
+      // Release that run so the visible Retry action can actually start again.
+      await api.cancelAgentTurn?.(selected, run.id).catch(() => {});
     } finally {
       if (active.current === run && epoch.current === currentEpoch) {
         active.current = null; setActiveGroup(null);
@@ -230,8 +241,11 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
     if (!data) return null;
     const rendered = { ...data };
     for (const [group, status] of Object.entries(groups)) {
-      if (status === 'loading') for (const id of groupIds[group]) {
-        if (!data[id].items?.length) rendered[id] = { ...data[id], status: 'loading' };
+      if (['loading', 'error'].includes(status)) for (const id of groupIds[group]) {
+        if (!data[id].items?.length) rendered[id] = { ...data[id], status,
+          ...(status === 'error' ? { error: group === 'research'
+            ? 'We could not finish reading useful sources for this trip. Try again.'
+            : 'We could not summarize your preferences. Try again.' } : {}) };
       }
     }
     return rendered;

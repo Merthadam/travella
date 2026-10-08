@@ -32,6 +32,13 @@ flowchart TD
 
 The separate `canvas_generation` node maps essentials, destination map and travel containers directly from state. Its themes worker summarizes conversation/preferences; its research worker assembles findings and useful websites. Each generated group retains its existing generate → review → optional one revision policy. The total canvas ceiling remains 0.35 USD / 120 seconds, further constrained by configuration. Generation produces an editable draft; explicit Save remains required.
 
+Canvas research reads relevant destination resources when existing evidence is
+insufficient, even without a specific factual question from the traveler. A
+destination research result must contain both a sourced finding and a website;
+empty output enters the bounded repair step and becomes a retryable failure if
+it remains empty. Failed empty cards display Retry, while completed or edited
+content is retained. Themes may legitimately be empty when no preferences exist.
+
 ### State and memory
 
 - CRUD owns saved conversation, resumable trip context, run leases and durable Plans. Agent-generated context edits remain separate from saved Plan requirements.

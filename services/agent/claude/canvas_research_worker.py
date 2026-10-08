@@ -26,6 +26,10 @@ def _fresh(evidence: ReadEvidence) -> bool:
 
 def research_projection(raw: dict, observer: _EvidenceObserver) -> dict:
     candidate = CanvasResearchSummary.model_validate(raw)
+    # An empty structured response is parseable, but it is not completed
+    # destination research. Let the bounded repair run try, then surface Retry.
+    if not candidate.links or not any(item.sources for item in candidate.findings):
+        raise ResearchWorkerError("canvas_research_incomplete")
     known_urls = {item.url for item in observer.evidence.values()}
     for text in ([item.summary for item in candidate.findings]
                  + [item.title for item in candidate.findings]

@@ -11,4 +11,8 @@ A matching quote alone does not prove the claim. Claims without adequate support
 must be removed or marked uncertain, conflicts need both sources. Links need a
 clear trip purpose. For item_id use the zero-based array index as a string;
 component_id is items (themes), findings or links. Any code validation error
-requires revise. An empty candidate is allowed if sources contain nothing useful.
+requires revise. Empty themes are allowed if the conversation and profile contain
+no preferences. For destination research, missing findings or useful websites
+requires revise: use relevant existing evidence or search and read destination
+resources within the remaining allowance. Do not accept skipped research as a
+completed result. Never request invented sources or unsupported filler.
