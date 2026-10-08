@@ -6,6 +6,7 @@ import { AccountIdentity } from './AccountIdentity';
 import { AccountSecurity } from './AccountSecurity';
 import { AccountIcon } from './AccountIcon';
 import { AppHeader } from '../../components/AppHeader';
+import { useAppearance } from '../appearance/AppearanceProvider';
 
 export const ACCOUNT_SETTINGS = [
   { id: 'name', label: 'Your name', group: 'Personal details' },
@@ -19,10 +20,6 @@ export const ACCOUNT_SETTINGS = [
   { id: 'recovery', label: 'Recovery codes', group: 'Security' },
 ];
 const groups = [...new Set(ACCOUNT_SETTINGS.map(item => item.group))];
-function initialTheme() {
-  try { const stored = localStorage.getItem('travella.account.theme'); if (['light', 'dark'].includes(stored)) return stored; } catch { /* Storage is optional. */ }
-  try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch { return 'light'; }
-}
 
 export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans, navigationGuard, onProfileSaved }) {
   const [profile, setProfile] = useState(initialProfile);
@@ -38,7 +35,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [theme, setTheme] = useState(initialTheme);
+  const { theme, setTheme } = useAppearance();
   const [pendingExit, setPendingExit] = useState(null);
   const [uncertain, setUncertain] = useState(false);
   const [conflict, setConflict] = useState(false);
@@ -67,14 +64,6 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   }, [onExpired, accountReadAttempt]);
 
   useEffect(() => { alive.current = true; return () => { alive.current = false; attempt.current = null; }; }, []);
-  useEffect(() => {
-    const previous = document.documentElement.style.colorScheme;
-    return () => { document.documentElement.style.colorScheme = previous; };
-  }, []);
-  useEffect(() => {
-    document.documentElement.style.colorScheme = theme;
-    try { localStorage.setItem('travella.account.theme', theme); } catch { /* Keep in memory if denied. */ }
-  }, [theme]);
   useEffect(() => { detailHeading.current?.focus(); }, [selected, Boolean(draft)]);
   useEffect(() => {
     if (invalid) (document.getElementById('account-food-needs') || errorBox.current)?.focus();

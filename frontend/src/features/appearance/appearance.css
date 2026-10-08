@@ -1,0 +1,83 @@
+/* One palette for every route; Account controls the application preference. */
+:root {
+  --app-bg: #eef3f8;
+  --app-panel: #fff;
+  --app-text: #17263a;
+  --app-muted: #5b718c;
+  --app-line: #d5e0eb;
+  --app-control: #9aafc3;
+  --app-soft: #f3f7fa;
+  --app-accent: #63e6c1;
+  --app-link: #146b5e;
+  --app-active: #d9f6ee;
+  --app-active-text: #0d5f50;
+  --app-active-line: #92d8c5;
+  --app-focus: #167765;
+  --app-danger: #a12e35;
+  --app-danger-bg: #fff0ee;
+  --app-warning: #725f39;
+  --app-warning-bg: #fffbf0;
+}
+:root[data-theme=dark] {
+  --app-bg: #0c1725;
+  --app-panel: #142235;
+  --app-text: #eaf2fb;
+  --app-muted: #a9bace;
+  --app-line: #33475d;
+  --app-control: #71879e;
+  --app-soft: #1c2e43;
+  --app-link: #9ef1d8;
+  --app-active: #173f3e;
+  --app-active-text: #9ef1d8;
+  --app-active-line: #337f71;
+  --app-focus: #63e6c1;
+  --app-danger: #ffb4ab;
+  --app-danger-bg: #3a232b;
+  --app-warning: #f0d392;
+  --app-warning-bg: #332f24;
+}
+:root[data-theme], :root[data-theme] body { color: var(--app-text); background: var(--app-bg); }
+:root[data-theme=dark] :is(.plans-app, .travel-studio) { color: var(--app-text); background: radial-gradient(circle at 12% 0%, rgb(77 226 190 / 8%), transparent 30rem), radial-gradient(circle at 94% 8%, rgb(115 104 255 / 8%), transparent 28rem), var(--app-bg); }
+:root[data-theme=dark] :is(.shell, .onboarding-shell, .plan-card, .plan-panel, .plan-empty, .plan-dialog, .brief-editor, .brief-card, .conversation-card, .destination-list, .trip-details, .trip-details-editor, .chat-composer, .view-toggle, .map-setup) { color: var(--app-text); background: var(--app-panel); border-color: var(--app-line); }
+:root[data-theme=dark] :is(.plans-heading h1, .workspace-toolbar h2, .chat-empty h2, .chat-message-text, .trip-details-summary strong, .trip-details-editor-header h3, .trip-brief, .trip-brief-header h1, .trip-brief-group > summary, .trip-brief-section-heading h2, .trip-brief-need-heading strong) { color: var(--app-text); }
+:root[data-theme=dark] :is(.quiet, .meta, .plans-heading p, .eyebrow, .checklist, .chat-empty p:last-child, .chat-message-author, .chat-status, .chat-composer-hint, .trip-details-help, .trip-details-fields label, .trip-brief-kicker, .trip-brief-progress p, .trip-brief-group > summary small, .trip-brief-label, .trip-brief-muted, .trip-brief-add, .trip-brief-field, .trip-brief-date-fields label, .trip-brief-inline-check, .trip-brief-state, .trip-brief-lock-note, .saved-destination-list li span, .destination-list p, .brief-card p, .conversation-card p, .map-setup p, .map-setup small) { color: var(--app-muted); }
+:root[data-theme=dark] :is(.shell .secondary button, .plans-main > a, .plan-card h2 a, .plan-notice, .chat-sources a, .chat-retry, .trip-details-summary button, .trip-details-editor-header button, .brief-card button, .conversation-card button, .destination-list button, .trip-brief-state.is-set) { color: var(--app-link); }
+:root[data-theme=dark] :is(.shell, .plans-app, .plan-dialog, .brief-editor, .travel-studio) :is(input:not([type=checkbox]), textarea, select) { color: var(--app-text); background: var(--app-panel); border-color: var(--app-control); }
+:root[data-theme=dark] :is(input, textarea)::placeholder { color: var(--app-muted); opacity: 1; }
+:root[data-theme=dark] :is(.plan-actions, .plans-main, .shell, .shell .actions) > button:not(.primary) { color: var(--app-text); background: var(--app-soft); }
+:root[data-theme=dark] :is(.plan-actions .danger, button.danger, .saved-destination-list li button, .field-error) { color: var(--app-danger); }
+:root[data-theme=dark] .plans-app .plan-actions button.danger { color: var(--app-danger); background: var(--app-panel); border-color: var(--app-control); }
+:root[data-theme=dark] :is(.error, .chat-error) { color: var(--app-danger); background: var(--app-danger-bg); border-color: var(--app-danger); }
+:root[data-theme=dark] :is(.recovery-codes, .chat-message-user .chat-message-content, .trip-brief-lock-note, .trip-brief-segment) { color: var(--app-text); background: var(--app-soft); border-color: var(--app-line); }
+:root[data-theme=dark] :is(.chat-message-status, .destination-confirm span, .trip-brief-inline-confirm) { color: var(--app-warning); }
+:root[data-theme=dark] .trip-brief-inline-confirm { background: var(--app-warning-bg); border-color: var(--app-warning); }
+:root[data-theme=dark] :is(.chat-composer, .trip-brief, .trip-brief-header, .trip-brief-group, .trip-brief-section, .trip-brief-candidates li, .trip-details-editor-header, .trip-details.is-open .trip-details-editor, .saved-destination-list li) { border-color: var(--app-line); }
+:root[data-theme=dark] .trip-brief { scrollbar-color: var(--app-control) transparent; }
+:root[data-theme=dark] .trip-brief-candidates li { color: var(--app-text); }
+:root[data-theme=dark] :is(.trip-brief button, .trip-brief-count, .trip-brief-final, .empty-icon) { color: var(--app-active-text); background: var(--app-active); border-color: var(--app-active-line); }
+:root[data-theme=dark] .trip-brief-final strong { color: var(--app-active-text); }
+:root[data-theme=dark] .trip-brief button:hover:not(:disabled) { background: var(--app-active-line); color: var(--app-text); }
+:root[data-theme=dark] .trip-brief .trip-brief-remove { color: var(--app-muted); background: transparent; }
+:root[data-theme=dark] .trip-brief .trip-brief-segment button { color: var(--app-muted); background: transparent; }
+:root[data-theme=dark] .trip-brief .trip-brief-segment button[aria-pressed=true] { color: var(--app-active-text); background: var(--app-active); }
+:root[data-theme=dark] :is(.chat-composer button, .trip-brief .trip-brief-confirm) { color: #072034; background: var(--app-accent); }
+:root[data-theme=dark] .chat-composer button:disabled { color: var(--app-muted); background: var(--app-soft); }
+:root[data-theme=dark] .chat-composer .chat-stop { color: var(--app-danger); background: var(--app-danger-bg); border-color: var(--app-danger); }
+:root[data-theme=dark] .view-toggle button { color: var(--app-muted); }
+:root[data-theme=dark] .view-toggle button.selected { color: #072034; background: var(--app-accent); }
+:root[data-theme=dark] .map-stage { background: var(--app-soft); border-color: var(--app-line); }
+:root[data-theme=dark] :is(.map-search input, .map-setup input) { background: var(--app-panel); color: var(--app-text); }
+:root[data-theme=dark] :is(.chat-app, .shell, .plans-app) :is(button, a, input, textarea, select):focus-visible { outline-color: var(--app-focus); }
+
+/* First-login forms and reused preference controls retain the same appearance. */
+:root[data-theme=dark] .travel-studio .ts-form { color: var(--app-text); background: var(--app-panel); border-color: var(--app-line); }
+:root[data-theme=dark] .travel-studio :is(.ts-wallet, .ts-note, .ts-returned, .ts-legacy, .ts-home-map-wrap, .ts-home-map, .ts-home-map-placeholder, .ts-country-grid button, .ts-airport, .ts-confirmed-address, .ts-selected-airport, .ts-city-results, .ts-bubble, .ts-custom-input button, .ts-airport-search-row > button) { color: var(--app-text); background: var(--app-soft); border-color: var(--app-line); }
+:root[data-theme=dark] .travel-studio :is(label span, .ts-header > span:last-child, .ts-step-labels, .ts-chapter > span, .ts-chapter p, .ts-help, .ts-text-button, .ts-city-results small, .ts-city-results li > span:last-child, .ts-google-attribution, .ts-field-heading p, .ts-field-heading > span, .ts-airport small, .ts-wallet-empty, .ts-interest-count small, .ts-save-status, .ts-skip, .ts-confirmed-address small, .ts-selected-airport small, .ts-map-heading, .ts-map-caption, .ts-home-map-placeholder > p, .ts-airport-source) { color: var(--app-muted); }
+:root[data-theme=dark] .travel-studio :is(.ts-step-labels li[aria-current=step], .ts-step-labels .done, .ts-chosen-home, .ts-country-grid button > span:last-child) { color: var(--app-link); }
+:root[data-theme=dark] .travel-studio :is(.ts-bubble.selected, .ts-airport.selected, .ts-country-grid button:hover, .ts-city-results li:hover, .ts-city-results li[aria-selected=true]) { color: var(--app-active-text); background: var(--app-active); border-color: var(--app-active-line); }
+:root[data-theme=dark] .travel-studio .ts-continue { color: #072034; background: var(--app-accent); }
+:root[data-theme=dark] .travel-studio .ts-continue:not(:disabled):hover { background: #7af0cf; }
+:root[data-theme=dark] .travel-studio .ts-error { color: var(--app-danger); background: var(--app-danger-bg); border-color: var(--app-danger); }
+:root[data-theme=dark] .travel-studio .ts-error button { color: var(--app-danger); background: var(--app-panel); border-color: var(--app-danger); }
+:root[data-theme=dark] .travel-studio .ts-lookup-error { color: var(--app-warning); background: var(--app-warning-bg); }
+:root[data-theme] .ts-google-address gmp-place-autocomplete { color-scheme: inherit; }

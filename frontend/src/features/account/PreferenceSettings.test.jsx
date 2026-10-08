@@ -2,7 +2,9 @@ import React from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AccountSettingsPage } from './AccountSettingsPage';
+import { AccountSettingsPage as SettingsPage } from './AccountSettingsPage';
+import { AppearanceProvider } from '../appearance/AppearanceProvider';
+const AccountSettingsPage = props => <AppearanceProvider><SettingsPage {...props} /></AppearanceProvider>;
 
 vi.mock('../onboarding/components/GoogleAddressSearch', () => ({ GoogleAddressSearch: () => <p>Address lookup unavailable in isolated test</p> }));
 vi.mock('../onboarding/components/HomeLocationMap', () => ({ HomeLocationMap: () => <p>Map unavailable</p> }));

@@ -3,7 +3,9 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountApp } from '../../AccountApp';
-import { AccountSettingsPage } from './AccountSettingsPage';
+import { AccountSettingsPage as SettingsPage } from './AccountSettingsPage';
+import { AppearanceProvider } from '../appearance/AppearanceProvider';
+const AccountSettingsPage = props => <AppearanceProvider><SettingsPage {...props} /></AppearanceProvider>;
 
 const profile = { exists: true, revision: 3, onboarding_complete: true, onboarding: { completed_version: 2 }, food_needs: 'Vegetarian', accessibility_needs: '' };
 const response = (status, body) => ({ ok: status < 400, status, json: async () => body });
@@ -86,12 +88,12 @@ test('dirty cancel and setting navigation keep editing until explicit discard', 
   expect(screen.queryByLabelText('Accessibility needs')).toBeNull();
 });
 
-test('appearance persists only a theme and restores document scheme on exit', async () => {
+test('appearance persists globally and restores document scheme only when the app unmounts', async () => {
   const user = userEvent.setup(); const old = document.documentElement.style.colorScheme;
   const view = render(<AccountApp />);
   await screen.findByRole('heading', { name: 'Account & preferences' });
   await user.click(screen.getByRole('button', { name: 'Dark mode' }));
-  expect(localStorage.getItem('travella.account.theme')).toBe('dark');
+  expect(localStorage.getItem('travella.theme')).toBe('dark');
   expect(document.querySelector('.account-page').dataset.theme).toBe('dark');
   expect(fetch.mock.calls.some(([, options]) => options?.method === 'PATCH')).toBe(false);
   view.unmount(); expect(document.documentElement.style.colorScheme).toBe(old);
@@ -248,4 +250,20 @@ test('future suggestions guidance belongs only to travel preferences', async () 
   expect(screen.queryByText(/These preferences help shape future suggestions/)).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Your interests' }));
   expect(screen.getByText(/These preferences help shape future suggestions/)).toBeTruthy();
+});
+
+test('Account appearance applies to Plans and stays selected when returning', async () => {
+  const user = userEvent.setup(); render(<AccountApp />);
+  await screen.findByRole('heading', { name: 'Account & preferences' });
+  await user.click(screen.getByRole('button', { name: 'Dark mode' }));
+  await user.click(screen.getByRole('button', { name: 'My plans', exact: true }));
+  await screen.findByRole('heading', { name: 'My plans', exact: true });
+  expect(document.querySelector('.account-page')).toBeNull();
+  expect(document.documentElement.dataset.theme).toBe('dark');
+  expect(document.documentElement.style.colorScheme).toBe('dark');
+  await user.click(screen.getByRole('button', { name: 'Account', exact: true }));
+  await screen.findByRole('heading', { name: 'Account & preferences' });
+  expect(screen.getByRole('button', { name: 'Dark mode' }).getAttribute('aria-pressed')).toBe('true');
+  await user.click(screen.getByRole('button', { name: 'Light mode' }));
+  expect(document.documentElement.dataset.theme).toBe('light');
 });

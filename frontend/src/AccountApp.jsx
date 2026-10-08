@@ -3,6 +3,7 @@ import { readSession, readTravelerProfile, request } from './api';
 import { PlansApp } from './PlansApp';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { AccountSettingsPage } from './features/account/AccountSettingsPage';
+import { AppearanceProvider } from './features/appearance/AppearanceProvider';
 
 const titles = {
   sign_in: 'Welcome back', register: 'Create your account', verify_email: 'Verify your email',
@@ -15,6 +16,10 @@ const titles = {
 };
 
 export function AccountApp() {
+  return <AppearanceProvider><AccountContent /></AppearanceProvider>;
+}
+
+function AccountContent() {
   const [step, setStep] = useState('loading');
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');

@@ -2,7 +2,9 @@ import React from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AccountSettingsPage } from './AccountSettingsPage';
+import { AccountSettingsPage as SettingsPage } from './AccountSettingsPage';
+import { AppearanceProvider } from '../appearance/AppearanceProvider';
+const AccountSettingsPage = props => <AppearanceProvider><SettingsPage {...props} /></AppearanceProvider>;
 
 const account = { identity: { first_name: 'Ada', last_name: 'Traveler', email: 'fixture@example.com' },
   capabilities: { password_change: { available: true }, authenticator: { setup: true, replace: false, disable: false }, recovery_codes: { rotate: false } },
