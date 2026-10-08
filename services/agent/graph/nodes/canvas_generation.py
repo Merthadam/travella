@@ -8,7 +8,7 @@ from typing import Any
 
 from ...canvas_contracts import CanvasDraft, ThemesComponent
 from ...canvas_mapping import mapped_components
-from ...claude.research_worker import ResearchWorkerError
+from ...claude.runtime import ResearchWorkerError
 from ...claude.themes_worker import summary_sources
 from ...request_context import current_traveler_profile, emit_canvas_draft
 from ...state import AgentState

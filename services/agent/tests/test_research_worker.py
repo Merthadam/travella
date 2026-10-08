@@ -4,13 +4,15 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from claude_agent_sdk import ResultMessage, StreamEvent
+from claude_agent_sdk import ResultMessage
 from pydantic import ValidationError
 
-from services.agent.claude import research_worker as module
+from services.agent.claude import runtime as module
 from services.agent.claude.research_result import ResearchResult, public_https_url
-from services.agent.claude.research_worker import ClaudeResearchWorker, ResearchWorkerError
+from services.agent.claude.runtime import ClaudeSdkRuntime, ResearchWorkerError
+from services.agent.claude.sdk_conversation import ClaudeSdkConversationClient
 from services.agent.config import ResearchWorkerConfig
+from services.agent.turn import TurnContext
 
 URL = "https://www.visitportugal.com/en/lisbon"
 
@@ -48,14 +50,15 @@ async def fetch(options, *, code=200, returned_url=URL):
 
 
 def worker(query_fn, **overrides):
-    return ClaudeResearchWorker(ResearchWorkerConfig(api_key="secret-key", **overrides),
+    return ClaudeSdkRuntime(ResearchWorkerConfig(api_key="secret-key", **overrides),
                                 query_fn=query_fn, transport_factory=FakeTransport)
 
 
 async def run(instance, callback=None):
-    return await instance.run(message="Tell me about Lisbon", context={},
-                              research_intent="factual_research", candidates=[],
-                              reusable_evidence=[], on_text_delta=callback)
+    return await ClaudeSdkConversationClient(instance.config, worker=instance).complete_conversation(
+        message="Tell me about Lisbon", context=TurnContext(traveler_scope="t", plan_id="p"),
+        on_text_delta=callback,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -64,73 +67,6 @@ def public_dns(monkeypatch):
         return True
     monkeypatch.setattr(module, "_public_dns", allowed)
     FakeTransport.instances = []
-
-
-def test_only_observed_reads_reach_answer_and_actual_deltas_stream():
-    deltas, directories, options_seen = [], [], []
-
-    async def sdk(*, prompt, options, transport):
-        options_seen.append(options)
-        directories.append(Path(options.cwd).parent)
-        if options.tools:
-            evidence_id = await fetch(options)
-            # Internal research text must never reach the caller's callback.
-            yield StreamEvent("1", "secret-session", {
-                "type": "content_block_delta", "delta": {"type": "text_delta", "text": "private"},
-            })
-            yield result(structured_output={"evidence_ids": [evidence_id], "uncertainty": []})
-        else:
-            assert "Lisbon has riverside walks." in prompt
-            for chunk in ("Lisbon has ", "riverside walks."):
-                yield StreamEvent("2", "secret-session", {
-                    "type": "content_block_delta", "delta": {"type": "text_delta", "text": chunk},
-                })
-                if chunk.endswith(" "):
-                    assert deltas[-1] == chunk  # callback fires before the next SDK event
-            yield result()
-
-    async def callback(part):
-        deltas.append(part)
-
-    outcome = asyncio.run(run(worker(sdk), callback))
-    assert outcome["answer"] == "".join(deltas) == "Lisbon has riverside walks."
-    assert outcome["evidence"][0]["url"] == URL
-    assert outcome["evidence"][0]["read_status"] == "read"
-    assert all(item.closed for item in FakeTransport.instances)
-    assert all(not path.exists() for path in directories)
-    first, last = options_seen
-    assert first.tools == ["WebSearch", "WebFetch", "Skill"]
-    assert first.skills == ["travel-research"]
-    assert first.strict_mcp_config and not first.mcp_servers
-    assert first.setting_sources == ["project"]
-    assert first.permission_mode == "dontAsk"
-    assert first.extra_args == {"no-session-persistence": None}
-    assert not first.resume and not first.continue_conversation
-    assert last.tools == [] and last.skills == [] and last.setting_sources == []
-    assert first.max_budget_usd == 0.375 and last.max_budget_usd == 0.49
-
-
-@pytest.mark.parametrize("structured", [
-    None, {"evidence_ids": ["invented"], "uncertainty": []},
-    {"evidence_ids": [], "uncertainty": [], "answer": "forged"},
-])
-def test_missing_malformed_or_fabricated_evidence_is_rejected(structured):
-    async def sdk(**kwargs):
-        yield result(structured_output=structured)
-    with pytest.raises(ResearchWorkerError, match="research_output_invalid"):
-        asyncio.run(run(worker(sdk)))
-    assert all(item.closed for item in FakeTransport.instances)
-
-
-@pytest.mark.parametrize("code,returned_url", [(403, URL), (200, "https://other.example/page")])
-def test_failed_or_redirected_reads_do_not_become_citations(code, returned_url):
-    async def sdk(*, options, **kwargs):
-        assert await fetch(options, code=code, returned_url=returned_url) is None
-        yield result(structured_output={"evidence_ids": [], "uncertainty": []})
-    outcome = asyncio.run(run(worker(sdk)))
-    assert outcome["evidence"] == []
-    assert "couldn’t read" in outcome["answer"]
-    assert "Some source pages could not be read." in outcome["uncertainty"]
 
 
 def test_tool_caps_unknown_skills_and_private_urls_are_denied(monkeypatch):
@@ -161,7 +97,7 @@ def test_failure_is_sanitized_and_temp_directory_is_removed():
 
     with pytest.raises(ResearchWorkerError) as error:
         asyncio.run(run(worker(sdk)))
-    assert str(error.value) == "research_unavailable"
+    assert str(error.value) == "conversation_unavailable"
     assert not dirs[0].exists() and FakeTransport.instances[0].closed
 
 
@@ -190,33 +126,9 @@ def test_timeout_is_safe_and_closes_transport():
     async def sdk(**kwargs):
         await asyncio.Event().wait()
         yield result()
-    with pytest.raises(ResearchWorkerError, match="research_timeout"):
+    with pytest.raises(ResearchWorkerError, match="conversation_unavailable"):
         asyncio.run(run(worker(sdk, timeout_seconds=0.02)))
     assert FakeTransport.instances[0].closed
-
-
-def test_budget_exhaustion_stops_before_answer_call():
-    async def sdk(**kwargs):
-        yield result(total_cost_usd=1, structured_output={"evidence_ids": [], "uncertainty": []})
-    with pytest.raises(ResearchWorkerError, match="research_budget_exceeded"):
-        asyncio.run(run(worker(sdk)))
-    assert len(FakeTransport.instances) == 1
-
-
-def test_turn_limit_uses_observed_evidence_and_marks_uncertainty():
-    async def sdk(*, options, **kwargs):
-        if options.tools:
-            await fetch(options)
-            yield result(subtype="error_max_turns", is_error=True)
-        else:
-            yield StreamEvent("answer", "session", {
-                "type": "content_block_delta", "delta": {"type": "text_delta", "text": "Lisbon has walks."},
-            })
-            yield result()
-    outcome = asyncio.run(run(worker(sdk)))
-    assert outcome["answer"] == "Lisbon has walks."
-    assert outcome["evidence"][0]["url"] == URL
-    assert "limit" in outcome["uncertainty"][0]
 
 
 def test_split_invented_url_never_reaches_stream_callback():

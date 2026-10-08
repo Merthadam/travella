@@ -10,7 +10,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from ..canvas_contracts import CanvasReview
-from .research_worker import ResearchWorkerError
+from .runtime import ResearchWorkerError
 
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 

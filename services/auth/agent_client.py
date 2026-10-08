@@ -18,8 +18,6 @@ from pydantic import ValidationError
 from services.agent.http_contracts import (
     AgentRequest,
     AgentResponse,
-    OnboardingRequest,
-    OnboardingResponse,
 )
 from services.shared.traveler_profile import PROFILE_FIELDS
 
@@ -150,39 +148,6 @@ class AgentClient:
             return 200, result.model_dump(mode="json")
         except (httpx.HTTPError, ValueError, TypeError, AttributeError, ValidationError):
             return 503, {"message": "Copilot is temporarily unavailable. Try again."}
-
-    def onboarding(self, *, token: str, body: bytes) -> tuple[int, dict]:
-        try:
-            request = OnboardingRequest.model_validate_json(body)
-            if self.runtime_arn:
-                status, result = self._runtime_call(
-                    "onboarding",
-                    request.model_dump(mode="json"),
-                    token=token,
-                    scope="onboarding",
-                )
-                if status != 200:
-                    return status, result
-                response = OnboardingResponse.model_validate(result)
-                return 200, response.model_dump(mode="json")
-            with httpx.Client(
-                base_url=self.base_url,
-                timeout=45,
-                follow_redirects=False,
-                transport=self.transport,
-                trust_env=False,
-            ) as client:
-                response = client.post(
-                    "/v1/agent/onboarding/events",
-                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                    json=request.model_dump(mode="json"),
-                )
-            if response.status_code != 200:
-                return self._safe_error(response.status_code)
-            result = OnboardingResponse.model_validate(response.json())
-            return 200, result.model_dump(mode="json")
-        except (httpx.HTTPError, ValueError, TypeError, AttributeError, ValidationError):
-            return 503, {"message": "Onboarding is temporarily unavailable. Try again."}
 
     def sync_profile(self, *, token: str, profile: dict) -> str:
         """Mirror an already-saved CRUD profile; return only a safe status."""

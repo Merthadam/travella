@@ -11,24 +11,9 @@ from datetime import UTC, datetime, timedelta
 from ..canvas_contracts import CanvasResearchSummary
 from ..config import ResearchWorkerConfig
 from .canvas_loop import CanvasBudget, canvas_prompt, report_canvas_usage, reviewed_candidate
+from .evidence import recent_evidence
 from .research_result import ReadEvidence
-from .research_worker import ClaudeResearchWorker, ResearchWorkerError, _EvidenceObserver
-
-
-def _recent_evidence(items: list[dict]) -> list[dict]:
-    result = []
-    now = datetime.now(UTC)
-    for item in items[:9]:
-        try:
-            evidence = ReadEvidence.model_validate({
-                key: item[key] for key in ReadEvidence.model_fields if key in item
-            })
-            read_at = datetime.fromisoformat(evidence.retrieved_at.replace("Z", "+00:00"))
-            if read_at.tzinfo and timedelta(0) <= now - read_at <= timedelta(days=30):
-                result.append(evidence.model_dump())
-        except (ValueError, TypeError, KeyError):
-            continue
-    return result
+from .runtime import ClaudeSdkRuntime, ResearchWorkerError, _EvidenceObserver
 
 
 def _fresh(evidence: ReadEvidence) -> bool:
@@ -93,7 +78,7 @@ def research_projection(raw: dict, observer: _EvidenceObserver) -> dict:
 class _CanvasObserver(_EvidenceObserver):
     async def before(self, data, tool_use_id, context):
         if data.get("tool_name") == "Skill":
-            from .research_worker import _deny
+            from .runtime import _deny
             return _deny()
         return await super().before(data, tool_use_id, context)
 
@@ -102,7 +87,7 @@ class ClaudeCanvasResearchWorker:
     def __init__(self, config: ResearchWorkerConfig, *, worker=None):
         self.config = replace(config, max_searches=min(config.max_searches, 2),
                               max_fetches=min(config.max_fetches, 4))
-        self.worker = worker if worker is not None else ClaudeResearchWorker(self.config)
+        self.worker = worker if worker is not None else ClaudeSdkRuntime(self.config)
 
     async def run(self, *, destination: str, themes: dict, trip_context: dict,
                   reusable_evidence: list[dict] | None = None, usage: dict | None = None,
@@ -112,7 +97,7 @@ class ClaudeCanvasResearchWorker:
                 usage.update(calls=0, cost_usd=0.0, usage_complete=True, stage="prepare", searches=0, reads=0)
             return {"findings": {"status": "empty", "items": []},
                     "links": {"status": "empty", "items": []}}
-        observer = _CanvasObserver(self.config, _recent_evidence(reusable_evidence or []))
+        observer = _CanvasObserver(self.config, recent_evidence(reusable_evidence or []))
         budget = CanvasBudget(min(self.config.max_budget_usd, 0.25),
                               min(self.config.timeout_seconds, 90))
         complete = cancelled = False
@@ -135,7 +120,7 @@ class ClaudeCanvasResearchWorker:
                         options.tools = [] if stage == "review" else ["WebSearch", "WebFetch"]
                         options.allowed_tools = list(options.tools)
                         options.output_format = {"type": "json_schema", "schema": schema}
-                        result, _ = await self.worker._consume(json.dumps({
+                        result = await self.worker._consume(json.dumps({
                             **payload, "read_evidence": evidence(),
                         }), options)
                         return result.structured_output, result.total_cost_usd

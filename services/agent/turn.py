@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -23,9 +22,7 @@ class TurnContext:
     brief: dict[str, Any] = field(default_factory=dict)
     trip_context: dict[str, Any] = field(default_factory=dict)
     traveler_profile: dict[str, Any] = field(default_factory=dict)
-    tentative_inferences: dict[str, Any] = field(default_factory=dict)
     recent_messages: tuple[dict[str, str], ...] = ()
-    research_state: dict[str, Any] = field(default_factory=dict)
     generation: int = 0
 
     def bounded(self) -> "TurnContext":
@@ -50,37 +47,12 @@ class TurnContext:
             brief=active_brief,
             trip_context=dict(self.trip_context),
             traveler_profile=profile_context(self.traveler_profile),
-            tentative_inferences=dict(self.tentative_inferences),
             recent_messages=history,
-            research_state=dict(self.research_state),
             generation=self.generation,
         )
 
-    def messages(self, user_message: str) -> list[dict[str, str]]:
-        context = self.bounded()
-        context_blob = json.dumps(
-            {
-                "plan_id": context.plan_id,
-                "plan_revision": context.plan_revision,
-                "brief": context.brief,
-                "traveler_profile": context.traveler_profile,
-                "tentative_inferences": context.tentative_inferences,
-                "research_state": context.research_state,
-                "generation": context.generation,
-            },
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
-        return [
-            *list(context.recent_messages),
-            {
-                "role": "user",
-                "content": f"Plan context (JSON): {context_blob}\nTraveler message: {user_message[:MAX_TEXT]}",
-            },
-        ]
-
 
 def load_prompt(name: str) -> str:
-    if name not in {"conversation-v1", "sdk-conversation-v1", "research-v1", "onboarding-intake-v1", "canvas-themes-v1", "canvas-review-v1", "canvas-research-v1"}:
+    if name not in {"chat-v1", "canvas-themes-v1", "canvas-review-v1", "canvas-research-v1"}:
         raise ValueError("prompt is not allowlisted")
     return (PROMPT_DIR / f"{name}.md").read_text(encoding="utf-8")

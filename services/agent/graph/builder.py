@@ -19,33 +19,22 @@ from ..request_context import (
 from ..state import AgentState
 from .nodes import ConversationNode
 from .nodes.canvas_generation import CanvasGenerationNode
-from .nodes.sdk_research import SdkResearchNode
-
-
-def _after_conversation(state: AgentState) -> str:
-    return "research" if state.get("turn_decision") == "research" else "end"
-
 
 
 class AgentGraph:
     """Stable graph interface: inject adapters, invoke with one Plan turn."""
 
     def __init__(self, adapter: Any, *, checkpointer: Any | None = None,
-                 research_worker: Any | None = None,
                  canvas_worker: Any | None = None) -> None:
         flow = StateGraph(AgentState)
-        flow.add_node("conversation", ConversationNode(adapter))
-        flow.add_node("research", SdkResearchNode(adapter, research_worker))
+        flow.add_node("chat", ConversationNode(adapter))
         flow.add_node("canvas_generation", CanvasGenerationNode(canvas_worker))
         flow.add_conditional_edges(
             START,
-            lambda state: "canvas_generation" if state.get("canvas_action") else "conversation",
-            {"canvas_generation": "canvas_generation", "conversation": "conversation"},
+            lambda state: "canvas_generation" if state.get("canvas_action") else "chat",
+            {"canvas_generation": "canvas_generation", "chat": "chat"},
         )
-        flow.add_conditional_edges(
-            "conversation", _after_conversation, {"research": "research", "end": END}
-        )
-        flow.add_edge("research", END)
+        flow.add_edge("chat", END)
         flow.add_edge("canvas_generation", END)
         self.compiled = flow.compile(checkpointer=checkpointer)
 
@@ -83,11 +72,6 @@ class AgentGraph:
             if result.get("error"):
                 projection["error"] = result["error"]
             return {**result, "projection": projection}
-        if status == "shortlist_ready":
-            projection["candidates"] = result.get("candidates", [])[:5]
-            projection["research_intent"] = result.get("research_intent")
-            if result.get("run_id"):
-                projection["run_id"] = result["run_id"]
         if result.get("research_evidence"):
             # Preserve the citation identity for the API to validate against this
             # turn's successfully read evidence before reducing it to browser refs.

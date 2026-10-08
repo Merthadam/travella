@@ -145,6 +145,8 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | 261006-rns | Added focused SDK themes worker and canvas-generation graph node; runtime validation pending | 2026-10-06 | See quick summary | Static checks passed | [261006-rns](./quick/261006-rns-add-focused-claude-agent-sdk-themes-summ/) |
 
+| 261008-rfo | One SDK chat/research loop; canvas remains separate; obsolete agent paths removed; live chat/state/research passed | 2026-10-08 | See quick summary | Implemented; remaining regression checks documented | [261008-rfo](./quick/261008-rfo-consolidate-chat-and-research-into-one-c/) |
+
 ### Roadmap Evolution — 2026-10-06
 
 - Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.

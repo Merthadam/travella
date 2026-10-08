@@ -18,7 +18,7 @@ from services.shared.traveler_profile import PROFILE_FIELDS, profile_context
 from services.trip_context import ContextSnapshot, TurnResult, a2ui_messages
 
 from .http_contracts import AgentRequest, AgentResponse
-from .state import PlanCandidateStore, ProcessReceiptCache
+from .state import PlanRunStore, ProcessReceiptCache
 
 
 class AgentTurnService:
@@ -30,19 +30,17 @@ class AgentTurnService:
         plan_reader: Callable[..., Any],
         context_reader: Any | None,
         graph: Any,
-        tools: Any,
-        candidates: PlanCandidateStore,
+        runs: PlanRunStore,
         receipts: ProcessReceiptCache,
         memory: Any | None = None,
     ) -> None:
         self.plan_reader = plan_reader
         self.context_reader = context_reader
         self.graph = graph
-        self.tools = tools
-        self.candidates = candidates
+        self.runs = runs
         self.receipts = receipts
         self.memory = memory
-        self._canvas_evidence: dict[tuple[str, str], tuple[float, list[dict]]] = {}
+        self._evidence_cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
         self._active_streams: dict[tuple[str, str, str], dict[str, Any]] = {}
 
     async def _read_plan(self, subject: str, plan_id: UUID, token: str) -> dict[str, Any]:
@@ -74,7 +72,7 @@ class AgentTurnService:
         plan = await self._read_plan(subject, request.plan_id, token)
         plan_id = str(request.plan_id)
         if request.forwardedProps:
-            if request.message or request.candidate_action or not self.context_reader:
+            if request.message or not self.context_reader:
                 raise HTTPException(422, "Send Trip Brief edits separately from chat messages.")
             action = request.forwardedProps.a2ui.action
             snapshot = await self.context_reader.edit_context(
@@ -113,34 +111,30 @@ class AgentTurnService:
                     ):
                         traveler_profile = profile_context(current)
         try:
-            reservation = await self.candidates.reserve(subject, plan_id, request.event_id, exclusive=True)
+            reservation = await self.runs.reserve(subject, plan_id, request.event_id, exclusive=True)
         except ValueError:
             raise HTTPException(409, "Another reply is running for this Plan.") from None
         if not reservation.owner:
             if reservation.future.done():
                 return AgentResponse.model_validate(reservation.future.result())
-            prior = await self.candidates.snapshot(subject, plan_id)
             return AgentResponse(
                 status="in_progress",
                 plan_id=request.plan_id,
                 event_id=request.event_id,
                 generation=reservation.generation,
-                candidates=list(prior.candidates) if prior else [],
             )
 
         generation = reservation.generation
-        action = request.candidate_action.model_dump() if request.candidate_action else None
-        prior = await self.candidates.snapshot(subject, plan_id)
 
         async def finish(projection: dict[str, Any]) -> AgentResponse:
-            if not await self.candidates.generation_current(subject, plan_id, generation):
-                projection = self._interrupted(plan_id, request.event_id, generation, prior)
+            if not await self.runs.generation_current(subject, plan_id, generation):
+                projection = self._interrupted(plan_id, request.event_id, generation)
             self.receipts.put(subject, plan_id, request.event_id, projection)
-            await self.candidates.resolve_pending(subject, plan_id, request.event_id, projection)
+            await self.runs.resolve_pending(subject, plan_id, request.event_id, projection)
             return AgentResponse.model_validate(projection)
 
         async def emit_if_current(delta: str) -> None:
-            if on_text_delta and await self.candidates.generation_current(subject, plan_id, generation):
+            if on_text_delta and await self.runs.generation_current(subject, plan_id, generation):
                 value = on_text_delta(delta)
                 if isinstance(value, Awaitable):
                     await value
@@ -160,99 +154,7 @@ class AgentTurnService:
                 if request.context_revision is not None and context_snapshot and request.context_revision != context_snapshot["revision"]:
                     raise HTTPException(409, "Trip details changed. Reload the canvas before generating.")
                 context = await self.context_reader.generation_context(request.plan_id, token)
-            action_name = action.get("action") if action else None
-            if action_name in {"explore", "reject"}:
-                if prior is None:
-                    raise HTTPException(422, "No current candidate shortlist.")
-                selected = next(
-                    (
-                        item
-                        for item in prior.candidates
-                        if item.get("candidate_id") == action.get("candidate_id")
-                    ),
-                    None,
-                )
-                if selected is None:
-                    raise HTTPException(422, "Candidate is not part of the current shortlist.")
-                if action_name == "reject":
-                    rejected = frozenset((*prior.rejected, str(selected["candidate_id"])))
-                    remaining = [
-                        item
-                        for item in prior.candidates
-                        if item.get("candidate_id") not in rejected
-                    ]
-                    if not await self.candidates.publish(
-                        subject,
-                        plan_id,
-                        generation,
-                        query=prior.query,
-                        run_id=prior.run_id,
-                        candidates=remaining,
-                        rejected=rejected,
-                    ):
-                        return await finish(
-                            self._interrupted(plan_id, request.event_id, generation, prior)
-                        )
-                    return await finish(
-                        {
-                            "status": "candidate_action",
-                            "plan_id": plan_id,
-                            "event_id": request.event_id,
-                            "generation": generation,
-                            "action": action,
-                            "candidates": remaining,
-                        }
-                    )
-                return await finish(
-                    {
-                        "status": "candidate_action",
-                        "plan_id": plan_id,
-                        "event_id": request.event_id,
-                        "generation": generation,
-                        "action": action,
-                        "candidates": [selected],
-                    }
-                )
-
-            if action_name == "inspect":
-                if prior is None or not action["evidence_ids"]:
-                    raise HTTPException(422, "Evidence IDs are required for the current shortlist.")
-                known = {
-                    str(ref.get("evidence_id"))
-                    for candidate in prior.candidates
-                    for ref in candidate.get("evidence", [])
-                }
-                if not set(action["evidence_ids"]).issubset(known):
-                    raise HTTPException(422, "Evidence is not part of the current shortlist.")
-                result = await self.tools.sources(
-                    evidence_ids=action["evidence_ids"],
-                    traveler_scope=subject,
-                    plan_id=plan_id,
-                    run_id=prior.run_id,
-                    authorization_token=token,
-                )
-                evidence = result.get("evidence", []) if isinstance(result, dict) else []
-                if not isinstance(evidence, list):
-                    raise HTTPException(502, "Source results were invalid.")
-                return await finish(
-                    {
-                        "status": "source_detail",
-                        "plan_id": plan_id,
-                        "event_id": request.event_id,
-                        "generation": generation,
-                        "evidence": evidence[:10],
-                    }
-                )
-
             query = request.message.strip()
-            if action_name == "name":
-                query = (action.get("destination") or "").strip()
-                if not query:
-                    raise HTTPException(422, "Destination is required.")
-            if action_name in {"extend", "refresh"} and not query:
-                query = prior.query if prior else ""
-            if action_name in {"extend", "refresh"} and not query:
-                raise HTTPException(422, "A previous research query is required.")
 
             graph_state = {
                 "traveler_scope": subject,
@@ -266,10 +168,9 @@ class AgentTurnService:
                 "event_id": request.event_id,
                 "generation": generation,
                 "message": query,
-                "candidate_action": action,
                 "canvas_action": request.canvas_action,
                 "canvas_draft": {"components": {"themes": request.canvas_themes.model_dump()}} if request.canvas_themes else None,
-                "reusable_evidence": self._canvas_evidence.get((subject, plan_id), (0, []))[1] if self._canvas_evidence.get((subject, plan_id), (0, []))[0] > time.monotonic() else [],
+                "reusable_evidence": self._evidence_cache.get((subject, plan_id), (0, []))[1] if self._evidence_cache.get((subject, plan_id), (0, []))[0] > time.monotonic() else [],
                 "generation_messages": context.get("messages", []) if request.canvas_action else [],
                 "generation_cutoff": context.get("cutoff_sequence", 0),
                 "context_revision": context_snapshot["revision"] if context_snapshot else 1,
@@ -286,7 +187,7 @@ class AgentTurnService:
                 return draft
 
             async def emit_canvas_if_current(value):
-                if on_canvas_draft and await self.candidates.generation_current(subject, plan_id, generation):
+                if on_canvas_draft and await self.runs.generation_current(subject, plan_id, generation):
                     await on_canvas_draft({"canvas_draft": prepare_canvas(value),
                                            "trip_context": context_snapshot})
 
@@ -296,20 +197,20 @@ class AgentTurnService:
             if request.canvas_action:
                 invoke_options["on_canvas_draft"] = emit_canvas_if_current
             result = await self.graph.invoke(graph_state, **invoke_options)
-            if not await self.candidates.generation_current(subject, plan_id, generation):
-                return await finish(self._interrupted(plan_id, request.event_id, generation, prior))
+            if not await self.runs.generation_current(subject, plan_id, generation):
+                return await finish(self._interrupted(plan_id, request.event_id, generation))
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
                 raise HTTPException(502, "Agent response was invalid.")
+            observed = result.get("_read_evidence") or result.get("_canvas_evidence")
+            if isinstance(observed, list) and observed:
+                if len(self._evidence_cache) >= 100:
+                    self._evidence_cache.pop(next(iter(self._evidence_cache)))
+                self._evidence_cache[(subject, plan_id)] = (time.monotonic() + 1800, observed[:12])
             if request.canvas_action:
                 for group, details in result.get("_canvas_usage", {}).items():
                     logging.getLogger(__name__).info("canvas_usage group=%s calls=%s cost_usd=%s searches=%s reads=%s usage_complete=%s stage=%s",
                         group, details.get("calls"), details.get("cost_usd"), details.get("searches"), details.get("reads"), details.get("usage_complete", False), details.get("stage"))
-                if isinstance(result.get("_canvas_evidence"), list) and result["_canvas_evidence"]:
-                    # Bounded, scoped transient reuse; private excerpts never enter browser snapshots.
-                    if len(self._canvas_evidence) >= 100:
-                        self._canvas_evidence.pop(next(iter(self._canvas_evidence)))
-                    self._canvas_evidence[(subject, plan_id)] = (time.monotonic() + 1800, result["_canvas_evidence"][:12])
                 # A generated component is a draft, not a chat message or saved Plan edit.
                 # finish still enforces generation freshness and event replay handling.
                 if projection.get("canvas_draft"):
@@ -317,51 +218,7 @@ class AgentTurnService:
                 if context_snapshot:
                     projection["trip_context"] = {**context_snapshot, "locked": False}
                 return await finish(projection)
-            is_candidate_research = (
-                projection.get("status") == "shortlist_ready"
-                and projection.get("research_intent") != "factual_research"
-            )
-            fresh = projection.get("candidates", []) if is_candidate_research else []
-            if action_name == "extend" and prior:
-                seen = {str(item.get("candidate_id")) for item in prior.candidates}
-                fresh = list(prior.candidates) + [
-                    item
-                    for item in fresh
-                    if str(item.get("candidate_id")) not in seen
-                    and str(item.get("candidate_id")) not in prior.rejected
-                ]
-                fresh = fresh[:5]
-            if is_candidate_research and not fresh:
-                projection = {
-                    **projection,
-                    "status": "unable to continue",
-                    "error": "No complete candidates were returned.",
-                }
-            if is_candidate_research:
-                run_id = str(result.get("run_id") or projection.get("run_id") or "")
-                if action_name == "extend" and prior:
-                    run_id = prior.run_id
-                if not await self.candidates.publish(
-                    subject,
-                    plan_id,
-                    generation,
-                    query=query,
-                    run_id=run_id,
-                    candidates=fresh,
-                    rejected=prior.rejected if prior else frozenset(),
-                ):
-                    return await finish(
-                        self._interrupted(plan_id, request.event_id, generation, prior)
-                    )
-                projection = {**projection, "candidates": fresh}
-            elif prior:
-                projection = {
-                    **projection,
-                    "candidates": list(prior.candidates),
-                    "action": action if action_name == "refresh" else projection.get("action"),
-                }
-
-            successful = projection.get("status") in {"in_progress", "needs your input", "shortlist_ready"} and bool(projection.get("assistant_text") or projection.get("question"))
+            successful = projection.get("status") in {"in_progress", "needs your input"} and bool(projection.get("assistant_text") or projection.get("question"))
             if self.context_reader and query and not (context_snapshot and successful):
                 await self.context_reader.append(
                     request.plan_id,
@@ -414,11 +271,11 @@ class AgentTurnService:
                 projection["result"] = turn_result.model_dump()
             return await finish(projection)
         except asyncio.CancelledError:
-            await self.candidates.resolve_pending(subject, plan_id, request.event_id,
-                                                 self._interrupted(plan_id, request.event_id, generation, prior))
+            await self.runs.resolve_pending(subject, plan_id, request.event_id,
+                                                 self._interrupted(plan_id, request.event_id, generation))
             raise
         except HTTPException as exc:
-            await self.candidates.resolve_pending(
+            await self.runs.resolve_pending(
                 subject,
                 plan_id,
                 request.event_id,
@@ -439,9 +296,7 @@ class AgentTurnService:
                 "generation": generation,
                 "error": "Agent provider unavailable.",
             }
-            if prior:
-                safe["candidates"] = list(prior.candidates)
-            await self.candidates.resolve_pending(subject, plan_id, request.event_id, safe)
+            await self.runs.resolve_pending(subject, plan_id, request.event_id, safe)
             return AgentResponse.model_validate(safe)
         finally:
             if context_attempted and not context_committed:
@@ -683,11 +538,10 @@ class AgentTurnService:
         return content[:available] + source_block
 
     @staticmethod
-    def _interrupted(plan_id: str, event_id: str, generation: int, prior: Any) -> dict[str, Any]:
+    def _interrupted(plan_id: str, event_id: str, generation: int) -> dict[str, Any]:
         return {
             "status": "interrupted",
             "plan_id": plan_id,
             "event_id": event_id,
             "generation": generation,
-            "candidates": list(prior.candidates) if prior else [],
         }

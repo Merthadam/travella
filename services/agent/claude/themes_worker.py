@@ -9,7 +9,7 @@ from ..canvas_contracts import ThemeComponentItem, ThemesComponent, ThemesSummar
 from ..config import ResearchWorkerConfig
 from ..turn import TurnContext
 from .canvas_loop import CanvasBudget, canvas_prompt, report_canvas_usage, reviewed_candidate
-from .research_worker import ClaudeResearchWorker, ResearchWorkerError
+from .runtime import ClaudeSdkRuntime, ResearchWorkerError
 
 
 def summary_sources(context: TurnContext, message: str) -> list[dict[str, str]]:
@@ -76,7 +76,7 @@ def themes_projection(raw: dict, sources: list[dict]) -> dict:
 class ClaudeThemesWorker:
     def __init__(self, config: ResearchWorkerConfig, *, worker=None) -> None:
         self.config = config
-        self.worker = worker if worker is not None else ClaudeResearchWorker(config)
+        self.worker = worker if worker is not None else ClaudeSdkRuntime(config)
 
     async def run(self, *, context: TurnContext, message: str = "", usage: dict | None = None) -> dict:
         budget = CanvasBudget(min(self.config.max_budget_usd, 0.10),

@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 from services.agent.graph.builder import AgentGraph
 from services.agent.http_contracts import AgentRequest
 from services.agent.service import AgentTurnService
-from services.agent.state import PlanCandidateStore, ProcessReceiptCache
-from services.agent.state.contracts import ResearchDecision
+from services.agent.state import PlanRunStore, ProcessReceiptCache
 from services.agent.turn import TurnContext
 
 
@@ -39,18 +36,15 @@ def test_turn_context_projects_only_allowlisted_traveler_preferences():
             "updated_at": "internal-version",
         },
     )
-    messages = context.messages("Find a weekend trip")
-    assert '"departure_base":"Budapest"' in messages[-1]["content"]
-    assert '"food_needs":"Peanut allergy"' in messages[-1]["content"]
-    assert "private@example.test" not in messages[-1]["content"]
-    assert "internal-version" not in messages[-1]["content"]
+    profile = context.bounded().traveler_profile
+    assert profile == {"departure_base": "Budapest", "food_needs": "Peanut allergy"}
 
 
 def test_agentcore_profile_reaches_conversation_ephemerally_not_graph_state():
     class Model:
         context = None
 
-        async def complete_conversation(self, *, message, context, authorization_token):
+        async def complete_conversation(self, *, message, context, authorization_token, **kwargs):
             self.context = context
             return {"decision": "respond", "assistant_text": "I’ll keep that in mind."}
 
@@ -113,8 +107,8 @@ def test_plan_turn_uses_only_agentcore_profile_matching_current_crud_version():
     graph = Graph()
     service = AgentTurnService(
         plan_reader=lambda *args: {"lifecycle": "active", "revision": 1},
-        context_reader=ContextReader(), graph=graph, tools=object(),
-        candidates=PlanCandidateStore(), receipts=ProcessReceiptCache(), memory=Memory(),
+        context_reader=ContextReader(), graph=graph,
+        runs=PlanRunStore(), receipts=ProcessReceiptCache(), memory=Memory(),
     )
     response = asyncio.run(service.handle(
         AgentRequest(plan_id=plan_id, event_id="event-1", message="A weekend trip"),
@@ -162,8 +156,8 @@ def test_plan_turn_ignores_stale_agentcore_profile_snapshot():
     graph = Graph()
     service = AgentTurnService(
         plan_reader=lambda *args: {"lifecycle": "active", "revision": 1},
-        context_reader=ContextReader(), graph=graph, tools=object(),
-        candidates=PlanCandidateStore(), receipts=ProcessReceiptCache(), memory=Memory(),
+        context_reader=ContextReader(), graph=graph,
+        runs=PlanRunStore(), receipts=ProcessReceiptCache(), memory=Memory(),
     )
     asyncio.run(service.handle(
         AgentRequest(plan_id=plan_id, event_id="event-1", message="A weekend trip"),
@@ -204,46 +198,11 @@ def test_plan_turn_keeps_current_crud_profile_when_agentcore_is_unavailable():
     graph = Graph()
     service = AgentTurnService(
         plan_reader=lambda *args: {"lifecycle": "active", "revision": 1},
-        context_reader=ContextReader(), graph=graph, tools=object(),
-        candidates=PlanCandidateStore(), receipts=ProcessReceiptCache(), memory=Memory(),
+        context_reader=ContextReader(), graph=graph,
+        runs=PlanRunStore(), receipts=ProcessReceiptCache(), memory=Memory(),
     )
     asyncio.run(service.handle(
         AgentRequest(plan_id=plan_id, event_id="event-1", message="A weekend trip"),
         "verified-subject", "Bearer access-token",
     ))
     assert graph.profile == {"departure_base": "Budapest"}
-
-
-
-
-
-
-def test_research_decision_accepts_only_bounded_answer_or_targeted_refinement():
-    answer = ResearchDecision.parse(
-        '{"action":"answer","answer":"Supported fact.","query":null,"gap":null,'
-        '"evidence_ids":["source-1"],"uncertainty":["One detail is unknown."]}',
-        evidence_ids={"source-1"},
-    )
-    refine = ResearchDecision.parse(
-        '{"action":"refine","answer":null,"query":"Spain rail pass dates",'
-        '"gap":"The page does not state current validity dates.",'
-        '"evidence_ids":["source-1"],"uncertainty":[]}',
-        evidence_ids={"source-1"},
-    )
-
-    assert answer and answer.action == "answer"
-    assert refine and refine.action == "refine" and refine.query == "Spain rail pass dates"
-
-
-@pytest.mark.parametrize(
-    "raw",
-    [
-        "not json",
-        '{"action":"tool","answer":"x","query":null,"gap":null,"evidence_ids":[],"uncertainty":[]}',
-        '{"action":"answer","answer":"x","query":null,"gap":null,"evidence_ids":["foreign"],"uncertainty":[]}',
-        '{"action":"refine","answer":null,"query":" ","gap":"gap","evidence_ids":[],"uncertainty":[]}',
-        '{"action":"refine","answer":null,"query":"' + ("x" * 301) + '","gap":"gap","evidence_ids":[],"uncertainty":[]}',
-    ],
-)
-def test_research_decision_rejects_malformed_unknown_or_oversized_output(raw):
-    assert ResearchDecision.parse(raw, evidence_ids={"source-1"}) is None

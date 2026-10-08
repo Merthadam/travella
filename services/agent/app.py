@@ -15,21 +15,17 @@ from services.auth.contracts import ValidatedIdentity
 from services.auth.jwt_verifier import CognitoJwtVerifier
 from services.crud.auth import DEFAULT_SCOPE, bearer_identity
 
-from .claude import ClaudeGatewayAdapter, LocalMcpAdapter
 from .crud_client import CrudContextReader, CrudPlanReader
 from .graph import AgentGraph
-from .graph.onboarding import build_onboarding_intake_graph
 from .http_contracts import (
     AgentRequest,
     AgentResponse,
-    OnboardingRequest,
-    OnboardingResponse,
     RuntimeInvocationRequest,
     TravelerProfileMemoryRequest,
 )
 from .memory import create_memory_adapter
 from .service import AgentTurnService
-from .state import PlanCandidateStore, ProcessReceiptCache
+from .state import PlanRunStore, ProcessReceiptCache
 
 
 def create_app(
@@ -38,7 +34,6 @@ def create_app(
     plan_reader: Callable[..., Any] | None = None,
     context_reader: CrudContextReader | None = None,
     graph: AgentGraph | None = None,
-    research_worker: Any | None = None,
     canvas_worker: Any | None = None,
     adapter: Any | None = None,
     memory_adapter: Any | None = None,
@@ -60,52 +55,22 @@ def create_app(
 
         plan_reader = unavailable_reader
 
-    sdk_config = None
-    messages_client = None
-    if adapter is None:
-        from .claude.sdk_conversation import ClaudeSdkConversationClient
-        from .config import ResearchWorkerConfig
+    from .claude.sdk_conversation import ClaudeSdkConversationClient
+    from .claude.themes_worker import ClaudeThemesWorker
+    from .config import ResearchWorkerConfig
 
-        sdk_config = ResearchWorkerConfig.from_env()
-        messages_client = ClaudeSdkConversationClient(sdk_config)
-
-    if adapter is None:
-        app_env = (os.getenv("APP_ENV") or "development").strip().lower()
-        default_transport = "local" if app_env in {"development", "test"} else "agentcore"
-        transport = (os.getenv("AGENT_MCP_TRANSPORT") or default_transport).strip().lower()
-        if transport == "local":
-            if app_env not in {"development", "test"}:
-                raise RuntimeError("Local MCP transport is only available in development or test.")
-            adapter = LocalMcpAdapter(
-                research_url=os.getenv("LOCAL_RESEARCH_MCP_URL", "http://research-mcp:8000/mcp"),
-                map_url=os.getenv("LOCAL_MAP_MCP_URL", "http://map-mcp:8001/mcp"),
-                messages_client=messages_client,
-            )
-        elif transport == "agentcore":
-            adapter = ClaudeGatewayAdapter(os.getenv("AGENTCORE_GATEWAY_URL", ""),
-                                           messages_client=messages_client)
-        else:
-            raise ValueError("AGENT_MCP_TRANSPORT must be 'agentcore' or 'local'.")
-    if graph is None and research_worker is None:
-        from .claude.research_worker import ClaudeResearchWorker
-        from .config import ResearchWorkerConfig
-
-        research_worker = ClaudeResearchWorker(sdk_config or ResearchWorkerConfig.from_env())
+    sdk_config = ResearchWorkerConfig.from_env() if adapter is None else None
+    chat_client = adapter or ClaudeSdkConversationClient(sdk_config)
     if graph is None and canvas_worker is None and sdk_config is not None:
-        from .claude.themes_worker import ClaudeThemesWorker
-
         canvas_worker = ClaudeThemesWorker(sdk_config)
-    workflow = graph or AgentGraph(adapter, research_worker=research_worker,
-                                  canvas_worker=canvas_worker)
-    onboarding_graph = build_onboarding_intake_graph(getattr(adapter, "messages", adapter))
+    workflow = graph or AgentGraph(chat_client, canvas_worker=canvas_worker)
     memory = memory_adapter or create_memory_adapter()
-    candidates = PlanCandidateStore(max_receipts=cache_size)
+    runs = PlanRunStore(max_receipts=cache_size)
     turn_service = AgentTurnService(
         plan_reader=plan_reader,
         context_reader=context_reader,
         graph=workflow,
-        tools=adapter,
-        candidates=candidates,
+        runs=runs,
         receipts=ProcessReceiptCache(cache_size),
         memory=memory,
     )
@@ -120,21 +85,13 @@ def create_app(
 
     @app.get("/health")
     def health() -> dict[str, Any]:
-        messages = getattr(adapter, "messages", None)
-        tool_transport = getattr(adapter, "transport", "agentcore")
         return {
-            "status": "ok",
-            "auth_configured": verifier is not None,
+            "status": "ok", "auth_configured": verifier is not None,
             "memory_enabled": memory.enabled,
-            "model_provider": getattr(messages, "provider", "injected"),
-            "model_id": getattr(messages, "model", None),
+            "model_provider": getattr(chat_client, "provider", "injected"),
+            "model_id": getattr(chat_client, "model", None),
             "research_backend": "injected" if graph is not None else "claude-agent-sdk",
-            "research_model": getattr(getattr(research_worker, "config", None), "model", None),
-            "tool_transport": tool_transport,
-            "gateway_configured": bool(getattr(adapter, "gateway_url", "")),
-            "local_mcp_configured": (
-                bool(getattr(adapter, "local_mcp", None)) if tool_transport == "local" else None
-            ),
+            "tool_transport": "claude-agent-sdk",
         }
 
     def identity_dependency(authorization: str | None = Header(default=None)) -> ValidatedIdentity:
@@ -177,19 +134,6 @@ def create_app(
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
             )
-        if envelope.operation == "onboarding":
-            request = OnboardingRequest.model_validate(payload)
-            result = await onboarding_graph.ainvoke(
-                {"messages": [message.model_dump() for message in request.messages]}
-            )
-            return OnboardingResponse(
-                action=result["action"],
-                assistant_text=result["assistant_text"],
-                answer_candidates=[
-                    {"topic": item["topic"], "value": item["value"]}
-                    for item in result["answer_candidates"]
-                ],
-            )
         if envelope.operation == "profile_sync":
             request = TravelerProfileMemoryRequest.model_validate(payload)
             if not memory.enabled:
@@ -220,24 +164,6 @@ def create_app(
         authorization: str | None = Header(default=None),
     ) -> AgentResponse:
         return await turn_service.handle(request, identity.subject, authorization)
-
-    @router.post("/onboarding/events", response_model=OnboardingResponse)
-    async def onboarding_events(
-        request: OnboardingRequest,
-        identity: ValidatedIdentity = Depends(identity_dependency),
-    ) -> OnboardingResponse:
-        del identity  # Authentication is required; the stateless intake stores no identity.
-        result = await onboarding_graph.ainvoke(
-            {"messages": [message.model_dump() for message in request.messages]}
-        )
-        return OnboardingResponse(
-            action=result["action"],
-            assistant_text=result["assistant_text"],
-            answer_candidates=[
-                {"topic": item["topic"], "value": item["value"]}
-                for item in result["answer_candidates"]
-            ],
-        )
 
     @router.put("/traveler-profile/memory")
     async def sync_traveler_profile(
