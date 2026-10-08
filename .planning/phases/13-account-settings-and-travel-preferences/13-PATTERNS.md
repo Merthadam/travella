@@ -76,4 +76,3 @@ Exact existing session kind is `"kind": "session"`; email and subject fields are
 ## Delivery Limitations to Carry Forward
 
 The email flow can be implemented and exercised against deterministic provider fixtures, but safe live initiation cannot pass under current pool configuration. Name/password/MFA mutation tests must use isolated provider fixtures; shared example-account verification must not alter those credentials or factors. Document those distinctions in verification evidence. These constraints are locked in the phase context and required testing skill. [VERIFIED: .planning/phases/13-account-settings-and-travel-preferences/13-CONTEXT.md:22-28; docs/skills/travella-testing/SKILL.md, read in full]
-

@@ -99,4 +99,3 @@ Estimates use estimate-calibration factor 1, sample_count 0, confidence low. Com
 ## Verification interpretation
 
 No test has been marked passing prospectively. Research's observed baseline was 59 passed and one stale revision assertion failed; 13-01 corrects that assertion. Chrome evidence is a delivery gate in 13-05; unit/HTTP fixtures and artifact existence are not substitutes. Identity/security successful mutations are tested with real auth handlers plus isolated provider fixtures and SQL, never the shared example account. Current email capability is unavailable; no live email activation or signed-out recovery assurance is claimed.
-
