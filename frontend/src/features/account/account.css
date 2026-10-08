@@ -80,6 +80,8 @@
 .account-discard .account-actions button:last-child { color:var(--account-destructive); border-color:var(--account-destructive); }
 .account-page [role=alert] { color:var(--account-text); border-left:3px solid var(--account-destructive); margin-top:24px; padding:16px; background:var(--account-soft); }
 .account-page [role=status]:not(:empty) { margin-top:24px; }
+.account-security > p:not(:empty) { margin-bottom:16px; }
+.account-security > button + button { margin-left:8px; }
 @media(max-width:1000px) { .account-heading { align-items:flex-start; flex-direction:column; } }
 @media(max-width:760px) { .account-page .app-header > div { gap:12px; padding:14px 16px; } .account-layout { padding:28px 16px 56px; } .account-heading { gap:20px; margin-bottom:24px; } .account-workspace { grid-template-columns:1fr; gap:16px; } .account-master { display:none; } .account-detail { padding:24px; } .account-detail h2 { font-size:24px; } .account-page .account-mobile-setting { display:grid; margin:0; gap:8px; color:var(--account-muted); } .account-actions { flex-wrap:wrap; } }
 @media(prefers-reduced-motion:reduce) { .account-page * { animation:none !important; transition:none !important; } }
