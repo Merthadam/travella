@@ -18,6 +18,8 @@ class AgentState(TypedDict, total=False):
     message: str
     canvas_action: str | None
     canvas_draft: dict[str, Any] | None
+    canvas_edit: dict[str, Any] | None
+    canvas_edit_result: dict[str, Any] | None
     generation_messages: list[dict[str, Any]]
     generation_cutoff: int
     context_revision: int

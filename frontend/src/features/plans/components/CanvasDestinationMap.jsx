@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { loadGoogleMaps } from '../../../lib/googleMaps';
 import { categories } from '../../../design-system/schemas';
+
+export const CanvasMapContext = createContext({});
 
 function pinIcon(category) {
   const paths = {
@@ -39,6 +41,7 @@ export async function searchCanvasPlaces(query, destination) {
 }
 
 export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect }) {
+  const { preview, onClearPreview, onSearchArea, disabled } = useContext(CanvasMapContext);
   const canvas = useRef(null);
   const selection = useRef(onSelect); selection.current = onSelect;
   const [runtime, setRuntime] = useState(null);
@@ -48,6 +51,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   const [candidates, setCandidates] = useState([]);
   const [resolved, setResolved] = useState(null);
   const [mapError, setMapError] = useState(false);
+  const [bounds, setBounds] = useState(null);
   const usableDestination = final && destination;
 
   useEffect(() => {
@@ -88,6 +92,22 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
 
   useEffect(() => {
     if (!runtime) return;
+    const listener = runtime.map.addListener('idle', () => setBounds(runtime.map.getBounds()?.toJSON() || null));
+    return () => listener.remove();
+  }, [runtime]);
+
+  useEffect(() => {
+    if (!runtime || !preview) return;
+    runtime.map.panTo(preview.position); runtime.map.setZoom(15);
+    if (places.some(place => place.id === preview.id)) return;
+    const content = document.createElement('span'); content.className = 'canvas-map-pin is-preview'; content.style.setProperty('--category', categories.activity.color);
+    const label = document.createElement('span'); label.textContent = preview.name; content.append(pinIcon('activity'), label);
+    const marker = new runtime.Marker({ map: runtime.map, position: preview.position, title: `Preview only: ${preview.name}`, content });
+    return () => { marker.map = null; };
+  }, [runtime, preview, places]);
+
+  useEffect(() => {
+    if (!runtime) return;
     const markers = []; const listeners = [];
     for (const place of places) {
       const category = categories[place.category];
@@ -117,6 +137,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
       {candidates.length > 0 && <><p>Which location should the map show? This only adjusts your map view.</p>{candidates.map(result => <button type="button" className="ds-button small" key={result.place_id} onClick={() => { setResolved(result); setCandidates([]); }}>{result.formatted_address}</button>)}</>}
       {(error || mapError) && <button type="button" className="ds-button small" onClick={() => setAttempt(value => value + 1)}>Retry map</button>}
     </div>}
-    <button type="button" className="ds-text-button" disabled={!runtime || !places.length} onClick={showAll}>Show all places</button>
+    {preview && <div className="canvas-map-preview"><div><strong>{preview.name}</strong><small>{places.some(place => place.id === preview.id) ? 'In your draft' : 'Preview only · not added to your draft'}</small></div><button type="button" className="ds-text-button" onClick={onClearPreview}>Close preview</button></div>}
+    <div className="canvas-map-tools"><button type="button" className="ds-text-button" disabled={!runtime || !places.length} onClick={showAll}>Show all places</button>{onSearchArea && <button type="button" className="ds-button small" disabled={!bounds || disabled} onClick={() => onSearchArea(bounds)}>Search this map area</button>}</div>
   </div>;
 }

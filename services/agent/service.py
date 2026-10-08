@@ -18,6 +18,8 @@ from services.shared.traveler_profile import PROFILE_FIELDS, profile_context
 from services.trip_context import ContextSnapshot, TurnResult, a2ui_messages
 
 from .http_contracts import AgentRequest, AgentResponse
+from .editing_contracts import CanvasEditResult
+from .place_tickets import sign_place, verified_place
 from .state import PlanRunStore, ProcessReceiptCache
 
 
@@ -71,6 +73,14 @@ class AgentTurnService:
         token = (authorization or "")[7:].strip()
         plan = await self._read_plan(subject, request.plan_id, token)
         plan_id = str(request.plan_id)
+        edit_input = None
+        if request.canvas_edit:
+            try:
+                edit_input = request.canvas_edit.model_dump(mode="json")
+                edit_input["suggestions"] = [verified_place(subject, plan_id, place)
+                                             for place in request.canvas_edit.suggestions]
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from None
         if request.forwardedProps:
             if request.message or not self.context_reader:
                 raise HTTPException(422, "Send Trip Brief edits separately from chat messages.")
@@ -169,6 +179,7 @@ class AgentTurnService:
                 "generation": generation,
                 "message": query,
                 "canvas_action": request.canvas_action,
+                "canvas_edit": edit_input,
                 "canvas_draft": {"components": {"themes": request.canvas_themes.model_dump()}} if request.canvas_themes else None,
                 "reusable_evidence": self._evidence_cache.get((subject, plan_id), (0, []))[1] if self._evidence_cache.get((subject, plan_id), (0, []))[0] > time.monotonic() else [],
                 "generation_messages": context.get("messages", []) if request.canvas_action else [],
@@ -211,13 +222,32 @@ class AgentTurnService:
                 for group, details in result.get("_canvas_usage", {}).items():
                     logging.getLogger(__name__).info("canvas_usage group=%s calls=%s cost_usd=%s searches=%s reads=%s usage_complete=%s stage=%s",
                         group, details.get("calls"), details.get("cost_usd"), details.get("searches"), details.get("reads"), details.get("usage_complete", False), details.get("stage"))
-                # A generated component is a draft, not a chat message or saved Plan edit.
-                # finish still enforces generation freshness and event replay handling.
                 if projection.get("canvas_draft"):
                     projection["canvas_draft"] = prepare_canvas(projection["canvas_draft"])
+                    # Keep the transition in the same Conversation. No model call
+                    # or durable canvas mutation is needed for this handoff.
+                    if request.canvas_action == "generate_plan" and self.context_reader:
+                        groups = projection["canvas_draft"].get("group_status", {})
+                        complete = all(groups.get(key) == "ready" for key in ("themes", "research"))
+                        handoff = ("Your draft is ready to explore. " if complete else
+                                   "Your draft is open. Some sections still need a retry. ")
+                        handoff += ("We can keep planning here: ask me to find activities around your destination. "
+                                    "Preview places on the map, then choose Add to plan. Your edits stay in this draft until you choose Save plan.")
+                        await self.context_reader.append(request.plan_id, token,
+                            event_id=f"{request.event_id}:handoff", role="assistant",
+                            content=handoff, generation=generation)
                 if context_snapshot:
                     projection["trip_context"] = {**context_snapshot, "locked": False}
                 return await finish(projection)
+            if request.canvas_edit and projection.get("canvas_edit_result"):
+                edit_result = CanvasEditResult.model_validate(projection["canvas_edit_result"]).model_dump(mode="json")
+                known_ids = {item["id"] for item in edit_result["suggestions"]}
+                if any(place_id not in known_ids for place_id in edit_result["add_ids"]):
+                    raise HTTPException(502, "The suggested places could not be validated. Your draft is unchanged.")
+                edit_result["suggestions"] = [sign_place(subject, plan_id, place) for place in edit_result["suggestions"]]
+                projection["canvas_edit_result"] = edit_result
+                # Editing this canvas does not also modify research requirements.
+                result["state_changes"] = []
             successful = projection.get("status") in {"in_progress", "needs your input"} and bool(projection.get("assistant_text") or projection.get("question"))
             if self.context_reader and query and not (context_snapshot and successful):
                 await self.context_reader.append(
@@ -366,6 +396,7 @@ class AgentTurnService:
                                                "message": response.error if status == "error" else None,
                                                "trip_context": final.get("trip_context"),
                                                "canvas_draft": final.get("canvas_draft"),
+                                               "canvas_edit_result": final.get("canvas_edit_result"),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"
@@ -404,7 +435,7 @@ class AgentTurnService:
                     public_snapshot.update({name: item for name, item in value.items() if item is not None})
                     yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
                 else:
-                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context") if value.get(name) is not None}
+                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result") if value.get(name) is not None}
                     if snapshot:
                         public_snapshot.update(snapshot)
                         yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})

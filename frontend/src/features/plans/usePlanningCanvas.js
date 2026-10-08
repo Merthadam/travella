@@ -32,7 +32,7 @@ function validEvidence(value) {
   return clone(value);
 }
 
-export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
+export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalBusy = false }) {
   const planId = selected.plan_id;
   const [data, setData] = useState(null);
   const [evidence, setEvidence] = useState({});
@@ -54,6 +54,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
   const pendingSave = useRef(null);
   const editedComponents = useRef(new Set());
   const dataRef = useRef(null); dataRef.current = data;
+  const externalBusyRef = useRef(externalBusy); externalBusyRef.current = externalBusy;
   const callbacks = useRef({ onExpired, onSaved }); callbacks.current = { onExpired, onSaved };
 
   useEffect(() => {
@@ -96,7 +97,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
       setEditors(current => payload.editing ? current.includes(id) ? current : [...current, id] : current.includes(id) ? current.filter(value => value !== id) : current);
       return;
     }
-    if (active.current || savingRef.current) return;
+    if (active.current || savingRef.current || externalBusyRef.current) return;
     if (['inspect_place', 'filter_pins', 'expand_finding'].includes(name)) return;
     const previous = dataRef.current;
     if (!previous?.[id]) return;
@@ -132,7 +133,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
   }, []);
 
   async function generate(group = 'all') {
-    if (active.current || savingRef.current || !base.current || editors.length || !groupIds[group]) return;
+    if (active.current || savingRef.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;
     const currentEpoch = epoch.current;
     const id = requestId(); const controller = new AbortController();
     const run = { id, controller, group, completed: new Set() };
@@ -209,7 +210,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
   }
 
   async function save() {
-    if (!snapshot || !valid || active.current || savingRef.current || editors.length || conflict) return;
+    if (!snapshot || !valid || active.current || savingRef.current || externalBusyRef.current || editors.length || conflict) return;
     const currentEpoch = epoch.current;
     const value = clone(snapshot);
     const body = { snapshot: value, context_revision: base.current.context_revision };
@@ -250,5 +251,21 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved }) {
     }
     return rendered;
   }, [data, groups]);
-  return { data, renderData, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, reload: () => setReloadVersion(value => value + 1) };
+  function addActivities(places, expectedDraft) {
+    if (!dataRef.current || active.current || savingRef.current || editors.length || (externalBusyRef.current && !expectedDraft)) return false;
+    if (expectedDraft && fingerprint(dataRef.current) !== expectedDraft) return false;
+    try {
+      const next = clone(dataRef.current);
+      for (const place of places) {
+        if (next.map.pins.some(pin => pin.id === place.id || (pin.name === place.name && pin.position.lat === place.position.lat && pin.position.lng === place.position.lng))) continue;
+        next.map.pins.push({ id: place.id, name: place.name, category: 'activity', position: place.position, description: place.reason.slice(0, 240) });
+      }
+      next.map.status = 'ready'; delete next.map.error;
+      const parsed = validateCanvasComponents(next, true);
+      dataRef.current = parsed; setData(parsed); editedComponents.current.add('map'); pendingSave.current = null;
+      setNotice('Places added to your draft. Choose Save plan to keep them.'); setError('');
+      return true;
+    } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
+  }
+  return { data, renderData, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, reload: () => setReloadVersion(value => value + 1) };
 }

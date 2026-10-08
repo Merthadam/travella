@@ -9,6 +9,7 @@ from services.crud.profile_schemas import HomeCity
 from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
 
 from .canvas_contracts import CanvasDraft, ThemesComponent
+from .editing_contracts import CanvasEditRequest, PublicCanvasEditResult
 
 
 class AgentRequest(BaseModel):
@@ -20,9 +21,14 @@ class AgentRequest(BaseModel):
     canvas_action: Literal["generate_themes", "generate_research", "generate_plan"] | None = None
     context_revision: int | None = Field(default=None, ge=1)
     canvas_themes: ThemesComponent | None = None
+    canvas_edit: CanvasEditRequest | None = None
 
     @model_validator(mode="after")
     def separate_canvas_action(self):
+        if self.canvas_edit and (self.canvas_action or self.forwardedProps or self.canvas_themes or self.context_revision):
+            raise ValueError("Send canvas editing separately from other actions.")
+        if self.canvas_edit and not self.message.strip():
+            raise ValueError("A canvas editing message is required.")
         if (self.canvas_themes is not None or self.context_revision is not None) and not self.canvas_action:
             raise ValueError("Canvas context requires a canvas action.")
         if self.canvas_action and self.forwardedProps:
@@ -48,6 +54,7 @@ class AgentResponse(BaseModel):
     result: TurnResult | None = None
     trip_context: ContextSnapshot | None = None
     canvas_draft: CanvasDraft | None = None
+    canvas_edit_result: PublicCanvasEditResult | None = None
 
 
 class TravelerProfileMemoryRequest(BaseModel):

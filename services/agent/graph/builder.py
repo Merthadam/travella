@@ -19,6 +19,7 @@ from ..request_context import (
 from ..state import AgentState
 from .nodes import ConversationNode
 from .nodes.canvas_generation import CanvasGenerationNode
+from .nodes.canvas_editing import CanvasEditingNode
 
 
 class AgentGraph:
@@ -29,13 +30,15 @@ class AgentGraph:
         flow = StateGraph(AgentState)
         flow.add_node("chat", ConversationNode(adapter))
         flow.add_node("canvas_generation", CanvasGenerationNode(canvas_worker))
+        flow.add_node("canvas_editing", CanvasEditingNode(adapter))
         flow.add_conditional_edges(
             START,
-            lambda state: "canvas_generation" if state.get("canvas_action") else "chat",
-            {"canvas_generation": "canvas_generation", "chat": "chat"},
+            lambda state: "canvas_editing" if state.get("canvas_edit") else "canvas_generation" if state.get("canvas_action") else "chat",
+            {"canvas_generation": "canvas_generation", "canvas_editing": "canvas_editing", "chat": "chat"},
         )
         flow.add_edge("chat", END)
         flow.add_edge("canvas_generation", END)
+        flow.add_edge("canvas_editing", END)
         self.compiled = flow.compile(checkpointer=checkpointer)
 
     async def invoke(
@@ -95,7 +98,7 @@ class AgentGraph:
                 and str(source.get("evidence_id", "")) in cited_ids
                 and str(source.get("evidence_id", "")) in evidence
             ] if isinstance(sources, list) else []
-        for field in ("question", "assistant_text", "error"):
+        for field in ("question", "assistant_text", "error", "canvas_edit_result"):
             if result.get(field):
                 projection[field] = result[field]
         return {**result, "projection": projection}

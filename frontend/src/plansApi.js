@@ -11,13 +11,13 @@ const path = id => `/v1/plans/${encodeURIComponent(id)}`;
 const canvasSaveAttempts = new Map();
 const agentPath = plan => `/v1/agent/plans/${encodeURIComponent(plan.plan_id)}/events`;
 
-async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwardedProps, canvasAction, contextRevision, canvasThemes }) {
+async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit }) {
   let response;
   try {
     response = await fetch(`${agentPath(plan)}/stream`, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json', 'X-Travella-Request': '1', Accept: 'text/event-stream' },
-      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(forwardedProps ? { forwardedProps } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
+      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
@@ -44,8 +44,8 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwar
       onEvent({ type: event.type, messageId: String(event.messageId || '') });
     } else if (event.type === 'CUSTOM' && event.name === 'a2ui' && event.value && typeof event.value === 'object') {
       onEvent({ type: 'CUSTOM', name: 'a2ui', value: event.value });
-    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft)) {
-      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}) } });
+    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result)) {
+      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}) } });
     } else if (event.type === 'TERMINAL') {
       terminal = {
         type: 'TERMINAL',
@@ -102,6 +102,7 @@ export const plansApi = {
   },
   agentTurn: (plan, message, eventId) => request(`${agentPath(plan)}`, { plan_id: plan.plan_id, event_id: eventId, message }),
   agentTurnStream,
+  editCanvas: (plan, context, message, id, stream) => agentTurnStream(plan, message, id, { ...stream, canvasEdit: context }),
   canvas: plan => request(`${path(plan.plan_id)}/canvas`),
   generateCanvas: (plan, options, id, stream) => agentTurnStream(plan, '', id, {
     ...stream, canvasAction: { all: 'generate_plan', themes: 'generate_themes', research: 'generate_research' }[options.group || 'all'],

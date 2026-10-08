@@ -5,9 +5,9 @@ const state = { status: z.enum(['ready', 'empty', 'loading', 'error']), error: t
 const unique = items => new Set(items.map(x => x.id)).size === items.length;
 export const categories = {
   stay: { label: 'Stays', color: '#356AC3', icon: 'bed' },
-  airport: { label: 'Airports', color: '#7656B5', icon: 'plane' },
+  airport: { label: 'Airports', color: '#5C697A', icon: 'plane' },
   food: { label: 'Food', color: '#B75539', icon: 'cup' },
-  activity: { label: 'Activities', color: '#28785E', icon: 'spark' },
+  activity: { label: 'Activities', color: '#7656B5', icon: 'spark' },
   other: { label: 'Other', color: '#5C697A', icon: 'pin' },
 };
 export const safeUrl = z.string().max(2048).refine(value => {
