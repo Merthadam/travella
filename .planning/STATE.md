@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 Phase: 13 — Account settings and travel preferences
 Plan: 5 of 5 complete
-Status: Verified complete; 14/14 must-haves passed
-Last activity: 2026-10-08 - Completed quick task 261008-qgn: Global appearance verified; preview localhost:5184
+Status: Phase 13 shipped — PR #3; user-authorized merge pending
+Last activity: 2026-10-08 - Shipped account settings and global appearance in PR #3; preview http://localhost:5194/account
 
 Progress: ░░░░░░░░░░ [█░░░░░░░░░] 7%
 
@@ -152,3 +152,9 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 
 - User selected prototype C: settings list and adjacent inline editor, grouped mobile selector, and light/dark themes. Scope: personal details, travel preferences and security; explicit Save/Cancel.
 - Design source: `prototype/account-settings`; decision and evidence: `.planning/quick/261005-uaq-prototype-three-account-settings-layouts/261005-uaq-SUMMARY.md`. Production implementation remains pending.
+
+### Account settings shipment (2026-10-08)
+
+- PR #3: https://github.com/Merthadam/travella/pull/3 — account settings, design alignment and global appearance; user authorized merge into main.
+- Quick 261008-rkt reconciled phase verification and reran 41 frontend tests, 68 account HTTP/SQL tests and production build successfully. Existing broader test debt remains documented.
+- Dedicated preview moved to http://localhost:5194/account; health and authentication passed. Unrelated local files and the separate main checkout are preserved.
