@@ -1,0 +1,336 @@
+[
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Open interests\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Cleared draft\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Cancelled draft\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Cancel preserved interests\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Cleared again\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Saved cleared interests\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Empty preference saved and visible\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Dark mode\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=A&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Opened editor in dark mode\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Closed editor\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"B\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=B&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Verified B layout\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Light mode\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=B&theme=light."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"B needs editor\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Entered needs\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Saved needs\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"B edit saved; switched to C\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=C&theme=light."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Dark mode\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=C&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"C inline editor\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Changed draft city\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Attempted navigation\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Unsaved-edit guard shown and kept draft\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Cancelled inline draft\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"C cancel preserved saved home\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Variant A\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=A&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"light\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=A&theme=light."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n{\"viewport\":390,\"scrollWidth\":390,\"theme\":\"account-prototype ap-light ap-variant-A\"}\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"dark\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=A&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n{\"viewport\":390,\"scrollWidth\":390,\"theme\":\"account-prototype ap-dark ap-variant-A\"}\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Variant B\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=B&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"light\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=B&theme=light."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n{\"viewport\":390,\"scrollWidth\":390,\"theme\":\"account-prototype ap-light ap-variant-B\"}\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"dark\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=B&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n{\"viewport\":390,\"scrollWidth\":390,\"theme\":\"account-prototype ap-dark ap-variant-B\"}\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Variant C\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=C&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"light\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=C&theme=light."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n{\"viewport\":390,\"scrollWidth\":390,\"theme\":\"account-prototype ap-light ap-variant-C\"}\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"dark\"\n```\nPage navigated to http://127.0.0.1:5176/?preview=account&variant=C&theme=dark."
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n{\"viewport\":390,\"scrollWidth\":390,\"theme\":\"account-prototype ap-dark ap-variant-C\"}\n```"
+      }
+    ]
+  },
+  {
+    "tool": "list_console_messages",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":false,\"hasTouch\":false,\"isLandscape\":false,\"width\":1440,\"height\":1050}\n## Console messages\nShowing 1-4 of 4 (Page 1 of 1).\nmsgid=65 [debug] [vite] connecting... (1 args)\nmsgid=66 [debug] [vite] connected. (1 args)\nmsgid=67 [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold (2 args)\nmsgid=68 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)"
+        }
+      ]
+    }
+  },
+  {
+    "tool": "list_network_requests",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":false,\"hasTouch\":false,\"isLandscape\":false,\"width\":1440,\"height\":1050}\n## Network requests\nShowing 1-49 of 49 (Page 1 of 1).\nreqid=643 GET http://127.0.0.1:5176/?preview=account&variant=B&theme=light [200]\nreqid=644 GET http://127.0.0.1:5176/@vite/client [304]\nreqid=645 GET http://127.0.0.1:5176/src/main.jsx?t=1791230302191 [304]\nreqid=646 GET http://127.0.0.1:5176/node_modules/vite/dist/client/env.mjs [304]\nreqid=647 GET http://127.0.0.1:5176/node_modules/.vite/deps/react.js?v=b757431f [200]\nreqid=648 GET http://127.0.0.1:5176/node_modules/.vite/deps/react-dom_client.js?v=4284b7f0 [200]\nreqid=649 GET http://127.0.0.1:5176/src/AccountApp.jsx [304]\nreqid=650 GET http://127.0.0.1:5176/src/styles.css [304]\nreqid=651 GET http://127.0.0.1:5176/src/tailwind.css?t=1791230302191 [304]\nreqid=652 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-2XCFYVCW.js?v=e7c31526 [200]\nreqid=653 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-PX6F3LHL.js?v=e7c31526 [200]\nreqid=654 GET http://127.0.0.1:5176/src/api.js [304]\nreqid=655 GET http://127.0.0.1:5176/src/PlansApp.jsx [304]\nreqid=656 GET http://127.0.0.1:5176/src/features/onboarding/OnboardingFlow.jsx [304]\nreqid=657 GET http://127.0.0.1:5176/src/plansApi.js [304]\nreqid=658 GET http://127.0.0.1:5176/src/features/plans/components/PlanDrawers.jsx [304]\nreqid=659 GET http://127.0.0.1:5176/src/features/plans/components/PlanConversation.jsx [304]\nreqid=660 GET http://127.0.0.1:5176/src/features/plans/components/PlanWorkspace.jsx [304]\nreqid=661 GET http://127.0.0.1:5176/src/features/plans/components/PlanDetails.jsx [304]\nreqid=662 GET http://127.0.0.1:5176/src/lib/googleMaps.js [304]\nreqid=663 GET http://127.0.0.1:5176/src/features/onboarding/components/ProfilePreview.jsx [304]\nreqid=664 GET http://127.0.0.1:5176/src/features/onboarding/components/StepActions.jsx [304]\nreqid=665 GET http://127.0.0.1:5176/src/features/onboarding/steps/HomeStep.jsx [304]\nreqid=666 GET http://127.0.0.1:5176/src/features/onboarding/steps/CitizenshipStep.jsx [304]\nreqid=667 GET http://127.0.0.1:5176/src/features/onboarding/steps/NeedsStep.jsx [304]\nreqid=668 GET http://127.0.0.1:5176/src/features/onboarding/steps/InterestsStep.jsx [304]\nreqid=669 GET http://127.0.0.1:5176/src/features/onboarding/onboarding.css [304]\nreqid=670 GET http://127.0.0.1:5176/src/features/plans/components/A2uiTripBrief.jsx [304]\nreqid=671 GET http://127.0.0.1:5176/src/features/plans/components/ChatMarkdown.jsx [304]\nreqid=672 GET http://127.0.0.1:5176/src/features/plans/useTripContext.js [304]\nreqid=673 GET http://127.0.0.1:5176/src/features/onboarding/catalogs.js [304]\nreqid=674 GET http://127.0.0.1:5176/src/features/onboarding/places.js [304]\nreqid=675 GET http://127.0.0.1:5176/src/features/onboarding/components/HomeLocationMap.jsx [304]\nreqid=676 GET http://127.0.0.1:5176/src/features/onboarding/components/GoogleAddressSearch.jsx [304]\nreqid=677 GET http://127.0.0.1:5176/node_modules/.vite/deps/zod.js?v=2bd18dd2 [200]\nreqid=678 GET http://127.0.0.1:5176/node_modules/.vite/deps/@a2ui_web_core_v0_9.js?v=0dd9d200 [200]\nreqid=679 GET http://127.0.0.1:5176/node_modules/.vite/deps/@a2ui_react_v0_9.js?v=3e1ca2bf [200]\nreqid=680 GET http://127.0.0.1:5176/src/features/plans/components/TripBrief.jsx [304]\nreqid=681 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-HAPYDWZA.js?v=e7c31526 [200]\nreqid=682 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-KMBUP4WD.js?v=e7c31526 [200]\nreqid=683 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-UZFWLQDC.js?v=e7c31526 [200]\nreqid=684 GET http://127.0.0.1:5176/node_modules/.vite/deps/react-markdown.js?v=a1935592 [200]\nreqid=685 GET http://127.0.0.1:5176/node_modules/.vite/deps/remark-gfm.js?v=8fd23937 [200]\nreqid=686 GET http://127.0.0.1:5176/src/features/plans/components/ChatMarkdown.module.css [304]\nreqid=687 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-L6LO3SMR.js?v=e7c31526 [200]\nreqid=688 GET http://127.0.0.1:5176/@fs/Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/transparent-pajama/services/shared/travel_reference/countries.json?import [304]\nreqid=689 GET http://127.0.0.1:5176/@fs/Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/transparent-pajama/services/shared/travel_reference/interests.json?import [304]\nreqid=690 GET http://127.0.0.1:5176/src/prototypes/AccountSettingsPrototype.jsx?t=1791230302191 [304]\nreqid=691 GET http://127.0.0.1:5176/src/prototypes/account-settings-prototype.css?t=1791230302191 [304]"
+        }
+      ]
+    }
+  }
+]

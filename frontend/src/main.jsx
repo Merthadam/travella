@@ -4,4 +4,5 @@ import { AccountApp } from './AccountApp';
 import './styles.css';
 import './tailwind.css';
 
-createRoot(document.getElementById('root')).render(<AccountApp />);
+const root = createRoot(document.getElementById('root'));
+root.render(<AccountApp />);

@@ -5,6 +5,7 @@ import { PlanConversation } from './features/plans/components/PlanConversation';
 import { PlanWorkspace } from './features/plans/components/PlanWorkspace';
 import { emptyBrief } from './features/plans/components/PlanDetails';
 import { getGoogleMapsApiKey, loadGoogleMaps } from './lib/googleMaps';
+import { AppHeader } from './components/AppHeader';
 
 const unknown = error => !error.status || error.status >= 500 || error.code === 'request_pending';
 const date = value => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'long' });
@@ -96,7 +97,10 @@ function ActionDialog({ value, onClose, onDone, onExpired, api }) {
   </dialog>;
 }
 
-export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false, accountError, api = plansApi }) {
+export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false, accountError, inactive = false, api = plansApi }) {
+  const inactiveView = useRef(inactive);
+  inactiveView.current = inactive;
+  const initialized = useRef(false);
   const [view, setView] = useState('active'), [plans, setPlans] = useState([]), [selected, setSelected] = useState(null);
   const [cursor, setCursor] = useState(null), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [notice, setNotice] = useState(''), [dialog, setDialog] = useState(null);
@@ -172,7 +176,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     if (err.status === 401) { generation.current++; onExpired(); return; }
     setError({ message: err.message || 'We couldn’t load your plans. Try again.', retry });
   }
-  function url(path) { if (window.location.pathname !== path) window.history.pushState({}, '', path); }
+  function url(path) { if (!inactiveView.current && window.location.pathname !== path) window.history.pushState({ accountPosition: (window.history.state?.accountPosition || 0) + 1 }, '', path); }
   async function load(nextView = 'active', nextCursor = null) {
     const ticket = ++generation.current;
     setLoading(true); setError(null); setView(nextView); setSelected(null); setConversationPage(false);
@@ -262,10 +266,16 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     return () => window.removeEventListener('keydown', handleDrawerKeys);
   }, [planDrawerOpen]);
   useEffect(() => {
-    function navigate() { const current = route(); if (current.id) open(current.id, false); else load(current.view); }
+    function navigate() { if (inactiveView.current || location.pathname === '/account') return; initialized.current = true; const current = route(); if (current.id) open(current.id, false); else load(current.view); }
     navigate(); window.addEventListener('popstate', navigate);
     return () => { generation.current++; window.removeEventListener('popstate', navigate); };
   }, []);
+  useEffect(() => {
+    if (!inactive && !initialized.current) {
+      initialized.current = true;
+      const current = route(); if (current.id) open(current.id, false); else load(current.view);
+    }
+  }, [inactive]);
   async function createPlan() {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
@@ -316,16 +326,13 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   }
   return <div className={`plans-app${conversationPage ? ' chat-app' : ''}`}>
     <a className="skip-link" href={conversationPage ? '#conversation-main' : '#plans-main'}>{conversationPage ? 'Skip to conversation' : 'Skip to plans'}</a>
-    <header className={`plans-header${conversationPage ? ' chat-header' : ''}`}><div>
-      {conversationPage ? <div className="chat-nav-leading">
+    <AppHeader className={conversationPage ? 'chat-header' : ''} leading={conversationPage ? <div className="chat-nav-leading">
         <button type="button" className="sidebar-toggle" aria-label={planDrawerOpen ? 'Close plans navigation' : 'Open plans navigation'} aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}><span /><span /><span /></button>
         <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
-      </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}
-      <nav className="app-nav" aria-label="Application navigation">
-        <button className="nav-button" aria-label="Set up authenticator" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
+      </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}>
+        <button className="nav-button" disabled={accountBusy || busy} onClick={onAccount}>Account</button>
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={onSignOut}>Sign out</button>
-      </nav>
-    </div></header>
+    </AppHeader>
     {planDrawerOpen && <PlanDrawer drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
     {conversationPage && selected ? <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} /> : <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>

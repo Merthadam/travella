@@ -50,6 +50,25 @@ test('renders backend order and the empty active state', async () => {
   expect(await screen.findByText('No plans yet')).toBeTruthy();
 });
 
+test('account suspension preserves the selected Plan and its unsent composer', async () => {
+  const id = '9f2d2f35-186c-4d57-a2fa-e5a7820f3783';
+  const api = { ...makeApi([plan(id, 'Kyoto trip')]), researchContext: vi.fn(async () => ({})) };
+  const props = { api, onExpired: vi.fn(), onSignOut: vi.fn(), onAccount: vi.fn() };
+  const user = userEvent.setup(); const view = render(<PlansApp {...props} />);
+  await user.click(await screen.findByRole('link', { name: 'Kyoto trip' }));
+  const composer = await screen.findByRole('textbox', { name: 'Message Travella' });
+  await user.type(composer, 'Unsent question');
+  const getCount = api.get.mock.calls.length;
+  history.pushState({}, '', '/account');
+  view.rerender(<PlansApp {...props} inactive />);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  expect(api.get).toHaveBeenCalledTimes(getCount);
+  history.pushState({}, '', `/plans/${id}`);
+  view.rerender(<PlansApp {...props} inactive={false} />);
+  expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Unsent question');
+  expect(api.get).toHaveBeenCalledTimes(getCount);
+});
+
 test('create uses one request and opens the saved Plan chat', async () => {
   const api = makeApi(); const user = userEvent.setup();
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);

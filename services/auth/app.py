@@ -43,7 +43,8 @@ def configured_app():
             signature_version=UNSIGNED,
             connect_timeout=3,
             read_timeout=5,
-            retries={"max_attempts": 1},
+            # Sensitive account operations must never repeat after an ambiguous result.
+            retries={"total_max_attempts": 1},
         ),
     )
     store = SessionStore(database_url, key)

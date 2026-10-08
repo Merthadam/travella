@@ -1,0 +1,240 @@
+[
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Personal details open\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Name editor\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Name draft\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Name saved\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Name reflected in profile; email editor\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Fictional email entered\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Verification step\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Confirmed simulated verification\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Email saved, security opened\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"MFA editor\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Toggled demo MFA\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Saved demo MFA\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Recovery preview\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Demo recovery regeneration\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Password preview\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Simulated password update\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Security previews passed\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"ArrowRight changed B to C\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Mobile setting selection\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Mobile interests editor\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Custom interest draft\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Input arrow preserved variant; added custom interest\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Saved mobile interest\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Mobile select and custom-interest save passed\"\n```"
+      }
+    ]
+  },
+  {
+    "tool": "list_console_messages",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Console messages\nShowing 1-14 of 14 (Page 1 of 1).\nmsgid=65 [debug] [vite] connecting... (1 args)\nmsgid=66 [debug] [vite] connected. (1 args)\nmsgid=67 [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold (2 args)\nmsgid=68 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)\nmsgid=69 [debug] [vite] connecting... (1 args)\nmsgid=70 [debug] [vite] connected. (1 args)\nmsgid=71 [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold (2 args)\nmsgid=72 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)\nmsgid=73 [issue] A form field element should have an id or name attribute (count: 6)\nmsgid=74 [debug] [vite] connecting... (1 args)\nmsgid=75 [debug] [vite] connected. (1 args)\nmsgid=76 [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold (2 args)\nmsgid=77 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)\nmsgid=78 [issue] A form field element should have an id or name attribute (count: 2)"
+        }
+      ]
+    }
+  },
+  {
+    "tool": "list_network_requests",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Network requests\nShowing 1-49 of 49 (Page 1 of 1).\nreqid=741 GET http://127.0.0.1:5176/?preview=account&variant=C&theme=light [200]\nreqid=742 GET http://127.0.0.1:5176/@vite/client [304]\nreqid=743 GET http://127.0.0.1:5176/src/main.jsx?t=1791230302191 [304]\nreqid=744 GET http://127.0.0.1:5176/node_modules/.vite/deps/react.js?v=b757431f [200]\nreqid=745 GET http://127.0.0.1:5176/node_modules/.vite/deps/react-dom_client.js?v=4284b7f0 [200]\nreqid=746 GET http://127.0.0.1:5176/src/AccountApp.jsx [304]\nreqid=747 GET http://127.0.0.1:5176/src/styles.css [304]\nreqid=748 GET http://127.0.0.1:5176/src/tailwind.css?t=1791230302191 [304]\nreqid=749 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-2XCFYVCW.js?v=e7c31526 [200]\nreqid=750 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-PX6F3LHL.js?v=e7c31526 [200]\nreqid=751 GET http://127.0.0.1:5176/node_modules/vite/dist/client/env.mjs [304]\nreqid=752 GET http://127.0.0.1:5176/src/api.js [304]\nreqid=753 GET http://127.0.0.1:5176/src/PlansApp.jsx [304]\nreqid=754 GET http://127.0.0.1:5176/src/features/onboarding/OnboardingFlow.jsx [304]\nreqid=755 GET http://127.0.0.1:5176/src/features/onboarding/components/ProfilePreview.jsx [304]\nreqid=756 GET http://127.0.0.1:5176/src/features/onboarding/components/StepActions.jsx [304]\nreqid=757 GET http://127.0.0.1:5176/src/features/onboarding/steps/HomeStep.jsx [304]\nreqid=758 GET http://127.0.0.1:5176/src/features/onboarding/steps/CitizenshipStep.jsx [304]\nreqid=759 GET http://127.0.0.1:5176/src/features/onboarding/steps/NeedsStep.jsx [304]\nreqid=760 GET http://127.0.0.1:5176/src/features/onboarding/steps/InterestsStep.jsx [304]\nreqid=761 GET http://127.0.0.1:5176/src/features/onboarding/onboarding.css [304]\nreqid=762 GET http://127.0.0.1:5176/src/plansApi.js [304]\nreqid=763 GET http://127.0.0.1:5176/src/features/plans/components/PlanDrawers.jsx [304]\nreqid=764 GET http://127.0.0.1:5176/src/features/plans/components/PlanConversation.jsx [304]\nreqid=765 GET http://127.0.0.1:5176/src/features/plans/components/PlanWorkspace.jsx [304]\nreqid=766 GET http://127.0.0.1:5176/src/features/plans/components/PlanDetails.jsx [304]\nreqid=767 GET http://127.0.0.1:5176/src/lib/googleMaps.js [304]\nreqid=768 GET http://127.0.0.1:5176/src/features/onboarding/catalogs.js [304]\nreqid=769 GET http://127.0.0.1:5176/src/features/onboarding/places.js [304]\nreqid=770 GET http://127.0.0.1:5176/src/features/onboarding/components/HomeLocationMap.jsx [304]\nreqid=771 GET http://127.0.0.1:5176/src/features/onboarding/components/GoogleAddressSearch.jsx [304]\nreqid=772 GET http://127.0.0.1:5176/src/features/plans/components/A2uiTripBrief.jsx [304]\nreqid=773 GET http://127.0.0.1:5176/src/features/plans/components/ChatMarkdown.jsx [304]\nreqid=774 GET http://127.0.0.1:5176/src/features/plans/useTripContext.js [304]\nreqid=775 GET http://127.0.0.1:5176/@fs/Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/transparent-pajama/services/shared/travel_reference/countries.json?import [304]\nreqid=776 GET http://127.0.0.1:5176/@fs/Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/transparent-pajama/services/shared/travel_reference/interests.json?import [304]\nreqid=777 GET http://127.0.0.1:5176/node_modules/.vite/deps/zod.js?v=2bd18dd2 [200]\nreqid=778 GET http://127.0.0.1:5176/node_modules/.vite/deps/@a2ui_web_core_v0_9.js?v=0dd9d200 [200]\nreqid=779 GET http://127.0.0.1:5176/node_modules/.vite/deps/@a2ui_react_v0_9.js?v=3e1ca2bf [200]\nreqid=780 GET http://127.0.0.1:5176/src/features/plans/components/TripBrief.jsx [304]\nreqid=781 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-HAPYDWZA.js?v=e7c31526 [200]\nreqid=782 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-KMBUP4WD.js?v=e7c31526 [200]\nreqid=783 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-UZFWLQDC.js?v=e7c31526 [200]\nreqid=784 GET http://127.0.0.1:5176/node_modules/.vite/deps/react-markdown.js?v=a1935592 [200]\nreqid=785 GET http://127.0.0.1:5176/node_modules/.vite/deps/remark-gfm.js?v=8fd23937 [200]\nreqid=786 GET http://127.0.0.1:5176/src/features/plans/components/ChatMarkdown.module.css [304]\nreqid=787 GET http://127.0.0.1:5176/node_modules/.vite/deps/chunk-L6LO3SMR.js?v=e7c31526 [200]\nreqid=788 GET http://127.0.0.1:5176/src/prototypes/AccountSettingsPrototype.jsx?t=1791230302191 [304]\nreqid=789 GET http://127.0.0.1:5176/src/prototypes/account-settings-prototype.css?t=1791230302191 [304]"
+        }
+      ]
+    }
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Sample state\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n\"Reload retained theme and variant; reset sample edits\"\n```"
+      }
+    ]
+  },
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "Script ran on page and returned:\n```json\n{\"scrollY\":0,\"viewport\":1050}\n```"
+      }
+    ]
+  }
+]

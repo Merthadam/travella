@@ -170,7 +170,7 @@ def test_traveler_profile_is_explicitly_saved_and_persists(system):
     assert client.get(path).json() == saved.json()
     with system.factory() as db:
         row = db.get(TravelerProfile, "traveler-one")
-        assert row.payload == {key: value for key, value in payload.items() if key != "onboarding_complete"}
+        assert row.payload == {key: value for key, value in payload.items() if key != "onboarding_complete"} | {"revision": saved.json()["revision"]}
         assert row.onboarding_complete is True
 
 

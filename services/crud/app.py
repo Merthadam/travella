@@ -30,6 +30,9 @@ def create_app(verifier, session_factory, *, required_scope=DEFAULT_SCOPE, clock
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
+        if request.url.path == "/v1/traveler-profile/sections":
+            status, message = PROBLEMS["invalid_profile"]
+            return JSONResponse({"code": "invalid_profile", "message": message}, status_code=status)
         return JSONResponse(
             {"code": "invalid_request", "message": "Check the request fields."}, status_code=422
         )

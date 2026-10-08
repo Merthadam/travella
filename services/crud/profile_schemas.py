@@ -139,7 +139,7 @@ class NeedsValues(BaseModel):
         return ProfileInput.trim_text(value)
 
 
-class InterestValues(BaseModel):
+class AccountInterestValues(BaseModel):
     model_config = ConfigDict(extra="forbid")
     interest_ids: list[str] = Field(max_length=40)
     custom_interests: list[str] = Field(max_length=20)
@@ -160,10 +160,16 @@ class InterestValues(BaseModel):
                 unique.append(value)
                 seen.add(value.lower())
         self.custom_interests = unique
-        if len(seen) < 5:
-            raise ValueError("Choose at least five interests, or skip this step.")
         if len(", ".join([labels[value] for value in self.interest_ids] + unique)) > 1000:
             raise ValueError("Please shorten your custom interests.")
+        return self
+
+
+class InterestValues(AccountInterestValues):
+    @model_validator(mode="after")
+    def onboarding_minimum(self):
+        if len(self.interest_ids) + len(self.custom_interests) < 5:
+            raise ValueError("Choose at least five interests, or skip this step.")
         return self
 
 
@@ -188,6 +194,20 @@ class OnboardingMutation(BaseModel):
                 raise ValueError("Only optional steps with no changed values may be skipped.")
         else:
             self.values = STEP_SCHEMAS[self.step].model_validate(self.values).model_dump(mode="json")
+        return self
+
+
+class AccountSectionMutation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    section: Literal["home", "citizenship", "needs", "interests"]
+    values: dict
+    expected_revision: int = Field(ge=0, strict=True)
+    event_id: UUID
+
+    @model_validator(mode="after")
+    def section_values(self):
+        schema = AccountInterestValues if self.section == "interests" else STEP_SCHEMAS[self.section]
+        self.values = schema.model_validate(self.values).model_dump(mode="json")
         return self
 
 

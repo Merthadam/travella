@@ -1,44 +1,44 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 12
-current_phase_name: Travel studio onboarding
-status: human_needed
-stopped_at: Phase 12 implemented; human_needed acceptance checks in 12-UAT.md
-last_updated: "2026-10-04T21:37:20.817Z"
-last_activity: 2026-10-05
-last_activity_desc: Onboarding and low-effort agent changes integrated into origin/main
-state_head: fa0b983afc7d3f51ef8f68c767a34b3b462a4ba4
+current_phase: 13
+current_phase_name: Account settings and travel preferences
+status: complete
+stopped_at: Phase 13 complete; DynamoDB profile-storage planning queued
+last_updated: "2026-10-08T17:24:30.618Z"
+last_activity: 2026-10-08
+last_activity_desc: Phase 13 verified complete; SQL retained and DynamoDB planning queued
+state_head: 756aee6536142ec27b87670e5fe5fccf70c4809f
 progress:
-  total_phases: 12
-  completed_phases: 0
-  total_plans: 32
-  completed_plans: 18
-  percent: 0
+  total_phases: 14
+  completed_phases: 1
+  total_plans: 41
+  completed_plans: 30
+  percent: 7
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-26)
+See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 12 — Travel studio onboarding
+**Current focus:** Phase 13 — Account settings and travel preferences
 
 ## Current Position
 
-Phase: 12 (Travel studio onboarding) — VERIFYING
-Plan: 4 of 4 implemented; independent verification human_needed
-Status: Implementation committed; 11/15 must-haves verified, five acceptance check groups open
-Last activity: 2026-10-05 — Completed quick task 261005-tzh: onboarding and low-effort agent changes integrated into origin/main
+Phase: 13 — Account settings and travel preferences
+Plan: 5 of 5 complete
+Status: Phase 13 shipped — PR #3; user-authorized merge pending
+Last activity: 2026-10-08 - Shipped account settings and global appearance in PR #3; preview http://localhost:5194/account
 
-Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
+Progress: ░░░░░░░░░░ [█░░░░░░░░░] 7%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 5
 - Average duration: —
 - Total execution time: 0.0 hours
 
@@ -47,6 +47,7 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1–8 | 0 | TBD | — |
+| 13 | 5 | - | - |
 
 **Recent Trend:**
 
@@ -56,6 +57,10 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 ## Accumulated Context
 
 ### Decisions
+
+- Phase 13 selected C is implemented and verified; earlier phase acceptance debt remains open.
+- User chose current SQL storage for this delivery; plan DynamoDB traveler-profile storage next.
+- Live email updates remain unavailable until separately authorized Cognito verification configuration; sensitive operation success uses isolated fixtures.
 
 - User selected Python services, a separate React frontend, and uv for Python package management.
 - Phase 12 uses the explicitly requested multi-agent execution flow and an independent source reviewer.
@@ -79,6 +84,8 @@ Progress: ░░░░░░░░░░ [░░░░░░░░░░] 0%
 
 ### Roadmap Evolution
 
+- Phase 13 added: Account settings and travel preferences; user selected C and requested GSD implementation.
+
 - Phase 12 implemented: selected B onboarding, save/resume, catalogs and memory projection; auth re-login and remaining manual checks recorded for acceptance.
 
 - Phase 02.1 inserted after Phase 2: Local PostgreSQL data foundation and typed CRUD schema (URGENT)
@@ -97,7 +104,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-04T19:12:51.532Z
-Stopped at: Phase 11 implementation committed; validation pending
+Stopped at: Phase 13 complete; DynamoDB profile-storage planning queued
 Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-worker/11-VERIFICATION.md
 
 ### Frontend structure decision (2026-09-28)
@@ -136,3 +143,18 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 | 261005-s1w | B onboarding full-address map and automatic nearby airports; build/API/desktop interaction passed, screenshot/mobile acceptance blocked by Chrome stall | 2026-10-05 | — | Verification incomplete | [261005-s1w](./quick/261005-s1w-replace-onboarding-home-form-with-google/) |
 | 261005-tlx | Low Claude SDK effort and helpful compact replies; local rebuild/auth and source freshness passed; model output and savings unmeasured | 2026-10-05 | 33d03d9 | Implemented | [261005-tlx](./quick/261005-tlx-lower-claude-agent-sdk-reasoning-effort-/) |
 | 261005-tzh | Fast-forwarded onboarding and low-effort agent changes into origin/main; preserved dirty local main checkout | 2026-10-05 | 4be4a89 | Complete | [261005-tzh](./quick/261005-tzh-merge-completed-onboarding-and-low-effor/) |
+
+| 261005-uaq | Three interactive account settings layouts with light/dark mode; Chrome desktop/mobile checks complete; user selected C | 2026-10-05 | prototype/account-settings | Prototype | [261005-uaq](./quick/261005-uaq-prototype-three-account-settings-layouts/) |
+| 261008-nb6 | Aligned Account with Plans design; Chrome desktop/mobile light/dark, guarded navigation and retry passed | 2026-10-08 | 73a57a4 | Verified | [261008-nb6-align-account-settings-with-the-main-tra](./quick/261008-nb6-align-account-settings-with-the-main-tra/) |
+| 261008-qgn | Global light/dark appearance; 41 tests and Chrome desktop/mobile navigation, reload and sign-in persistence passed | 2026-10-08 | 756aee6 | Verified | [261008-qgn-apply-the-selected-light-or-dark-appeara](./quick/261008-qgn-apply-the-selected-light-or-dark-appeara/) |
+
+### Account settings design decision (2026-10-05)
+
+- User selected prototype C: settings list and adjacent inline editor, grouped mobile selector, and light/dark themes. Scope: personal details, travel preferences and security; explicit Save/Cancel.
+- Design source: `prototype/account-settings`; decision and evidence: `.planning/quick/261005-uaq-prototype-three-account-settings-layouts/261005-uaq-SUMMARY.md`. Production implementation remains pending.
+
+### Account settings shipment (2026-10-08)
+
+- PR #3: https://github.com/Merthadam/travella/pull/3 — account settings, design alignment and global appearance; user authorized merge into main.
+- Quick 261008-rkt reconciled phase verification and reran 41 frontend tests, 68 account HTTP/SQL tests and production build successfully. Existing broader test debt remains documented.
+- Dedicated preview moved to http://localhost:5194/account; health and authentication passed. Unrelated local files and the separate main checkout are preserved.

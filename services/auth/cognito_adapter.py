@@ -34,6 +34,43 @@ class CognitoAdapter:
     def get_user(self, access_token: str) -> dict[str, Any]:
         return self.client.get_user(AccessToken=access_token)
 
+    def update_names(self, access_token: str, first_name: str, last_name: str):
+        return self.client.update_user_attributes(AccessToken=access_token, UserAttributes=[
+            {"Name": "given_name", "Value": first_name},
+            {"Name": "family_name", "Value": last_name},
+        ])
+
+    def update_email(self, access_token: str, email: str):
+        return self.client.update_user_attributes(AccessToken=access_token,
+            UserAttributes=[{"Name": "email", "Value": email}])
+
+    def resend_email(self, access_token: str):
+        return self.client.get_user_attribute_verification_code(AccessToken=access_token, AttributeName="email")
+
+    def verify_email(self, access_token: str, code: str):
+        return self.client.verify_user_attribute(AccessToken=access_token, AttributeName="email", Code=code)
+
+    def account_configuration(self):
+        # A separate read-only client bounds management-plane capability probes.
+        from botocore.config import Config
+        import boto3
+
+        client = boto3.client("cognito-idp", region_name=self.client.meta.region_name,
+                              config=Config(connect_timeout=2, read_timeout=3,
+                                            retries={"total_max_attempts": 1}))
+        try:
+            return self._account_configuration(client)
+        finally:
+            client.close()
+
+    def _account_configuration(self, client):
+        return {
+            "pool": client.describe_user_pool(UserPoolId=self.user_pool_id)["UserPool"],
+            "client": client.describe_user_pool_client(UserPoolId=self.user_pool_id,
+                ClientId=self.app_client_id)["UserPoolClient"],
+            "mfa": client.get_user_pool_mfa_config(UserPoolId=self.user_pool_id),
+        }
+
     def sign_in(self, email: str, password: str) -> dict[str, Any]:
         return self.client.initiate_auth(
             ClientId=self.app_client_id,
@@ -61,6 +98,13 @@ class CognitoAdapter:
             ConfirmationCode=code,
             Password=new_password,
         )
+
+    def change_password(self, access_token: str, previous: str, proposed: str):
+        return self.client.change_password(AccessToken=access_token, PreviousPassword=previous, ProposedPassword=proposed)
+
+    def set_software_token_preference(self, access_token: str, enabled: bool):
+        return self.client.set_user_mfa_preference(AccessToken=access_token,
+            SoftwareTokenMfaSettings={'Enabled': enabled, 'PreferredMfa': enabled})
 
     def refresh(self, refresh_token: str) -> dict[str, Any]:
         return self.client.get_tokens_from_refresh_token(

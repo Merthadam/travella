@@ -21,7 +21,7 @@ A traveler can move from a holiday idea to a trustworthy, editable single-destin
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Selected-C account settings with reusable preference edits, light/dark mode, canonical identity and guarded security flows — Phase 13; API/SQL and Chrome verified. Live email activation remains unavailable.
 
 ### Active
 
@@ -42,14 +42,14 @@ A traveler can move from a holiday idea to a trustworthy, editable single-destin
 - Autonomous Plan changes, automatic selection, autonomous booking, or automatic addition of recommendations — consequential choices require explicit traveler confirmation.
 - In-app checkout, payment, passenger details, tickets, receipts, booking confirmation, cancellation, refunds, or booking-status tracking — suppliers own the transaction.
 - Multi-provider aggregation, backup-provider failover, or fabricated provider availability — only functional integrations may be exposed.
-- Social sign-in, profile editing, phone-number collection, traveler-managed sign-out-everywhere, and support-led loss-of-all-factors recovery — deferred beyond the account MVP.
+- Social sign-in, phone-number collection, traveler-managed sign-out-everywhere, and support-led loss-of-all-factors recovery — deferred beyond the account MVP.
 - Finalized/completed Plans, sharing, collaboration, duplication, or archival — active Plans remain Draft Plans until deleted in the MVP.
 - Booking-email or document import and secure booking-document storage — requires a later consent, retention, and security design.
 - Unbounded model-generated executable UI — agent-facing UI is restricted to validated schemas and an approved component catalog.
 
 ## Context
 
-- The repository is in pre-MVP planning and contains no application implementation yet.
+- Account, onboarding, Plans and conversational features are implemented locally; prior-phase acceptance debt remains documented. Phase 13 account settings passed independent verification.
 - `CONTEXT.md` defines stable product terminology. `docs/overview.md`, `docs/planning/`, `docs/adr/`, and the accepted user stories under `docs/user-stories/` are the current source-of-truth documents.
 - The documented browser experience includes ordinary plan-management screens, an AG-UI Conversation, and a map-first Planning Canvas with validated generative UI.
 - The accepted service topology has four independently deployable responsibilities: browser frontend, Agent service, CRUD backend, and private Connector/MCP service.
@@ -77,6 +77,7 @@ A traveler can move from a holiday idea to a trustworthy, editable single-destin
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
+| Keep account preferences on SQL for this delivery; plan DynamoDB next | Explicit user decision; preserve current API and revision protections | Phase 13 complete; follow-up captured |
 | Treat the repository context documents as the current source of truth | They contain the accepted product language, stories, service boundaries, and explicit open decisions | — Pending |
 | Scope the initial GSD project to the full documented MVP | The project should roadmap the complete traveler journey rather than only the current Phase 1 contract slice | — Pending |
 | Keep the traveler in explicit control of every consequential Plan change | Travel decisions, provider activity, and saved data must not be silently changed by an agent | — Pending |
@@ -103,4 +104,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-26 after initialization*
+*Last updated: 2026-10-06 after Phase 13 completion*
