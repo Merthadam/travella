@@ -21,8 +21,18 @@ fi
 echo "Waiting for the app container and its local service health checks..."
 app_id=""
 for ((attempt = 0; attempt < 150; attempt++)); do
-  app_id="$("${compose[@]}" -p "$COMPOSE_PROJECT_NAME" -f "$compose_file" ps -q app)"
+  app_id="$("${compose[@]}" -p "$COMPOSE_PROJECT_NAME" -f "$compose_file" ps -a -q app)"
   if [[ -n "$app_id" ]]; then
+    oom_killed="$(docker inspect --format '{{.State.OOMKilled}}' "$app_id")"
+    running="$(docker inspect --format '{{.State.Running}}' "$app_id")"
+    if [[ "$oom_killed" == true ]]; then
+      echo "Docker killed the app because it ran out of memory. Increase Docker/Colima RAM or stop unused stacks before retrying; database volumes are intact." >&2
+      exit 1
+    fi
+    if [[ "$running" != true ]]; then
+      echo "The app container stopped during startup. Check its sanitized service logs before retrying." >&2
+      exit 1
+    fi
     health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$app_id")"
     case "$health" in
       healthy) break ;;

@@ -125,6 +125,23 @@ To stop it after the browser check, run `docker-compose -p travella-local-single
 
 The default browser origin is `http://localhost:5174`. Open that exact origin. Cookies are host and port scoped; do not switch between `localhost` and `127.0.0.1` or between 5173 and 5174 during one sign-in flow. If a custom port is needed, set both `TRAVELLA_FRONTEND_PORT` and `FRONTEND_ORIGIN` to matching values in the local environment, and set `TRAVELLA_LOCAL_ORIGIN` for the check/browser URL.
 
+## If the app disappears when an agent request starts
+
+Inspect only the container state (`OOMKilled`, `ExitCode`, `Running`) and Docker's
+total memory before assuming credentials failed. Exit137 with `OOMKilled=true`
+means Docker killed the app for memory exhaustion. The Claude SDK subprocess,
+Vite, three Python services and other worktree stacks share the VM allocation;
+the default 2 GiB Colima VM has caused this failure locally. A successful
+authentication check does not verify model execution.
+
+The launcher warns below 4 GiB, and readiness stops immediately on a killed app.
+Inspect `docker stats --no-stream` and host RAM before selecting an allocation.
+Increasing Colima memory requires a VM restart: explain that it interrupts all
+local Docker stacks and obtain approval first. Record which containers were
+running, preserve every volume, and restore those containers afterward. Do not
+stop unrelated stacks or repeatedly restart an OOM-killed app without addressing
+memory pressure. A minimal model smoke call requires user authorization.
+
 ## If authentication fails
 
 1. Read the checker's stage and HTTP status. It waits for `/health` and requires `auth_configured: true` before attempting credentials.

@@ -39,6 +39,12 @@ if command -v colima >/dev/null 2>&1 && ! colima status >/dev/null 2>&1; then
   colima start
 fi
 
+docker_memory_bytes="$(docker info --format '{{.MemTotal}}' 2>/dev/null || true)"
+if [[ "$docker_memory_bytes" =~ ^[0-9]+$ ]] && ((docker_memory_bytes < 4 * 1024 * 1024 * 1024)); then
+  echo "Warning: Docker has less than 4 GiB total RAM. The app and Claude Agent SDK share this with every running container." >&2
+  echo "If the app exits with OOMKilled=true, increase the Docker/Colima memory allocation or stop unused stacks. Authentication readiness does not verify model execution." >&2
+fi
+
 echo "Starting Travella at http://localhost:${TRAVELLA_FRONTEND_PORT:-5174}"
 echo "Auth gateway: http://localhost:${TRAVELLA_AUTH_PORT:-8003}"
 echo "Agent service: http://localhost:${TRAVELLA_AGENT_PORT:-8103}"
