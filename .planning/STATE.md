@@ -4,10 +4,10 @@ current_phase: 13
 current_phase_name: Account settings and travel preferences
 status: complete
 stopped_at: Phase 13 complete; DynamoDB profile-storage planning queued
-last_updated: "2026-10-08"
-last_activity: 2026-10-06
+last_updated: "2026-10-08T17:24:30.618Z"
+last_activity: 2026-10-08
 last_activity_desc: Phase 13 verified complete; SQL retained and DynamoDB planning queued
-state_head: 73a57a4318aa8baf5389ec340c46f533fe4914b7
+state_head: 756aee6536142ec27b87670e5fe5fccf70c4809f
 progress:
   total_phases: 14
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 13 — Account settings and travel preferences
 Plan: 5 of 5 complete
 Status: Verified complete; 14/14 must-haves passed
-Last activity: 2026-10-08 - Completed quick task 261008-nb6: Account design aligned and browser verified; preview localhost:5184
+Last activity: 2026-10-08 - Completed quick task 261008-qgn: Global appearance verified; preview localhost:5184
 
 Progress: ░░░░░░░░░░ [█░░░░░░░░░] 7%
 
@@ -146,6 +146,7 @@ Resume file: .planning/phases/11-use-claude-agent-sdk-as-a-langgraph-research-wo
 
 | 261005-uaq | Three interactive account settings layouts with light/dark mode; Chrome desktop/mobile checks complete; user selected C | 2026-10-05 | prototype/account-settings | Prototype | [261005-uaq](./quick/261005-uaq-prototype-three-account-settings-layouts/) |
 | 261008-nb6 | Aligned Account with Plans design; Chrome desktop/mobile light/dark, guarded navigation and retry passed | 2026-10-08 | 73a57a4 | Verified | [261008-nb6-align-account-settings-with-the-main-tra](./quick/261008-nb6-align-account-settings-with-the-main-tra/) |
+| 261008-qgn | Global light/dark appearance; 41 tests and Chrome desktop/mobile navigation, reload and sign-in persistence passed | 2026-10-08 | 756aee6 | Verified | [261008-qgn-apply-the-selected-light-or-dark-appeara](./quick/261008-qgn-apply-the-selected-light-or-dark-appeara/) |
 
 ### Account settings design decision (2026-10-05)
 
