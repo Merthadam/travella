@@ -1,5 +1,5 @@
 import React from "react";
-import { afterEach, expect, test, vi } from "vitest";
+import { beforeEach, afterEach, expect, test, vi } from "vitest";
 import {
   cleanup,
   fireEvent,
@@ -12,6 +12,16 @@ import userEvent from "@testing-library/user-event";
 import { TravelSearch, filterResults } from "./TravelSearch";
 import { travelRequest } from "./travelApi";
 vi.mock("./travelApi", () => ({ travelRequest: vi.fn() }));
+const searchRequest = vi.fn();
+beforeEach(() => {
+  travelRequest.mockImplementation((plan, action, criteria, signal) =>
+    action === "places"
+      ? Promise.resolve({
+          places: [{ place_id: "rome-place", name: "Rome", address: "Italy" }],
+        })
+      : searchRequest(plan, action, criteria, signal),
+  );
+});
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
@@ -38,6 +48,7 @@ const props = {
 async function fill() {
   const user = userEvent.setup();
   await user.selectOptions(screen.getByLabelText("Destination country"), "IT");
+  await user.click(await screen.findByRole("button", { name: "Rome Italy" }));
   await user.selectOptions(screen.getByLabelText("Guest nationality"), "HU");
   fireEvent.change(screen.getByLabelText("Check-in"), {
     target: { value: "2027-11-13" },
@@ -48,7 +59,7 @@ async function fill() {
   return user;
 }
 test("explicit submit sends room criteria, shows sandbox totals and retains last results on failure", async () => {
-  travelRequest
+  searchRequest
     .mockResolvedValueOnce(response("First hotel"))
     .mockRejectedValueOnce(new Error("Search failed"));
   render(<TravelSearch {...props} />);
@@ -57,8 +68,8 @@ test("explicit submit sends room criteria, shows sandbox totals and retains last
   await user.click(screen.getByRole("button", { name: "Search stays" }));
   expect(await screen.findByText("First hotel")).toBeTruthy();
   expect(screen.getByText("Sandbox results")).toBeTruthy();
-  expect(travelRequest.mock.calls[0][2]).toMatchObject({
-    destination: { city: "Rome", country_code: "IT" },
+  expect(searchRequest.mock.calls[0][2]).toMatchObject({
+    destination: { city: "Rome", country_code: "IT", place_id: "rome-place" },
     rooms: [{ adults: 2, children_ages: [] }],
     guest_nationality: "HU",
   });
@@ -68,7 +79,7 @@ test("explicit submit sends room criteria, shows sandbox totals and retains last
 });
 test("a late response after leaving cannot replace a later search", async () => {
   let finishOld;
-  travelRequest
+  searchRequest
     .mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -104,6 +115,22 @@ test("confirmed airport choices are required even when both text inputs are fill
     await screen.findByText("Choose both airports from the suggestions."),
   ).toBeTruthy();
   expect(travelRequest).not.toHaveBeenCalled();
+});
+test("editing a selected city or its country requires selecting a destination again", async () => {
+  render(<TravelSearch {...props} />);
+  const user = await fill();
+  fireEvent.change(screen.getByLabelText("Destination city"), {
+    target: { value: "Wien" },
+  });
+  await user.click(screen.getByRole("button", { name: "Search stays" }));
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Choose a destination from the suggestions",
+  );
+  expect(searchRequest).not.toHaveBeenCalled();
+  await user.click(await screen.findByRole("button", { name: "Rome Italy" }));
+  await user.selectOptions(screen.getByLabelText("Destination country"), "AT");
+  await user.click(screen.getByRole("button", { name: "Search stays" }));
+  expect(searchRequest).not.toHaveBeenCalled();
 });
 test("filters exclude unknowns and sort missing prices last without mutating the response", () => {
   const unknown = hotel("Unknown");

@@ -204,6 +204,7 @@ def test_read_only_request_translation_and_sanitized_result():
         httpx.Response(403, json={"error": "SECRET"}),
         httpx.Response(301, headers={"Location": "https://evil.example/"}),
         httpx.Response(200, text="SECRET"),
+        httpx.Response(200, json={"error": {"code": 4011, "message": "SECRET"}}),
     ],
 )
 def test_failures_are_safe_and_redirects_not_followed(response):
@@ -217,6 +218,58 @@ def test_empty_not_failure_and_missing_key_capabilities():
     api = LiteApi("sand_KEY", transport=httpx.MockTransport(lambda req: httpx.Response(204)))
     assert asyncio.run(api.call("hotels/search", HOTEL))["status"] == "empty"
     assert asyncio.run(LiteApi(None).call("capabilities", {}))["hotels"] is False
+
+
+def test_liteapi_no_availability_error_is_an_empty_hotel_search():
+    api = LiteApi(
+        "sand_KEY",
+        transport=httpx.MockTransport(
+            lambda req: httpx.Response(
+                200, json={"error": {"code": 2001, "message": "no availability found"}}
+            )
+        ),
+    )
+    result = asyncio.run(api.call("hotels/search", HOTEL))
+    assert result["status"] == "empty" and result["results"] == []
+
+
+def test_localized_city_selection_uses_provider_place_id():
+    place_id = "ChIJn8o2UZ4HbUcRRluiUYrlwv0"
+
+    def respond(req):
+        if req.url.path.endswith("/data/places"):
+            assert req.url.params["textQuery"] == "Wien, Austria"
+            assert req.url.params["type"] == "locality"
+            return httpx.Response(
+                200,
+                json={
+                    "data": [
+                        {
+                            "placeId": place_id,
+                            "displayName": "Wien",
+                            "formattedAddress": "Austria",
+                            "types": ["locality"],
+                            "private": "SECRET",
+                        }
+                    ]
+                },
+            )
+        body = json.loads(req.content)
+        assert body["placeId"] == place_id
+        assert "cityName" not in body and "countryCode" not in body
+        return httpx.Response(200, json=hotel_payload())
+
+    api = LiteApi("sand_KEY", transport=httpx.MockTransport(respond))
+    places = asyncio.run(api.call("places", {"q": "Wien", "country_code": "AT"}))
+    assert places["places"][0]["place_id"] == place_id
+    assert "SECRET" not in json.dumps(places)
+    result = asyncio.run(
+        api.call(
+            "hotels/search",
+            HOTEL | {"destination": {"city": "Wien", "country_code": "AT", "place_id": place_id}},
+        )
+    )
+    assert result["status"] == "ready"
 
 
 @pytest.mark.parametrize(

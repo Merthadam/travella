@@ -73,3 +73,55 @@ def test_owned_plan_auth_runtime_and_projection():
             c.post(path.replace("capabilities", "book"), headers=headers, json={}).status_code
             == 404
         )
+
+
+def test_places_owned_plan_and_validation_before_provider_calls():
+    pid = str(uuid4())
+    calls = []
+
+    class Places:
+        async def call(self, *args, **kwargs):
+            calls.append((args, kwargs))
+            return {
+                "provider": "LiteAPI",
+                "sandbox": True,
+                "status": "ready",
+                "places": [
+                    {
+                        "place_id": "vienna-place",
+                        "name": "Wien",
+                        "address": "Austria",
+                        "secret": "PRIVATE",
+                    }
+                ],
+            }
+
+    def verifier(token):
+        if token != "valid":
+            raise ValueError()
+        return ValidatedIdentity(
+            "owner", "client", frozenset({"aws.cognito.signin.user.admin"}), 1, 9999999999
+        )
+
+    plan = {"lifecycle": "active", "traveler_subject": "owner"}
+    app = create_app(
+        verifier=verifier, plan_reader=lambda *args: plan, adapter=object(), travel_client=Places()
+    )
+    path = f"/v1/agent/plans/{pid}/travel/places"
+    headers = {"Authorization": "Bearer valid"}
+    with TestClient(app) as c:
+        assert c.get(path, params={"q": "Wien", "country_code": "AT"}).status_code == 401
+        plan["traveler_subject"] = "someone-else"
+        assert (
+            c.get(path, headers=headers, params={"q": "Wien", "country_code": "AT"}).status_code
+            == 404
+        )
+        plan["traveler_subject"] = "owner"
+        assert (
+            c.get(path, headers=headers, params={"q": "Wien", "country_code": "XX"}).status_code
+            == 422
+        )
+        assert not calls
+        r = c.get(path, headers=headers, params={"q": "Wien", "country_code": "AT"})
+        assert r.status_code == 200 and r.json()["places"][0]["name"] == "Wien"
+        assert "PRIVATE" not in r.text and len(calls) == 1

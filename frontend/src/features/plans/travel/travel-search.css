@@ -97,6 +97,9 @@
 .travel-main-fields > label:first-child {
   grid-column: span 2;
 }
+.travel-main-fields > .travel-stay-destination {
+  grid-column: span 2;
+}
 .travel-main-fields:has(.travel-airport) > label:first-child {
   grid-column: auto;
 }

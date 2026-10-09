@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
+import { StayDestination } from "./StayDestination";
 import "./travel-search.css";
 
 const currencies = ["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"];
@@ -421,6 +422,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
   const stay = mode === "accommodation";
   const dates = initialData?.essentials?.dates;
   const [city, setCity] = useState(initialData?.map?.destination || "");
+  const [place, setPlace] = useState(null);
   const [country, setCountry] = useState("");
   const [nationality, setNationality] = useState("");
   const [start, setStart] = useState(dates?.flexible ? "" : dates?.start || "");
@@ -479,13 +481,21 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
   async function search(event) {
     event.preventDefault();
     setError("");
+    if (stay && !place) {
+      setError("Choose a destination from the suggestions before searching.");
+      return;
+    }
     if (!stay && (!origin || !destination)) {
       setError("Choose both airports from the suggestions.");
       return;
     }
     const criteria = stay
       ? {
-          destination: { city: city.trim(), country_code: country },
+          destination: {
+            city: place.name,
+            country_code: country,
+            place_id: place.place_id,
+          },
           check_in: start,
           check_out: end,
           rooms: rooms.map((r) => ({
@@ -594,16 +604,16 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
       >
         <div className="travel-main-fields">
           {stay ? (
-            <label>
-              Destination city
-              <input
-                required
-                minLength={2}
-                maxLength={120}
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-              />
-            </label>
+            <StayDestination
+              query={city}
+              setQuery={setCity}
+              value={place}
+              onChange={setPlace}
+              country={country}
+              planId={planId}
+              active={active}
+              onExpired={onExpired}
+            />
           ) : (
             <>
               <Airport
@@ -652,7 +662,10 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
           <Country
             label={stay ? "Destination country" : "Country of residence"}
             value={country}
-            onChange={setCountry}
+            onChange={(next) => {
+              setCountry(next);
+              setPlace(null);
+            }}
           />
           {stay && (
             <Country
@@ -954,7 +967,9 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
                   <p>
                     {snapshot.results.length
                       ? "Try a higher budget or reset your filters."
-                      : "Try different dates, airports or traveler details."}
+                      : stay
+                        ? "Try a different destination, dates or guest details."
+                        : "Try different dates, airports or traveler details."}
                   </p>
                   {snapshot.results.length > 0 && (
                     <button onClick={resetFilters}>Reset filters</button>

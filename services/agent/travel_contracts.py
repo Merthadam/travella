@@ -11,6 +11,7 @@ from services.shared.traveler_profile import reference_catalog
 Country = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
 Currency = Literal["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"]
 HotelId = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,100}$")]
+PlaceId = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,255}$")]
 Iata = Annotated[str, Field(pattern=r"^[A-Z]{3}$")]
 
 
@@ -21,6 +22,7 @@ class Strict(BaseModel):
 class Destination(Strict):
     city: str = Field(min_length=2, max_length=120)
     country_code: Country
+    place_id: PlaceId | None = None
 
     @field_validator("country_code")
     @classmethod
@@ -107,19 +109,28 @@ class AirportQuery(Strict):
     q: str = Field(min_length=2, max_length=80)
 
 
+class PlaceQuery(Strict):
+    q: str = Field(min_length=2, max_length=120)
+    country_code: Country
+    _country = field_validator("country_code")(Destination.country.__func__)
+
+
 class HotelQuery(Strict):
     hotel_id: HotelId
 
 
 class TravelInvocation(Strict):
     plan_id: UUID
-    action: Literal["capabilities", "airports", "hotels/search", "hotels/detail", "flights/search"]
+    action: Literal[
+        "capabilities", "airports", "places", "hotels/search", "hotels/detail", "flights/search"
+    ]
     criteria: dict = Field(default_factory=dict)
 
 
 INPUTS = {
     "capabilities": Strict,
     "airports": AirportQuery,
+    "places": PlaceQuery,
     "hotels/search": HotelSearch,
     "hotels/detail": HotelQuery,
     "flights/search": FlightSearch,
@@ -237,6 +248,16 @@ class Airports(Envelope):
     airports: list[Airport] = Field(max_length=12)
 
 
+class Place(Public):
+    place_id: PlaceId
+    name: str
+    address: str | None = None
+
+
+class Places(Envelope):
+    places: list[Place] = Field(max_length=8)
+
+
 class Image(Public):
     url: str
     caption: str | None = None
@@ -263,6 +284,7 @@ class HotelDetail(Envelope):
 OUTPUTS = {
     "capabilities": Capabilities,
     "airports": Airports,
+    "places": Places,
     "hotels/search": SearchResult,
     "hotels/detail": HotelDetail,
     "flights/search": SearchResult,

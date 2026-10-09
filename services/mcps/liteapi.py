@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 import httpx
 from services.agent.travel_contracts import INPUTS, OUTPUTS
+from services.shared.traveler_profile import reference_catalog
 
 BASE = "https://api.liteapi.travel/v3.0"
 
@@ -414,6 +415,9 @@ class LiteApi:
                         if len(data) > 12_000_000:
                             raise ProviderUnavailable("provider_response_invalid")
                     value = json.loads(data)
+                    # Rates use HTTP 200 with error 2001 for valid searches with no offers.
+                    if path == "/hotels/rates" and obj(obj(value).get("error")).get("code") == 2001:
+                        return {"data": []}
                     if not isinstance(value, dict) or value.get("error"):
                         raise ProviderUnavailable("provider_response_invalid")
                     return value
@@ -433,7 +437,37 @@ class LiteApi:
             }
         if action in {"airports", "flights/search"} and not self.flights_enabled:
             raise ProviderUnavailable()
-        if action == "airports":
+        if action == "places":
+            country = next(
+                c["name"]
+                for c in reference_catalog("countries")
+                if c["code"] == data["country_code"]
+            )
+            raw = await self.request(
+                "GET",
+                "/data/places",
+                params={
+                    "textQuery": f"{data['q']}, {country}",
+                    "type": "locality",
+                    "language": "en",
+                },
+            )
+            if not isinstance(raw.get("data"), list):
+                raise ProviderUnavailable("provider_response_invalid")
+            places = [
+                {
+                    "place_id": p["placeId"],
+                    "name": text(p["displayName"], 120),
+                    "address": text(p.get("formattedAddress")),
+                }
+                for p in raw["data"]
+                if isinstance(p, dict)
+                and re.fullmatch(r"[A-Za-z0-9_-]{1,255}", str(p.get("placeId", "")))
+                and text(p.get("displayName"), 120)
+                and "locality" in items(p.get("types"))
+            ][:8]
+            result = {**envelope, "status": "ready" if places else "empty", "places": places}
+        elif action == "airports":
             raw = await self.request("GET", "/data/flights/airports/", params={"q": data["q"]})
             airports = [
                 a
@@ -478,6 +512,8 @@ class LiteApi:
                 body.update(
                     {"hotelIds": [data["hotel_id"]]}
                     if data["hotel_id"]
+                    else {"placeId": data["destination"]["place_id"]}
+                    if data["destination"]["place_id"]
                     else {
                         "cityName": data["destination"]["city"],
                         "countryCode": data["destination"]["country_code"],
