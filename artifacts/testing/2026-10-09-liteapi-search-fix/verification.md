@@ -39,6 +39,8 @@ Provider references: [Places lookup](https://docs.liteapi.travel/reference/get_d
 
 Browser testing used Chrome DevTools and the supplied example account. Only search state changed; no Plan was saved or booking action invoked. Authorization handler tests use isolated fixtures. No durable CRUD behavior changed, so persistence mutation checks are not applicable.
 
+The browser's existing session expired during the extended verification run and correctly redirected to sign-in. Reauthenticated using the example account before the final real search. No authentication implementation changed.
+
 ## Screenshots inspected
 
 - [Destination suggestions](implementation/wien-suggestions-desktop.png)
