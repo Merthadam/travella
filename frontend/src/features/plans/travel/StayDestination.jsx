@@ -23,8 +23,8 @@ export function StayDestination({
         value
           ? `Selected: ${value.name}${value.address ? `, ${value.address}` : ""}`
           : !country
-            ? "Choose a destination country to find cities."
-            : "Type a city, then choose a suggestion.",
+            ? "Choose a destination country to find destinations."
+            : "Type a city or ski area, then choose a suggestion.",
       );
       return;
     }
@@ -64,7 +64,7 @@ export function StayDestination({
   return (
     <div className="travel-airport travel-stay-destination">
       <label>
-        Destination city
+        Destination or ski area
         <input
           required
           minLength={2}
@@ -85,7 +85,7 @@ export function StayDestination({
         </button>
       )}
       {options.length > 0 && (
-        <ul aria-label="Destination city suggestions">
+        <ul aria-label="Destination or ski area suggestions">
           {options.map((place) => (
             <li key={place.place_id}>
               <button

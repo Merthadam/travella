@@ -1,4 +1,4 @@
-"""Bounded, search-only contracts shared by the public and private boundaries."""
+"""Bounded travel contracts shared by the public and private boundaries."""
 
 from datetime import date, timedelta
 import re
@@ -119,15 +119,35 @@ class HotelQuery(Strict):
     hotel_id: HotelId
 
 
+class SandboxHandle(Strict):
+    token: str = Field(min_length=50, max_length=40000, pattern=r"^[A-Za-z0-9_=-]+$")
+
+
+class TestGuest(Strict):
+    first_name: str = Field(min_length=1, max_length=50, pattern=r"^[^<>\x00-\x1f]+$")
+    last_name: str = Field(min_length=1, max_length=50, pattern=r"^[^<>\x00-\x1f]+$")
+
+
+class SandboxBook(SandboxHandle):
+    confirm_mock: Literal[True]
+    guests: list[TestGuest] = Field(min_length=1, max_length=4)
+
+
 class TravelInvocation(Strict):
     plan_id: UUID
     action: Literal[
-        "capabilities", "airports", "places", "hotels/search", "hotels/detail", "flights/search"
+        "capabilities", "airports", "places", "hotels/search", "hotels/detail", "flights/search",
+        "sandbox/prebook", "sandbox/book", "sandbox/status"
     ]
     criteria: dict = Field(default_factory=dict)
 
 
+POST_ACTIONS = {"hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
+
 INPUTS = {
+    "sandbox/prebook": SandboxHandle,
+    "sandbox/book": SandboxBook,
+    "sandbox/status": SandboxHandle,
     "capabilities": Strict,
     "airports": AirportQuery,
     "places": PlaceQuery,
@@ -159,6 +179,7 @@ class Price(Money):
 
 
 class RoomOffer(Public):
+    checkout_token: str | None = None
     id: str
     name: str
     board_name: str | None = None
@@ -281,7 +302,26 @@ class HotelDetail(Envelope):
     hotel: HotelContent
 
 
+class SandboxResult(Public):
+    sandbox: Literal[True] = True
+    provider: Literal["LiteAPI"] = "LiteAPI"
+    status: Literal["review", "confirmed", "pending", "cancelled", "failed", "not_found"]
+    token: str
+    hotel_name: str
+    check_in: str
+    check_out: str
+    room_count: int
+    total: Money
+    room: RoomOffer
+    terms: str | None = None
+    booking_id: str | None = None
+    confirmation_code: str | None = None
+
+
 OUTPUTS = {
+    "sandbox/prebook": SandboxResult,
+    "sandbox/book": SandboxResult,
+    "sandbox/status": SandboxResult,
     "capabilities": Capabilities,
     "airports": Airports,
     "places": Places,

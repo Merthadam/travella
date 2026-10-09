@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
+import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
 import { StayDestination } from "./StayDestination";
 import "./travel-search.css";
 
@@ -219,7 +220,7 @@ function Leg({ leg, label, expanded = false }) {
     </div>
   );
 }
-function Room({ room }) {
+function Room({ room, onCheckout }) {
   return (
     <article className="travel-room">
       <div>
@@ -234,6 +235,7 @@ function Room({ room }) {
             "Cancellation deadline and penalties not supplied."}
         </p>
       </div>
+      {onCheckout && room.checkout_token && <button type="button" onClick={() => onCheckout(room.checkout_token)}>Try mock booking</button>}
       <Price
         price={{ ...room.total, excluded_taxes: room.excluded_taxes }}
         stay
@@ -243,6 +245,7 @@ function Room({ room }) {
 }
 function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired }) {
   const ref = useRef();
+  const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
   const [rooms, setRooms] = useState(item.rooms || []);
   const [loading, setLoading] = useState(stay);
@@ -328,7 +331,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired }) {
           <button onClick={() => setRetry((x) => x + 1)}>Retry details</button>
         </p>
       )}
-      {stay ? (
+      {checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} /> : stay ? (
         <>
           <p>{hotel?.address || item.address}</p>
           {hotel?.images?.length > 0 && (
@@ -349,7 +352,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired }) {
           )}
           <h3>Room offers for your stay</h3>
           {rooms.map((room) => (
-            <Room key={room.id} room={room} />
+            <Room key={room.id} room={room} onCheckout={sandbox && !loading ? setCheckout : null} />
           ))}
           {!loading && !rooms.length && (
             <p>No room offers are available for these dates.</p>
@@ -371,8 +374,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired }) {
         </>
       )}
       <p className="travel-note">
-        Availability and prices can change. Search and comparison only; nothing
-        is reserved or saved to your Plan.
+        Availability and prices can change. Mock bookings are test-only and do not update your Plan.
       </p>
     </dialog>
   );
@@ -438,6 +440,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [recovery, setRecovery] = useState(null);
   const [detail, setDetail] = useState(null);
   const [compared, setCompared] = useState([]);
   const [stars, setStars] = useState("");
@@ -595,6 +598,8 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
             : "Compare the journey, the fare, and the time you get back."}
         </p>
       </header>
+      {stay && <MockBookingRecovery planId={planId} onOpen={setRecovery} />}
+      {stay && recovery && <SandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} />}
       <form
         className="travel-form"
         onSubmit={search}
@@ -1119,7 +1124,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
         </div>
       )}
       <p className="travel-note">
-        Search and compare only. Nothing is reserved or saved to your Plan.
+        Search results are not saved to your Plan. Sandbox stays support mock checkout only.
       </p>
       {detail && (
         <Detail

@@ -239,7 +239,7 @@ def test_localized_city_selection_uses_provider_place_id():
     def respond(req):
         if req.url.path.endswith("/data/places"):
             assert req.url.params["textQuery"] == "Wien, Austria"
-            assert req.url.params["type"] == "locality"
+            assert "type" not in req.url.params
             return httpx.Response(
                 200,
                 json={

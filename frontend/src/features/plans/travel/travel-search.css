@@ -752,3 +752,15 @@
   background: #442f28;
   color: #ffd0b8;
 }
+
+.mock-checkout { border: 1px solid var(--app-line); padding: 24px; border-radius: 16px; margin: 16px 0; overflow-wrap: anywhere; }
+.mock-checkout h3 { font-size: 1.6rem; margin: 0 0 16px; }
+.mock-checkout fieldset { border: 0; padding: 0; margin: 24px 0; min-width: 0; }
+.mock-checkout button { margin: 8px 8px 8px 0; }
+.mock-checkout small { display: block; }
+.mock-guest { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.mock-guest label { display: grid; gap: 8px; }
+.mock-guest input { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--app-line); border-radius: 8px; background: var(--app-panel); color: var(--app-text); font: inherit; box-sizing: border-box; }
+.mock-consent { display: flex; gap: 12px; align-items: flex-start; margin: 20px 0; }
+.mock-consent input { width: 20px; height: 20px; flex-shrink: 0; }
+@media (max-width: 600px) { .mock-checkout { padding: 16px; } .mock-guest { grid-template-columns: 1fr; } }

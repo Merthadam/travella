@@ -1,4 +1,4 @@
-"""Plan ownership is checked before every search; searches never mutate a Plan."""
+"""Plan ownership is checked before every travel request; checkout never mutates a Plan."""
 
 import asyncio
 import json
@@ -9,9 +9,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from .travel_client import TravelClient
-from .travel_contracts import INPUTS, OUTPUTS, TravelInvocation
+from .travel_contracts import INPUTS, OUTPUTS, POST_ACTIONS, TravelInvocation
 
 ERRORS = {
+    "sandbox_only": (403, "Mock checkout requires a sandbox key."),
+    "checkout_expired": (409, "This checkout expired. Search again for a fresh offer."),
     "provider_timeout": (504, "The search took too long. Try again."),
     "provider_unavailable": (503, "Travel search is temporarily unavailable. Try again."),
     "provider_response_invalid": (502, "The provider returned an incomplete response. Try again."),
@@ -94,12 +96,12 @@ def register_travel_routes(app, identity_dependency, read_plan, client=None):
         authorization: str | None = Header(default=None),
     ):
         if action not in INPUTS or (request.method == "POST") != (
-            action in {"hotels/search", "flights/search"}
+            action in POST_ACTIONS
         ):
             raise HTTPException(404, "Search unavailable.")
         try:
             body = await request.body()
-            if len(body) > 8192:
+            if len(body) > 65536:
                 raise ValueError()
             criteria = json.loads(body) if request.method == "POST" else dict(request.query_params)
             invocation = TravelInvocation(plan_id=plan_id, action=action, criteria=criteria)

@@ -1,4 +1,4 @@
-"""Private, read-only travel searches, scoped to a verified traveler and Plan."""
+"""Private travel search and sandbox checkout, scoped to a verified traveler and Plan."""
 
 import asyncio
 import os
@@ -25,10 +25,11 @@ _slots = asyncio.Semaphore(8)
 
 @travel_mcp.tool()
 async def travel_search(action: str, criteria: dict, plan_id: str) -> dict:
-    """Read hotel/flight search data only. No reservation or Plan mutation tools."""
-    require_tool_context(plan_id=plan_id)
+    """Search travel and explicitly requested sandbox hotel checkout. Never mutate Plans."""
+    context = require_tool_context(plan_id=plan_id)
     provider = LiteApi(
         McpSettings.from_env().lite_api_key,
+        scope=(context.subject, context.plan_id),
         flights_enabled=os.getenv("LITEAPI_FLIGHTS_ENABLED", "true").lower() == "true",
     )
     try:

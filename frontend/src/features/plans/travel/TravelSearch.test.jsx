@@ -119,7 +119,7 @@ test("confirmed airport choices are required even when both text inputs are fill
 test("editing a selected city or its country requires selecting a destination again", async () => {
   render(<TravelSearch {...props} />);
   const user = await fill();
-  fireEvent.change(screen.getByLabelText("Destination city"), {
+  fireEvent.change(screen.getByLabelText("Destination or ski area"), {
     target: { value: "Wien" },
   });
   await user.click(screen.getByRole("button", { name: "Search stays" }));

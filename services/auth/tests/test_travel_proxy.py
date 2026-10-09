@@ -131,3 +131,23 @@ def test_successful_cookie_proxy_ignores_browser_identity_and_revalidates_output
         assert sent[0].headers["authorization"] == "Bearer server-access"
         assert "cookie" not in sent[0].headers and "x-traveler-id" not in sent[0].headers
     store.close()
+
+
+def test_mock_checkout_csrf_and_post_only(gateway):
+    login(gateway)
+    path = f'/v1/agent/plans/{PLAN}/travel/'
+    for action in ('sandbox/prebook','sandbox/book','sandbox/status'):
+        assert gateway.client.get(path+action).status_code == 404
+        assert gateway.client.post(path+action,json={},headers={'Origin':'https://evil.test'}).status_code == 403
+
+
+def test_checkout_handles_never_sent_in_query_string():
+    requests = []
+    def upstream(request):
+        requests.append(request)
+        return httpx.Response(409,json={'message':'PRIVATE'})
+    client=AgentClient('https://agent.test',transport=httpx.MockTransport(upstream))
+    status,data=client.travel(PLAN,'sandbox/status',{'token':'a'*60},token='private')
+    assert status==409 and 'PRIVATE' not in json.dumps(data)
+    assert requests[0].method=='POST' and not requests[0].url.query
+    assert json.loads(requests[0].content)['token']=='a'*60

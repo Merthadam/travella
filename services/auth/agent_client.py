@@ -150,7 +150,7 @@ class AgentClient:
             return 503, {"message": "Copilot is temporarily unavailable. Try again."}
 
     def travel(self, plan_id: str, action: str, criteria: dict, *, token: str):
-        from services.agent.travel_contracts import TravelInvocation, INPUTS, OUTPUTS
+        from services.agent.travel_contracts import TravelInvocation, INPUTS, OUTPUTS, POST_ACTIONS
         try:
             request = TravelInvocation(plan_id=plan_id, action=action, criteria=criteria)
             criteria = INPUTS[action].model_validate(criteria).model_dump(mode="json")
@@ -163,16 +163,16 @@ class AgentClient:
             else:
                 with httpx.Client(base_url=self.base_url, timeout=140, follow_redirects=False,
                                   transport=self.transport, trust_env=False) as client:
-                    response = client.request("POST" if action.endswith("/search") else "GET",
+                    response = client.request("POST" if action in POST_ACTIONS else "GET",
                         f"/v1/agent/plans/{request.plan_id}/travel/{action}",
                         headers={"Authorization": f"Bearer {token}"},
-                        **({"json": criteria} if action.endswith("/search") else {"params": criteria}))
+                        **({"json": criteria} if action in POST_ACTIONS else {"params": criteria}))
                 status, data = response.status_code, response.json()
             if status != 200:
-                messages = {401: "Sign in again to search.", 404: "This Plan is unavailable.",
+                messages = {403: "Mock checkout requires a sandbox key.", 409: "This checkout expired. Search again for a fresh offer.", 401: "Sign in again to search.", 404: "This Plan is unavailable.",
                             422: "Check your search criteria.", 429: "Please wait a minute before searching again.",
                             504: "The search took too long. Try again."}
-                safe_status = status if status in {401,404,422,429,502,503,504} else 503
+                safe_status = status if status in {401,403,404,409,422,429,502,503,504} else 503
                 return safe_status, {"message": messages.get(safe_status, "Travel search is temporarily unavailable. Try again.")}
             return 200, OUTPUTS[action].model_validate(data).model_dump(mode="json")
         except (httpx.HTTPError, ValueError, TypeError, AttributeError):

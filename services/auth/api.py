@@ -369,9 +369,9 @@ def create_app(
 
     @app.api_route("/v1/agent/plans/{plan_id}/travel/{action:path}", methods=["GET", "POST"])
     async def travel_proxy(plan_id: str, action: str, request: Request):
-        from services.agent.travel_contracts import INPUTS
+        from services.agent.travel_contracts import INPUTS, POST_ACTIONS
         ready()
-        if action not in INPUTS or (request.method == "POST") != (action in {"hotels/search", "flights/search"}):
+        if action not in INPUTS or (request.method == "POST") != (action in POST_ACTIONS):
             raise HTTPException(404, "Search unavailable.")
         def access_token():
             with store.transaction():

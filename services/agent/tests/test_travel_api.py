@@ -125,3 +125,44 @@ def test_places_owned_plan_and_validation_before_provider_calls():
         r = c.get(path, headers=headers, params={"q": "Wien", "country_code": "AT"})
         assert r.status_code == 200 and r.json()["places"][0]["name"] == "Wien"
         assert "PRIVATE" not in r.text and len(calls) == 1
+
+
+def test_sandbox_http_flow_auth_validation_and_readback():
+    from services.mcps.tests.test_sandbox_checkout import Supplier
+    from services.mcps.liteapi import LiteApi
+    from services.mcps.tests.test_liteapi import HOTEL
+    import httpx
+    supplier = Supplier()
+    pid = str(uuid4())
+    plan = {'lifecycle':'active','traveler_subject':'owner'}
+    class Connector:
+        async def call(self, name, arguments, **scope):
+            api = LiteApi('sand_TEST', scope=(scope['subject'],scope['plan_id']), transport=httpx.MockTransport(supplier))
+            return await api.call(arguments['action'],arguments['criteria'])
+    def verifier(token):
+        if token != 'valid': raise ValueError()
+        return ValidatedIdentity('owner','client',frozenset({'aws.cognito.signin.user.admin'}),1,9999999999)
+    app=create_app(verifier=verifier,plan_reader=lambda subject, plan_id, token: plan if str(plan_id)==pid else None,adapter=object(),travel_client=Connector())
+    h={'Authorization':'Bearer valid'};root=f'/v1/agent/plans/{pid}/travel/'
+    with TestClient(app) as c:
+        for action in ['sandbox/prebook','sandbox/book','sandbox/status']:
+            assert c.post(root+action,json={}).status_code==401
+            assert c.post(root.replace(pid,str(uuid4()))+action,json={},headers=h).status_code==404
+            assert c.get(root+action,headers=h).status_code==404
+            assert c.post(root+action,json={},headers=h).status_code==422
+        r=c.post(root+'hotels/search',json=HOTEL,headers=h)
+        assert r.status_code==200
+        token=r.json()['results'][0]['rooms'][0]['checkout_token']
+        r=c.post(root+'sandbox/prebook',json={'token':token},headers=h)
+        assert r.status_code==200 and r.json()['status']=='review'
+        token=r.json()['token']
+        body={'token':token,'confirm_mock':True,'guests':[{'first_name':'Test','last_name':'Guest'}]}
+        plan['traveler_subject']='other'
+        assert c.post(root+'sandbox/book',json=body,headers=h).status_code==404
+        plan['traveler_subject']='owner'
+        assert not supplier.posts
+        r=c.post(root+'sandbox/book',json=body,headers=h)
+        assert r.status_code==200 and r.json()['status']=='confirmed'
+        r=c.post(root+'sandbox/status',json={'token':token},headers=h)
+        assert r.status_code==200 and r.json()['booking_id']=='TEST123'
+        assert len(supplier.posts)==1 and 'PRIVATE' not in r.text

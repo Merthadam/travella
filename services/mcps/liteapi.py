@@ -1,4 +1,4 @@
-"""Read-only LiteAPI adapter. Credentials and supplier handles never leave this module."""
+"""LiteAPI adapter. Credentials and raw supplier handles stay in the private connector."""
 
 from __future__ import annotations
 
@@ -384,7 +384,8 @@ def normalize_flights(payload, criteria):
 
 
 class LiteApi:
-    def __init__(self, key, *, transport=None, flights_enabled=True):
+    def __init__(self, key, *, transport=None, flights_enabled=True, scope=None):
+        self.scope = scope
         self.key = key
         self.transport = transport
         self.flights_enabled = flights_enabled
@@ -429,6 +430,9 @@ class LiteApi:
     async def call(self, action, criteria):
         data = INPUTS[action].model_validate(criteria).model_dump(mode="json")
         envelope = {"provider": "LiteAPI", "sandbox": self.sandbox}
+        if action.startswith("sandbox/"):
+            from .sandbox_checkout import checkout
+            return await checkout(self, action, data)
         if action == "capabilities":
             return {
                 **envelope,
@@ -448,7 +452,6 @@ class LiteApi:
                 "/data/places",
                 params={
                     "textQuery": f"{data['q']}, {country}",
-                    "type": "locality",
                     "language": "en",
                 },
             )
@@ -464,7 +467,7 @@ class LiteApi:
                 if isinstance(p, dict)
                 and re.fullmatch(r"[A-Za-z0-9_-]{1,255}", str(p.get("placeId", "")))
                 and text(p.get("displayName"), 120)
-                and "locality" in items(p.get("types"))
+                and set(items(p.get("types"))) & {"locality", "ski_resort", "administrative_area_level_3", "sublocality", "natural_feature"}
             ][:8]
             result = {**envelope, "status": "ready" if places else "empty", "places": places}
         elif action == "airports":
@@ -523,6 +526,9 @@ class LiteApi:
                 if not isinstance(raw.get("data"), list):
                     raise ProviderUnavailable("provider_response_invalid")
                 results = normalize_hotels(raw)
+                if self.sandbox and self.scope:
+                    from .sandbox_checkout import attach_offers
+                    attach_offers(self, raw, results, data)
                 if raw["data"] and not results:
                     raise ProviderUnavailable("provider_response_invalid")
                 truncated = not bool(data["hotel_id"])
