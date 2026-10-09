@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { TravelSearch, useTravelCapabilities } from '../travel/TravelSearch';
 import { CanvasSurface } from '../../../design-system/a2ui/CanvasSurface';
 import { ids } from '../../../design-system/schemas';
 import { Icon } from '../../../design-system/components/primitives';
@@ -23,6 +24,21 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const [searchArea, setSearchArea] = useState(null);
   const generated = useRef(false);
   const [screen, setScreen] = useState(null);
+  const travel = useTravelCapabilities(selected.plan_id, onExpired);
+  const [visitedTravel, setVisitedTravel] = useState({});
+  const travelReturnFocus = useRef(null);
+  useEffect(() => {
+    if (screen || !travelReturnFocus.current) return;
+    // A2UI constructs its surface asynchronously after the canvas remounts.
+    const restore = () => {
+      const button = document.querySelector(`.planning-canvas .ds-${travelReturnFocus.current} .ds-travel-link`);
+      if (button) { button.focus(); travelReturnFocus.current = null; observer.disconnect(); }
+    };
+    const observer = new MutationObserver(restore);
+    observer.observe(document.getElementById('canvas-main'), { childList: true, subtree: true });
+    restore();
+    return () => observer.disconnect();
+  }, [screen]);
   const [confirm, setConfirm] = useState(null);
   const started = useRef(false);
   const dialog = useRef(null);
@@ -72,14 +88,14 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
     if (choice.kind === 'leave') { if (canvas.activeGroup) await canvas.stop(); if (chat.active) await chat.stop(); onBack(); }
   }
   function action(id, name, payload) {
-    if (name === 'open_flights' || name === 'open_accommodation') { if (canvas.editing) return; setScreen(name === 'open_flights' ? 'flights' : 'accommodation'); return; }
+    if (name === 'open_flights' || name === 'open_accommodation') { if (canvas.editing) return; const mode = name === 'open_flights' ? 'flights' : 'accommodation'; setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); setMobileView('canvas'); return; }
     if (name === 'retry') { generate(id === 'themes' ? 'themes' : id === 'findings' || id === 'links' ? 'research' : 'all'); return; }
     if (!chatBusy) canvas.action(id, name, payload);
   }
   function showPlace(place) { setPreview(place); setScreen(null); setMobileView('canvas'); requestAnimationFrame(() => document.querySelector('.planning-canvas .ds-map-card')?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })); }
   function searchMapArea(area) { if (busy || canvas.editing) return; setSearchArea(area); setChatOpen(true); setMobileView('chat'); void chat.send('Find a few activities that fit my trip within this map area.', area); }
   const progress = canvas.activeGroup ? canvas.notice || 'Preparing your trip…' : canvas.saving ? 'Saving your plan…' : canvas.dirty || canvas.editing ? 'Unsaved changes' : canvas.saved ? 'Saved' : 'Ready to plan';
-  return <main id="canvas-main" className={`planning-canvas canvas-workspace ${chatOpen ? 'with-chat' : 'chat-closed'} mobile-${mobileView}`} aria-label="Planning canvas" tabIndex={-1}>
+  return <main id="canvas-main" className={`planning-canvas canvas-workspace ${chatOpen && !screen ? 'with-chat' : 'chat-closed'} mobile-${mobileView} ${screen ? 'travel-open' : ''}`} aria-label="Planning canvas" tabIndex={-1}>
     <nav className="canvas-mobile-tabs" aria-label="Plan workspace view"><button type="button" aria-pressed={mobileView === 'canvas'} onClick={() => setMobileView('canvas')}>Plan & map {canvas.data?.map.pins.length ? `(${canvas.data.map.pins.length})` : ''}</button><button type="button" aria-pressed={mobileView === 'chat' && chatOpen} onClick={() => { setChatOpen(true); setMobileView('chat'); }}>Conversation {chat.active ? '· replying' : ''}</button></nav>
     <div className="canvas-workspace-body">
     <div className="planning-canvas-inner">
@@ -88,16 +104,19 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
       {canvas.error && <div className="canvas-error" role="alert"><p>{canvas.error}</p>{(!canvas.data || canvas.conflict) && <button className="ds-button small" disabled={busy} onClick={reload}>{canvas.conflict ? 'Review latest saved plan' : 'Retry loading'}</button>}</div>}
       {canvas.staleContext && <div className="canvas-notice"><p>The conversation has newer trip details. This canvas still shows the version you reviewed. Regenerate the plan to bring the current details into this draft.</p></div>}
       {canvas.editing && <p className="canvas-notice" role="status">Finish or cancel the open card edit before saving, generating, or opening travel search.</p>}
-      {!busy && canvas.notice && <p className="canvas-notice" role="status">{canvas.notice}</p>}
+      {!screen && !busy && canvas.notice && <p className="canvas-notice" role="status">{canvas.notice}</p>}
       {canvas.data && <div className="canvas-group-actions" aria-label="Generate individual plan sections">{['themes', 'research'].map(group => <div key={group}><span>{group === 'themes' ? 'Themes & preferences' : 'Research & websites'}</span><button type="button" className="ds-text-button" disabled={busy || canvas.editing} onClick={() => generate(group)}>{canvas.groups[group] === 'error' ? 'Retry' : 'Regenerate'}</button>{canvas.groups[group] === 'error' && <small role="status">Couldn’t finish. Completed details are still here.</small>}</div>)}</div>}
-      {screen ? <section className="canvas-provider-empty"><button className="ds-text-button" autoFocus onClick={() => { const mode = screen; setScreen(null); requestAnimationFrame(() => document.querySelector(`.planning-canvas .ds-${mode} .ds-travel-link`)?.focus()); }}>← Back to canvas</button><Icon name={screen === 'flights' ? 'plane' : 'bed'} size={44}/><h2>{screen === 'flights' ? 'Flight search is not available yet.' : 'Accommodation search is not available yet.'}</h2><p>Your travel requirements are saved only when you choose Save plan. No supplier offers or booking have been created.</p></section> : canvas.renderData && <CanvasMapContext.Provider value={{ preview, onClearPreview: () => setPreview(null), onSearchArea: searchMapArea, disabled: busy || canvas.editing }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placeSearch={searchCanvasPlaces} preview={false}/></CanvasMapContext.Provider>}
+      {travel.error && <p role="alert" className="canvas-error">{travel.error} <button className="ds-button" onClick={travel.retry}>Retry travel connection</button></p>}
+      {screen && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus onClick={() => { travelReturnFocus.current = screen; setScreen(null); }}>← Back to canvas</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([, , key]) => travel.capabilities?.[key]).map(([mode, label]) => <button key={mode} aria-pressed={screen === mode} onClick={() => { setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); }}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
+      {['accommodation', 'flights'].filter(mode => visitedTravel[mode]).map(mode => <TravelSearch key={`${selected.plan_id}-${mode}`} planId={selected.plan_id} mode={mode} active={screen === mode} initialData={canvas.data} onExpired={onExpired}/>)}
+      {!screen && canvas.renderData && <CanvasMapContext.Provider value={{ preview, onClearPreview: () => setPreview(null), onSearchArea: searchMapArea, disabled: busy || canvas.editing }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placeSearch={searchCanvasPlaces} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider>}
       <dialog className="canvas-confirm" ref={dialog} aria-labelledby="canvas-confirm-title" onCancel={event => { event.preventDefault(); setConfirm(null); }}>
         <h2 id="canvas-confirm-title">{confirm?.kind === 'generate' ? `Replace the draft ${groupLabel[confirm.group]}?` : confirm?.kind === 'reload' ? 'Discard edits and load the saved plan?' : 'Leave without saving?'}</h2>
         <p>{confirm?.kind === 'generate' ? 'New results replace the selected generated sections, including edits in those sections. Your essentials and saved map places stay in the draft. Save plan is still required to keep the result.' : 'Your unsaved canvas edits will be discarded. Your last saved plan will remain available.'}</p>
         <div><button type="button" className="ds-button" autoFocus onClick={() => setConfirm(null)}>Keep editing</button><button type="button" className="ds-button primary" onClick={confirmed}>{confirm?.kind === 'generate' ? 'Replace draft sections' : confirm?.kind === 'reload' ? 'Load saved plan' : 'Leave canvas'}</button></div>
       </dialog>
     </div>
-    <CanvasConversation chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading || canvas.editing)} generating={Boolean(canvas.activeGroup)} onClose={() => { setChatOpen(false); setMobileView('canvas'); }} onPreview={showPlace} onAdd={canvas.addActivities} area={searchArea} onClearArea={() => setSearchArea(null)}/>
+    {!screen && <CanvasConversation chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading || canvas.editing)} generating={Boolean(canvas.activeGroup)} onClose={() => { setChatOpen(false); setMobileView('canvas'); }} onPreview={showPlace} onAdd={canvas.addActivities} area={searchArea} onClearArea={() => setSearchArea(null)}/> }
     </div>
   </main>;
 }

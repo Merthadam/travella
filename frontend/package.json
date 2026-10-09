@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "vite --force",
     "prototype:cards": "vite --config vite.prototype-cards.config.js --host localhost --port 5176 --strictPort",
-    "prototype:search": "cd .. && COMPOSE_PROJECT_NAME=travella-liteapi-preview TRAVELLA_SECRETS_MODE=local TRAVELLA_FRONTEND_PORT=5374 TRAVELLA_AUTH_PORT=8303 TRAVELLA_AGENT_PORT=8304 FRONTEND_ORIGIN=http://localhost:5374 TRAVELLA_LOCAL_ORIGIN=http://localhost:5374 bash scripts/start-local-ready.sh",
     "build": "vite build",
     "test": "vitest run",
     "dev:components": "vite --config vite.components.config.js",

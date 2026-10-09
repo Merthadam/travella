@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { normalizeTitle, plansApi, requestId } from './plansApi';
 import { PlanDrawer } from './features/plans/components/PlanDrawers';
-import { LiteApiSearchPrototype } from './features/plans/prototypes/LiteApiSearchPrototype';
 import { TravelCardsPrototype } from './features/plans/prototypes/TravelCardsPrototype';
 import { PlanningCanvas } from './features/plans/components/PlanningCanvas';
 import { PlanConversation } from './features/plans/components/PlanConversation';
@@ -348,7 +347,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={() => { if (leaveCanvas()) onSignOut(); }}>Sign out</button>
     </AppHeader>
     {planDrawerOpen && <PlanDrawer drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
-    {import.meta.env.DEV && new URLSearchParams(location.search).get('prototype') === 'liteapi-search' ? <LiteApiSearchPrototype /> : import.meta.env.DEV && new URLSearchParams(location.search).get('prototype') === 'travel-cards' ? <TravelCardsPrototype /> : conversationPage && selected ? (canvasPage ? <PlanningCanvas key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} autoGenerate={generateCanvas} onBack={() => { canvasDirty.current = false; setCanvasPage(false); }} onDirtyChange={dirty => { canvasDirty.current = dirty; }} onBusyChange={active => { canvasBusy.current = active; }} onSaved={result => setSelected(current => current ? { ...current, revision: result.revision } : current)} /> : <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} onCanvas={showCanvas} />) : <main id="plans-main" className="plans-main" tabIndex={-1}>
+    {import.meta.env.DEV && new URLSearchParams(location.search).get('prototype') === 'travel-cards' ? <TravelCardsPrototype /> : conversationPage && selected ? (canvasPage ? <PlanningCanvas key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} autoGenerate={generateCanvas} onBack={() => { canvasDirty.current = false; setCanvasPage(false); }} onDirtyChange={dirty => { canvasDirty.current = dirty; }} onBusyChange={active => { canvasBusy.current = active; }} onSaved={result => setSelected(current => current ? { ...current, revision: result.revision } : current)} /> : <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} onCanvas={showCanvas} />) : <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>
         {!selected && view === 'active' && <button className="primary" disabled={busy || loading} onClick={createPlan}>{busy ? 'Creating plan…' : 'New plan'}</button>}</div>
       {notice && <p className="plan-notice" role="status">{notice}</p>}
