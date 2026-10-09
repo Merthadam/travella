@@ -1,2 +1,50 @@
-/* Public design tokens. Consumers can override these on their own container. */
-:root{--ds-ink:#243e34;--ds-muted:#617165;--ds-paper:#f6f7f1;--ds-surface:#fff;--ds-line:#e0e5d9;--ds-green:#254e3d;--ds-lime:#d8e7b5;--ds-radius:18px;--ds-font:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ds-display:Georgia,"Times New Roman",serif;--ds-shadow:0 4px 20px #263e3005}
+/* Shared with app appearance; fallbacks keep the standalone gallery usable. */
+:root {
+  --ds-ink: var(--app-text, #243e34);
+  --ds-muted: var(--app-muted, #617165);
+  --ds-paper: var(--app-bg, #f6f7f1);
+  --ds-surface: var(--app-panel, #fff);
+  --ds-soft: var(--app-soft, #f3f5ee);
+  --ds-line: var(--app-line, #e0e5d9);
+  --ds-control: var(--app-control, #9aafc3);
+  --ds-green: var(--app-link, #254e3d);
+  --ds-focus: var(--app-focus, #167765);
+  --ds-active: var(--app-active, #eaf0df);
+  --ds-active-text: var(--app-active-text, #36552e);
+  --ds-active-line: var(--app-active-line, #92b88b);
+  --ds-action: #254e3d;
+  --ds-on-action: #fff;
+  --ds-danger: var(--app-danger, #a12e35);
+  --ds-danger-bg: var(--app-danger-bg, #fff0ee);
+  --ds-warning: var(--app-warning, #725f39);
+  --ds-warning-bg: var(--app-warning-bg, #fffbf0);
+  --ds-purple: #675780;
+  --ds-purple-bg: #eae7f2;
+  --ds-peach: #96573c;
+  --ds-peach-bg: #f6e9df;
+  --ds-blue: #426aa6;
+  --ds-lime: #d8e7b5;
+  --ds-map-land: #eeeadd;
+  --ds-map-water: #b9d8d6;
+  --ds-map-road: #fdfaf1;
+  --ds-map-park: #d7e3c9;
+  --ds-radius: 18px;
+  --ds-font: Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --ds-display: Georgia,"Times New Roman",serif;
+  --ds-shadow: 0 4px 20px #263e3005;
+}
+:root[data-theme="dark"] {
+  --ds-action: #9ef1d8;
+  --ds-on-action: #123b32;
+  --ds-purple: #d0b8f4;
+  --ds-purple-bg: #302941;
+  --ds-peach: #f4bc9e;
+  --ds-peach-bg: #3d2c28;
+  --ds-blue: #a5c8ff;
+  --ds-lime: #354b32;
+  --ds-map-land: #23352e;
+  --ds-map-water: #254653;
+  --ds-map-road: #486054;
+  --ds-map-park: #304a36;
+  --ds-shadow: 0 4px 20px #00000014;
+}

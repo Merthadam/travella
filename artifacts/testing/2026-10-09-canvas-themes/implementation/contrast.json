@@ -1,0 +1,120 @@
+[
+  {
+    "theme": "light",
+    "checks": [
+      {
+        "selector": ".planning-canvas",
+        "color": "rgb(23, 38, 58)",
+        "background": "rgb(238, 243, 248)",
+        "ratio": 13.68
+      },
+      {
+        "selector": ".ds-card",
+        "color": "rgb(23, 38, 58)",
+        "background": "rgb(255, 255, 255)",
+        "ratio": 15.28
+      },
+      {
+        "selector": ".canvas-notice",
+        "color": "rgb(13, 95, 80)",
+        "background": "rgb(217, 246, 238)",
+        "ratio": 6.63
+      },
+      {
+        "selector": ".ds-button.primary",
+        "color": "rgb(255, 255, 255)",
+        "background": "rgb(37, 78, 61)",
+        "ratio": 9.39
+      },
+      {
+        "selector": ".canvas-chat",
+        "color": "rgb(23, 38, 58)",
+        "background": "rgb(255, 255, 255)",
+        "ratio": 15.28
+      },
+      {
+        "selector": ".canvas-chat-author",
+        "color": "rgb(91, 113, 140)",
+        "background": "rgb(243, 247, 250)",
+        "ratio": 4.66
+      },
+      {
+        "selector": ".canvas-chat-composer>p",
+        "color": "rgb(91, 113, 140)",
+        "background": "rgb(255, 255, 255)",
+        "ratio": 5.02
+      },
+      {
+        "selector": ".canvas-chat-input textarea",
+        "color": "rgb(23, 38, 58)",
+        "background": "rgb(243, 247, 250)",
+        "ratio": 14.18
+      },
+      {
+        "selector": ".canvas-theme-options button[aria-pressed=true]",
+        "color": "rgb(23, 38, 58)",
+        "background": "rgb(217, 246, 238)",
+        "ratio": 13.36
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "checks": [
+      {
+        "selector": ".planning-canvas",
+        "color": "rgb(234, 242, 251)",
+        "background": "rgb(12, 23, 37)",
+        "ratio": 15.96
+      },
+      {
+        "selector": ".ds-card",
+        "color": "rgb(234, 242, 251)",
+        "background": "rgb(20, 34, 53)",
+        "ratio": 14.19
+      },
+      {
+        "selector": ".canvas-notice",
+        "color": "rgb(158, 241, 216)",
+        "background": "rgb(23, 63, 62)",
+        "ratio": 8.82
+      },
+      {
+        "selector": ".ds-button.primary",
+        "color": "rgb(18, 59, 50)",
+        "background": "rgb(158, 241, 216)",
+        "ratio": 9.44
+      },
+      {
+        "selector": ".canvas-chat",
+        "color": "rgb(234, 242, 251)",
+        "background": "rgb(20, 34, 53)",
+        "ratio": 14.19
+      },
+      {
+        "selector": ".canvas-chat-author",
+        "color": "rgb(169, 186, 206)",
+        "background": "rgb(28, 46, 67)",
+        "ratio": 6.97
+      },
+      {
+        "selector": ".canvas-chat-composer>p",
+        "color": "rgb(169, 186, 206)",
+        "background": "rgb(20, 34, 53)",
+        "ratio": 8.09
+      },
+      {
+        "selector": ".canvas-chat-input textarea",
+        "color": "rgb(234, 242, 251)",
+        "background": "rgb(20, 34, 53)",
+        "ratio": 14.19
+      },
+      {
+        "selector": ".canvas-theme-options button[aria-pressed=true]",
+        "color": "rgb(234, 242, 251)",
+        "background": "rgb(23, 63, 62)",
+        "ratio": 10.23
+      }
+    ]
+  }
+]

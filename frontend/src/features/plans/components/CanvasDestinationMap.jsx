@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { useAppearance } from '../../appearance/AppearanceProvider';
 import { loadGoogleMaps } from '../../../lib/googleMaps';
 import { categories } from '../../../design-system/schemas';
 
@@ -42,7 +43,10 @@ export async function searchCanvasPlaces(query, destination) {
 
 export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect }) {
   const { preview, onClearPreview, onSearchArea, disabled } = useContext(CanvasMapContext);
+  const { theme } = useAppearance();
   const canvas = useRef(null);
+  const mapView = useRef(null);
+  const framedDestination = useRef(null);
   const selection = useRef(onSelect); selection.current = onSelect;
   const [runtime, setRuntime] = useState(null);
   const [attempt, setAttempt] = useState(0);
@@ -61,13 +65,23 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     loadGoogleMaps({ libraries: ['maps', 'marker'] }).then(({ maps, libraries }) => {
       if (!alive || !canvas.current) return;
       map = new libraries.maps.Map(canvas.current, {
-        mapId: 'DEMO_MAP_ID', center: { lat: 20, lng: 0 }, zoom: 2,
+        mapId: 'DEMO_MAP_ID', colorScheme: theme === 'dark' ? 'DARK' : 'LIGHT',
+        center: mapView.current?.center || { lat: 20, lng: 0 }, zoom: mapView.current?.zoom ?? 2,
         fullscreenControl: false, streetViewControl: false, mapTypeControl: false, gestureHandling: 'cooperative',
       });
       setRuntime({ map, maps, Marker: libraries.marker.AdvancedMarkerElement });
     }).catch(() => { if (alive) setMapError(true); });
-    return () => { alive = false; if (map) window.google?.maps?.event.clearInstanceListeners(map); setRuntime(null); };
-  }, [attempt]);
+    return () => {
+      alive = false;
+      if (map) {
+        mapView.current = { center: map.getCenter()?.toJSON(), zoom: map.getZoom() };
+        window.google?.maps?.event.clearInstanceListeners(map);
+      }
+      setRuntime(null);
+    };
+    // Google Maps only accepts colorScheme at construction. Preserve the view
+    // when recreating it so switching appearance never resets the user's map.
+  }, [attempt, theme]);
 
   useEffect(() => {
     let alive = true;
@@ -85,7 +99,8 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   }, [destination, usableDestination, attempt]);
 
   useEffect(() => {
-    if (!runtime || !resolved) return;
+    if (!runtime || !resolved || framedDestination.current === resolved) return;
+    framedDestination.current = resolved;
     if (resolved.geometry.viewport) runtime.map.fitBounds(resolved.geometry.viewport, 24);
     else { runtime.map.setCenter(resolved.geometry.location); runtime.map.setZoom(resolved.types?.includes('country') ? 5 : 12); }
   }, [runtime, resolved]);
