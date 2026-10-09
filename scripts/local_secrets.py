@@ -40,7 +40,7 @@ ROOT_KEYS = frozenset(
         "AGENTCORE_MEMORY_NAMESPACE_TEMPLATE",
     }
 )
-MCP_KEYS = frozenset({"TAVILY_API_KEY", "GOOGLE_MAPS_SERVER_API_KEY"})
+MCP_KEYS = frozenset({"TAVILY_API_KEY", "GOOGLE_MAPS_SERVER_API_KEY", "LITE_API_KEY"})
 FRONTEND_KEYS = frozenset({"VITE_GOOGLE_MAPS_API_KEY"})
 ALLOWED_KEYS = ROOT_KEYS | MCP_KEYS | FRONTEND_KEYS
 # Read old shared secrets without distributing retired model credentials/settings.

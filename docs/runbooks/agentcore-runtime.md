@@ -111,3 +111,26 @@ restore its local `AGENT_BASE_URL`. Preserve Plan storage and memory resources.
 
 
 The Runtime resource itself is not created by this repository change. Deploy it only after the ECR image, execution role, Cognito authorizer, header allowlist, network path, and secrets are configured.
+
+### LiteAPI search connector
+
+The Plan travel screens use a read-only private MCP target named
+`travella-travel-mcp` (`python -m services.mcps.travel_server`). Supply
+`LITE_API_KEY` to that connector only. Local single-stack Compose includes the
+service and `LOCAL_TRAVEL_MCP_URL`; shared-secret sync routes the key only to
+`services/mcps/.env`. `LITEAPI_FLIGHTS_ENABLED=false` hides flight search when the
+provider account does not support it. Capabilities report configured access;
+provider failures remain explicit search errors.
+
+For a Gateway deployment, deploy the same authenticated MCP service, set
+`TRAVEL_MCP_ENDPOINT` to its HTTPS MCP endpoint, and reconcile the Gateway with
+`scripts/provision-agentcore-gateway.py`. Its optional target uses the existing
+service OAuth and signed Plan assertion contract. The Agent Runtime accepts the
+`travel` invocation and resolves `travella-travel-mcp___travel_search`; no key is
+required in the frontend, BFF or Agent. This change does not deploy AWS resources.
+
+Searches cover hotel rates/content, airport lookup and return-flight rates only.
+No prebook, booking, payment or cancellation tool is exposed. Search results and
+comparisons are transient and do not change the durable Plan. Hotel detail refresh
+uses the exact submitted dates, occupancy, nationality and currency. The current
+sandbox key yields explicitly labeled test inventory, not purchasable bookings.

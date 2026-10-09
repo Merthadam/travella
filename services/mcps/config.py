@@ -15,10 +15,12 @@ class McpSettings:
     memory_namespace_template: str
     mcp_assertion_signing_secret: str | None = None
     gateway_service_token: str | None = None
+    lite_api_key: str | None = None
 
     @classmethod
     def from_env(cls) -> "McpSettings":
         return cls(
+            lite_api_key=os.getenv("LITE_API_KEY") or None,
             tavily_api_key=os.getenv("TAVILY_API_KEY") or None,
             google_maps_server_api_key=os.getenv("GOOGLE_MAPS_SERVER_API_KEY") or None,
             memory_provider=os.getenv("AGENT_MEMORY_PROVIDER", "none"),

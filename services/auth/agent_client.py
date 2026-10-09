@@ -149,6 +149,35 @@ class AgentClient:
         except (httpx.HTTPError, ValueError, TypeError, AttributeError, ValidationError):
             return 503, {"message": "Copilot is temporarily unavailable. Try again."}
 
+    def travel(self, plan_id: str, action: str, criteria: dict, *, token: str):
+        from services.agent.travel_contracts import TravelInvocation, INPUTS, OUTPUTS
+        try:
+            request = TravelInvocation(plan_id=plan_id, action=action, criteria=criteria)
+            criteria = INPUTS[action].model_validate(criteria).model_dump(mode="json")
+        except (ValueError, KeyError):
+            return 422, {"code": "invalid_search", "message": "Check your search criteria."}
+        try:
+            if self.runtime_arn:
+                status, data = self._runtime_call("travel", request.model_dump(mode="json"), token=token,
+                                                  scope=f"plan:{plan_id}", timeout=140, attempts=1)
+            else:
+                with httpx.Client(base_url=self.base_url, timeout=140, follow_redirects=False,
+                                  transport=self.transport, trust_env=False) as client:
+                    response = client.request("POST" if action.endswith("/search") else "GET",
+                        f"/v1/agent/plans/{request.plan_id}/travel/{action}",
+                        headers={"Authorization": f"Bearer {token}"},
+                        **({"json": criteria} if action.endswith("/search") else {"params": criteria}))
+                status, data = response.status_code, response.json()
+            if status != 200:
+                messages = {401: "Sign in again to search.", 404: "This Plan is unavailable.",
+                            422: "Check your search criteria.", 429: "Please wait a minute before searching again.",
+                            504: "The search took too long. Try again."}
+                safe_status = status if status in {401,404,422,429,502,503,504} else 503
+                return safe_status, {"message": messages.get(safe_status, "Travel search is temporarily unavailable. Try again.")}
+            return 200, OUTPUTS[action].model_validate(data).model_dump(mode="json")
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+            return 503, {"message": "Travel search is temporarily unavailable. Try again."}
+
     def sync_profile(self, *, token: str, profile: dict) -> str:
         """Mirror an already-saved CRUD profile; return only a safe status."""
         allowed = {
