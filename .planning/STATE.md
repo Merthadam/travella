@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
 Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-10 - Completed quick task 261010-x40: rebased research UI and canvas confirmation onto origin/main 032f16a; 25 focused tests, build, and browser smoke checks passed.
+Last activity: 2026-10-10 - PR #7 prepared for authorized merge after rebasing onto fc3ad50; places changes preserved; 37 focused tests, build and browser verification passed.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
