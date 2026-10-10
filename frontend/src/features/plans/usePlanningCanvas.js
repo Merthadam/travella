@@ -252,7 +252,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     return rendered;
   }, [data, groups]);
   function addActivities(places, expectedDraft) {
-    if (!dataRef.current || active.current || savingRef.current || editors.length || (externalBusyRef.current && !expectedDraft)) return false;
+    if (!dataRef.current || active.current || savingRef.current || (externalBusyRef.current && !expectedDraft)) return false;
     if (expectedDraft && fingerprint(dataRef.current) !== expectedDraft) return false;
     try {
       const next = clone(dataRef.current);

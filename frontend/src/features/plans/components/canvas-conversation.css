@@ -110,3 +110,6 @@
 .planning-canvas .canvas-chat-starters button{font-size:13px;min-height:44px}
 .planning-canvas .canvas-chat-input textarea{background:transparent;color:var(--ds-ink)}
 .canvas-chat-input{background:var(--ds-soft)}
+
+.canvas-chat-panel{display:contents}
+.canvas-chat-panel[hidden]{display:none}

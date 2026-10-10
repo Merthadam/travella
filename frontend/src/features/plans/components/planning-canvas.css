@@ -16,13 +16,6 @@
 .planning-canvas .ds-form label{margin:0 0 16px}
 .planning-canvas .canvas-place-result{color:var(--ds-ink)}
 
-/* Appearance is reachable without leaving a draft or its travel search. */
-.canvas-appearance-bar{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:8px 24px;border-bottom:1px solid var(--ds-line);background:var(--ds-surface);flex-shrink:0}
-.canvas-appearance-bar>span{font-size:12px;color:var(--ds-muted)}
-.canvas-theme-options{display:flex;gap:4px;padding:3px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-soft)}
-.planning-canvas .canvas-theme-options button{min-height:36px;min-width:72px;padding:7px 12px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--ds-muted);font:500 13px var(--ds-font);cursor:pointer}
-.planning-canvas .canvas-theme-options button[aria-pressed=true]{background:var(--ds-active);color:var(--ds-active-text);border-color:var(--ds-active-line)}
-.planning-canvas .canvas-theme-options button:hover{color:var(--ds-ink)}
 .planning-canvas .ds-button:hover:not(:disabled){background:var(--ds-soft);filter:none}
 .planning-canvas .ds-button.primary:hover:not(:disabled){background:var(--ds-action);filter:brightness(.94)}
 .planning-canvas .ds-button.ghost:hover:not(:disabled){background:var(--ds-soft)}
@@ -30,4 +23,4 @@
 .planning-canvas .ds-form input::placeholder,.planning-canvas textarea::placeholder{color:var(--ds-muted);opacity:1}
 .planning-canvas .ds-service-note,.planning-canvas .ds-booking-status,.planning-canvas .ds-certainty{font-size:12px}
 .planning-canvas .ds-form label,.canvas-notice,.canvas-map-message{font-size:13px}
-@media(max-width:760px){.canvas-appearance-bar{padding:6px 16px}.planning-canvas .canvas-theme-options button{min-height:40px}.planning-canvas .ds-form input,.planning-canvas .ds-form select{font-size:16px}}
+@media(max-width:760px){.planning-canvas .ds-form input,.planning-canvas .ds-form select{font-size:16px}}

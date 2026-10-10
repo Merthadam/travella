@@ -1,9 +1,7 @@
 import React from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { AppearanceProvider } from '../../appearance/AppearanceProvider';
-import { CanvasAppearance } from './CanvasAppearance';
 import { CanvasDestinationMap } from './CanvasDestinationMap';
 import { loadGoogleMaps } from '../../../lib/googleMaps';
 
@@ -32,11 +30,10 @@ test('changing appearance preserves the explored map view without changing plan 
       geocoding: { Geocoder: class { geocode() { return Promise.resolve({ results: [destination] }); } } },
     },
   });
-  const user = userEvent.setup();
-  render(<AppearanceProvider><CanvasAppearance /><CanvasDestinationMap destination="Kreischberg" final places={[]} onSelect={onSelect} /></AppearanceProvider>);
+  render(<AppearanceProvider><CanvasDestinationMap destination="Kreischberg" final places={[]} onSelect={onSelect} /></AppearanceProvider>);
   await waitFor(() => expect(maps[0]?.fitBounds).toHaveBeenCalledOnce());
   expect(maps[0].options.colorScheme).toBe('LIGHT');
-  await user.click(screen.getByRole('button', { name: 'Use dark mode' }));
+  act(() => window.dispatchEvent(new StorageEvent('storage', { key: 'travella.theme', newValue: 'dark' })));
   await waitFor(() => expect(maps).toHaveLength(2));
   expect(maps[1].options).toMatchObject({ colorScheme: 'DARK', center: { lat: 47.1, lng: 14.1 }, zoom: 13 });
   expect(maps[1].fitBounds).not.toHaveBeenCalled();
