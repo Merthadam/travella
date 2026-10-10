@@ -6,6 +6,7 @@ const groupIds = { themes: ['themes'], research: ['findings', 'links'], all: ids
 const clone = value => structuredClone(value);
 const fingerprint = value => JSON.stringify(value);
 const initialGroups = { themes: 'idle', research: 'idle' };
+const mapHint = context => context?.candidates?.length === 1 ? context.candidates[0] : '';
 
 export function validateCanvasComponents(components, complete = false) {
   if (!components || typeof components !== 'object' || Array.isArray(components)) throw new Error('Invalid canvas update.');
@@ -35,6 +36,7 @@ function validEvidence(value) {
 export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalBusy = false }) {
   const planId = selected.plan_id;
   const [data, setData] = useState(null);
+  const [mapDestinationHint, setMapDestinationHint] = useState('');
   const [evidence, setEvidence] = useState({});
   const [saved, setSaved] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
 
   useEffect(() => {
     const generation = ++epoch.current;
+    setMapDestinationHint('');
     setData(null); setEvidence({}); setSaved(null); setLoading(true); setError(''); setConflict(false); setStaleContext(false); setEditors([]); setNotice(''); setGroups(initialGroups); setActiveGroup(null); setSaving(false);
     base.current = null; pendingSave.current = null; editedComponents.current = new Set(); savingRef.current = false;
     Promise.all([api.canvas(selected), api.researchContext(selected)]).then(([canvas, context]) => {
@@ -72,6 +75,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       // A saved canvas remains exact even if chat has since changed. Save must use
       // its original context revision until the traveler explicitly regenerates.
       setStaleContext(Boolean(canvas.snapshot && context.revision !== reviewedRevision));
+      setMapDestinationHint(mapHint(context.context));
 
       setData(components); setEvidence(sourceEvidence); setSaved(canvas.snapshot ? { version: 1, components, evidence: sourceEvidence } : null);
       setNotice(canvas.snapshot ? 'Saved plan loaded.' : 'Your confirmed trip details are here. Generate your plan to add preferences and research.');
@@ -164,6 +168,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       // only for the group the traveler explicitly chose above this hook.
       const currentContext = await api.researchContext(selected);
       if (active.current !== run || epoch.current !== currentEpoch) return;
+      setMapDestinationHint(mapHint(currentContext.context));
       if ((staleContext || currentContext.revision !== base.current.context_revision) && group !== 'all') { setStaleContext(true); throw new Error('The conversation changed. Regenerate the full plan to review the updated trip details.'); }
       run.contextRevision = currentContext.revision;
       const result = await api.generateCanvas(base.current, { group, context_revision: run.contextRevision, generation_id: id, ...(group === 'research' ? { themes: dataRef.current.themes } : {}) }, id, {
@@ -298,5 +303,5 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }
-  return { data, renderData, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
+  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
 }

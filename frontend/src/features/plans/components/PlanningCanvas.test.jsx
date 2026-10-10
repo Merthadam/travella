@@ -166,3 +166,21 @@ test('checkout finishing during Save remains an unsaved change instead of being 
   expect(result.current.saved.components.accommodation.bookingStatus).toBe('not-booked');
   expect(result.current.dirty).toBe(true);
 });
+
+test('a single candidate is a transient map hint without choosing or saving the destination', async () => {
+  let context = { candidates: ['Milan'], finalDestination: '' };
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context }),
+    saveCanvas: vi.fn(),
+  };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.mapDestinationHint).toBe('Milan');
+  expect(result.current.data.map).toMatchObject({ destination: '', final: false, pins: [] });
+  expect(api.saveCanvas).not.toHaveBeenCalled();
+  context = { candidates: ['Milan', 'Paris'], finalDestination: '' };
+  act(() => result.current.reload());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.mapDestinationHint).toBe('');
+});
