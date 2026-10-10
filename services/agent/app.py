@@ -39,6 +39,7 @@ def create_app(
     memory_adapter: Any | None = None,
     required_scope: str | None = None,
     cache_size: int = 256,
+    travel_client: Any | None = None,
 ) -> FastAPI:
     """Compose HTTP, authorization, workflow, and adapters for one deployment."""
     if verifier is None and os.getenv("COGNITO_USER_POOL_ID"):
@@ -103,6 +104,10 @@ def create_app(
             required_scope=(required_scope or os.getenv("AGENT_REQUIRED_SCOPE") or DEFAULT_SCOPE),
         )
 
+    from .travel_routes import register_travel_routes
+    from .travel_contracts import TravelInvocation
+    travel_dispatch = register_travel_routes(app, identity_dependency, turn_service._read_plan, travel_client)
+
     @app.get("/ping")
     async def runtime_ping() -> dict[str, str]:
         """Health endpoint required by AgentCore Runtime's HTTP protocol."""
@@ -117,6 +122,12 @@ def create_app(
     ):
         """Invoke the existing use cases through AgentCore Runtime."""
         payload = envelope.payload
+        if envelope.operation == "travel":
+            try:
+                invocation = TravelInvocation.model_validate(payload)
+            except ValueError:
+                raise HTTPException(422, "Check your search criteria.") from None
+            return await travel_dispatch(invocation, identity, authorization)
         if envelope.operation == "turn":
             request = AgentRequest.model_validate(payload)
             return await turn_service.handle(request, identity.subject, authorization)

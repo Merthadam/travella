@@ -35,6 +35,7 @@ class GatewayConfig:
     oauth_scope: str
     research_endpoint: str
     map_endpoint: str
+    travel_endpoint: str | None = None
     protocol_version: str = "2025-03-26"
     gateway_id: str | None = None
     gateway_url: str | None = None
@@ -77,6 +78,7 @@ class GatewayConfig:
             ),
             research_endpoint=value("RESEARCH_MCP_ENDPOINT"),
             map_endpoint=value("MAP_MCP_ENDPOINT"),
+            travel_endpoint=os.getenv("TRAVEL_MCP_ENDPOINT") or None,
             protocol_version=value("AGENTCORE_MCP_PROTOCOL_VERSION", "2025-03-26"),
             gateway_id=os.getenv("AGENTCORE_GATEWAY_ID") or None,
             gateway_url=os.getenv("AGENTCORE_GATEWAY_URL") or None,
@@ -102,6 +104,8 @@ def validate_config(config: GatewayConfig) -> None:
     _https_url("AGENTCORE_OAUTH_ISSUER", config.oauth_issuer)
     _https_url("RESEARCH_MCP_ENDPOINT", config.research_endpoint)
     _https_url("MAP_MCP_ENDPOINT", config.map_endpoint)
+    if config.travel_endpoint:
+        _https_url("TRAVEL_MCP_ENDPOINT", config.travel_endpoint)
     if config.gateway_url:
         _https_url("AGENTCORE_GATEWAY_URL", config.gateway_url)
     for name, value in (
@@ -163,6 +167,7 @@ def gateway_contract(config: GatewayConfig) -> dict[str, Any]:
         "targets": [
             _target_contract(config, "travella-research-mcp", config.research_endpoint),
             _target_contract(config, "travella-map-mcp", config.map_endpoint),
+            *([_target_contract(config, "travella-travel-mcp", config.travel_endpoint)] if config.travel_endpoint else []),
         ],
     }
 
@@ -370,6 +375,8 @@ def provision(
         "travella-research-mcp": config.research_endpoint,
         "travella-map-mcp": config.map_endpoint,
     }
+    if config.travel_endpoint:
+        desired_targets["travella-travel-mcp"] = config.travel_endpoint
     targets = _items(client, "list_gateway_targets", gatewayIdentifier=gateway_id, maxResults=100)
     target_ids: dict[str, str] = {}
     for name, endpoint in desired_targets.items():

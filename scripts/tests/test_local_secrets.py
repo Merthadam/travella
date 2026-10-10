@@ -185,3 +185,10 @@ def test_compose_preserves_literal_credential_characters(tmp_path):
     for service, key in [("agent", "ANTHROPIC_API_KEY"), ("mcp", "TAVILY_API_KEY")]:
         # Compose escapes literal dollars in its serialized, reusable configuration.
         assert config["services"][service]["environment"][key].replace("$$", "$") == value
+
+
+def test_liteapi_credential_only_reaches_private_mcp(tmp_path):
+    secrets.pull(tmp_path, {'LITE_API_KEY': 'sand-private-sentinel'})
+    assert dotenv_values(tmp_path / 'services/mcps/.env')['LITE_API_KEY'] == 'sand-private-sentinel'
+    for path in ['.env', 'frontend/.env.local']:
+        assert 'sand-private-sentinel' not in (tmp_path/path).read_text()

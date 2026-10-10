@@ -40,6 +40,21 @@ services:
       PORT: "8001"
       MCP_ALLOWED_HOSTS: map-mcp:8001,localhost:8001,127.0.0.1:8001
 
+  travel-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    command: ["uv", "run", "--frozen", "--no-sync", "python", "-m", "services.mcps.travel_server"]
+    env_file:
+      - ./services/mcps/.env
+      - ./services/mcps/.env.local-auth
+    environment:
+      FLIGHT_CHECKOUT_JOURNAL: /checkouts/flights.sqlite3
+      PORT: "8002"
+      MCP_ALLOWED_HOSTS: travel-mcp:8002,localhost:8002,127.0.0.1:8002
+    volumes:
+      - flight-checkouts:/checkouts
+
   app:
     build:
       context: .
@@ -70,6 +85,7 @@ services:
       AGENT_RESEARCH_MAX_FETCHES: ${AGENT_RESEARCH_MAX_FETCHES:-6}
       AGENT_MCP_TRANSPORT: local
       LOCAL_RESEARCH_MCP_URL: http://research-mcp:8000/mcp
+      LOCAL_TRAVEL_MCP_URL: http://travel-mcp:8002/mcp
       LOCAL_MAP_MCP_URL: http://map-mcp:8001/mcp
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-}
@@ -83,6 +99,8 @@ services:
       research-mcp:
         condition: service_started
       map-mcp:
+        condition: service_started
+      travel-mcp:
         condition: service_started
     volumes:
       - ./frontend/.env.local:/app/frontend/.env.local:ro
@@ -98,5 +116,6 @@ services:
       retries: 24
 
 volumes:
+  flight-checkouts:
   postgres-data:
   research-evidence:

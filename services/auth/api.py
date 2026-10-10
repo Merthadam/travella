@@ -367,6 +367,26 @@ def create_app(
 
         return await run_in_threadpool(forward)
 
+    @app.api_route("/v1/agent/plans/{plan_id}/travel/{action:path}", methods=["GET", "POST"])
+    async def travel_proxy(plan_id: str, action: str, request: Request):
+        from services.agent.travel_contracts import INPUTS, POST_ACTIONS
+        ready()
+        if action not in INPUTS or (request.method == "POST") != (action in POST_ACTIONS):
+            raise HTTPException(404, "Search unavailable.")
+        def access_token():
+            with store.transaction():
+                _, session, _ = current_session(request)
+                return session["access"]
+        token = await run_in_threadpool(access_token)
+        if agent_client is None:
+            raise HTTPException(503, "Travel search unavailable.")
+        try:
+            criteria = await request.json() if request.method == "POST" else dict(request.query_params)
+        except ValueError:
+            raise HTTPException(422, "Check your search criteria.") from None
+        status, data = await run_in_threadpool(agent_client.travel, plan_id, action, criteria, token=token)
+        return JSONResponse(data, status_code=status)
+
     @app.post("/v1/agent/plans/{plan_id}/events")
     async def agent_proxy(plan_id: str, request: Request):
         ready()

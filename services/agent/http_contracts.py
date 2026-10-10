@@ -75,5 +75,5 @@ class RuntimeInvocationRequest(BaseModel):
     """Private envelope accepted by the AgentCore Runtime HTTP protocol."""
 
     model_config = ConfigDict(extra="forbid")
-    operation: Literal["turn", "stream", "profile_sync", "cancel"]
+    operation: Literal["turn", "stream", "profile_sync", "cancel", "travel"]
     payload: dict[str, Any]

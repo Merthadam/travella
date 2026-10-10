@@ -6,6 +6,7 @@ const groupIds = { themes: ['themes'], research: ['findings', 'links'], all: ids
 const clone = value => structuredClone(value);
 const fingerprint = value => JSON.stringify(value);
 const initialGroups = { themes: 'idle', research: 'idle' };
+const mapHint = context => context?.candidates?.length === 1 ? context.candidates[0] : '';
 
 export function validateCanvasComponents(components, complete = false) {
   if (!components || typeof components !== 'object' || Array.isArray(components)) throw new Error('Invalid canvas update.');
@@ -35,6 +36,7 @@ function validEvidence(value) {
 export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalBusy = false }) {
   const planId = selected.plan_id;
   const [data, setData] = useState(null);
+  const [mapDestinationHint, setMapDestinationHint] = useState('');
   const [evidence, setEvidence] = useState({});
   const [saved, setSaved] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
 
   useEffect(() => {
     const generation = ++epoch.current;
+    setMapDestinationHint('');
     setData(null); setEvidence({}); setSaved(null); setLoading(true); setError(''); setConflict(false); setStaleContext(false); setEditors([]); setNotice(''); setGroups(initialGroups); setActiveGroup(null); setSaving(false);
     base.current = null; pendingSave.current = null; editedComponents.current = new Set(); savingRef.current = false;
     Promise.all([api.canvas(selected), api.researchContext(selected)]).then(([canvas, context]) => {
@@ -72,6 +75,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       // A saved canvas remains exact even if chat has since changed. Save must use
       // its original context revision until the traveler explicitly regenerates.
       setStaleContext(Boolean(canvas.snapshot && context.revision !== reviewedRevision));
+      setMapDestinationHint(mapHint(context.context));
 
       setData(components); setEvidence(sourceEvidence); setSaved(canvas.snapshot ? { version: 1, components, evidence: sourceEvidence } : null);
       setNotice(canvas.snapshot ? 'Saved plan loaded.' : 'Your confirmed trip details are here. Generate your plan to add preferences and research.');
@@ -132,6 +136,25 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     } catch { setError('That change could not be applied. Check the details and try again.'); }
   }, []);
 
+  const updateMockBooking = useCallback((sourcePlanId, result) => {
+    if (sourcePlanId !== base.current?.plan_id || !dataRef.current || !result?.sandbox || !result.booking_id) return;
+    const next = clone(dataRef.current);
+    const stay = next[result.mode === 'flights' ? 'flights' : 'accommodation'];
+    if (result.status === 'confirmed') {
+      stay.bookingStatus = 'mock-booked';
+      stay.mockBooking = result.mode === 'flights' ? { reference: result.booking_id, origin: result.flight?.outbound.segments[0].origin, destination: result.flight?.outbound.segments.at(-1).destination, departureDate: result.flight?.outbound.segments[0].departure_at.slice(0, 10), returnDate: result.flight?.inbound.segments[0].departure_at.slice(0, 10) } : { reference: result.booking_id, hotelName: result.hotel_name?.slice(0, 160), checkIn: result.check_in, checkOut: result.check_out };
+    } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
+      stay.bookingStatus = 'not-booked'; delete stay.mockBooking;
+    } else return;
+    try {
+      const parsed = validateCanvasComponents(next, true);
+      if (fingerprint(parsed) === fingerprint(dataRef.current)) return;
+      dataRef.current = parsed; setData(parsed); pendingSave.current = null;
+      setNotice('Mock booking state updated in your draft. Choose Save plan to keep it. No real reservation was made.');
+      setError('');
+    } catch { setError('The mock booking could not be added to your canvas. Reopen the checkout and check its status.'); }
+  }, []);
+
   async function generate(group = 'all') {
     if (active.current || savingRef.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;
     const currentEpoch = epoch.current;
@@ -145,6 +168,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       // only for the group the traveler explicitly chose above this hook.
       const currentContext = await api.researchContext(selected);
       if (active.current !== run || epoch.current !== currentEpoch) return;
+      setMapDestinationHint(mapHint(currentContext.context));
       if ((staleContext || currentContext.revision !== base.current.context_revision) && group !== 'all') { setStaleContext(true); throw new Error('The conversation changed. Regenerate the full plan to review the updated trip details.'); }
       run.contextRevision = currentContext.revision;
       const result = await api.generateCanvas(base.current, { group, context_revision: run.contextRevision, generation_id: id, ...(group === 'research' ? { themes: dataRef.current.themes } : {}) }, id, {
@@ -161,6 +185,10 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
             if (group === 'all') {
               for (const key of ['essentials', 'flights', 'accommodation']) if (editedComponents.current.has(key)) delete replacement[key];
               if (replacement.map) replacement.map = { ...replacement.map, pins: dataRef.current.map.pins };
+            }
+            // Research can refresh trip labels, but cannot undo a confirmed test stay.
+            for (const mode of ['accommodation', 'flights']) {
+              if (replacement[mode] && dataRef.current[mode].mockBooking) replacement[mode] = { ...replacement[mode], bookingStatus: 'mock-booked', mockBooking: dataRef.current[mode].mockBooking };
             }
             const next = validateCanvasComponents({ ...dataRef.current, ...replacement }, true);
             for (const [key, status] of Object.entries(statuses)) {
@@ -226,7 +254,18 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       base.current = { ...selected, revision: result.revision, context_revision: result.context_revision };
       const canonical = { version: 1, components, evidence: sourceEvidence };
       editedComponents.current = new Set();
-      setData(components); setEvidence(sourceEvidence); setSaved(canonical); setNotice('Saved. Your plan is ready to reopen.'); setConflict(false); setStaleContext(false); pendingSave.current = null;
+      // A checkout may finish while Save is in flight. Keep that later change
+      // unsaved instead of overwriting it with the earlier reviewed snapshot.
+      let bookingChanged = false;
+      const next = { ...components };
+      for (const mode of ['accommodation', 'flights']) {
+        if (fingerprint(dataRef.current[mode].mockBooking) === fingerprint(value.components[mode].mockBooking)) continue;
+        bookingChanged = true;
+        next[mode] = { ...components[mode], bookingStatus: dataRef.current[mode].bookingStatus };
+        delete next[mode].mockBooking;
+        if (dataRef.current[mode].mockBooking) next[mode].mockBooking = dataRef.current[mode].mockBooking;
+      }
+      dataRef.current = next; setData(next); setEvidence(sourceEvidence); setSaved(canonical); setNotice(bookingChanged ? 'Plan saved. Your newer mock booking update is still unsaved; choose Save plan to keep it.' : 'Saved. Your plan is ready to reopen.'); setConflict(false); setStaleContext(false); pendingSave.current = null;
       callbacks.current.onSaved?.(result);
     } catch (err) {
       if (epoch.current !== currentEpoch) return;
@@ -252,7 +291,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     return rendered;
   }, [data, groups]);
   function addActivities(places, expectedDraft) {
-    if (!dataRef.current || active.current || savingRef.current || editors.length || (externalBusyRef.current && !expectedDraft)) return false;
+    if (!dataRef.current || active.current || savingRef.current || (externalBusyRef.current && !expectedDraft)) return false;
     if (expectedDraft && fingerprint(dataRef.current) !== expectedDraft) return false;
     try {
       const next = clone(dataRef.current);
@@ -267,5 +306,5 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }
-  return { data, renderData, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, reload: () => setReloadVersion(value => value + 1) };
+  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
 }

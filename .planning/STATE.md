@@ -4,10 +4,10 @@ current_phase: 15
 current_phase_name: Bounded agentic canvas generation
 status: verifying
 stopped_at: Phase 15 implemented; live generation acceptance pending
-last_updated: "2026-10-08T22:35:24Z"
+last_updated: "2026-10-09T17:13:24.737Z"
 last_activity: 2026-10-09
-last_activity_desc: Canvas generation and editing merged to origin/main with account settings
-state_head: 47fac26
+last_activity_desc: Approved A LiteAPI search implemented and browser-verified; baseline suite failures documented
+state_head: 359b57f276f5322a6f20ad908d536ca34ee6b213
 progress:
   total_phases: 11
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
 Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-09 - Completed quick task 261009-0ti: merged canvas work to origin/main; desktop/mobile navigation and local authentication passed.
+Last activity: 2026-10-09 - Completed quick task 261009-q7n: sandbox hotel checkout and ski resort lookup; live mock booking/read-back, 50 focused tests and Chrome desktop/mobile verification passed.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -160,8 +160,12 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 | 261005-uaq | Three interactive account settings layouts with light/dark mode; Chrome desktop/mobile checks complete; user selected C | 2026-10-05 | prototype/account-settings | Prototype | [261005-uaq](./quick/261005-uaq-prototype-three-account-settings-layouts/) |
 | 261008-nb6 | Aligned Account with Plans design; Chrome desktop/mobile light/dark, guarded navigation and retry passed | 2026-10-08 | 73a57a4 | Verified | [261008-nb6-align-account-settings-with-the-main-tra](./quick/261008-nb6-align-account-settings-with-the-main-tra/) |
 | 261008-qgn | Global light/dark appearance; 41 tests and Chrome desktop/mobile navigation, reload and sign-in persistence passed | 2026-10-08 | 756aee6 | Verified | [261008-qgn-apply-the-selected-light-or-dark-appeara](./quick/261008-qgn-apply-the-selected-light-or-dark-appeara/) |
+| 261008-tuc | Researched LiteAPI; hotel and flight sandbox searches passed; experiences access denied; hosted hotel checkout documented | 2026-10-08 | 9988ec9 | Complete | [261008-tuc-explore-liteapi-trip-inventory-and-booki](./quick/261008-tuc-explore-liteapi-trip-inventory-and-booki/) |
 
 | 261009-0ti | Merged canvas generation/editor and Maps area fix with main account settings; build and browser navigation checks passed | 2026-10-09 | 47fac26 | Complete | [261009-0ti](./quick/261009-0ti-merge-completed-canvas-editing-work-into/) |
+
+| 261009-14y | Rebased on main; approved A hotel/return-flight LiteAPI search; live sandbox, desktop/mobile and security checks verified; baseline failures documented | 2026-10-09 | 4cd70e1 | Feature verified | [261009-14y](./quick/261009-14y-rebase-on-main-and-implement-liteapi-acc/) |
+| 261009-q7n | Sandbox hotel checkout and ski resort lookup; 50 focused tests, live mock booking, reload recovery and desktop/mobile Chrome checks passed | 2026-10-09 | 6fce929 | Verified | [261009-q7n-add-sandbox-only-hotel-mock-checkout](./quick/261009-q7n-add-sandbox-only-hotel-mock-checkout/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -177,3 +181,11 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - PR #3: https://github.com/Merthadam/travella/pull/3 — account settings, design alignment and global appearance; user authorized merge into main.
 - Quick 261008-rkt reconciled phase verification and reran 41 frontend tests, 68 account HTTP/SQL tests and production build successfully. Existing broader test debt remains documented.
 - Dedicated preview moved to http://localhost:5194/account; health and authentication passed. Unrelated local files and the separate main checkout are preserved.
+
+
+### LiteAPI search and sandbox booking shipment (2026-10-10)
+
+- PR #4: https://github.com/Merthadam/travella/pull/4 — accumulated LiteAPI hotel/flight search, sandbox checkout, canvas booking state/recovery, themes, navigation and destination map framing. User explicitly authorized merging all completed work into main.
+- Pre-merge verification: 109 backend tests, 33 frontend tests and production build passed. Scoped security review and verification gates passed. Authenticated browser evidence is retained under artifacts/testing; the latest run verified flight save/reload without a temporary checkout receipt.
+- Shipment record: `.planning/quick/261010-merge-liteapi/VERIFICATION.md`. Existing broader-suite failures remain documented; this shipment does not complete the separate Phase 15 backlog.
+- Merge through GitHub; preserve the unrelated dirty/diverged local main checkout, other worktrees, local Docker volumes and the running test stack.

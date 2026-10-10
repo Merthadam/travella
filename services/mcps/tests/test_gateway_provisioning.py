@@ -232,3 +232,13 @@ def test_interceptor_lambda_returns_documented_short_circuit_for_bad_event() -> 
     transformed = response["mcp"]["transformedGatewayResponse"]
     assert transformed["statusCode"] == 403
     assert "error" in transformed["body"]
+
+
+def test_optional_travel_target_uses_same_private_auth_contract():
+    cfg = config(travel_endpoint='https://travel.internal.example/mcp')
+    gateway.validate_config(cfg)
+    targets = gateway.gateway_contract(cfg)['targets']
+    assert [target['name'] for target in targets] == ['travella-research-mcp', 'travella-map-mcp', 'travella-travel-mcp']
+    assert targets[-1] == gateway._target_contract(cfg, 'travella-travel-mcp', cfg.travel_endpoint)
+    with pytest.raises(gateway.ProvisioningError):
+        gateway.validate_config(config(travel_endpoint='http://public.example/mcp'))
