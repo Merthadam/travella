@@ -17,6 +17,8 @@ export function ComponentGallery() {
     log(id,name,payload);
     if(name==='open_flights'||name==='open_accommodation'){setScreen(name==='open_flights'?'flights':'accommodation');return;}
     if(name==='open_link'||name==='open_source'){if(safeUrl.safeParse(payload.url).success)setNotice(`Preview link: ${payload.url} — no website opened.`);return;}
+    if(name==='find_places'){setNotice('Find places opens the Plan conversation in the authenticated app. This gallery has sample data only.');return;}
+    if(name==='restore_pin'){setData(previous=>{const next=structuredClone(previous);next.map.pins.splice(payload.index,0,payload.pin);return next;});return;}
     if(['inspect_place','filter_pins','expand_finding'].includes(name))return;
     if(busy||scenario==='busy')return;
     setData(previous=>{

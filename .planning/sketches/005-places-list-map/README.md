@@ -10,9 +10,7 @@ tags: [canvas, places, map, list]
 
 Based on fresh origin/main 201fd74. User requested working alternatives before production implementation. GSD sketch quick direction: small conventional pins, explicit list/map views, retain Show all places, remove decorative copy and oversized presentation.
 
-Run from repository root: `python3 -m http.server 5187 --bind 127.0.0.1 --directory .planning/sketches`
-
-Open http://127.0.0.1:5187/005-places-list-map/?variant=A (or B / C). Use the floating switcher or left/right arrows. Prototype tools provide light/dark, phone/tablet widths, loading, empty, and map-error states.
+The complete runnable alternatives are preserved on local branch `prototype/places-list-map` at `606d3a5`. Check out that branch in a separate worktree to run the original prototype. This implementation branch retains the selected decision and screenshot evidence only.
 
 - A — Simple tabs: compact rows, inline place details, full-width map. Closest to the existing component footprint.
 - B — Map explorer: map first, persistent side inspector; details stack below on phones. Better for geographic browsing, requires more horizontal room.
@@ -30,9 +28,9 @@ User selected A: “A is perfect”, with an explicit requirement to avoid gener
 
 User approved the agent-assisted design direction. A now opens the Plan conversation from a quiet Find places control; named/addressed sample results can be previewed without saving and explicitly added. The manual add form remains only in B/C for comparison. Direct Edit note, Remove, confirmation, and Undo remain available in A.
 
-A is the default refined design; its comparison bar is hidden until Prototype tools → Compare alternatives is enabled. B/C remain accessible by URL. Conversation search is a labeled simulation, not a live agent. All place mutations remain in memory. Production implementation has not begun.
+A is the default refined design; its comparison bar is hidden until Prototype tools → Compare alternatives is enabled. B/C remain accessible by URL. Conversation search is a labeled simulation, not a live agent. All place mutations remain in memory. Production implementation is recorded in `.planning/quick/261010-iw4-implement-selected-places-list-and-map-d/`.
 
-Preserve all variants on this throwaway branch; implement the selected design properly and remove prototype code from the production branch. No implementation issue was supplied.
+All variants are preserved on `prototype/places-list-map`; runnable prototype code has been removed from the implementation branch. No implementation issue was supplied.
 
 ## A refinement plan — 2026-10-10
 

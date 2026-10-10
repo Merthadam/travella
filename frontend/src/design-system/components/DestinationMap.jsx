@@ -1,30 +1,68 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { categories, pinSchema } from '../schemas';
-import { Card, Icon, FormActions, useDraftEditor } from './primitives';
-// Provider operations are injected; the reusable card owns no API client.
-export function DestinationMap({ data, onAction, disabled, mapAdapter: MapAdapter, placeSearch, preview = true }) {
-  const [selected, setSelected] = useState(null); const [filters, setFilters] = useState(Object.keys(categories)); const [draft, setDraft] = useState(null); const [error, setError] = useState('');
-  const [placeQuery, setPlaceQuery] = useState(''); const [results, setResults] = useState([]); const [searching, setSearching] = useState(false);
-  const searchVersion = useRef(0);
-  useEffect(() => () => { searchVersion.current += 1; }, []);
+import { Icon, useDraftEditor } from './primitives';
+import './places.css';
+
+// View state stays local; durable edits still pass through the canvas action boundary.
+export function DestinationMap({ data, onAction, disabled, mapAdapter: MapAdapter, placePreview }) {
+  const [view, setView] = useState('list');
+  const [mapVisited, setMapVisited] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [filter, setFilter] = useState('all');
+  const [query, setQuery] = useState('');
+  const [draft, setDraft] = useState(null);
+  const [error, setError] = useState('');
+  const [removing, setRemoving] = useState(null);
+  const [removed, setRemoved] = useState(null);
+  const [fitRequest, setFitRequest] = useState(0);
+  const dialog = useRef(null);
+  const returnFocus = useRef(null);
+  const findButton = useRef(null);
+  const heading = useId();
   useDraftEditor(draft, onAction);
-  async function search() {
-    const version = ++searchVersion.current; setSearching(true); setError(''); setResults([]);
-    try { const found = await placeSearch(placeQuery.trim(), data.destination); if (version === searchVersion.current) { setResults(found); if (!found.length) setError('No matching places. Try a more specific name.'); } }
-    catch { if (version === searchVersion.current) setError('Place search is unavailable. Try again.'); }
-    finally { if (version === searchVersion.current) setSearching(false); }
-  }
-  function cancel() { searchVersion.current += 1; setDraft(null); setResults([]); setSearching(false); }
-  const visible = data.pins.filter(p => filters.includes(p.category));
+
+  function dismissPreview() { if (placePreview) onAction('clear_place_preview', {}); }
+  function openMap(id = selected) { if (id) dismissPreview(); setSelected(id); setMapVisited(true); setView('map'); }
+  useEffect(() => {
+    if (!placePreview || draft) return;
+    setQuery(''); setFilter('all'); setSelected(null); setMapVisited(true); setView('map');
+  }, [placePreview, draft]);
+  useEffect(() => {
+    if (removing) { returnFocus.current = document.activeElement; dialog.current?.showModal(); }
+    else { dialog.current?.close(); if (returnFocus.current) { (returnFocus.current.isConnected ? returnFocus.current : findButton.current)?.focus(); returnFocus.current = null; } }
+  }, [removing]);
+  useEffect(() => { if (filter !== 'all' && !data.pins.some(p => p.category === filter)) setFilter('all'); }, [data.pins, filter]);
+
+  const visible = data.pins.filter(p => (filter === 'all' || p.category === filter) && `${p.name} ${p.description}`.toLowerCase().includes(query.trim().toLowerCase()));
   const pin = visible.find(p => p.id === selected);
-  function inspect(id) { setSelected(id); onAction('inspect_place', { id }); }
-  function save(e) { e.preventDefault(); const result = pinSchema.safeParse(draft); if (!result.success) { setError(result.error.issues[0].message); return; } onAction(data.pins.some(p => p.id === draft.id) ? 'edit_pin' : 'add_pin', result.data); setSelected(draft.id); setFilters(f => [...new Set([...f, draft.category])]); setDraft(null); }
-  function add() { setError(''); setPlaceQuery(''); setResults([]); setDraft({ id: `pin-${Date.now()}`, name: '', category: 'activity', position: preview ? { lat: 38.716, lng: -9.14 } : null, description: '' }); }
-  return <Card editableEmpty={!preview} title="Your places" eyebrow="A SENSE OF PLACE" icon="pin" data={data} onAction={onAction} className="ds-map-card" empty="A destination, a place to stay, a café worth finding. Your places will belong here." action={<button className="ds-button small" disabled={disabled || data.pins.length >= 50 || (!preview && !placeSearch)} onClick={add}><Icon name="plus" size={16}/> Add place</button>}>
-    <div className="ds-map-summary"><strong>{data.destination || 'Destination not set'}</strong><span className="ds-tag">{data.final ? 'Destination chosen' : 'Exploring'}</span>{preview && data.destination && !data.final && <button className="ds-text-button" disabled={disabled} onClick={() => onAction('choose_destination', { name: data.destination })}>Choose destination</button>}</div>
-    {MapAdapter ? <MapAdapter destination={data.destination} final={data.final} places={visible} selectedId={selected} onSelect={inspect}/> : <div className="ds-map-placeholder">Provide a map adapter to display these places.</div>}
-    <div className="ds-map-legend" aria-label="Filter places by category">{Object.entries(categories).map(([key,c]) => <button key={key} style={{ '--category': c.color }} aria-pressed={filters.includes(key)} onClick={() => { const next = filters.includes(key) ? filters.filter(k => k !== key) : [...filters,key]; setFilters(next); onAction('filter_pins', { categories: next }); }}><i/>{c.label}</button>)}</div>
-    {draft ? <form className="ds-form ds-pin-form" onSubmit={save}><h3>{data.pins.some(p => p.id === draft.id) ? 'Edit place' : preview ? 'Add a sample place' : 'Add a place'}</h3>{!preview && !data.pins.some(p => p.id === draft.id) && <div className="canvas-place-search"><label>Find a place<input value={placeQuery} onChange={e => { searchVersion.current += 1; setSearching(false); setResults([]); setPlaceQuery(e.target.value); setDraft({ ...draft, position: null }); }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (placeQuery.trim().length >= 2) search(); } }}/></label><button type="button" className="ds-button small" disabled={searching || disabled || placeQuery.trim().length < 2} onClick={search}>Search places</button>{searching && <p role="status">Finding places…</p>}{results.map(result => <button type="button" className="canvas-place-result" key={result.id} onClick={() => { setDraft({ ...draft, name: result.name, position: result.position }); setResults([]); setError(''); }}><strong>{result.name}</strong><small>{result.address}</small></button>)}<small>Google Maps · select a result to place its pin.</small></div>}<div className="ds-form-grid"><label>Place name<input autoFocus required maxLength={120} placeholder="A café by the river" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label><label>Category<select value={draft.category} onChange={e => setDraft({ ...draft, category: e.target.value })}>{Object.entries(categories).map(([k,c]) => <option key={k} value={k}>{c.label}</option>)}</select></label></div><label>A little note<input maxLength={240} value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })}/></label>{preview && <small>Sample position only. Place search connects later.</small>}{error && <p role="alert" className="ds-error">{error}</p>}<FormActions cancel={cancel} busy={disabled || (!preview && !draft.position)}/></form> : pin ? <div className="ds-pin-details" style={{ '--category': categories[pin.category].color }}><span className="ds-category-icon"><Icon name={categories[pin.category].icon}/></span><div><small>{categories[pin.category].label}</small><h3>{pin.name}</h3><p>{pin.description || 'A place to explore on your trip.'}</p><div className="ds-inline-actions"><button disabled={disabled} onClick={() => {setError('');setDraft({ ...pin });}}>Edit place</button><button disabled={disabled} onClick={() => { onAction('remove_pin', { id: pin.id }); setSelected(null); }}>Remove</button></div></div><button className="ds-icon-button" aria-label="Close place details" onClick={() => setSelected(null)}><Icon name="close" size={16}/></button></div> : <p className="ds-map-hint">{visible.length ? 'Choose a pin. Find a little more to look forward to.' : data.pins.length ? 'No places in these categories. Turn a category back on.' : preview ? 'No places yet. Add your first sample place.' : 'No places yet. Search for a place to add its pin.'}</p>}
-    <details className="ds-place-list"><summary>All visible places <span>{visible.length}</span></summary><ul>{visible.map(p => <li key={p.id}><button aria-pressed={selected === p.id} onClick={() => inspect(p.id)}><Icon name={categories[p.category].icon} size={16}/>{p.name}<span>{categories[p.category].label}</span></button></li>)}</ul></details>
-  </Card>;
+  function clearFilters() { dismissPreview(); setFilter('all'); setQuery(''); }
+  function showAll() { if (draft) return; clearFilters(); setSelected(null); setFitRequest(value => value + 1); }
+  function edit(pin) { setDraft({ ...pin }); setError(''); }
+  function save(event) {
+    event.preventDefault();
+    if (disabled) return;
+    const result = pinSchema.safeParse(draft);
+    if (!result.success) { setError(result.error.issues[0].message); return; }
+    onAction('edit_pin', result.data); setDraft(null);
+  }
+  function details(place) {
+    return <div className="places-detail">
+      {view === 'map' && <div className="places-detail-heading"><h3>{place.name}</h3><button className="ds-icon-button" aria-label="Close place details" onClick={() => setSelected(null)}><Icon name="close" size={16}/></button></div>}
+      {draft?.id === place.id ? <form onSubmit={save}><label>Note<textarea autoFocus maxLength={240} rows={3} value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })}/></label>{error && <p role="alert">{error}</p>}<div className="places-actions"><button type="button" className="ds-button small" onClick={() => setDraft(null)}>Cancel</button><button className="ds-button small primary" disabled={disabled}>Update note</button></div></form> : <><span className="places-note-label">Note</span><p>{place.description || 'No note yet.'}</p><div className="places-actions"><button className="ds-button small" disabled={disabled || Boolean(draft)} onClick={() => edit(place)}>{place.description ? 'Edit note' : 'Add note'}</button>{view === 'list' && <button className="ds-button small" onClick={() => openMap(place.id)}>Show on map</button>}<button className="ds-text-button places-remove" disabled={disabled || Boolean(draft)} onClick={() => setRemoving(place)}>Remove</button></div></>}
+    </div>;
+  }
+  return <section className="ds-card ds-map-card ds-places" aria-labelledby={heading}>
+    <header className="places-heading"><div><h2 id={heading}>Your places</h2><p>{data.destination ? `${data.destination} · ` : ''}{data.pins.length} {data.pins.length === 1 ? 'place' : 'places'}</p></div><button ref={findButton} className="ds-button small" disabled={disabled} onClick={() => onAction('find_places', {})}>Find places</button></header>
+    <div className="places-toolbar"><div className="places-views" aria-label="View places"><button aria-pressed={view === 'list'} disabled={Boolean(draft)} onClick={() => { dismissPreview(); setView('list'); }}>List</button><button aria-pressed={view === 'map'} disabled={Boolean(draft)} onClick={() => openMap()}>Map</button></div><label className="places-search"><span className="sr-only">Search your places</span><input type="search" placeholder="Search your places" value={query} disabled={Boolean(draft)} onChange={event => { dismissPreview(); setQuery(event.target.value); setSelected(null); }}/></label></div>
+    {data.pins.length > 0 && <div className="places-filters" aria-label="Filter places"><button aria-pressed={filter === 'all'} disabled={Boolean(draft)} onClick={() => { clearFilters(); setSelected(null); }}>All places <span>{data.pins.length}</span></button>{Object.entries(categories).filter(([key]) => data.pins.some(p => p.category === key)).map(([key, category]) => <button key={key} aria-pressed={filter === key} disabled={Boolean(draft)} onClick={() => { dismissPreview(); setFilter(key); setSelected(null); }}>{category.label} <span>{data.pins.filter(p => p.category === key).length}</span></button>)}</div>}
+    {data.status === 'loading' && <p className="places-empty" role="status">Loading places…</p>}
+    {data.status === 'error' && <p role="alert">Places couldn’t update. Your existing places are still available. <button className="ds-text-button" disabled={disabled} onClick={() => onAction('retry', {})}>Retry</button></p>}
+    <div hidden={view !== 'list'}>
+      {visible.length ? <ul className="places-list">{visible.map(place => <li key={place.id}><button className="places-row" aria-expanded={selected === place.id} disabled={Boolean(draft) && draft.id !== place.id} onClick={() => { if (!draft) setSelected(selected === place.id ? null : place.id); }}><span className="places-dot" style={{ background: categories[place.category].color }}/><span><strong>{place.name}</strong><small>{categories[place.category].label}</small></span><span aria-hidden="true" className="places-chevron">{selected === place.id ? '−' : '+'}</span></button>{view === 'list' && selected === place.id && details(place)}</li>)}</ul> : data.status !== 'loading' && <div className="places-empty"><h3>{data.pins.length ? 'No matching places' : 'No places added yet'}</h3><p>{data.pins.length ? 'Try another search or category.' : 'Find places in the conversation, then add the ones you want.'}</p>{data.pins.length > 0 && <button className="ds-button small" onClick={clearFilters}>Clear filters</button>}</div>}
+    </div>
+    <div hidden={view !== 'map'}>{mapVisited && (MapAdapter ? <MapAdapter destination={data.destination} final={data.final} places={visible} selectedId={selected} onSelect={id => { if (!draft) { dismissPreview(); setSelected(id); } }} editing={Boolean(draft)} fitRequest={fitRequest} onShowAll={showAll} active={view === 'map'}/> : <p className="places-empty">Map unavailable. Your places are available in List view.</p>)}{view === 'map' && pin && details(pin)}</div>
+    {removed && !data.pins.some(p => p.id === removed.pin.id) && <div className="places-undo" role="status"><span>{removed.pin.name} removed from draft.</span><button className="ds-text-button" disabled={disabled || data.pins.length >= 50} onClick={() => { onAction('restore_pin', removed); setRemoved(null); clearFilters(); }}>Undo</button></div>}
+    <footer className="places-footer">{visible.length} {visible.length === 1 ? 'place' : 'places'}{view === 'map' ? ' · Select a pin for details' : ''}</footer>
+    <dialog className="canvas-confirm places-confirm" ref={dialog} aria-labelledby={`${heading}-remove`} onCancel={event => { event.preventDefault(); setRemoving(null); }}><h2 id={`${heading}-remove`}>Remove {removing?.name}?</h2><p>This removes the place from your draft. You can undo this before leaving the canvas.</p><div className="places-actions"><button className="ds-button" autoFocus onClick={() => setRemoving(null)}>Keep place</button><button className="ds-button primary" disabled={disabled} onClick={() => { onAction('remove_pin', { id: removing.id }); setRemoved({ pin: removing, index: data.pins.findIndex(p => p.id === removing.id) }); setRemoving(null); setSelected(null); }}>Remove place</button></div></dialog>
+  </section>;
 }
