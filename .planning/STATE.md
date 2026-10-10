@@ -181,3 +181,11 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - PR #3: https://github.com/Merthadam/travella/pull/3 — account settings, design alignment and global appearance; user authorized merge into main.
 - Quick 261008-rkt reconciled phase verification and reran 41 frontend tests, 68 account HTTP/SQL tests and production build successfully. Existing broader test debt remains documented.
 - Dedicated preview moved to http://localhost:5194/account; health and authentication passed. Unrelated local files and the separate main checkout are preserved.
+
+
+### LiteAPI search and sandbox booking shipment (2026-10-10)
+
+- PR #4: https://github.com/Merthadam/travella/pull/4 — accumulated LiteAPI hotel/flight search, sandbox checkout, canvas booking state/recovery, themes, navigation and destination map framing. User explicitly authorized merging all completed work into main.
+- Pre-merge verification: 109 backend tests, 33 frontend tests and production build passed. Scoped security review and verification gates passed. Authenticated browser evidence is retained under artifacts/testing; the latest run verified flight save/reload without a temporary checkout receipt.
+- Shipment record: `.planning/quick/261010-merge-liteapi/VERIFICATION.md`. Existing broader-suite failures remain documented; this shipment does not complete the separate Phase 15 backlog.
+- Merge through GitHub; preserve the unrelated dirty/diverged local main checkout, other worktrees, local Docker volumes and the running test stack.
