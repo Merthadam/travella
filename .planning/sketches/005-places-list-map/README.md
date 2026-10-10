@@ -2,7 +2,7 @@
 sketch: 005
 name: places-list-map
 question: "How can saved places use a clear list/map switch and small pins with less visual noise?"
-winner: null
+winner: "A"
 tags: [canvas, places, map, list]
 ---
 
@@ -24,4 +24,12 @@ This is a standalone GSD HTML sketch in a simulated version of the current Plann
 
 Sources: existing DestinationMap.jsx, CanvasDestinationMap.jsx, design-system tokens, user-provided before screenshot. Map API reference: https://leafletjs.com/reference-1.9.4.html. Map data: https://www.openstreetmap.org/copyright.
 
-Winner pending user review. Preserve all variants on this throwaway branch; after selection, record the decision, implement properly, and remove prototype code from the production branch. No implementation issue was supplied.
+## Selected direction — 2026-10-10
+
+User selected A: “A is perfect”, with an explicit requirement to avoid generic AI-looking UI. Preserve plain compact rows, clear List / Map views, small conventional pins, restrained styling, and Show all places. Avoid decorative slogans, sparkle icons, oversized category badges, unnecessary panels, and filler descriptions.
+
+Adding places is still an open product decision. The user finds agent-assisted adding easier and questions the value of the manual Add place control. Proposed direction (not yet selected): use the existing conversation to find or identify a place, show its exact name/address and preview, then let the traveler explicitly add it. Retain direct editing and removal for existing places. If a manual path is retained, keep it secondary and use provider place search, not a form for coordinates or invented locations.
+
+This update records feedback only. The prototype still shows its original Add place interaction; no production implementation has begun. Existing browser evidence remains applicable to the unchanged prototype.
+
+Preserve all variants on this throwaway branch; implement the selected design properly and remove prototype code from the production branch. No implementation issue was supplied.
