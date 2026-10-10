@@ -16,7 +16,7 @@ beforeEach(() => {
 afterEach(cleanup);
 function Map({ places, onSelect, onShowAll }) { return <div role="region" aria-label="Test map">{places.map(p => <button key={p.id} onClick={() => onSelect(p.id)}>{p.name} pin</button>)}<button onClick={onShowAll}>Show all places</button></div>; }
 
-test('list and map share search and category filters without changing the plan', async () => {
+test('list and map share category filters without changing the plan', async () => {
   const user = userEvent.setup(); const action = vi.fn();
   render(<DestinationMap data={data} onAction={action} mapAdapter={Map}/>);
   expect(screen.queryByRole('region', { name: 'Test map' })).toBeNull();
@@ -26,9 +26,9 @@ test('list and map share search and category filters without changing the plan',
   expect(screen.getByRole('button', { name: 'Test cafe pin' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Show all places' }));
   expect(screen.getByRole('button', { name: 'Sforzesco Castle pin' })).toBeTruthy();
-  await user.type(screen.getByRole('searchbox'), 'missing');
   await user.click(screen.getByRole('button', { name: 'List', exact: true }));
-  expect(screen.getByText('No matching places')).toBeTruthy();
+  expect(screen.queryByRole('searchbox')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Find places' })).toBeNull();
   expect(action.mock.calls.filter(([name]) => name !== 'editor_state')).toEqual([]);
 });
 

@@ -7,6 +7,7 @@ import { Icon } from '../../../design-system/components/primitives';
 import { CanvasDestinationMap, CanvasMapContext } from './CanvasDestinationMap';
 import { usePlanningCanvas } from '../usePlanningCanvas';
 import { useCanvasConversation } from '../useCanvasConversation';
+import { CanvasPlacePhoto } from './CanvasPlacePhoto';
 import { CanvasConversation } from './CanvasConversation';
 import '../../../design-system/tokens.css';
 import '../../../design-system/components.css';
@@ -19,7 +20,6 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const [chatBusy, setChatBusy] = useState(false);
   const canvas = usePlanningCanvas({ selected, api, onExpired, onSaved, externalBusy: chatBusy });
   const chat = useCanvasConversation({ selected, api, data: canvas.data, blocked: Boolean(canvas.activeGroup || canvas.saving || canvas.loading), onExpired, onAdd: canvas.addActivities, onBusyChange: setChatBusy });
-  const [focusRequest, setFocusRequest] = useState(0);
   const [chatOpen, setChatOpen] = useState(true);
   const [mobileView, setMobileView] = useState(autoGenerate ? 'chat' : 'canvas');
   const [preview, setPreview] = useState(null);
@@ -92,7 +92,6 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   }
   function action(id, name, payload) {
     if (name === 'clear_place_preview') { setPreview(null); return; }
-    if (name === 'find_places') { setSearchArea(null); setChatOpen(true); setMobileView('chat'); setFocusRequest(value => value + 1); return; }
     if (name === 'open_flights' || name === 'open_accommodation') { const mode = name === 'open_flights' ? 'flights' : 'accommodation'; setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); setMobileView('canvas'); return; }
     if (name === 'retry') { generate(id === 'themes' ? 'themes' : id === 'findings' || id === 'links' ? 'research' : 'all'); return; }
     if (name === 'editor_state' || !chatBusy) canvas.action(id, name, payload);
@@ -114,14 +113,14 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
       {travel.error && <p role="alert" className="canvas-error">{travel.error} <button className="ds-button" onClick={travel.retry}>Retry travel connection</button></p>}
       {screen && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus onClick={() => { travelReturnFocus.current = screen; setScreen(null); }}>← Back to canvas</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([, , key]) => travel.capabilities?.[key]).map(([mode, label]) => <button key={mode} aria-pressed={screen === mode} onClick={() => { setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); }}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
       {['accommodation', 'flights'].filter(mode => visitedTravel[mode]).map(mode => <TravelSearch key={`${selected.plan_id}-${mode}`} planId={selected.plan_id} mode={mode} active={screen === mode} initialData={canvas.data} onExpired={onExpired} onBookingResult={canvas.updateMockBooking}/>)}
-      {canvas.renderData && <div hidden={Boolean(screen)}><CanvasMapContext.Provider value={{ preview, destinationHint: canvas.mapDestinationHint, onClearPreview: () => setPreview(null), onSearchArea: searchMapArea, onAddPreview: place => canvas.addActivities([place]), disabled: busy || canvas.data.map.pins.length >= 50 }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placePreview={preview} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider></div>}
+      {canvas.renderData && <div hidden={Boolean(screen)}><CanvasMapContext.Provider value={{ preview, destinationHint: canvas.mapDestinationHint, onClearPreview: () => setPreview(null), onSearchArea: searchMapArea, onAddPreview: place => canvas.addActivities([place]), disabled: busy || canvas.data.map.pins.length >= 50 }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placePhoto={CanvasPlacePhoto} placePreview={preview} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider></div>}
       <dialog className="canvas-confirm" ref={dialog} aria-labelledby="canvas-confirm-title" onCancel={event => { event.preventDefault(); setConfirm(null); }}>
         <h2 id="canvas-confirm-title">{confirm?.kind === 'generate' ? `Replace the draft ${groupLabel[confirm.group]}?` : confirm?.kind === 'reload' ? 'Discard edits and load the saved plan?' : 'Leave without saving?'}</h2>
         <p>{confirm?.kind === 'generate' ? 'New results replace the selected generated sections, including edits in those sections. Your essentials and saved map places stay in the draft. Save plan is still required to keep the result.' : 'Your unsaved canvas edits will be discarded. Your last saved plan will remain available.'}</p>
         <div><button type="button" className="ds-button" autoFocus onClick={() => setConfirm(null)}>Keep editing</button><button type="button" className="ds-button primary" onClick={confirmed}>{confirm?.kind === 'generate' ? 'Replace draft sections' : confirm?.kind === 'reload' ? 'Load saved plan' : 'Leave canvas'}</button></div>
       </dialog>
     </div>
-    <div className="canvas-chat-panel" hidden={Boolean(screen)}><CanvasConversation focusRequest={focusRequest} chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={() => { setChatOpen(false); setMobileView('canvas'); }} onPreview={showPlace} onAdd={canvas.addActivities} area={searchArea} onClearArea={() => setSearchArea(null)}/></div>
+    <div className="canvas-chat-panel" hidden={Boolean(screen)}><CanvasConversation chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={() => { setChatOpen(false); setMobileView('canvas'); }} onPreview={showPlace} onAdd={canvas.addActivities} area={searchArea} onClearArea={() => setSearchArea(null)}/></div>
     </div>
   </main>;
 }

@@ -230,14 +230,7 @@ test('returning to the canvas recovers a flight booked in a closed checkout and 
 });
 
 
-test('Find places reopens and focuses the conversation without sending or saving', async () => {
-  const user = userEvent.setup(); const api = setup();
-  await user.click(await screen.findByRole('button', { name: 'Close plan chat' }));
-  await user.click(screen.getByRole('button', { name: 'Find places' }));
-  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Message Travella' })));
-  expect(api.editCanvas).not.toHaveBeenCalled();
-  expect(api.saveCanvas).not.toHaveBeenCalled();
-});
+
 
 test('undo restores a removed place at its original position and stays unsaved', async () => {
   const api = {

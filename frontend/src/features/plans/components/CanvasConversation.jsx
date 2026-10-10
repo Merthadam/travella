@@ -3,12 +3,11 @@ import { ActivitySuggestions } from '../../../design-system/a2ui/ActivitySuggest
 import { Icon } from '../../../design-system/components/primitives';
 import { ChatMarkdown } from './ChatMarkdown';
 
-export function CanvasConversation({ chat, data, disabled, generating, onClose, onPreview, onAdd, area, onClearArea, focusRequest }) {
+export function CanvasConversation({ chat, data, disabled, generating, onClose, onPreview, onAdd, area, onClearArea }) {
   const [input, setInput] = useState('');
   const history = useRef(null); const nearBottom = useRef(true); const composer = useRef(null);
   useEffect(() => { if (nearBottom.current && history.current) history.current.scrollTop = history.current.scrollHeight; }, [chat.messages, chat.active]);
   const blocked = disabled || chat.loading || Boolean(chat.historyError) || chat.active;
-  useEffect(() => { if (focusRequest && !blocked) composer.current?.focus(); }, [focusRequest, blocked]);
   async function send(event) { event.preventDefault(); const text = input.trim(); if (!text || blocked) return; setInput(''); await chat.send(text, area); requestAnimationFrame(() => composer.current?.focus()); }
   const pins = data?.map?.pins || [];
   const isAdded = place => pins.some(pin => pin.id === place.id || (pin.name === place.name && pin.position.lat === place.position.lat && pin.position.lng === place.position.lng));

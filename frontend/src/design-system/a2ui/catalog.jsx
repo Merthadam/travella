@@ -25,7 +25,7 @@ const implementations = ids.map(id => createBinderlessComponentImplementation({
   const checked = definitions[id].schema.safeParse(data);
   if (!checked.success) return <div className="ds-component-unavailable" role="status">Waiting for valid {definitions[id].title.toLowerCase()} data…</div>;
   const View = views[id];
-  return <View data={checked.data} disabled={options.disabled} mapAdapter={options.mapAdapter} placePreview={options.placePreview} preview={options.preview !== false} travelCapabilities={options.travelCapabilities} onAction={(name,payload) => void context.dispatchAction({ event: { name, context: payload } })}/>;
+  return <View data={checked.data} disabled={options.disabled} mapAdapter={options.mapAdapter} placePhoto={options.placePhoto} placePreview={options.placePreview} preview={options.preview !== false} travelCapabilities={options.travelCapabilities} onAction={(name,payload) => void context.dispatchAction({ event: { name, context: payload } })}/>;
 }));
 const Root = createBinderlessComponentImplementation({ name: 'PlanningCanvas', schema: z.object({ children: z.array(z.enum(ids)).max(7).describe('REF:common_types.json#/$defs/ChildList') }).strict() }, ({ context, buildChild }) => <div className="ds-canvas-grid">{context.componentModel.properties.children.map(id => <div className={`ds-slot slot-${id} ${!context.componentModel.properties.children.includes({map:'themes',themes:'map',flights:'accommodation',accommodation:'flights',findings:'links',links:'findings'}[id]) ? 'span-all' : ''}`} key={id}>{buildChild(id)}</div>)}</div>);
 export const catalog = new Catalog(catalogId, 'v0.9', [Root, ...implementations], []);
