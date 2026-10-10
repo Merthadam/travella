@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { normalizeTitle, plansApi, requestId } from './plansApi';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { plansApi, requestId } from './plansApi';
+import { usePlanAction } from './features/plans/usePlanAction';
 import { PlanDrawer } from './features/plans/components/PlanDrawers';
 import { TravelCardsPrototype } from './features/plans/prototypes/TravelCardsPrototype';
 import { PlanningCanvas } from './features/plans/components/PlanningCanvas';
@@ -28,67 +29,19 @@ function route() {
 }
 
 function ActionDialog({ value, onClose, onDone, onExpired, api }) {
-  const [plan, setPlan] = useState(value.plan);
-  const [draft, setDraft] = useState(value.plan.title);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [conflict, setConflict] = useState(false);
-  const [unavailable, setUnavailable] = useState(false);
-  const [uncertain, setUncertain] = useState(false);
-  const dialog = useRef(null), pending = useRef(null), lock = useRef(false), alive = useRef(true);
-  const normalized = normalizeTitle(draft);
-  const rename = value.operation === 'rename';
+  const { plan, draft, changeDraft, normalized, rename, busy, error, conflict, unavailable, uncertain, submit } = usePlanAction({ value, onDone, onExpired, api });
+  const dialog = useRef(null);
   useEffect(() => {
-    alive.current = true;
     const opener = document.activeElement;
     dialog.current.showModal();
-    return () => { alive.current = false; if (opener?.isConnected) opener.focus(); };
+    return () => { if (opener?.isConnected) opener.focus(); };
   }, []);
-
-  async function submit(event) {
-    event.preventDefault();
-    if (lock.current || unavailable) return;
-    if (rename && normalized.error) { setError(normalized.error); return; }
-    lock.current = true; setBusy(true); setError('');
-    try {
-      if (!pending.current) {
-        const confirmation = await api.prepare(plan, value.operation, normalized.title);
-        if (!alive.current) return;
-        pending.current = { plan, operation: value.operation, title: confirmation.title, challenge: confirmation.challenge, id: requestId() };
-      }
-      const result = await api.commit(pending.current);
-      if (alive.current) onDone(result, value.operation);
-    } catch (err) {
-      if (!alive.current) return;
-      if (err.status === 401) { onExpired(); return; }
-      if (unknown(err)) {
-        setUncertain(Boolean(pending.current));
-        setError('We couldn’t confirm the result. Retry to check your request.');
-      } else {
-        pending.current = null; setUncertain(false);
-        if (err.status === 409) {
-          try {
-            const latest = await api.get(plan.plan_id, value.operation === 'restore' ? 'deleted' : 'active');
-            if (!alive.current) return;
-            setPlan(latest); setConflict(true);
-            setError(rename ? 'This plan changed since you opened it. Review the latest saved name and apply your name again.' : 'This plan changed. Review the current plan before confirming again.');
-          } catch (readError) {
-            if (!alive.current) return;
-            if (readError.status === 401) onExpired();
-            else { setUnavailable(true); setError('This plan isn’t available. Close this review and refresh your plans.'); }
-          }
-        } else if (err.status === 410 || err.status === 404) {
-          setUnavailable(true); setError('This plan’s recovery period has ended or the plan is no longer available.');
-        } else setError(err.message || 'We couldn’t save this change. Try again.');
-      }
-    } finally { lock.current = false; if (alive.current) setBusy(false); }
-  }
   const action = rename ? 'Apply name' : value.operation === 'delete' ? 'Delete plan' : 'Restore plan';
   return <dialog ref={dialog} className="plan-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description" onCancel={event => { if (busy || uncertain) event.preventDefault(); else onClose(); }}>
     <form onSubmit={submit} aria-busy={busy}>
       <h2 id="dialog-title">{rename ? 'Rename plan' : value.operation === 'delete' ? 'Delete plan?' : 'Restore plan'}</h2>
       <p id="dialog-description">{rename ? 'Choose the exact name to save for this plan.' : value.operation === 'delete' ? `Delete “${plan.title}”? This removes the plan from My plans. You can restore it from Recently deleted for seven days. After that, its saved data will be permanently removed.` : `Restore “${plan.title}” and open its Conversation.`}</p>
-      {rename && <><label htmlFor="plan-name">Plan name</label><input id="plan-name" autoFocus value={draft} onChange={e => { setDraft(e.target.value); pending.current = null; }} disabled={busy || uncertain} aria-invalid={Boolean(normalized.error)} aria-describedby="name-count name-preview" />
+      {rename && <><label htmlFor="plan-name">Plan name</label><input id="plan-name" autoFocus value={draft} onChange={e => changeDraft(e.target.value)} disabled={busy || uncertain} aria-invalid={Boolean(normalized.error)} aria-describedby="name-count name-preview" />
         <p id="name-count" className="meta">{normalized.count} of 120 characters</p>
         {conflict && <p>Latest saved name: <strong>{plan.title}</strong></p>}
         <p id="name-preview">Will be saved as: <strong>{normalized.title || '—'}</strong></p></>}
@@ -130,6 +83,9 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const drawerTrigger = useRef(null), drawerCloseButton = useRef(null), planDrawerElement = useRef(null);
   const [drawerPlans, setDrawerPlans] = useState([]);
   const [drawerLoading, setDrawerLoading] = useState(false);
+  const [drawerError, setDrawerError] = useState(''), [drawerCursor, setDrawerCursor] = useState(null);
+  const drawerRequest = useRef(0), drawerLocked = useRef(false);
+  const setDrawerLocked = useCallback(value => { drawerLocked.current = value; }, []);
   const generation = useRef(0), lock = useRef(false), createAttempt = useRef(null), heading = useRef(null);
   useEffect(() => {
     if (!selected || selected.lifecycle !== 'active' || destinationView !== 'map' || !mapsApiKey || !mapCanvas.current) return undefined;
@@ -247,27 +203,46 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     finally { setBriefSaving(false); }
   }
   function closePlanDrawer() {
-    setPlanDrawerOpen(false);
+    if (drawerLocked.current) return;
+    drawerRequest.current++;
+    setDrawerLoading(false); setPlanDrawerOpen(false);
     drawerTrigger.current?.focus();
   }
-  async function togglePlanDrawer(event) {
+  async function loadDrawerPlans(nextCursor = null) {
+    const ticket = ++drawerRequest.current;
+    setDrawerLoading(true); setDrawerError('');
+    try {
+      const result = await api.list('active', nextCursor);
+      if (ticket !== drawerRequest.current) return;
+      const incoming = Array.isArray(result?.plans) ? result.plans : [];
+      setDrawerPlans(old => nextCursor ? [...old, ...incoming.filter(plan => !old.some(existing => existing.plan_id === plan.plan_id))] : incoming);
+      setDrawerCursor(result?.next_cursor || null);
+    } catch (err) {
+      if (ticket !== drawerRequest.current) return;
+      if (err.status === 401) onExpired();
+      else setDrawerError('Plans could not be loaded. Try again.');
+    } finally { if (ticket === drawerRequest.current) setDrawerLoading(false); }
+  }
+  function togglePlanDrawer(event) {
     if (planDrawerOpen) { closePlanDrawer(); return; }
     drawerTrigger.current = event?.currentTarget || null;
-    setPlanDrawerOpen(true);
-    if (drawerLoading) return;
-    setDrawerLoading(true);
-    try {
-      const result = await api.list('active');
-      setDrawerPlans(Array.isArray(result?.plans) ? result.plans : []);
-    } catch (err) {
-      if (err.status === 401) onExpired();
-    } finally { setDrawerLoading(false); }
+    setPlanDrawerOpen(true); setDrawerPlans([]); setDrawerCursor(null);
+    loadDrawerPlans();
+  }
+  function drawerCompleted(plan, operation) {
+    drawerRequest.current++; setDrawerLoading(false);
+    setDrawerPlans(current => operation === 'delete' ? current.filter(item => item.plan_id !== plan.plan_id) : current.map(item => item.plan_id === plan.plan_id ? plan : item));
+    setPlans(current => operation === 'delete' ? current.filter(item => item.plan_id !== plan.plan_id) : current.map(item => item.plan_id === plan.plan_id ? plan : item));
+    if (selected?.plan_id === plan.plan_id) {
+      if (operation === 'delete') { closePlanDrawer(); setNotice('Plan moved to Recently deleted.'); load(); }
+      else setSelected(plan);
+    }
   }
   useEffect(() => {
     if (!planDrawerOpen) return undefined;
     drawerCloseButton.current?.focus();
     const handleDrawerKeys = event => {
-      if (event.key === 'Escape') { closePlanDrawer(); return; }
+      if (event.key === 'Escape' && !event.defaultPrevented) { closePlanDrawer(); return; }
       if (event.key !== 'Tab') return;
       const focusable = [...(planDrawerElement.current?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])];
       if (!focusable.length) { event.preventDefault(); drawerCloseButton.current?.focus(); return; }
@@ -346,7 +321,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
         <button className="nav-button" disabled={accountBusy || busy} onClick={() => { if ((!canvasDirty.current && !canvasBusy.current) || leaveCanvas()) onAccount(); }}>Account</button>
         <button className="nav-button subtle" disabled={accountBusy || busy} onClick={() => { if (leaveCanvas()) onSignOut(); }}>Sign out</button>
     </AppHeader>
-    {planDrawerOpen && <PlanDrawer drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} actions={actions} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
+    {planDrawerOpen && <PlanDrawer drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} api={api} onExpired={onExpired} onDone={drawerCompleted} onLockedChange={setDrawerLocked} error={drawerError} hasMore={Boolean(drawerCursor)} onLoadMore={() => loadDrawerPlans(drawerCursor)} onRetry={() => loadDrawerPlans(drawerCursor)} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
     {import.meta.env.DEV && new URLSearchParams(location.search).get('prototype') === 'travel-cards' ? <TravelCardsPrototype /> : conversationPage && selected ? (canvasPage ? <PlanningCanvas key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} autoGenerate={generateCanvas} onBack={() => { canvasDirty.current = false; setCanvasPage(false); }} onDirtyChange={dirty => { canvasDirty.current = dirty; }} onBusyChange={active => { canvasBusy.current = active; }} onSaved={result => setSelected(current => current ? { ...current, revision: result.revision } : current)} /> : <PlanConversation key={selected.plan_id} selected={selected} api={api} onExpired={onExpired} onCanvas={showCanvas} />) : <main id="plans-main" className="plans-main" tabIndex={-1}>
       <div className="plans-heading"><div><h1 ref={heading} tabIndex={-1}>{selected ? selected.title : view === 'deleted' ? 'Recently deleted' : 'My plans'}</h1>{!selected && view === 'active' && <p>Your draft plans, most recently opened or changed first.</p>}</div>
         {!selected && view === 'active' && <button className="primary" disabled={busy || loading} onClick={createPlan}>{busy ? 'Creating plan…' : 'New plan'}</button>}</div>

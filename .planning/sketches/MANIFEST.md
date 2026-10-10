@@ -28,3 +28,15 @@ explicit Add to plan; Save plan remains separate. Compare stacked place cards,
 a swipeable shortlist, and a compact list with an expanded place preview.
 Use the approved canvas's green/paper palette. This is an isolated simulated
 canvas, with no agent, Google API, authenticated session, or durable mutations.
+
+## Sketch 005 — Quiet plan navigation
+
+| # | Name | Design Question | Winner | Tags |
+|---|------|----------------|--------|------|
+| 005 | quiet-plan-navigation | How can switching, renaming and deleting plans feel quiet and direct? | B — Recent first, trailing hover trash | plans, navigation, inline-editing |
+
+Direction: compact GPT-like plan navigation; double-click the title to edit, with selected B placing muted trash on the right. Compared quiet sidebar, recent-first grouped drawer, and centered searchable switcher. Simulated actions only; preview and evidence pointers in the sketch README.
+
+### Selected direction for Sketch 005
+
+User chose B (Recent first) and requested the trash icon on the right, appearing only on row hover. B now uses a trailing trash icon with keyboard-focus visibility and a visible touch fallback; double-click inline renaming is retained. Production integration completed in quick task 261011-01k; authenticated desktop/mobile evidence is in artifacts/testing/2026-10-11-quiet-plan-navigation/verification.md. Full throwaway source is archived on prototype/quiet-plan-navigation-2026-10-10-b.

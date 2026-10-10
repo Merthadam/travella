@@ -1,0 +1,19 @@
+Emulating viewport: {"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"isLandscape":false,"width":1280,"height":850}
+## Network requests
+Showing 1-16 of 16 (Page 1 of 1).
+reqid=777 GET http://localhost:5181/auth/session [200]
+reqid=778 GET http://localhost:5181/v1/traveler-profile [200]
+reqid=779 GET http://localhost:5181/v1/plans?view=deleted [200]
+reqid=780 POST http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b/challenges [200]
+reqid=781 POST http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b/restore [200]
+reqid=782 GET http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b?view=active [200]
+reqid=783 GET http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b/destinations [200]
+reqid=784 GET http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b/research-context [200]
+reqid=785 GET http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b/conversation/messages [200]
+reqid=786 GET http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b/brief [200]
+reqid=788 GET http://localhost:5181/v1/plans?view=active [200]
+reqid=789 POST http://localhost:5181/v1/plans/2b0727a6-dc41-45b5-9aad-85407ba6eb39/challenges [200]
+reqid=790 DELETE http://localhost:5181/v1/plans/2b0727a6-dc41-45b5-9aad-85407ba6eb39 [200]
+reqid=791 POST http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b/challenges [200]
+reqid=792 DELETE http://localhost:5181/v1/plans/b734b0f2-081f-4120-ae33-63e8e035426b [200]
+reqid=793 GET http://localhost:5181/v1/plans?view=active [200]
