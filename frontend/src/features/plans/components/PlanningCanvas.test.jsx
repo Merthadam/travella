@@ -54,7 +54,7 @@ test('open card edits and unsent chat survive flight and stay navigation', async
   await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
   expect(screen.getByRole('textbox', { name: 'Date note' }).value).toBe('Unfinished date note');
   expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Which airport is easiest?');
-  await user.click(screen.getByRole('button', { name: 'Send ↑' }));
+  await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(api.editCanvas).toHaveBeenCalledOnce());
   expect(await screen.findByText('You can compare airports for Milan.')).toBeTruthy();
   expect(screen.getByRole('textbox', { name: 'Date note' }).value).toBe('Unfinished date note');
@@ -73,7 +73,7 @@ test('cancelling an editor during a reply releases the save lock after the reply
   }));
   await user.click(await screen.findByRole('button', { name: 'Edit details', exact: true }));
   await user.type(screen.getByRole('textbox', { name: 'Message Travella' }), 'Help with this trip');
-  await user.click(screen.getByRole('button', { name: 'Send ↑' }));
+  await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
   finish();
@@ -278,4 +278,21 @@ test('generation rejects details changed after the traveler reviewed them', asyn
   await act(() => result.current.generate('all', 1));
   expect(api.generateCanvas).not.toHaveBeenCalled();
   expect(result.current.error).toContain('Trip details changed after your review');
+});
+
+test('folding chat preserves its draft and restores keyboard focus without saving or sending', async () => {
+  const user = userEvent.setup(); const api = setup();
+  const message = await screen.findByRole('textbox', { name: 'Message Travella' });
+  await waitFor(() => expect(message.disabled).toBe(false));
+  await user.type(message, 'Keep this question for later');
+  await user.click(screen.getByRole('button', { name: 'Collapse plan chat' }));
+  expect(screen.queryByRole('textbox', { name: 'Message Travella' })).toBeNull();
+  const expand = screen.getByRole('button', { name: 'Expand plan chat' });
+  await waitFor(() => expect(document.activeElement).toBe(expand));
+  expect(expand.getAttribute('aria-expanded')).toBe('false');
+  await user.keyboard('{Enter}');
+  expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Keep this question for later');
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Collapse plan chat' })));
+  expect(api.editCanvas).not.toHaveBeenCalled();
+  expect(api.saveCanvas).not.toHaveBeenCalled();
 });
