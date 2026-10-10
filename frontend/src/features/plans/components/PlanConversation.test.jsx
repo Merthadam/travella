@@ -122,3 +122,34 @@ test('Shift+Enter inserts a newline without sending; Enter sends', async () => {
   await waitFor(() => expect(api.agentTurnStream).toHaveBeenCalledOnce());
   expect(api.agentTurnStream.mock.calls[0][1]).toBe('First line\nSecond line');
 });
+
+test('reviews exact trip details and requires confirmation before canvas generation', async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; };
+  const api = settledApi(); const user = userEvent.setup(); const onCanvas = vi.fn();
+  const base = await api.researchContext();
+  api.researchContext.mockResolvedValue({ ...base, revision: 7, context: { ...base.context, finalDestination: 'Milan', dateNote: 'Three days in spring', travelers: 2, budget: '€900', flights: 'not-needed' } });
+  render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={onCanvas}/>);
+  const trigger = await screen.findByRole('button', { name: 'Review & generate' });
+  await waitFor(() => expect(trigger.disabled).toBe(false));
+  await user.click(trigger);
+  expect(screen.getByRole('dialog').textContent).toContain('Milan');
+  expect(screen.getByRole('dialog').textContent).toContain('Three days in spring');
+  expect(screen.getByRole('dialog').textContent).toContain('€900');
+  expect(screen.getByRole('dialog').textContent).toContain('Not needed');
+  expect(onCanvas).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Edit trip details' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+  expect(onCanvas).not.toHaveBeenCalled();
+  await user.click(trigger);
+  await user.click(screen.getByRole('button', { name: 'Confirm & generate' }));
+  expect(onCanvas).toHaveBeenCalledExactlyOnceWith(true, 7);
+});
+
+test('does not allow review while trip details are unavailable', async () => {
+  const api = settledApi(); api.researchContext.mockRejectedValue(new Error('Offline'));
+  render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={vi.fn()}/>);
+  await screen.findByText('Trip details unavailable. Refresh to try again.');
+  expect(screen.getByRole('button', { name: 'Review & generate' }).disabled).toBe(true);
+});

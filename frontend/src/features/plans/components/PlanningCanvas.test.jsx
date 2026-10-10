@@ -253,3 +253,29 @@ test('undo restores a removed place at its original position and stays unsaved',
   expect(result.current.dirty).toBe(true);
   expect(api.saveCanvas).not.toHaveBeenCalled();
 });
+
+test('manual full generation requires review and does not start on cancellation', async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  const user = userEvent.setup(); const api = setup();
+  api.generateCanvas = vi.fn(async () => ({ status: 'stopped' }));
+  const trigger = await screen.findByRole('button', { name: 'Generate plan', exact: true });
+  await waitFor(() => expect(trigger.disabled).toBe(false));
+  await user.click(trigger);
+  expect((await screen.findByRole('dialog', { name: 'Ready to generate your plan?' })).textContent).toContain('Milan');
+  expect(api.generateCanvas).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Keep editing', exact: true }));
+  expect(api.generateCanvas).not.toHaveBeenCalled();
+  await user.click(trigger);
+  await user.click(await screen.findByRole('button', { name: 'Confirm & generate' }));
+  await waitFor(() => expect(api.generateCanvas).toHaveBeenCalledOnce());
+  expect(api.generateCanvas.mock.calls[0][1].context_revision).toBe(1);
+});
+
+test('generation rejects details changed after the traveler reviewed them', async () => {
+  const api = { canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, snapshot: null })), researchContext: vi.fn(async () => ({ revision: 2, context: { finalDestination: 'Milan' } })), generateCanvas: vi.fn(), cancelAgentTurn: vi.fn(async () => {}) };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(() => result.current.generate('all', 1));
+  expect(api.generateCanvas).not.toHaveBeenCalled();
+  expect(result.current.error).toContain('Trip details changed after your review');
+});

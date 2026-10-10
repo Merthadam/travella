@@ -18,6 +18,7 @@ function changesBetween(before, after) {
 
 export function useTripContext(api, planId, onExpired) {
   const [context, setContext] = useState(emptyTripContext);
+  const [revision, setRevision] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -39,6 +40,7 @@ export function useTripContext(api, planId, onExpired) {
     server.current = snapshot;
     desired.current = snapshot.context;
     setContext(snapshot.context);
+    setRevision(snapshot.revision);
     setLocked(Boolean(snapshot.locked));
     if (snapshot.a2ui_messages) setMessages(snapshot.a2ui_messages);
   }, []);
@@ -46,7 +48,7 @@ export function useTripContext(api, planId, onExpired) {
   useEffect(() => {
     const currentEpoch = ++epoch.current;
     server.current = null; desired.current = null; inFlight.current = false;
-    setContext(emptyTripContext()); setMessages([]); setLoading(true); setSaving(false); setError(''); setLocked(false);
+    setRevision(null); setContext(emptyTripContext()); setMessages([]); setLoading(true); setSaving(false); setError(''); setLocked(false);
     api.researchContext({ plan_id: planId }).then(snapshot => {
       if (epoch.current === currentEpoch) accept(snapshot);
     }).catch(err => {
@@ -113,5 +115,5 @@ export function useTripContext(api, planId, onExpired) {
     timer.current = setTimeout(flush, 450);
   }
 
-  return { context, messages, update, accept, loading, saving, locked, error };
+  return { context, revision, messages, update, accept, loading, saving, locked, error };
 }

@@ -4,6 +4,7 @@ import { A2uiTripBrief } from './A2uiTripBrief';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useTripContext } from '../useTripContext';
 import './research-conversation.css';
+import { CanvasGenerationReview, PlanStages } from './CanvasGenerationReview';
 
 const safeSources = values => (Array.isArray(values) ? values : []).filter(item => {
   if (!item?.url || !item?.title) return false;
@@ -38,6 +39,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   const [active, setActive] = useState(null);
   const [error, setError] = useState('');
   const [slowReply, setSlowReply] = useState(false);
+  const [review, setReview] = useState(null);
   const history = useRef(null);
   const composer = useRef(null);
   const activeRef = useRef(null);
@@ -168,7 +170,8 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
 
   return <div className="chat-layout">
     <main className="chat-page" id="conversation-main">
-    {onCanvas && <div className="chat-canvas-entry"><button type="button" onClick={() => onCanvas(false)} disabled={Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Open plan canvas</button><button type="button" className="primary" onClick={() => onCanvas(true)} disabled={Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Generate plan</button></div>}
+    {onCanvas && <div className="chat-canvas-entry"><PlanStages/><div className="research-canvas-actions"><button type="button" onClick={() => onCanvas(false)} disabled={Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Open canvas</button><button type="button" className="primary" onClick={() => setReview({ context: structuredClone(brief.context), revision: brief.revision })} disabled={loading || Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Review & generate</button></div></div>}
+    {review && <CanvasGenerationReview context={review.context} onCancel={() => setReview(null)} onConfirm={() => { setReview(null); onCanvas(true, review.revision); }}/>}
     <section className="chat-transcript" aria-label="Plan conversation" aria-busy={loading || Boolean(active)} ref={history} onScroll={event => {
       const node = event.currentTarget;
       nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100;

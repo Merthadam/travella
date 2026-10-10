@@ -1,0 +1,31 @@
+.plan-stages ol { display:flex; align-items:center; gap:16px; padding:0; margin:0; list-style:none; }
+.plan-stages li { display:flex; align-items:center; gap:8px; color:var(--app-muted); font-size:12px; white-space:nowrap; }
+.plan-stages li + li::before { content:''; width:28px; height:1px; background:var(--app-line); margin-right:8px; }
+.plan-stages li > span { display:grid; place-items:center; width:24px; height:24px; border:1px solid var(--app-line); border-radius:50%; font-size:11px; }
+.plan-stages [aria-current] { color:var(--app-text); font-weight:600; }
+.plan-stages [aria-current] > span { background:var(--app-soft); border-color:var(--app-accent); }
+.chat-canvas-entry .plan-stages { margin-right:auto; }
+.chat-canvas-entry .research-canvas-actions { display:flex; gap:8px; }
+.canvas-generation-review { box-sizing:border-box; width:min(560px, calc(100vw - 32px)); max-height:calc(100dvh - 32px); margin:auto; padding:28px; overflow-y:auto; border:1px solid var(--app-line); border-radius:18px; background:var(--app-panel); color:var(--app-text); box-shadow:0 20px 80px #0004; }
+.canvas-generation-review::backdrop { background:#07121eb3; }
+.canvas-generation-review h2 { margin:10px 0; font-size:24px; line-height:1.25; }
+.canvas-generation-review p { font-size:14px; line-height:1.6; color:var(--app-muted); }
+.canvas-generation-review .generation-review-kicker { font-size:10px; letter-spacing:.12em; margin:0; }
+.canvas-generation-review dl { margin:22px 0; }
+.canvas-generation-review dl > div { display:grid; grid-template-columns:110px minmax(0,1fr); gap:16px; padding:11px 0; border-bottom:1px solid var(--app-line); font-size:14px; }
+.canvas-generation-review dt { color:var(--app-muted); }
+.canvas-generation-review dd { margin:0; text-align:right; overflow-wrap:anywhere; }
+.generation-review-actions { display:flex; justify-content:space-between; gap:12px; margin-top:24px; }
+.generation-review-actions button { min-height:44px; padding:10px 14px; border:1px solid var(--app-line); border-radius:10px; background:var(--app-soft); color:var(--app-text); font:inherit; font-size:13px; cursor:pointer; }
+.generation-review-actions button.primary { background:var(--app-accent); color:#072034; border-color:transparent; }
+.generation-review-actions button:focus-visible { outline:2px solid var(--app-focus); outline-offset:3px; }
+.canvas-workspace > .plan-stages { padding:16px 24px; border-bottom:1px solid var(--app-line); }
+@media(max-width:1000px) { .chat-canvas-entry { flex-wrap:wrap; } }
+@media(max-width:600px) {
+  .canvas-generation-review { padding:20px; }
+  .canvas-generation-review h2 { font-size:22px; }
+  .generation-review-actions { flex-direction:column-reverse; }
+  .plan-stages ol { gap:10px; }
+  .plan-stages li + li::before { width:16px; margin-right:2px; }
+  .chat-canvas-entry .research-canvas-actions { margin-left:auto; }
+}
