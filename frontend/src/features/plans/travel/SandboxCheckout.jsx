@@ -12,7 +12,7 @@ export function MockBookingRecovery({ planId, onOpen }) {
   const token = saved(planId);
   return token ? <button type="button" onClick={() => onOpen(token)}>View last mock checkout</button> : null;
 }
-export function SandboxCheckout({ planId, offerToken, recoveryToken, onClose }) {
+export function SandboxCheckout({ planId, offerToken, recoveryToken, onClose, onBookingResult }) {
   const [review, setReview] = useState(null);
   const [guests, setGuests] = useState([]);
   const [agreed, setAgreed] = useState(false);
@@ -22,6 +22,14 @@ export function SandboxCheckout({ planId, offerToken, recoveryToken, onClose }) 
   const submitting = useRef(false);
   const started = useRef(null);
   const heading = useRef(null);
+  const notified = useRef(null);
+  useEffect(() => {
+    if (!review?.sandbox || !review.booking_id || !['confirmed', 'cancelled', 'failed'].includes(review.status)) return;
+    const key = `${review.booking_id}:${review.status}`;
+    if (notified.current === key || !onBookingResult) return;
+    notified.current = key;
+    onBookingResult(planId, review);
+  }, [review, planId, onBookingResult]);
   useEffect(() => {
     let live = true;
     // Reuse the promise during React's effect replay; never create two prebooks.
@@ -59,7 +67,7 @@ export function SandboxCheckout({ planId, offerToken, recoveryToken, onClose }) 
   const terminal = ["confirmed", "cancelled", "failed"].includes(review?.status);
   return <section className="mock-checkout" aria-busy={busy}>
     <h3 ref={heading} tabIndex={-1}>{confirmed ? "Mock booking confirmed" : "Sandbox checkout"}</h3>
-    <p className="travel-note">Test only — no real reservation or charge. Your Plan’s booking status stays unchanged.</p>
+    <p className="travel-note">Test only — no real reservation or charge. Confirmed mock bookings update your canvas draft. Choose Save plan to keep the test stay.</p>
     {busy && <p role="status">{attempted ? "Checking your mock booking…" : "Refreshing price and room terms…"}</p>}
     {error && <p role="alert">{error}</p>}
     {review && <>

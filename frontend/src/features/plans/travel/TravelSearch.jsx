@@ -243,7 +243,7 @@ function Room({ room, onCheckout }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
@@ -331,7 +331,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired }) {
           <button onClick={() => setRetry((x) => x + 1)}>Retry details</button>
         </p>
       )}
-      {checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} /> : stay ? (
+      {checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : stay ? (
         <>
           <p>{hotel?.address || item.address}</p>
           {hotel?.images?.length > 0 && (
@@ -374,7 +374,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired }) {
         </>
       )}
       <p className="travel-note">
-        Availability and prices can change. Mock bookings are test-only and do not update your Plan.
+        Availability and prices can change. Mock bookings are test-only; save your canvas to keep the confirmed test stay.
       </p>
     </dialog>
   );
@@ -420,7 +420,7 @@ export function filterResults(
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
 }
-export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
+export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult }) {
   const stay = mode === "accommodation";
   const dates = initialData?.essentials?.dates;
   const [city, setCity] = useState(initialData?.map?.destination || "");
@@ -598,8 +598,14 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
             : "Compare the journey, the fare, and the time you get back."}
         </p>
       </header>
+      {stay && initialData?.accommodation?.mockBooking && <section className="travel-empty" aria-label="Mock stay details">
+        <h3>Mock booked · {initialData.accommodation.mockBooking.hotelName}</h3>
+        <p>{initialData.accommodation.mockBooking.checkIn} – {initialData.accommodation.mockBooking.checkOut}</p>
+        <p>Test reference: {initialData.accommodation.mockBooking.reference}</p>
+        <p>Sandbox only — no real reservation or charge.</p>
+      </section>}
       {stay && <MockBookingRecovery planId={planId} onOpen={setRecovery} />}
-      {stay && recovery && <SandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} />}
+      {stay && recovery && <SandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
       <form
         className="travel-form"
         onSubmit={search}
@@ -1136,6 +1142,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired }) {
           sandbox={snapshot.sandbox}
           onClose={() => setDetail(null)}
           onExpired={onExpired}
+          onBookingResult={onBookingResult}
         />
       )}
     </section>

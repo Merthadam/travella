@@ -18,6 +18,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from services.trip_context import TripContext
+from services.mock_booking import MockStaySummary
 
 from .contracts import LifecycleProblem
 from .models import PlanLifecycle, PlanningCanvas, ResearchContext, WorkingView
@@ -109,12 +110,19 @@ class MapComponent(Component):
 
 class Travel(Component):
     need: Literal["undecided", "needed", "not-needed"]
-    # No trusted booking input exists yet; the studio still illustrates booked cards.
-    bookingStatus: Literal["not-booked"]
+    # A saved simulation is never a claim that a real reservation exists.
+    bookingStatus: Literal["not-booked", "mock-booked"]
+    mockBooking: MockStaySummary | None = None
     title: str = Field(max_length=160)
     subtitle: str = Field(max_length=160)
     detail: str = Field(max_length=160)
     availability: Literal["unavailable", "ready"]
+
+    @model_validator(mode="after")
+    def mock_state_matches(self):
+        if (self.bookingStatus == "mock-booked") != (self.mockBooking is not None):
+            raise ValueError("mock booking details must match the booking state")
+        return self
 
 
 def public_url(value: str) -> bool:
@@ -181,6 +189,8 @@ class CanvasSnapshot(Strict):
             raise ValueError("unknown component")
         for name, data in self.components.items():
             component = COMPONENT_MODELS[name].model_validate(data)
+            if "mockBooking" in data and (name != "accommodation" or data["mockBooking"] is None):
+                raise ValueError("mock bookings are supported only for stays")
             # The renderer allows these fields to be omitted, never explicit null.
             if "error" in data and data["error"] is None:
                 raise ValueError("component error must be text when present")

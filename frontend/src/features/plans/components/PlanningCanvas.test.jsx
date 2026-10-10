@@ -12,7 +12,7 @@ vi.mock('./CanvasDestinationMap', async () => {
 });
 vi.mock('../travel/TravelSearch', () => ({
   useTravelCapabilities: () => ({ capabilities: { hotels: true, flights: true, sandbox: true } }),
-  TravelSearch: ({ mode, active }) => <section hidden={!active} aria-label={`${mode} search`}>Search {mode}</section>,
+  TravelSearch: ({ planId, mode, active, onBookingResult }) => <section hidden={!active} aria-label={`${mode} search`}>Search {mode}<button onClick={() => onBookingResult(planId, { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hotel_name: 'Ski stay', check_in: '2027-02-03', check_out: '2027-02-07' })}>Complete mock stay</button></section>,
 }));
 beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
@@ -95,4 +95,74 @@ test('adding an explicitly chosen activity preserves an independent open editor'
   expect(result.current.editing).toBe(true);
   expect(result.current.data.map.pins.map(pin => pin.name)).toEqual(['Chosen park']);
   expect(result.current.data.essentials).toEqual(essentials);
+});
+
+const booking = { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hotel_name: 'Ski stay', check_in: '2027-02-03', check_out: '2027-02-07', token: 'never-save-this', guests: ['never-save-guests'] };
+
+test('confirmed checkout switches the real canvas card to a clearly labeled mock state', async () => {
+  const user = userEvent.setup(); const api = setup();
+  await user.click(await screen.findByRole('button', { name: 'Explore accommodation' }));
+  await user.click(screen.getByRole('button', { name: 'Complete mock stay' }));
+  await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
+  expect(await screen.findByText('Mock booked')).toBeTruthy();
+  expect(screen.getByText('Ski stay')).toBeTruthy();
+  expect(screen.getByText('Sandbox only · no real reservation or charge')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'View mock stay' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Explore flights' })).toBeTruthy();
+  expect(api.saveCanvas).not.toHaveBeenCalled();
+});
+
+test('mock stay is explicitly saved, restored, and preserved through regeneration and trip edits', async () => {
+  let stored = null;
+  const api = {
+    canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, saved_context_revision: 1, snapshot: stored })),
+    researchContext: vi.fn(async () => ({ revision: 1, context: { finalDestination: 'Milan', travelers: 2 } })),
+    saveCanvas: vi.fn(async (_plan, body) => { stored = structuredClone(body.snapshot); return { ...body, revision: 2 }; }),
+  };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.data).not.toBeNull());
+  const original = structuredClone(result.current.data);
+  for (const status of ['review', 'pending', 'not_found', 'failed']) act(() => result.current.updateMockBooking('test-plan', { ...booking, status }));
+  act(() => result.current.updateMockBooking('another-plan', booking));
+  act(() => result.current.updateMockBooking('test-plan', { ...booking, sandbox: false }));
+  expect(result.current.data).toEqual(original);
+  act(() => result.current.updateMockBooking('test-plan', booking));
+  expect(api.saveCanvas).not.toHaveBeenCalled();
+  expect(result.current.data.flights).toEqual(original.flights);
+  await act(() => result.current.save());
+  expect(result.current.dirty).toBe(false);
+  expect(JSON.stringify(stored)).not.toMatch(/never-save/);
+  act(() => result.current.reload());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.data.accommodation.bookingStatus).toBe('mock-booked');
+  api.generateCanvas = async (_plan, body, _id, { onEvent }) => {
+    onEvent({ type: 'STATE_SNAPSHOT', snapshot: { canvas_draft: { generation_id: body.generation_id, context_revision: 1, components: original, group_status: { themes: 'ready', research: 'ready' } } } });
+    return { status: 'complete' };
+  };
+  await act(() => result.current.generate());
+  expect(result.current.data.accommodation.bookingStatus).toBe('mock-booked');
+  act(() => result.current.action('essentials', 'edit_essentials', { ...original.essentials, travelers: 3 }));
+  expect(result.current.data.accommodation.mockBooking.checkIn).toBe('2027-02-03');
+  act(() => result.current.updateMockBooking('test-plan', { ...booking, booking_id: 'OTHER', status: 'cancelled' }));
+  expect(result.current.data.accommodation.bookingStatus).toBe('mock-booked');
+  act(() => result.current.updateMockBooking('test-plan', { ...booking, status: 'cancelled' }));
+  expect(result.current.data.accommodation.bookingStatus).toBe('not-booked');
+});
+
+test('checkout finishing during Save remains an unsaved change instead of being lost', async () => {
+  let finish;
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: {} }),
+    saveCanvas: vi.fn((_plan, body) => new Promise(resolve => { finish = () => resolve({ ...body, revision: 2 }); })),
+  };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  let saving;
+  act(() => { saving = result.current.save(); });
+  act(() => result.current.updateMockBooking('test-plan', booking));
+  await act(async () => { finish(); await saving; });
+  expect(result.current.data.accommodation.bookingStatus).toBe('mock-booked');
+  expect(result.current.saved.components.accommodation.bookingStatus).toBe('not-booked');
+  expect(result.current.dirty).toBe(true);
 });

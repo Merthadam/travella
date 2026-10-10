@@ -3,6 +3,7 @@
 from typing import Any, Literal
 
 from pydantic import Field, model_validator
+from services.mock_booking import MockStaySummary
 
 from .claude.research_result import StrictResult
 
@@ -149,7 +150,8 @@ class MapComponent(ReadyState):
 
 class TravelComponent(ReadyState):
     need: Literal["needed", "not-needed", "undecided"]
-    bookingStatus: Literal["booked", "not-booked"]
+    bookingStatus: Literal["booked", "not-booked", "mock-booked"]
+    mockBooking: MockStaySummary | None = None
     title: str = Field(max_length=160)
     subtitle: str = Field(max_length=160)
     detail: str = Field(max_length=160)

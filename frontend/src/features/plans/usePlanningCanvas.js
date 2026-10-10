@@ -132,6 +132,25 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     } catch { setError('That change could not be applied. Check the details and try again.'); }
   }, []);
 
+  const updateMockBooking = useCallback((sourcePlanId, result) => {
+    if (sourcePlanId !== base.current?.plan_id || !dataRef.current || !result?.sandbox || !result.booking_id) return;
+    const next = clone(dataRef.current);
+    const stay = next.accommodation;
+    if (result.status === 'confirmed') {
+      stay.bookingStatus = 'mock-booked';
+      stay.mockBooking = { reference: result.booking_id, hotelName: result.hotel_name?.slice(0, 160), checkIn: result.check_in, checkOut: result.check_out };
+    } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
+      stay.bookingStatus = 'not-booked'; delete stay.mockBooking;
+    } else return;
+    try {
+      const parsed = validateCanvasComponents(next, true);
+      if (fingerprint(parsed) === fingerprint(dataRef.current)) return;
+      dataRef.current = parsed; setData(parsed); pendingSave.current = null;
+      setNotice('Mock booking state updated in your draft. Choose Save plan to keep it. No real reservation was made.');
+      setError('');
+    } catch { setError('The mock stay could not be added to your canvas. Reopen the checkout and check its status.'); }
+  }, []);
+
   async function generate(group = 'all') {
     if (active.current || savingRef.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;
     const currentEpoch = epoch.current;
@@ -161,6 +180,10 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
             if (group === 'all') {
               for (const key of ['essentials', 'flights', 'accommodation']) if (editedComponents.current.has(key)) delete replacement[key];
               if (replacement.map) replacement.map = { ...replacement.map, pins: dataRef.current.map.pins };
+            }
+            // Research can refresh trip labels, but cannot undo a confirmed test stay.
+            if (replacement.accommodation && dataRef.current.accommodation.mockBooking) {
+              replacement.accommodation = { ...replacement.accommodation, bookingStatus: 'mock-booked', mockBooking: dataRef.current.accommodation.mockBooking };
             }
             const next = validateCanvasComponents({ ...dataRef.current, ...replacement }, true);
             for (const [key, status] of Object.entries(statuses)) {
@@ -226,7 +249,15 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       base.current = { ...selected, revision: result.revision, context_revision: result.context_revision };
       const canonical = { version: 1, components, evidence: sourceEvidence };
       editedComponents.current = new Set();
-      setData(components); setEvidence(sourceEvidence); setSaved(canonical); setNotice('Saved. Your plan is ready to reopen.'); setConflict(false); setStaleContext(false); pendingSave.current = null;
+      // A checkout may finish while Save is in flight. Keep that later change
+      // unsaved instead of overwriting it with the earlier reviewed snapshot.
+      const bookingChanged = fingerprint(dataRef.current.accommodation.mockBooking) !== fingerprint(value.components.accommodation.mockBooking);
+      const next = bookingChanged ? { ...components, accommodation: { ...components.accommodation, bookingStatus: dataRef.current.accommodation.bookingStatus } } : components;
+      if (bookingChanged) {
+        delete next.accommodation.mockBooking;
+        if (dataRef.current.accommodation.mockBooking) next.accommodation.mockBooking = dataRef.current.accommodation.mockBooking;
+      }
+      dataRef.current = next; setData(next); setEvidence(sourceEvidence); setSaved(canonical); setNotice(bookingChanged ? 'Plan saved. Your newer mock booking update is still unsaved; choose Save plan to keep it.' : 'Saved. Your plan is ready to reopen.'); setConflict(false); setStaleContext(false); pendingSave.current = null;
       callbacks.current.onSaved?.(result);
     } catch (err) {
       if (epoch.current !== currentEpoch) return;
@@ -267,5 +298,5 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }
-  return { data, renderData, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, reload: () => setReloadVersion(value => value + 1) };
+  return { data, renderData, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
 }
