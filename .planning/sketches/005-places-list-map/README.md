@@ -28,8 +28,12 @@ Sources: existing DestinationMap.jsx, CanvasDestinationMap.jsx, design-system to
 
 User selected A: “A is perfect”, with an explicit requirement to avoid generic AI-looking UI. Preserve plain compact rows, clear List / Map views, small conventional pins, restrained styling, and Show all places. Avoid decorative slogans, sparkle icons, oversized category badges, unnecessary panels, and filler descriptions.
 
-Adding places is still an open product decision. The user finds agent-assisted adding easier and questions the value of the manual Add place control. Proposed direction (not yet selected): use the existing conversation to find or identify a place, show its exact name/address and preview, then let the traveler explicitly add it. Retain direct editing and removal for existing places. If a manual path is retained, keep it secondary and use provider place search, not a form for coordinates or invented locations.
+User approved the agent-assisted design direction. A now opens the Plan conversation from a quiet Find places control; named/addressed sample results can be previewed without saving and explicitly added. The manual add form remains only in B/C for comparison. Direct Edit note, Remove, confirmation, and Undo remain available in A.
 
-This update records feedback only. The prototype still shows its original Add place interaction; no production implementation has begun. Existing browser evidence remains applicable to the unchanged prototype.
+A is the default refined design; its comparison bar is hidden until Prototype tools → Compare alternatives is enabled. B/C remain accessible by URL. Conversation search is a labeled simulation, not a live agent. All place mutations remain in memory. Production implementation has not begun.
 
 Preserve all variants on this throwaway branch; implement the selected design properly and remove prototype code from the production branch. No implementation issue was supplied.
+
+## A refinement plan — 2026-10-10
+
+User approved proceeding with the design and agent-assisted adding. Refine the selected prototype, preserving B/C as references. Keep a quiet Find places entry that opens the plan conversation. Simulate a request, present named/addressed results, preview on map without saving, then explicitly Add to plan. Keep direct Edit note and Remove, confirmed removal and undo. Reduce duplicate detail text, hide empty category filters, make row selection collapsible, preserve map framing, provide clear empty/error states. Verify these journeys on desktop and 390px phone, including keyboard/dialog operation and zero plan changes from searching/previewing. Live agent/provider integration and production implementation are outside this design refinement.

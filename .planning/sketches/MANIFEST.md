@@ -32,4 +32,4 @@ canvas, with no agent, Google API, authenticated session, or durable mutations.
 
 ## Direction for Sketch 005
 
-Small conventional pins, explicit List / Map views, retain Show all places, concise place details and practical controls. Three interactive alternatives with simulated mutations. Built from origin/main 201fd74. User selected A on 2026-10-10, emphasizing plain functional styling. Agent-assisted adding versus a secondary manual search remains open; see sketch README.
+Small conventional pins, explicit List / Map views, retain Show all places, concise place details and practical controls. Three interactive alternatives with simulated mutations. Built from origin/main 201fd74. User selected A on 2026-10-10, emphasizing plain functional styling. User approved agent-assisted adding: A now includes a simulated conversation → preview → explicit Add to plan flow, with direct note editing and removal. See sketch README.
