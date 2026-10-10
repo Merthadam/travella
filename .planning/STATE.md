@@ -4,9 +4,9 @@ current_phase: 15
 current_phase_name: Bounded agentic canvas generation
 status: verifying
 stopped_at: Phase 15 implemented; live generation acceptance pending
-last_updated: "2026-10-09T17:13:24.737Z"
-last_activity: 2026-10-09
-last_activity_desc: Approved A LiteAPI search implemented and browser-verified; baseline suite failures documented
+last_updated: "2026-10-10T11:58:55.845542+00:00"
+last_activity: 2026-10-10
+last_activity_desc: Canvas divider cleanup verified on desktop/mobile in both themes
 state_head: 359b57f276f5322a6f20ad908d536ca34ee6b213
 progress:
   total_phases: 11
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
 Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-09 - Completed quick task 261009-q7n: sandbox hotel checkout and ski resort lookup; live mock booking/read-back, 50 focused tests and Chrome desktop/mobile verification passed.
+Last activity: 2026-10-10 - Completed quick task 261010-j4x: straight canvas dividers; build, 14 tests and authenticated Chrome desktop/mobile checks passed.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -167,6 +167,8 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 | 261009-14y | Rebased on main; approved A hotel/return-flight LiteAPI search; live sandbox, desktop/mobile and security checks verified; baseline failures documented | 2026-10-09 | 4cd70e1 | Feature verified | [261009-14y](./quick/261009-14y-rebase-on-main-and-implement-liteapi-acc/) |
 | 261009-q7n | Sandbox hotel checkout and ski resort lookup; 50 focused tests, live mock booking, reload recovery and desktop/mobile Chrome checks passed | 2026-10-09 | 6fce929 | Verified | [261009-q7n-add-sandbox-only-hotel-mock-checkout](./quick/261009-q7n-add-sandbox-only-hotel-mock-checkout/) |
 
+| 261010-j4x | Straight canvas travel, preference and saved-place dividers; desktop/mobile light/dark browser verification and 14 tests passed | 2026-10-10 | 9d3884d | Verified | [261010-j4x](./quick/261010-j4x-clean-up-curved-dividers-on-planning-can/) |
+
 ### Roadmap Evolution — 2026-10-06
 
 - Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.
@@ -189,3 +191,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - Pre-merge verification: 109 backend tests, 33 frontend tests and production build passed. Scoped security review and verification gates passed. Authenticated browser evidence is retained under artifacts/testing; the latest run verified flight save/reload without a temporary checkout receipt.
 - Shipment record: `.planning/quick/261010-merge-liteapi/VERIFICATION.md`. Existing broader-suite failures remain documented; this shipment does not complete the separate Phase 15 backlog.
 - Merge through GitHub; preserve the unrelated dirty/diverged local main checkout, other worktrees, local Docker volumes and the running test stack.
+
+### Canvas divider shipment — 2026-10-10
+
+- PR #5: https://github.com/Merthadam/travella/pull/5 — approved focused CSS cleanup and verification evidence. User explicitly requested merge into main.
+- Quick-task verification and scoped security gates passed. The production patch is unchanged from the tested implementation; 14 tests, build and authenticated desktop/mobile browser checks passed.
+- Merge through GitHub after final branch/check validation. Preserve other worktrees and the separate local main checkout. This shipment does not change Phase 15 acceptance status.

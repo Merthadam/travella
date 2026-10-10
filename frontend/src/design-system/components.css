@@ -5,3 +5,17 @@
 .ds-slot.span-all{grid-column:1/-1}
 
 .ds-booking-status{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;white-space:nowrap;font-size:10px;font-weight:500;line-height:1.4;padding:6px 9px;border:1px solid var(--ds-line);border-radius:999px;color:var(--ds-muted);background:var(--ds-soft)}.ds-booking-circle{width:8px;height:8px;border:1px solid currentColor;border-radius:50%}.ds-booking-status.booked{color:var(--ds-active-text);background:var(--ds-active);border-color:var(--ds-active-line)}.ds-travel.is-booked:before{background:var(--ds-green)}.ds-travel-need{display:block;margin-top:10px;font-size:11px;color:var(--ds-muted)}
+/* Divider rows are flat surfaces, independent of the app's pill-shaped buttons. */
+.ds-preference,
+.ds-travel-link,
+.ds-place-list li button {
+  border-radius: 0;
+}
+
+@media (hover: hover) {
+  .ds-preference:hover:not(:disabled),
+  .ds-travel-link:hover:not(:disabled),
+  .ds-place-list li button:hover:not(:disabled) {
+    background: var(--ds-soft);
+  }
+}
