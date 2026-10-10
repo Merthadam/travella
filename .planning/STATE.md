@@ -4,10 +4,10 @@ current_phase: 15
 current_phase_name: Bounded agentic canvas generation
 status: verifying
 stopped_at: Phase 15 implemented; live generation acceptance pending
-last_updated: "2026-10-10T11:58:55.845542+00:00"
+last_updated: "2026-10-10T21:50:25.366Z"
 last_activity: 2026-10-10
-last_activity_desc: Canvas divider cleanup verified on desktop/mobile in both themes
-state_head: 359b57f276f5322a6f20ad908d536ca34ee6b213
+last_activity_desc: Research composer and canvas divider cleanups verified; both task records retained
+state_head: 032f16a0859a213a5dbd62ac3107a7aa24f5c78e
 progress:
   total_phases: 11
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
 Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-10 - Completed quick task 261010-j4x: straight canvas dividers; build, 14 tests and authenticated Chrome desktop/mobile checks passed.
+Last activity: 2026-10-10 - Completed quick task 261010-j1q: research composer cleanup and three interactive journey alternatives; focused tests and authenticated browser checks passed; design selection pending.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -169,6 +169,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | 261009-14y | Rebased on main; approved A hotel/return-flight LiteAPI search; live sandbox, desktop/mobile and security checks verified; baseline failures documented | 2026-10-09 | 4cd70e1 | Feature verified | [261009-14y](./quick/261009-14y-rebase-on-main-and-implement-liteapi-acc/) |
 | 261009-q7n | Sandbox hotel checkout and ski resort lookup; 50 focused tests, live mock booking, reload recovery and desktop/mobile Chrome checks passed | 2026-10-09 | 6fce929 | Verified | [261009-q7n-add-sandbox-only-hotel-mock-checkout](./quick/261009-q7n-add-sandbox-only-hotel-mock-checkout/) |
+| 261010-j1q | Research composer cleanup and three interactive journey alternatives; 7 focused tests and browser checks pass; 7 baseline PlansApp fixture failures documented | 2026-10-10 | 00111da | — | [261010-j1q-refine-research-composer-live-agent-stat](./quick/261010-j1q-refine-research-composer-live-agent-stat/) |
 
 | 261010-j4x | Straight canvas travel, preference and saved-place dividers; desktop/mobile light/dark browser verification and 14 tests passed | 2026-10-10 | 9d3884d | Verified | [261010-j4x](./quick/261010-j4x-clean-up-curved-dividers-on-planning-can/) |
 
@@ -186,7 +187,6 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - PR #3: https://github.com/Merthadam/travella/pull/3 — account settings, design alignment and global appearance; user authorized merge into main.
 - Quick 261008-rkt reconciled phase verification and reran 41 frontend tests, 68 account HTTP/SQL tests and production build successfully. Existing broader test debt remains documented.
 - Dedicated preview moved to http://localhost:5194/account; health and authentication passed. Unrelated local files and the separate main checkout are preserved.
-
 
 ### LiteAPI search and sandbox booking shipment (2026-10-10)
 
