@@ -3,6 +3,7 @@ import { requestId } from '../../../plansApi';
 import { A2uiTripBrief } from './A2uiTripBrief';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useTripContext } from '../useTripContext';
+import './research-conversation.css';
 
 const safeSources = values => (Array.isArray(values) ? values : []).filter(item => {
   if (!item?.url || !item?.title) return false;
@@ -36,6 +37,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
   const [error, setError] = useState('');
+  const [slowReply, setSlowReply] = useState(false);
   const history = useRef(null);
   const composer = useRef(null);
   const activeRef = useRef(null);
@@ -44,6 +46,22 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   const planId = selected?.plan_id;
   const brief = useTripContext(api, planId, onExpired);
   onExpiredRef.current = onExpired;
+  const replyContent = active ? messages.find(item => item.client_id === active.assistantId)?.content : '';
+  const replyStatus = active?.stopping ? 'Stopping reply…' : slowReply ? 'Still waiting for a response…' : replyContent ? 'Receiving reply…' : 'Waiting for Travella…';
+
+  useEffect(() => {
+    setSlowReply(false);
+    if (!active) return;
+    const timer = setTimeout(() => setSlowReply(true), 20000);
+    return () => clearTimeout(timer);
+  }, [active?.eventId, replyContent]);
+
+  useEffect(() => {
+    const input = composer.current;
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
+  }, [draft]);
 
   useEffect(() => {
     let mounted = true;
@@ -118,7 +136,8 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   async function send(event) {
     event.preventDefault();
     const message = draft.trim();
-    if (!message || active || brief.loading || brief.saving || brief.locked || brief.error) return;
+    if (!message || loading || activeRef.current || brief.loading || brief.saving || brief.locked || brief.error) return;
+    nearBottom.current = true;
     setDraft('');
     await runTurn(message);
   }
@@ -126,10 +145,14 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   async function stop() {
     const turn = activeRef.current;
     if (!turn) return;
+    setActive(current => current ? { ...current, stopping: true } : current);
     try {
       if (api.cancelAgentTurn) {
         const result = await api.cancelAgentTurn(selected, turn.eventId);
-        if (result?.cancelled === false) return;
+        if (result?.cancelled === false) {
+          setActive(current => current ? { ...current, stopping: false } : current);
+          return;
+        }
       } else turn.controller.abort();
       turn.stopped = true;
       updateMessage(turn.assistantId, { status: 'stopped' });
@@ -145,7 +168,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
 
   return <div className="chat-layout">
     <main className="chat-page" id="conversation-main">
-    {onCanvas && <div className="chat-canvas-entry"><button type="button" onClick={() => onCanvas(false)} disabled={Boolean(active) || brief.loading || brief.locked}>Open plan canvas</button><button type="button" className="primary" onClick={() => onCanvas(true)} disabled={Boolean(active) || brief.loading || brief.locked}>Generate plan</button></div>}
+    {onCanvas && <div className="chat-canvas-entry"><button type="button" onClick={() => onCanvas(false)} disabled={Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Open plan canvas</button><button type="button" className="primary" onClick={() => onCanvas(true)} disabled={Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Generate plan</button></div>}
     <section className="chat-transcript" aria-label="Plan conversation" aria-busy={loading || Boolean(active)} ref={history} onScroll={event => {
       const node = event.currentTarget;
       nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100;
@@ -159,21 +182,24 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
         return <article key={messageKey(item)} className={`chat-message chat-message-${item.role}`}>
           <div className="chat-message-content"><p className="chat-message-author">{item.role === 'user' ? 'You' : 'Travella'}</p>
             {item.role === 'assistant' ? <ChatMarkdown content={item.content} /> : <p className="chat-message-text">{item.content}</p>}
+            {active?.assistantId === item.client_id && !item.content && <div className="research-reply-pending" aria-hidden="true"><span/><span/><span/></div>}
             <SourceLinks sources={item.sources} />
             {['stopped', 'interrupted'].includes(item.status) && <p className="chat-message-status">{item.status === 'stopped' ? 'Stopped' : 'Interrupted'}</p>}
             {retryMessage && !active && <button className="chat-retry" onClick={() => retry(retryMessage)}>Retry</button>}
           </div>
         </article>;
       })}
-      <div className="sr-only" aria-live="polite" aria-atomic="true">{active ? 'Travella is replying.' : ''}</div>
     </section>
-    <form className="chat-composer" onSubmit={send}>
+    <form className="chat-composer research-composer" onSubmit={send}>
+      <div className="research-composer-box">
       <label className="sr-only" htmlFor="conversation-message">Message Travella</label>
       <textarea ref={composer} id="conversation-message" aria-label="Message Travella" value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
         if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
-      }} rows={1} maxLength={2000} placeholder="Ask anything about your trip…" disabled={loading || brief.loading || Boolean(active) || brief.locked} />
-      {active ? <button className="chat-stop" type="button" onClick={stop}>Stop</button> : <button className="chat-send" type="submit" disabled={loading || brief.loading || brief.saving || brief.locked || Boolean(brief.error) || !draft.trim()}>Send</button>}
-      <p className="chat-composer-hint">Enter to send · Shift+Enter for a new line</p>
+      }} rows={1} maxLength={2000} aria-describedby="research-composer-status" placeholder="Ask about your trip…" disabled={loading || brief.loading || Boolean(active) || brief.locked} />
+      <div className="research-composer-tools"><span className="research-keyboard-hint">Enter to send <span>· Shift + Enter for a new line</span></span>
+      {active ? <button className="chat-stop" type="button" disabled={active.stopping} onClick={stop} aria-label="Stop" title="Stop reply"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg></button> : <button className="chat-send" type="submit" aria-label="Send" title="Send message" disabled={loading || brief.loading || brief.saving || brief.locked || Boolean(brief.error) || !draft.trim()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>}
+      </div></div>
+      <p className={`research-composer-status${active ? ' is-active' : ''}`} id="research-composer-status" role="status" aria-label="Reply status" aria-live="polite" aria-atomic="true">{active ? <><span className="research-status-dot" aria-hidden="true"/>{replyStatus}</> : loading || brief.loading ? 'Loading your conversation…' : brief.saving ? 'Saving trip details…' : brief.locked ? 'Another reply is in progress…' : brief.error ? 'Trip details unavailable. Refresh to try again.' : error ? 'Reply interrupted. You can retry above.' : ''}</p>
     </form>
     </main>
     <A2uiTripBrief key={planId} messages={brief.messages} value={brief.context} onChange={brief.update} locked={Boolean(active) || brief.loading || brief.locked} saving={brief.saving} error={brief.error} />

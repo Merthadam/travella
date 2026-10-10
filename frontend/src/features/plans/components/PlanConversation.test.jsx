@@ -1,11 +1,17 @@
 import React from 'react';
 import { afterEach, expect, test, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PlanConversation } from './PlanConversation';
+import { emptyTripContext } from './TripBrief';
 
 const plan = { plan_id: 'plan-1', title: 'Japan trip' };
 const settledApi = () => ({
+  researchContext: vi.fn(async () => ({ revision: 0, context: emptyTripContext(), locked: false, a2ui_messages: [
+    { version: 'v0.9', createSurface: { surfaceId: 'trip-brief', catalogId: 'urn:travella:catalog:trip-brief:v1' } },
+    { version: 'v0.9', updateComponents: { surfaceId: 'trip-brief', components: [{ id: 'root', component: 'TripBrief', value: { path: '/tripContext/context' } }] } },
+    { version: 'v0.9', updateDataModel: { surfaceId: 'trip-brief', path: '/tripContext', value: { context: emptyTripContext() } } },
+  ] })),
   conversationMessages: vi.fn(async () => [
     { message_id: 'one', role: 'user', content: 'Japan', status: 'complete' },
     { message_id: 'two', role: 'assistant', content: 'What would you like to know?', status: 'complete' },
@@ -41,7 +47,7 @@ test('Stop preserves partial text and disables the composer only while active', 
   }));
   render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} />);
   const composer = await screen.findByRole('textbox', { name: 'Message Travella' });
-  const addCandidate = screen.getByRole('button', { name: 'Add', exact: true });
+  const addCandidate = await screen.findByRole('button', { name: 'Add', exact: true });
   expect(addCandidate.disabled).toBe(true);
   await user.type(screen.getByRole('textbox', { name: 'Add a place' }), 'Sapporo');
   expect(screen.getByRole('button', { name: 'Add', exact: true }).disabled).toBe(false);
@@ -49,15 +55,36 @@ test('Stop preserves partial text and disables the composer only while active', 
   await user.type(composer, 'Tell me about Hokkaido');
   await user.click(screen.getByRole('button', { name: 'Send' }));
   await waitFor(() => expect(emit).toBeTypeOf('function'));
-  emit({ type: 'TEXT_MESSAGE_CONTENT', delta: 'Hokkaido has ' });
+  expect(screen.getByRole('status', { name: 'Reply status' }).textContent).toBe('Waiting for Travella…');
+  act(() => emit({ type: 'TEXT_MESSAGE_CONTENT', delta: 'Hokkaido has ' }));
   expect(await screen.findByText('Hokkaido has')).toBeTruthy();
+  expect(screen.getByRole('status', { name: 'Reply status' }).textContent).toBe('Receiving reply…');
   expect(composer.disabled).toBe(true);
   expect(screen.getByRole('textbox', { name: 'Add a place' }).disabled).toBe(true);
   await user.click(screen.getByRole('button', { name: 'Stop' }));
   expect(await screen.findByText('Stopped')).toBeTruthy();
   expect(screen.getByText('Hokkaido has')).toBeTruthy();
   expect(composer.disabled).toBe(false);
+  expect(screen.getByRole('status', { name: 'Reply status' }).textContent).toBe('');
   expect(screen.getByRole('textbox', { name: 'Add a place' }).disabled).toBe(false);
+});
+
+test('delayed replies report waiting honestly and clear status after completion', async () => {
+  const api = settledApi(); const user = userEvent.setup(); let finish; let emit;
+  api.agentTurnStream.mockImplementation((_plan, _message, _eventId, { onEvent }) => new Promise(resolve => { finish = resolve; emit = onEvent; }));
+  render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} />);
+  await screen.findByText('Japan');
+  await user.type(screen.getByRole('textbox', { name: 'Message Travella' }), 'Milan');
+  await user.click(screen.getByRole('button', { name: 'Send' }));
+  vi.useFakeTimers();
+  try {
+    // Re-arm the inactivity timer from an observable streaming event.
+    act(() => emit({ type: 'TEXT_MESSAGE_CONTENT', delta: 'Milan' }));
+    act(() => vi.advanceTimersByTime(20000));
+    expect(screen.getByRole('status', { name: 'Reply status' }).textContent).toBe('Still waiting for a response…');
+    await act(async () => { emit({ type: 'TERMINAL', status: 'complete' }); finish({ status: 'complete' }); });
+    expect(screen.getByRole('status', { name: 'Reply status' }).textContent).toBe('');
+  } finally { vi.useRealTimers(); }
 });
 
 test('connection failure marks partial output interrupted and offers retry with a fresh event', async () => {
