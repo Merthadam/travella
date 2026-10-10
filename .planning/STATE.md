@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
 Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-10 - Completed quick task 261010-j1q: research composer cleanup and three interactive journey alternatives; focused tests and authenticated browser checks passed; design selection pending.
+Last activity: 2026-10-10 - Completed quick task 261010-qak: preserved Trip Brief assessor and added reviewed confirmation before canvas generation; 18 focused tests and authenticated browser checks passed.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -170,6 +170,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 | 261009-14y | Rebased on main; approved A hotel/return-flight LiteAPI search; live sandbox, desktop/mobile and security checks verified; baseline failures documented | 2026-10-09 | 4cd70e1 | Feature verified | [261009-14y](./quick/261009-14y-rebase-on-main-and-implement-liteapi-acc/) |
 | 261009-q7n | Sandbox hotel checkout and ski resort lookup; 50 focused tests, live mock booking, reload recovery and desktop/mobile Chrome checks passed | 2026-10-09 | 6fce929 | Verified | [261009-q7n-add-sandbox-only-hotel-mock-checkout](./quick/261009-q7n-add-sandbox-only-hotel-mock-checkout/) |
 | 261010-j1q | Research composer cleanup and three interactive journey alternatives; 7 focused tests and browser checks pass; 7 baseline PlansApp fixture failures documented | 2026-10-10 | 00111da | — | [261010-j1q-refine-research-composer-live-agent-stat](./quick/261010-j1q-refine-research-composer-live-agent-stat/) |
+| 261010-qak | Preserve Trip Brief assessor and confirm details before canvas generation; 18 tests and live browser verification pass | 2026-10-10 | d536280 | — | [261010-qak-keep-trip-assessor-and-confirm-details-b](./quick/261010-qak-keep-trip-assessor-and-confirm-details-b/) |
 
 | 261010-j4x | Straight canvas travel, preference and saved-place dividers; desktop/mobile light/dark browser verification and 14 tests passed | 2026-10-10 | 9d3884d | Verified | [261010-j4x](./quick/261010-j4x-clean-up-curved-dividers-on-planning-can/) |
 
