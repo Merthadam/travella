@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { travelRequest } from "./travelApi";
 
-const key = (planId) => `travella:mock-flight:${planId}`;
+import { flightCheckoutKey as key, flightCheckoutUpdated } from "./useFlightBookingSync";
 function remember(planId, token) {
-  try { sessionStorage.setItem(key(planId), token); } catch { /* Storage is optional. */ }
+  try { sessionStorage.setItem(key(planId), token); window.dispatchEvent(new CustomEvent(flightCheckoutUpdated, { detail: planId })); } catch { /* Storage is optional. */ }
 }
 export function FlightMockRecovery({ planId, onOpen }) {
   let token;
@@ -19,19 +19,24 @@ export function FlightSandboxCheckout({ planId, offerToken, recoveryToken, onClo
   const started = useRef(null);
   const submitting = useRef(false);
   const notified = useRef(null);
-  function accept(value) { setResult(value); if (value.status !== "review") remember(planId, value.token); setConsent(false); }
+  function accept(value) {
+    setResult(value);
+    if (value.status !== "review") remember(planId, value.token);
+    setConsent(false);
+    // A submitted booking may finish after the details dialog has closed.
+    // Deliver that result to the Plan even when this view is no longer mounted.
+    if (!value.sandbox || !value.booking_id || !["confirmed", "cancelled", "failed"].includes(value.status)) return;
+    const id = `${value.booking_id}:${value.status}`;
+    if (notified.current === id || !onBookingResult) return;
+    notified.current = id;
+    onBookingResult(planId, value);
+  }
   useEffect(() => {
     let live = true;
     if (!started.current) started.current = travelRequest(planId, `sandbox/flights/${recoveryToken ? "status" : "verify"}`, { token: recoveryToken || offerToken });
     started.current.then(value => { if (live) accept(value); }).catch(e => { if (live) setError(e.message); }).finally(() => { if (live) setBusy(false); });
     return () => { live = false; };
   }, [planId, offerToken, recoveryToken]);
-  useEffect(() => {
-    if (!result?.sandbox || !result.booking_id || !["confirmed", "cancelled", "failed"].includes(result.status)) return;
-    const id = `${result.booking_id}:${result.status}`;
-    if (notified.current === id || !onBookingResult) return;
-    notified.current = id; onBookingResult(planId, result);
-  }, [result, planId, onBookingResult]);
   useEffect(() => {
     if (result?.status !== "pending") return;
     let live = true, timer, attempts = 0;

@@ -4,8 +4,10 @@ import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-libr
 import userEvent from '@testing-library/user-event';
 import { PlanningCanvas } from './PlanningCanvas';
 import { usePlanningCanvas } from '../usePlanningCanvas';
+import { travelRequest } from '../travel/travelApi';
 import { AppearanceProvider } from '../../appearance/AppearanceProvider';
 
+vi.mock('../travel/travelApi', () => ({ travelRequest: vi.fn() }));
 vi.mock('./CanvasDestinationMap', async () => {
   const { createContext } = await import('react');
   return { CanvasMapContext: createContext({}), CanvasDestinationMap: () => <div>Destination map</div>, searchCanvasPlaces: vi.fn() };
@@ -15,6 +17,7 @@ vi.mock('../travel/TravelSearch', () => ({
   TravelSearch: ({ planId, mode, active, onBookingResult }) => <section hidden={!active} aria-label={`${mode} search`}>Search {mode}<button onClick={() => onBookingResult(planId, { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hotel_name: 'Ski stay', check_in: '2027-02-03', check_out: '2027-02-07' })}>Complete mock stay</button></section>,
 }));
 beforeEach(() => {
+  sessionStorage.clear(); vi.mocked(travelRequest).mockReset();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
@@ -209,4 +212,19 @@ test('confirmed mock flight saves independently of a stay and survives reload an
   expect(result.current.data.flights.mockBooking).toEqual({reference:'TEST_FLIGHT',origin:'BUD',destination:'FCO',departureDate:'2027-02-03',returnDate:'2027-02-07'});
   expect(result.current.data.accommodation.bookingStatus).toBe('not-booked');
   expect(JSON.stringify(stored)).not.toContain('never-save-this');
+});
+
+
+test('returning to the canvas recovers a flight booked in a closed checkout and renders its booked card', async () => {
+  const user = userEvent.setup(); const api = setup();
+  await user.click(await screen.findByRole('button', { name: 'Explore flights' }));
+  sessionStorage.setItem('travella:mock-flight:test-plan', 'opaque-receipt');
+  travelRequest.mockResolvedValue({ sandbox: true, mode: 'flights', status: 'confirmed', booking_id: 'FLIGHT-TEST', flight: { outbound: { segments: [{ origin: 'BUD', destination: 'FCO', departure_at: '2027-02-03T10:00:00' }] }, inbound: { segments: [{ departure_at: '2027-02-07T10:00:00' }] } } });
+  await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
+  expect(await screen.findByRole('button', { name: 'View mock flight' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'BUD ↔ FCO' })).toBeTruthy();
+  expect(screen.getByText('Mock booked')).toBeTruthy();
+  expect(screen.getByText('Not booked')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Explore accommodation' })).toBeTruthy();
+  expect(api.saveCanvas).not.toHaveBeenCalled();
 });

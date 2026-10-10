@@ -51,3 +51,16 @@ it('automatically checks a pending reservation and updates after confirmation', 
  await screen.findByText('Mock flight booking confirmed',{}, {timeout:6500});
  expect(notify).toHaveBeenCalledOnce();expect(travelRequest.mock.calls.every(c=>c[1]==='sandbox/flights/status')).toBe(true);
 }, 8000);
+
+it('delivers a submitted booking result to the Plan after the checkout dialog closes', async () => {
+ const notify=vi.fn(); let finish;
+ travelRequest.mockResolvedValueOnce({...review,status:'ready_to_book'}).mockReturnValueOnce(new Promise(resolve => { finish=resolve; }));
+ const view=render(<FlightSandboxCheckout planId="p" recoveryToken="receipt" onBookingResult={notify} />);
+ await screen.findByRole('button',{name:'Confirm mock flight booking'});
+ fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:'Confirm mock flight booking'}));
+ await waitFor(()=>expect(finish).toBeTypeOf('function'));
+ view.unmount();
+ finish({...review,status:'confirmed',token:'booked',booking_id:'TEST'});
+ await waitFor(()=>expect(notify).toHaveBeenCalledExactlyOnceWith('p',expect.objectContaining({status:'confirmed',booking_id:'TEST'})));
+ expect(sessionStorage.getItem('travella:mock-flight:p')).toBe('booked');
+});

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TravelSearch, useTravelCapabilities } from '../travel/TravelSearch';
+import { useFlightBookingSync } from '../travel/useFlightBookingSync';
 import { CanvasSurface } from '../../../design-system/a2ui/CanvasSurface';
 import { ids } from '../../../design-system/schemas';
 import { Icon } from '../../../design-system/components/primitives';
@@ -24,6 +25,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const [searchArea, setSearchArea] = useState(null);
   const generated = useRef(false);
   const [screen, setScreen] = useState(null);
+  useFlightBookingSync(selected.plan_id, !screen && !canvas.loading && Boolean(canvas.data), canvas.updateMockBooking);
   const travel = useTravelCapabilities(selected.plan_id, onExpired);
   const [visitedTravel, setVisitedTravel] = useState({});
   const travelReturnFocus = useRef(null);
