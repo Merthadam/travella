@@ -14,6 +14,7 @@ ChatGPT-style conversational flow; the existing Travella map-first Plan workspac
 | 002 | dynamic-researcher | Which interaction structure makes a tool-using, source-grounded researcher feel capable and conversational while keeping the Plan and traveler in control? | Pending | agent, conversation, research, evidence |
 | 003 | full-screen-travel-guide | How should a simple GPT-like travel chat surface current research and the travel facts it learns? | A — Clean Chat | travel-guide, full-screen, chat, research, memory |
 | 004 | canvas-activity-chat | How should a few Maps-style activity suggestions appear in the canvas side chat? | C — Place explorer | canvas, side-chat, a2ui, activities, maps |
+| 005 | places-list-map | Which list/map structure makes saved places easier to browse with small conventional pins? | A — Simple tabs | canvas, places, map, list |
 
 ## Active Direction for Sketch 003
 
@@ -28,3 +29,7 @@ explicit Add to plan; Save plan remains separate. Compare stacked place cards,
 a swipeable shortlist, and a compact list with an expanded place preview.
 Use the approved canvas's green/paper palette. This is an isolated simulated
 canvas, with no agent, Google API, authenticated session, or durable mutations.
+
+## Direction for Sketch 005
+
+Small conventional pins, explicit List / Map views, retain Show all places, concise place details and practical controls. Three interactive alternatives with simulated mutations. Built from origin/main 201fd74. User selected A on 2026-10-10, emphasizing plain functional styling. User approved agent-assisted adding: A now includes a simulated conversation → preview → explicit Add to plan flow, with direct note editing and removal. See sketch README.

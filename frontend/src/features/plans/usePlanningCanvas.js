@@ -114,6 +114,10 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
         next[mode].subtitle = payload.travelers ? `${payload.travelers} travelers` : 'Travelers not set';
         next[mode].detail = payload.dates.flexible ? 'Flexible dates' : [payload.dates.start, payload.dates.end].filter(Boolean).join(' → ') || 'Dates not set';
       }
+    } else if (id === 'map' && name === 'restore_pin') {
+      if (item.pins.some(pin => pin.id === payload.pin?.id) || !Number.isInteger(payload.index) || payload.index < 0 || payload.index > item.pins.length) return;
+      item.pins.splice(payload.index, 0, payload.pin);
+      item.status = 'ready'; delete item.error;
     } else {
       const operations = { themes: ['theme', 'items'], map: ['pin', 'pins'], findings: ['finding', 'items'], links: ['link', 'items'] };
       const [kind, field] = operations[id] || [];

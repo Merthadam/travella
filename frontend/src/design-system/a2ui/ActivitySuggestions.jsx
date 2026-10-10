@@ -38,7 +38,7 @@ function PlacePhoto({ place }) {
     return () => { alive = false; };
   }, [place.place_id]);
   if (photo) return <figure className="activity-real-photo"><img src={photo.uri} alt={place.name} onError={() => setPhoto(null)}/>{photo.authors.length > 0 && <figcaption>{photo.authors.map((author, index) => { let href; try { const uri = new URL(author.uri); if (uri.protocol === 'https:') href = uri.href; } catch { /* Attribution remains plain text. */ } return href ? <a key={index} href={href} target="_blank" rel="noopener noreferrer">{author.displayName || 'Photo contributor'}</a> : <span key={index}>{author.displayName || 'Photo contributor'}</span>; })}</figcaption>}</figure>;
-  return <div className="activity-place-art" aria-hidden="true"><span className="activity-art-line"/><span className="activity-art-circle"/><span className="activity-art-pin"><Icon name="pin" size={24}/></span><span className="activity-art-label">A LITTLE DISCOVERY</span></div>;
+  return null;
 }
 
 function Rating({ place }) {
@@ -53,11 +53,11 @@ function ActivityExplorer({ data, onAction, disabled }) {
   return <div className="activity-explorer">
     <div className="activity-result-meta"><span>Places to explore</span><span>{data.suggestions.length} suggestions</span></div>
     <div className="activity-choice-list" aria-label="Activity choices">{data.suggestions.map((item, index) => <button type="button" className={`activity-choice ${place.id === item.id ? 'is-selected' : ''}`} key={item.id} aria-pressed={place.id === item.id} onClick={() => setSelected(item.id)}>
-      <span className="activity-choice-icon" aria-hidden="true"><Icon name="spark" size={20}/></span><span className="activity-choice-copy"><strong>{index + 1}. {item.name}</strong><Rating place={item}/></span><span className="activity-choice-end" aria-label={data.added.includes(item.id) ? 'Added to draft' : undefined}>{data.added.includes(item.id) ? '✓' : '↗'}</span>
+      <span className="activity-choice-copy"><strong>{index + 1}. {item.name}</strong><Rating place={item}/></span><span className="activity-choice-end" aria-label={data.added.includes(item.id) ? 'Added to draft' : undefined}>{data.added.includes(item.id) ? '✓' : '↗'}</span>
     </button>)}</div>
     <article className="activity-focused-place">
       <PlacePhoto place={place}/>
-      <div className="activity-place-body"><span className="ds-eyebrow">A CLOSER LOOK</span><h3>{place.name}</h3><p className="activity-address">{place.address}</p><Rating place={place}/>
+      <div className="activity-place-body"><h3>{place.name}</h3><p className="activity-address">{place.address}</p><Rating place={place}/>
         {place.reason && <p className="activity-reason"><strong>Why it fits:</strong> {place.reason}</p>}
         <div className="activity-place-actions"><button type="button" className="ds-button small" onClick={() => onAction('preview_activity', { id: place.id })}><Icon name="pin" size={14}/> Show on map</button><button type="button" className={`ds-button small ${added ? 'activity-added' : 'primary'}`} disabled={disabled || added || data.added.length >= 50} onClick={() => onAction('add_activity', { id: place.id })}>{added ? 'Added ✓' : '+ Add to plan'}</button></div>
         <div className="activity-provider"><span>Place data: Google Maps</span><a href={place.maps_url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${place.name} in Google Maps`}>Google Maps ↗</a></div>

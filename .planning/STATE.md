@@ -129,6 +129,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 | 7 | agentcore-profile-memory · Outcome: Mirrored canonical traveler preferences to AgentCore and supplied matching snapshots to Plan turns; see `artifacts/testing/2026-10-04-agentcore-profile-memory/verification.md`. | 2026-10-04 | — | — | — |
 | 8 | route-langgraph-through-agentcore-runtime · Outcome: Added Runtime HTTP contract, authenticated invocation routing, ARM64 image, and deployment runbook; AWS resource not deployed. | 2026-10-04 | — | — | — |
 | 9 | share-local-worktree-credentials-through · Outcome: Added shared Secrets Manager credential sync to local startup; verified live AWS fetch into independent worktrees and authenticated app startup. | 2026-10-04 | — | — | — |
+| 261010-iw4 | Selected places A: List/Map, small pins, conversational discovery, note/remove/Undo and prototype cleanup | 2026-10-10 | 54312da | Complete | [Task](quick/261010-iw4-implement-selected-places-list-and-map-d/) |
+| 261010-mtt | Removed redundant places controls; added real list photos with graceful fallback; 21 tests and authenticated desktop/mobile checks passed | 2026-10-10 | dbf9174 | Complete | [Task](quick/261010-mtt-remove-places-discovery-and-search-contr/) |
+| 261010-x66 | Places redesign rebased on main; 21 tests/build and refreshed browser checks passed; shipping through PR #6 | 2026-10-10 | f255a3e | Verified | [Task](quick/261010-x66-rebase-approved-places-redesign-onto-mai/) |
 
 | 2026-10-04 | right-trip-brief-ui | Restored right-side editable Trip Brief; 33 frontend tests/build and desktop interactions passed. Screenshot/mobile checks blocked by unresponsive DevTools. |
 | 2026-10-04 | local-rebuild-freshness | Updated startup skill; rebuild/auth checks passed and three frontend source hashes matched the running container. |
