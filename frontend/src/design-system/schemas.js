@@ -27,7 +27,8 @@ export const themesSchema = z.object({ ...state, items: z.array(themeItem).max(2
 export const pinSchema = z.object({ id, name: z.string().min(1).max(120), category: z.enum(['stay','airport','food','activity','other']), position: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).strict(), description: text(240) }).strict();
 export const mapSchema = z.object({ ...state, destination: text(100), final: z.boolean(), pins: z.array(pinSchema).max(50).refine(unique, 'Duplicate ids.') }).strict();
 const mockBookingSchema = z.object({ reference: z.string().min(1).max(100), hotelName: z.string().min(1).max(160), checkIn: date, checkOut: date }).strict().refine(d => Boolean(d.checkIn && d.checkOut && d.checkOut > d.checkIn), 'Invalid stay dates.');
-export const travelSchema = z.object({ ...state, need: z.enum(['undecided','needed','not-needed']), bookingStatus: z.enum(['booked','not-booked','mock-booked']), mockBooking: mockBookingSchema.optional(), title: text(160), subtitle: text(160), detail: text(160), availability: z.enum(['preview','unavailable','ready']) }).strict().refine(d => (d.bookingStatus === 'mock-booked') === Boolean(d.mockBooking), 'Mock booking details must match the booking state.');
+const mockFlightSchema = z.object({ reference: z.string().min(1).max(100), origin: z.string().regex(/^[A-Z]{3}$/), destination: z.string().regex(/^[A-Z]{3}$/), departureDate: date, returnDate: date }).strict().refine(d => Boolean(d.departureDate && d.returnDate > d.departureDate && d.origin !== d.destination), "Invalid return journey.");
+export const travelSchema = z.object({ ...state, need: z.enum(['undecided','needed','not-needed']), bookingStatus: z.enum(['booked','not-booked','mock-booked']), mockBooking: z.union([mockBookingSchema, mockFlightSchema]).optional(), title: text(160), subtitle: text(160), detail: text(160), availability: z.enum(['preview','unavailable','ready']) }).strict().refine(d => (d.bookingStatus === 'mock-booked') === Boolean(d.mockBooking), 'Mock booking details must match the booking state.');
 const source = z.object({ title: text(120), url: safeUrl }).strict();
 export const findingsSchema = z.object({ ...state, items: z.array(z.object({ id, title: z.string().min(1).max(120), summary: text(600), sources: z.array(source).max(5), certainty: z.enum(['supported','uncertain','conflicting','unavailable']), researchedAt: text(40).optional() }).strict()).max(30).refine(unique, 'Duplicate ids.') }).strict();
 export const linkSchema = z.object({ id, title: z.string().min(1).max(120), url: safeUrl, purpose: text(240), category: z.enum(['official','transport','attraction','practical','other']) }).strict();
@@ -36,8 +37,8 @@ export const definitions = {
   essentials: { type: 'TripEssentials', title: 'Trip essentials', schema: essentialsSchema, icon: 'calendar' },
   map: { type: 'DestinationMap', title: 'Places & map', schema: mapSchema, icon: 'pin' },
   themes: { type: 'TripThemes', title: 'Themes & preferences', schema: themesSchema, icon: 'spark' },
-  flights: { type: 'FlightsEntry', title: 'Flights', schema: travelSchema, icon: 'plane' },
-  accommodation: { type: 'AccommodationEntry', title: 'Accommodation', schema: travelSchema, icon: 'bed' },
+  flights: { type: 'FlightsEntry', title: 'Flights', schema: travelSchema.refine(d => !d.mockBooking || Boolean(d.mockBooking.origin), 'Expected flight booking.'), icon: 'plane' },
+  accommodation: { type: 'AccommodationEntry', title: 'Accommodation', schema: travelSchema.refine(d => !d.mockBooking || Boolean(d.mockBooking.hotelName), 'Expected stay booking.'), icon: 'bed' },
   findings: { type: 'ResearchFindings', title: 'Research findings', schema: findingsSchema, icon: 'book' },
   links: { type: 'ImportantLinks', title: 'Useful websites', schema: linksSchema, icon: 'link' },
 };

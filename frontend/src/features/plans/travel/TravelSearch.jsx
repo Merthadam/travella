@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
 import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
+import { FlightSandboxCheckout, FlightMockRecovery } from "./FlightSandboxCheckout";
 import { StayDestination } from "./StayDestination";
 import "./travel-search.css";
 
@@ -331,7 +332,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           <button onClick={() => setRetry((x) => x + 1)}>Retry details</button>
         </p>
       )}
-      {checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : stay ? (
+      {checkout && !stay ? <FlightSandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : stay ? (
         <>
           <p>{hotel?.address || item.address}</p>
           {hotel?.images?.length > 0 && (
@@ -371,10 +372,11 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
               "Detailed fare conditions not supplied."}
           </p>
           <Price price={item.price} />
+          {sandbox && item.checkout_token && <button className="travel-primary" onClick={() => setCheckout(item.checkout_token)}>Try mock flight booking</button>}
         </>
       )}
       <p className="travel-note">
-        Availability and prices can change. Mock bookings are test-only; save your canvas to keep the confirmed test stay.
+        Availability and prices can change. Mock bookings are test-only; save your canvas to keep the confirmed test booking.
       </p>
     </dialog>
   );
@@ -604,6 +606,14 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
         <p>Test reference: {initialData.accommodation.mockBooking.reference}</p>
         <p>Sandbox only — no real reservation or charge.</p>
       </section>}
+      {!stay && initialData?.flights?.mockBooking && <section className="travel-empty" aria-label="Mock flight details">
+        <h3>Mock booked · {initialData.flights.mockBooking.origin} ↔ {initialData.flights.mockBooking.destination}</h3>
+        <p>{initialData.flights.mockBooking.departureDate} – {initialData.flights.mockBooking.returnDate}</p>
+        <p>Test reference: {initialData.flights.mockBooking.reference}</p>
+        <p>Sandbox only — no real ticket or charge.</p>
+      </section>}
+      {!stay && <FlightMockRecovery planId={planId} onOpen={setRecovery} />}
+      {!stay && recovery && <FlightSandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
       {stay && <MockBookingRecovery planId={planId} onOpen={setRecovery} />}
       {stay && recovery && <SandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
       <form
@@ -1130,7 +1140,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
         </div>
       )}
       <p className="travel-note">
-        Search results are not saved to your Plan. Sandbox stays support mock checkout only.
+        Search results are not saved to your Plan. Sandbox flights and stays support test-only mock checkout. For flight testing, choose Nuitée Air when available.
       </p>
       {detail && (
         <Detail

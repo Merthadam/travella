@@ -49,8 +49,11 @@ services:
       - ./services/mcps/.env
       - ./services/mcps/.env.local-auth
     environment:
+      FLIGHT_CHECKOUT_JOURNAL: /checkouts/flights.sqlite3
       PORT: "8002"
       MCP_ALLOWED_HOSTS: travel-mcp:8002,localhost:8002,127.0.0.1:8002
+    volumes:
+      - flight-checkouts:/checkouts
 
   app:
     build:
@@ -113,5 +116,6 @@ services:
       retries: 24
 
 volumes:
+  flight-checkouts:
   postgres-data:
   research-evidence:

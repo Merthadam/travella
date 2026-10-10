@@ -139,10 +139,10 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   const updateMockBooking = useCallback((sourcePlanId, result) => {
     if (sourcePlanId !== base.current?.plan_id || !dataRef.current || !result?.sandbox || !result.booking_id) return;
     const next = clone(dataRef.current);
-    const stay = next.accommodation;
+    const stay = next[result.mode === 'flights' ? 'flights' : 'accommodation'];
     if (result.status === 'confirmed') {
       stay.bookingStatus = 'mock-booked';
-      stay.mockBooking = { reference: result.booking_id, hotelName: result.hotel_name?.slice(0, 160), checkIn: result.check_in, checkOut: result.check_out };
+      stay.mockBooking = result.mode === 'flights' ? { reference: result.booking_id, origin: result.flight?.outbound.segments[0].origin, destination: result.flight?.outbound.segments.at(-1).destination, departureDate: result.flight?.outbound.segments[0].departure_at.slice(0, 10), returnDate: result.flight?.inbound.segments[0].departure_at.slice(0, 10) } : { reference: result.booking_id, hotelName: result.hotel_name?.slice(0, 160), checkIn: result.check_in, checkOut: result.check_out };
     } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
       stay.bookingStatus = 'not-booked'; delete stay.mockBooking;
     } else return;
@@ -152,7 +152,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       dataRef.current = parsed; setData(parsed); pendingSave.current = null;
       setNotice('Mock booking state updated in your draft. Choose Save plan to keep it. No real reservation was made.');
       setError('');
-    } catch { setError('The mock stay could not be added to your canvas. Reopen the checkout and check its status.'); }
+    } catch { setError('The mock booking could not be added to your canvas. Reopen the checkout and check its status.'); }
   }, []);
 
   async function generate(group = 'all') {
@@ -187,8 +187,8 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
               if (replacement.map) replacement.map = { ...replacement.map, pins: dataRef.current.map.pins };
             }
             // Research can refresh trip labels, but cannot undo a confirmed test stay.
-            if (replacement.accommodation && dataRef.current.accommodation.mockBooking) {
-              replacement.accommodation = { ...replacement.accommodation, bookingStatus: 'mock-booked', mockBooking: dataRef.current.accommodation.mockBooking };
+            for (const mode of ['accommodation', 'flights']) {
+              if (replacement[mode] && dataRef.current[mode].mockBooking) replacement[mode] = { ...replacement[mode], bookingStatus: 'mock-booked', mockBooking: dataRef.current[mode].mockBooking };
             }
             const next = validateCanvasComponents({ ...dataRef.current, ...replacement }, true);
             for (const [key, status] of Object.entries(statuses)) {
@@ -256,11 +256,14 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       editedComponents.current = new Set();
       // A checkout may finish while Save is in flight. Keep that later change
       // unsaved instead of overwriting it with the earlier reviewed snapshot.
-      const bookingChanged = fingerprint(dataRef.current.accommodation.mockBooking) !== fingerprint(value.components.accommodation.mockBooking);
-      const next = bookingChanged ? { ...components, accommodation: { ...components.accommodation, bookingStatus: dataRef.current.accommodation.bookingStatus } } : components;
-      if (bookingChanged) {
-        delete next.accommodation.mockBooking;
-        if (dataRef.current.accommodation.mockBooking) next.accommodation.mockBooking = dataRef.current.accommodation.mockBooking;
+      let bookingChanged = false;
+      const next = { ...components };
+      for (const mode of ['accommodation', 'flights']) {
+        if (fingerprint(dataRef.current[mode].mockBooking) === fingerprint(value.components[mode].mockBooking)) continue;
+        bookingChanged = true;
+        next[mode] = { ...components[mode], bookingStatus: dataRef.current[mode].bookingStatus };
+        delete next[mode].mockBooking;
+        if (dataRef.current[mode].mockBooking) next[mode].mockBooking = dataRef.current[mode].mockBooking;
       }
       dataRef.current = next; setData(next); setEvidence(sourceEvidence); setSaved(canonical); setNotice(bookingChanged ? 'Plan saved. Your newer mock booking update is still unsaved; choose Save plan to keep it.' : 'Saved. Your plan is ready to reopen.'); setConflict(false); setStaleContext(false); pendingSave.current = null;
       callbacks.current.onSaved?.(result);

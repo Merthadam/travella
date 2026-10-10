@@ -69,3 +69,24 @@ def test_mock_booking_canvas_access_boundaries(system):
         assert system.client.post(path + "/challenge", json=body(), headers=headers).status_code == status
         assert system.client.put(path, json=body(), headers=headers).status_code == status
     assert system.client.get(f"/v1/plans/{uuid4()}/canvas").status_code == 404
+
+
+def test_flight_booking_explicit_save_reload_update_and_scope(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}/canvas"
+    payload = body()
+    flight = payload['snapshot']['components']['flights']
+    flight.update(bookingStatus='mock-booked', mockBooking={'reference':'TEST_FLIGHT', 'origin':'BUD', 'destination':'FCO', 'departureDate':'2027-02-03', 'returnDate':'2027-02-07'})
+    response = system.client.post(path+'/challenge', json=payload, headers=write_headers(system, plan['revision']))
+    assert response.status_code == 200, response.text
+    headers = write_headers(system, plan['revision'], response.json()['challenge'])
+    saved = system.client.put(path,json=payload,headers=headers)
+    assert saved.status_code == 200, saved.text
+    assert system.client.put(path,json=payload,headers=headers).json() == saved.json()
+    assert system.client.get(path).json()['snapshot'] == payload['snapshot']
+    flight['bookingStatus'] = 'not-booked'; del flight['mockBooking']
+    assert system.client.post(path+'/challenge',json=payload,headers=write_headers(system,plan['revision'])).status_code == 409
+    revision = saved.json()['revision']
+    challenge = system.client.post(path+'/challenge',json=payload,headers=write_headers(system,revision)).json()['challenge']
+    assert system.client.put(path,json=payload,headers=write_headers(system,revision,challenge)).status_code == 200
+    assert system.client.get(path).json()['snapshot'] == payload['snapshot']

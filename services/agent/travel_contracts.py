@@ -133,18 +133,27 @@ class SandboxBook(SandboxHandle):
     guests: list[TestGuest] = Field(min_length=1, max_length=4)
 
 
+class SandboxFlightConfirm(SandboxHandle):
+    confirm_mock: Literal[True]
+
+
 class TravelInvocation(Strict):
     plan_id: UUID
     action: Literal[
         "capabilities", "airports", "places", "hotels/search", "hotels/detail", "flights/search",
-        "sandbox/prebook", "sandbox/book", "sandbox/status"
+        "sandbox/prebook", "sandbox/book", "sandbox/status",
+        "sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status"
     ]
     criteria: dict = Field(default_factory=dict)
 
 
-POST_ACTIONS = {"hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
+POST_ACTIONS = {"sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
 
 INPUTS = {
+    "sandbox/flights/verify": SandboxHandle,
+    "sandbox/flights/prebook": SandboxFlightConfirm,
+    "sandbox/flights/book": SandboxFlightConfirm,
+    "sandbox/flights/status": SandboxHandle,
     "sandbox/prebook": SandboxHandle,
     "sandbox/book": SandboxBook,
     "sandbox/status": SandboxHandle,
@@ -226,6 +235,7 @@ class Leg(Public):
 
 
 class Flight(Public):
+    checkout_token: str | None = None
     id: str
     price: Price
     airlines: list[str] = Field(max_length=12)
@@ -318,7 +328,20 @@ class SandboxResult(Public):
     confirmation_code: str | None = None
 
 
+class SandboxFlightResult(Public):
+    sandbox: Literal[True] = True
+    mode: Literal["flights"] = "flights"
+    provider: Literal["LiteAPI"] = "LiteAPI"
+    status: Literal["review", "ready_to_book", "confirmed", "pending", "cancelled", "failed", "unknown"]
+    token: str
+    flight: Flight
+    passenger_count: int
+    booking_id: str | None = None
+    confirmation_code: str | None = None
+
+
 OUTPUTS = {
+    **{f"sandbox/flights/{action}": SandboxFlightResult for action in ("verify", "prebook", "book", "status")},
     "sandbox/prebook": SandboxResult,
     "sandbox/book": SandboxResult,
     "sandbox/status": SandboxResult,

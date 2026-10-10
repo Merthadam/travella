@@ -184,3 +184,29 @@ test('a single candidate is a transient map hint without choosing or saving the 
   await waitFor(() => expect(result.current.loading).toBe(false));
   expect(result.current.mapDestinationHint).toBe('');
 });
+
+test('confirmed mock flight saves independently of a stay and survives reload and a concurrent save', async () => {
+  let stored = null, finish;
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, saved_context_revision: 1, snapshot: stored }),
+    researchContext: async () => ({ revision: 1, context: {} }),
+    saveCanvas: vi.fn((_plan, body) => new Promise(resolve => { finish = () => { stored = structuredClone(body.snapshot); resolve({ ...body, revision: 2 }); }; })),
+  };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  const flight = { sandbox:true, mode:'flights', status:'confirmed', booking_id:'TEST_FLIGHT', token:'never-save-this', flight:{ outbound:{segments:[{origin:'BUD',destination:'FCO',departure_at:'2027-02-03T10:00:00'}]}, inbound:{segments:[{departure_at:'2027-02-07T10:00:00'}]} } };
+  let saving;
+  act(() => { saving = result.current.save(); });
+  act(() => result.current.updateMockBooking('test-plan', flight));
+  await act(async () => { finish(); await saving; });
+  expect(result.current.data.flights.bookingStatus).toBe('mock-booked');
+  expect(result.current.saved.components.flights.bookingStatus).toBe('not-booked');
+  expect(result.current.dirty).toBe(true);
+  act(() => { saving = result.current.save(); });
+  await act(async () => { finish(); await saving; });
+  act(() => result.current.reload());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.data.flights.mockBooking).toEqual({reference:'TEST_FLIGHT',origin:'BUD',destination:'FCO',departureDate:'2027-02-03',returnDate:'2027-02-07'});
+  expect(result.current.data.accommodation.bookingStatus).toBe('not-booked');
+  expect(JSON.stringify(stored)).not.toContain('never-save-this');
+});

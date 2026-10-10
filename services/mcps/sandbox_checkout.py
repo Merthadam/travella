@@ -22,7 +22,7 @@ def cipher(api):
 
 
 def seal(api, kind, value):
-    return cipher(api).encrypt(json.dumps({"scope": list(api.scope), "kind": kind, **value}).encode()).decode()
+    return cipher(api).encrypt(json.dumps({**value, "scope": list(api.scope), "kind": kind}).encode()).decode()
 
 
 def unseal(api, token, kind, ttl=900):

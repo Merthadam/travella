@@ -18,7 +18,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from services.trip_context import TripContext
-from services.mock_booking import MockStaySummary
+from services.mock_booking import MockStaySummary, MockFlightSummary
 
 from .contracts import LifecycleProblem
 from .models import PlanLifecycle, PlanningCanvas, ResearchContext, WorkingView
@@ -112,7 +112,7 @@ class Travel(Component):
     need: Literal["undecided", "needed", "not-needed"]
     # A saved simulation is never a claim that a real reservation exists.
     bookingStatus: Literal["not-booked", "mock-booked"]
-    mockBooking: MockStaySummary | None = None
+    mockBooking: MockStaySummary | MockFlightSummary | None = None
     title: str = Field(max_length=160)
     subtitle: str = Field(max_length=160)
     detail: str = Field(max_length=160)
@@ -189,8 +189,10 @@ class CanvasSnapshot(Strict):
             raise ValueError("unknown component")
         for name, data in self.components.items():
             component = COMPONENT_MODELS[name].model_validate(data)
-            if "mockBooking" in data and (name != "accommodation" or data["mockBooking"] is None):
-                raise ValueError("mock bookings are supported only for stays")
+            if "mockBooking" in data:
+                expected = {"accommodation": MockStaySummary, "flights": MockFlightSummary}.get(name)
+                if expected is None or not isinstance(component.mockBooking, expected):
+                    raise ValueError("mock booking must match the travel component")
             # The renderer allows these fields to be omitted, never explicit null.
             if "error" in data and data["error"] is None:
                 raise ValueError("component error must be text when present")

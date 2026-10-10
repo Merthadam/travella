@@ -258,7 +258,7 @@ def timestamp(value):
         return None
 
 
-def normalize_flights(payload, criteria):
+def normalize_flights(payload, criteria, api=None):
     journeys = [
         j
         for g in items(payload.get("data"))
@@ -380,6 +380,9 @@ def normalize_flights(payload, criteria):
                 or None,
             }
         )
+        if api and api.sandbox and api.scope and isinstance(offer.get("offerId"), str) and len(offer["offerId"]) <= 20000:
+            from .sandbox_checkout import seal
+            result[-1]["checkout_token"] = seal(api, "flight-offer", {"offer": offer["offerId"], "criteria": criteria, "flight": result[-1].copy()})
     return result, len(journeys) > 100
 
 
@@ -408,7 +411,7 @@ class LiteApi:
                 async with client.stream(method, path, **kwargs) as response:
                     if response.status_code == 204:
                         return {"data": []}
-                    if response.status_code != 200:
+                    if response.status_code not in (200, 201):
                         raise ProviderUnavailable()
                     data = bytearray()
                     async for chunk in response.aiter_bytes():
@@ -430,6 +433,11 @@ class LiteApi:
     async def call(self, action, criteria):
         data = INPUTS[action].model_validate(criteria).model_dump(mode="json")
         envelope = {"provider": "LiteAPI", "sandbox": self.sandbox}
+        if action.startswith("sandbox/flights/"):
+            if not self.flights_enabled:
+                raise ProviderUnavailable()
+            from .flight_checkout import checkout
+            return await checkout(self, action.rsplit("/", 1)[1], data)
         if action.startswith("sandbox/"):
             from .sandbox_checkout import checkout
             return await checkout(self, action, data)
@@ -561,7 +569,7 @@ class LiteApi:
                 raw = await self.request("POST", "/flights/rates", json=body)
                 if not isinstance(raw.get("data"), list):
                     raise ProviderUnavailable("provider_response_invalid")
-                results, truncated = normalize_flights(raw, data)
+                results, truncated = normalize_flights(raw, data, self)
                 if any(items(obj(group).get("journeys")) for group in raw["data"]) and not results:
                     raise ProviderUnavailable("provider_response_invalid")
                 if raw["data"] and any(
