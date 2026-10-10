@@ -191,3 +191,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - Pre-merge verification: 109 backend tests, 33 frontend tests and production build passed. Scoped security review and verification gates passed. Authenticated browser evidence is retained under artifacts/testing; the latest run verified flight save/reload without a temporary checkout receipt.
 - Shipment record: `.planning/quick/261010-merge-liteapi/VERIFICATION.md`. Existing broader-suite failures remain documented; this shipment does not complete the separate Phase 15 backlog.
 - Merge through GitHub; preserve the unrelated dirty/diverged local main checkout, other worktrees, local Docker volumes and the running test stack.
+
+### Canvas divider shipment — 2026-10-10
+
+- PR #5: https://github.com/Merthadam/travella/pull/5 — approved focused CSS cleanup and verification evidence. User explicitly requested merge into main.
+- Quick-task verification and scoped security gates passed. The production patch is unchanged from the tested implementation; 14 tests, build and authenticated desktop/mobile browser checks passed.
+- Merge through GitHub after final branch/check validation. Preserve other worktrees and the separate local main checkout. This shipment does not change Phase 15 acceptance status.
