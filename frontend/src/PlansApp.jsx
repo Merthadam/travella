@@ -125,7 +125,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     if ((canvasDirty.current || canvasBusy.current) && !window.confirm('Leave this canvas? Unsaved changes will be discarded and generation will stop.')) return false;
     canvasDirty.current = false; canvasBusy.current = false; setCanvasPage(false); return true;
   }
-  function showCanvas(generate) { setGenerateCanvas(generate); setCanvasPage(true); }
+  function showCanvas(generate, revision) { setGenerateCanvas(generate ? { revision } : false); setCanvasPage(true); }
   const [planDrawerOpen, setPlanDrawerOpen] = useState(false);
   const drawerTrigger = useRef(null), drawerCloseButton = useRef(null), planDrawerElement = useRef(null);
   const [drawerPlans, setDrawerPlans] = useState([]);

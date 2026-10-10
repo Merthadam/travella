@@ -13,6 +13,7 @@ import '../../../design-system/tokens.css';
 import '../../../design-system/components.css';
 import './planning-canvas.css';
 import './canvas-conversation.css';
+import { CanvasGenerationReview, PlanStages } from './CanvasGenerationReview';
 
 const groupLabel = { all: 'plan', themes: 'themes and preferences', research: 'research and useful websites' };
 
@@ -43,11 +44,17 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
     return () => observer.disconnect();
   }, [screen]);
   const [confirm, setConfirm] = useState(null);
+  const [review, setReview] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const reviewPending = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const started = useRef(false);
   const dialog = useRef(null);
   const returnFocus = useRef(null);
   const dirty = canvas.dirty || canvas.editing;
-  const busy = Boolean(canvas.activeGroup || canvas.saving || chatBusy);
+  const busy = Boolean(canvas.activeGroup || canvas.saving || chatBusy || reviewLoading);
   const callbacks = useRef({ onDirtyChange, onBusyChange }); callbacks.current = { onDirtyChange, onBusyChange };
 
   useEffect(() => { callbacks.current.onDirtyChange?.(dirty); }, [dirty]);
@@ -68,16 +75,36 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   useEffect(() => {
     if (!autoGenerate || started.current || canvas.loading || !canvas.data) return;
     started.current = true;
-    if (canvas.saved) setConfirm({ kind: 'generate', group: 'all' });
-    else void canvas.generate('all');
+    if (Number.isInteger(autoGenerate.revision)) {
+      if (canvas.saved) setConfirm({ kind: 'generate', group: 'all', revision: autoGenerate.revision });
+      else void canvas.generate('all', autoGenerate.revision);
+    } else void reviewGeneration();
   }, [autoGenerate, canvas.loading, canvas.data, canvas.saved]);
   useEffect(() => {
     if (confirm) { returnFocus.current = document.activeElement; dialog.current?.showModal(); }
     else { dialog.current?.close(); returnFocus.current?.focus?.(); }
   }, [confirm]);
 
+  async function reviewGeneration() {
+    if (reviewPending.current) return;
+    reviewPending.current = true; setReviewLoading(true); setReviewError('');
+    try {
+      const snapshot = await api.researchContext(selected);
+      if (!mounted.current) return;
+      if (snapshot.locked || !Number.isInteger(snapshot.revision) || !snapshot.context) throw new Error('Trip details are still being updated. Try again when the reply finishes.');
+      setReview(snapshot);
+    } catch (error) {
+      if (!mounted.current) return;
+      if (error.status === 401) onExpired?.();
+      setReviewError(error.message || 'Could not load trip details. Try again.');
+    } finally {
+      reviewPending.current = false;
+      if (mounted.current) setReviewLoading(false);
+    }
+  }
   function generate(group) {
     if (canvas.editing || busy) return;
+    if (group === 'all') { void reviewGeneration(); return; }
     const components = group === 'themes' ? ['themes'] : group === 'research' ? ['findings', 'links'] : ['themes', 'findings', 'links'];
     if (components.some(id => canvas.data?.[id]?.items?.length)) setConfirm({ kind: 'generate', group });
     else void canvas.generate(group);
@@ -86,7 +113,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   function reload() { if (dirty) setConfirm({ kind: 'reload' }); else canvas.reload(); }
   async function confirmed() {
     const choice = confirm; setConfirm(null);
-    if (choice.kind === 'generate') void canvas.generate(choice.group);
+    if (choice.kind === 'generate') void canvas.generate(choice.group, choice.revision);
     if (choice.kind === 'reload') canvas.reload();
     if (choice.kind === 'leave') { if (canvas.activeGroup) await canvas.stop(); if (chat.active) await chat.stop(); onBack(); }
   }
@@ -100,10 +127,14 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   function searchMapArea(area) { if (busy) return; setSearchArea(area); setChatOpen(true); setMobileView('chat'); void chat.send('Find a few activities that fit my trip within this map area.', area); }
   const progress = canvas.activeGroup ? canvas.notice || 'Preparing your trip…' : canvas.saving ? 'Saving your plan…' : canvas.dirty || canvas.editing ? 'Unsaved changes' : canvas.saved ? 'Saved' : 'Ready to plan';
   return <main id="canvas-main" className={`planning-canvas canvas-workspace ${chatOpen && !screen ? 'with-chat' : 'chat-closed'} mobile-${mobileView} ${screen ? 'travel-open' : ''}`} aria-label="Planning canvas" tabIndex={-1}>
+    <PlanStages canvas/>
+    {review && <CanvasGenerationReview context={review.context} replacing={Boolean(canvas.saved || canvas.data?.themes.items.length || canvas.data?.findings.items.length || canvas.data?.links.items.length)} cancelLabel="Keep editing" onCancel={() => setReview(null)} onConfirm={() => { const revision = review.revision; setReview(null); void canvas.generate('all', revision); }}/>}
     <nav className="canvas-mobile-tabs" aria-label="Plan workspace view"><button type="button" aria-pressed={mobileView === 'canvas'} onClick={() => setMobileView('canvas')}>Plan & map {canvas.data?.map.pins.length ? `(${canvas.data.map.pins.length})` : ''}</button><button type="button" aria-pressed={mobileView === 'chat' && chatOpen} onClick={() => { setChatOpen(true); setMobileView('chat'); }}>Conversation {chat.active ? '· replying' : ''}</button></nav>
     <div className="canvas-workspace-body">
     <div className="planning-canvas-inner" tabIndex={screen ? 0 : undefined} role={screen ? 'region' : undefined} aria-label={screen ? 'Travel search' : undefined}>
       <header className="canvas-page-heading"><div><button type="button" className="ds-text-button" onClick={leave} disabled={canvas.saving}>← Back to conversation</button><span className="ds-eyebrow">YOUR PLAN, TAKING SHAPE</span><h1>{selected.title || 'Your travel plan'}</h1><p>Review the details, make it yours, and save when you’re ready.</p></div><div className="canvas-main-actions"><span className="canvas-save-state" role="status" aria-live="polite">{chatBusy ? 'Your companion is replying…' : progress}</span>{canvas.activeGroup ? <button type="button" className="ds-button" onClick={canvas.stop}>Stop generation</button> : <button type="button" className="ds-button" disabled={canvas.loading || busy || canvas.editing || !canvas.data} onClick={() => generate('all')}><Icon name="spark" size={16}/>{canvas.saved || canvas.data?.themes.items.length ? 'Regenerate plan' : 'Generate plan'}</button>}<button type="button" className="ds-button primary" disabled={canvas.loading || busy || canvas.editing || !canvas.valid || canvas.conflict || !canvas.dirty} onClick={canvas.save}>{canvas.saving ? 'Saving…' : 'Save plan'}</button>{!chatOpen && <button type="button" className="ds-button" onClick={() => { setChatOpen(true); setMobileView('chat'); }}>Open chat</button>}</div></header>
+      {reviewLoading && <p role="status" className="canvas-notice">Loading trip details for review…</p>}
+      {reviewError && <p role="alert" className="canvas-error">{reviewError}</p>}
       {canvas.loading && <p role="status" className="canvas-notice">Loading your saved plan…</p>}
       {canvas.error && <div className="canvas-error" role="alert"><p>{canvas.error}</p>{(!canvas.data || canvas.conflict) && <button className="ds-button small" disabled={busy} onClick={reload}>{canvas.conflict ? 'Review latest saved plan' : 'Retry loading'}</button>}</div>}
       {canvas.staleContext && <div className="canvas-notice"><p>The conversation has newer trip details. This canvas still shows the version you reviewed. Regenerate the plan to bring the current details into this draft.</p></div>}
