@@ -114,6 +114,10 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
         next[mode].subtitle = payload.travelers ? `${payload.travelers} travelers` : 'Travelers not set';
         next[mode].detail = payload.dates.flexible ? 'Flexible dates' : [payload.dates.start, payload.dates.end].filter(Boolean).join(' → ') || 'Dates not set';
       }
+    } else if (id === 'map' && name === 'restore_pin') {
+      if (item.pins.some(pin => pin.id === payload.pin?.id) || !Number.isInteger(payload.index) || payload.index < 0 || payload.index > item.pins.length) return;
+      item.pins.splice(payload.index, 0, payload.pin);
+      item.status = 'ready'; delete item.error;
     } else {
       const operations = { themes: ['theme', 'items'], map: ['pin', 'pins'], findings: ['finding', 'items'], links: ['link', 'items'] };
       const [kind, field] = operations[id] || [];
@@ -155,7 +159,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     } catch { setError('The mock booking could not be added to your canvas. Reopen the checkout and check its status.'); }
   }, []);
 
-  async function generate(group = 'all') {
+  async function generate(group = 'all', reviewedRevision) {
     if (active.current || savingRef.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;
     const currentEpoch = epoch.current;
     const id = requestId(); const controller = new AbortController();
@@ -168,6 +172,8 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       // only for the group the traveler explicitly chose above this hook.
       const currentContext = await api.researchContext(selected);
       if (active.current !== run || epoch.current !== currentEpoch) return;
+      if (currentContext.locked) throw new Error('Trip details are being updated. Wait for the reply to finish, then review again.');
+      if (reviewedRevision !== undefined && currentContext.revision !== reviewedRevision) throw new Error('Trip details changed after your review. Review them again before generating.');
       setMapDestinationHint(mapHint(currentContext.context));
       if ((staleContext || currentContext.revision !== base.current.context_revision) && group !== 'all') { setStaleContext(true); throw new Error('The conversation changed. Regenerate the full plan to review the updated trip details.'); }
       run.contextRevision = currentContext.revision;

@@ -1,0 +1,39 @@
+/* Keep research controls contained and independent of global form styling. */
+.chat-page .chat-canvas-entry { flex-shrink: 0; align-items: center; padding: 16px 0; border-color: var(--app-line); }
+.chat-page .chat-transcript { overscroll-behavior: contain; scrollbar-width: thin; }
+.chat-page .chat-message { flex-shrink: 0; }
+:root[data-theme] .chat-page .research-composer { display: block; flex-shrink: 0; padding: 12px 0 max(10px, env(safe-area-inset-bottom)); border: 0; background: transparent; }
+.research-composer-box { padding: 14px 14px 10px; border: 1px solid var(--app-line); border-radius: 16px; background: var(--app-panel); transition: border-color .15s; }
+.research-composer-box:focus-within { border-color: var(--app-focus); box-shadow: 0 0 0 1px var(--app-focus); }
+:root[data-theme] .chat-page .research-composer textarea { display: block; min-height: 28px; max-height: 160px; width: 100%; padding: 0 2px; border: 0; border-radius: 0; outline: none; box-shadow: none; resize: none; background: transparent; color: var(--app-text); font: inherit; line-height: 1.6; overflow-y: auto; }
+.research-composer textarea::placeholder { color: var(--app-muted); opacity: 1; }
+.research-composer textarea:disabled { opacity: 1; }
+.research-composer-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+.research-keyboard-hint { color: var(--app-muted); font-size: 11px; line-height: 1.5; }
+:root[data-theme] .chat-page .research-composer button { display: grid; place-items: center; flex: 0 0 38px; width: 38px; min-width: 38px; height: 38px; min-height: 38px; padding: 0; border: 0; border-radius: 9px; color: #072034; background: var(--app-accent); }
+:root[data-theme] .chat-page .research-composer button:disabled { opacity: 1; color: var(--app-muted); background: var(--app-soft); }
+:root[data-theme] .chat-page .research-composer .chat-stop { color: var(--app-text); background: var(--app-soft); }
+.research-composer-status { display: flex; align-items: center; gap: 8px; min-height: 18px; margin: 8px 4px 0; color: var(--app-muted); font-size: 12px; line-height: 1.5; }
+.research-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--app-link); flex-shrink: 0; animation: research-pulse 1.4s ease-in-out infinite; }
+.research-reply-pending { display: flex; gap: 5px; align-items: center; height: 28px; }
+.research-reply-pending span { width: 5px; height: 5px; border-radius: 50%; background: var(--app-muted); animation: research-pulse 1.4s ease-in-out infinite; }
+.research-reply-pending span:nth-child(2) { animation-delay: .15s; }
+.research-reply-pending span:nth-child(3) { animation-delay: .3s; }
+@keyframes research-pulse { 50% { opacity: .35; } }
+@media (max-width: 760px) {
+  .plans-app.chat-app:has(.chat-layout) { height: 100dvh; min-height: 0; overflow: hidden; }
+  .chat-app .chat-layout { min-height: 0; overflow: hidden; grid-template-rows: minmax(0, min(25dvh, 210px)) minmax(0, 1fr); }
+  .chat-layout .chat-page { overflow: hidden; }
+  :root[data-theme] .chat-page .research-composer { position: static; }
+  .chat-page .chat-canvas-entry { padding: 12px 0; gap: 8px; flex-wrap: wrap; }
+  .chat-page .chat-canvas-entry button { font-size: 12px; padding: 8px 10px; }
+  .research-composer-box { padding: 12px 12px 8px; border-radius: 14px; }
+  :root[data-theme] .chat-page .research-composer textarea { font-size: 16px; }
+  :root[data-theme] .chat-page .research-composer button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .research-keyboard-hint > span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .research-status-dot, .research-reply-pending span { animation: none; }
+  .research-composer-box { transition: none; }
+  .chat-page .chat-transcript { scroll-behavior: auto; }
+}

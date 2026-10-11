@@ -5,18 +5,15 @@ import { categories } from '../../../design-system/schemas';
 
 export const CanvasMapContext = createContext({});
 
-function pinIcon(category) {
-  const paths = {
-    stay: ['M3 18V7m18 11V9M3 15h18M3 9h18v6', 'M6 9V6h5v3m2 0V6h5v3'],
-    airport: ['m3 11 7 2 1 7 2-1 1-6 6-8-1-2-8 6-6-1z', 'm14 13 5 4-2 2-4-5'],
-    food: ['M5 8h11v6a5 5 0 0 1-10 0V8m11 1h2a3 3 0 0 1 0 6h-2M4 21h15M8 2v3m5-3v3'],
-    activity: ['m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z'],
-    other: ['M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z'],
-  };
+function pinIcon() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  for (const [key, value] of Object.entries({ viewBox: '0 0 24 24', width: '16', height: '16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) svg.setAttribute(key, value);
-  for (const path of paths[category] || paths.other) { const element = document.createElementNS('http://www.w3.org/2000/svg', 'path'); element.setAttribute('d', path); svg.append(element); }
-  return svg;
+  svg.setAttribute('viewBox', '0 0 28 36'); svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(svg.namespaceURI, 'path');
+  path.setAttribute('d', 'M14 34S2 21 2 14a12 12 0 1 1 24 0c0 7-12 20-12 20Z');
+  path.setAttribute('fill', 'var(--category)'); path.setAttribute('stroke', 'white'); path.setAttribute('stroke-width', '2');
+  const dot = document.createElementNS(svg.namespaceURI, 'circle');
+  dot.setAttribute('cx', '14'); dot.setAttribute('cy', '14'); dot.setAttribute('r', '4'); dot.setAttribute('fill', 'white');
+  svg.append(path, dot); return svg;
 }
 
 async function geocode(request) {
@@ -27,26 +24,13 @@ async function geocode(request) {
   } catch (error) { if (error.code === 'ZERO_RESULTS') return []; throw error; }
 }
 
-// Coordinates and viewports originate only from the provider. Resolving a viewport
-// changes the local map view; it does not select or save a Plan destination.
-export async function searchCanvasPlaces(query, destination) {
-  const { libraries } = await loadGoogleMaps({ libraries: ['places'] });
-  const { places = [] } = await libraries.places.Place.searchByText({
-    textQuery: `${query}${destination ? ` in ${destination}` : ''}`,
-    fields: ['id', 'displayName', 'formattedAddress', 'location'], maxResultCount: 5,
-  });
-  return places.filter(place => place.location).map(place => ({
-    id: place.id, name: place.displayName, address: place.formattedAddress,
-    position: place.location.toJSON(),
-  }));
-}
-
-export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect }) {
-  const { preview, destinationHint, onClearPreview, onSearchArea, disabled } = useContext(CanvasMapContext);
+export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect, fitRequest = 0, onShowAll, active = true, editing = false }) {
+  const { preview, destinationHint, onClearPreview, onSearchArea, onAddPreview, disabled } = useContext(CanvasMapContext);
   const { theme } = useAppearance();
   const canvas = useRef(null);
   const mapView = useRef(null);
   const framedDestination = useRef(null);
+  const framedPlaces = useRef(null);
   const selection = useRef(onSelect); selection.current = onSelect;
   const [runtime, setRuntime] = useState(null);
   const [attempt, setAttempt] = useState(0);
@@ -100,7 +84,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   }, [usableDestination, attempt]);
 
   useEffect(() => {
-    if (!runtime || !resolved || framedDestination.current === resolved) return;
+    if (!runtime || !resolved || places.length || preview || framedDestination.current === resolved) return;
     const frame = () => {
       if (!canvas.current?.clientWidth || !canvas.current?.clientHeight || framedDestination.current === resolved) return;
       framedDestination.current = resolved;
@@ -117,7 +101,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     const observer = new ResizeObserver(frame);
     observer.observe(canvas.current);
     return () => observer.disconnect();
-  }, [runtime, resolved]);
+  }, [runtime, resolved, places.length, preview]);
 
   useEffect(() => {
     if (!runtime) return;
@@ -125,15 +109,18 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     return () => listener.remove();
   }, [runtime]);
 
+  const placePositions = places.map(p => `${p.id}:${p.position.lat}:${p.position.lng}`).join('|');
+  const selectedPlace = places.find(p => p.id === selectedId);
+
   useEffect(() => {
-    if (!runtime || !preview) return;
+    if (!runtime || !preview || !active) return;
     runtime.map.panTo(preview.position); runtime.map.setZoom(15);
-    if (places.some(place => place.id === preview.id)) return;
+    if (places.some(place => place.id === preview.id || (place.name === preview.name && place.position.lat === preview.position.lat && place.position.lng === preview.position.lng))) return;
     const content = document.createElement('span'); content.className = 'canvas-map-pin is-preview'; content.style.setProperty('--category', categories.activity.color);
-    const label = document.createElement('span'); label.textContent = preview.name; content.append(pinIcon('activity'), label);
+    content.append(pinIcon());
     const marker = new runtime.Marker({ map: runtime.map, position: preview.position, title: `Preview only: ${preview.name}`, content });
     return () => { marker.map = null; };
-  }, [runtime, preview, places]);
+  }, [runtime, preview, placePositions, active]);
 
   useEffect(() => {
     if (!runtime) return;
@@ -143,14 +130,29 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
       const content = document.createElement('span');
       content.className = `canvas-map-pin ${place.id === selectedId ? 'selected' : ''}`;
       content.style.setProperty('--category', category.color);
-      const icon = pinIcon(place.category);
-      const label = document.createElement('span'); label.textContent = place.name;
-      content.append(icon, label);
+      content.append(pinIcon());
       const marker = new runtime.Marker({ map: runtime.map, position: place.position, title: `Inspect ${place.name}`, content });
       listeners.push(marker.addListener('click', () => selection.current(place.id))); markers.push(marker);
     }
     return () => { listeners.forEach(listener => listener.remove()); markers.forEach(marker => { marker.map = null; }); };
   }, [runtime, places, selectedId]);
+
+  useEffect(() => {
+    if (!runtime || !active || preview || !places.length) return;
+    const signature = `${fitRequest}:${places.map(p => `${p.id}:${p.position.lat}:${p.position.lng}`).join('|')}`;
+    if (framedPlaces.current === signature) return;
+    const frame = () => {
+      if (!canvas.current?.clientWidth || !canvas.current?.clientHeight || framedPlaces.current === signature) return;
+      framedPlaces.current = signature; showAll();
+    };
+    frame();
+    const observer = new ResizeObserver(frame); observer.observe(canvas.current);
+    return () => observer.disconnect();
+  }, [runtime, active, places, preview, fitRequest]);
+
+  useEffect(() => {
+    if (runtime && active && selectedPlace && !preview) runtime.map.panTo(selectedPlace.position);
+  }, [runtime, active, selectedId, selectedPlace?.position.lat, selectedPlace?.position.lng, preview]);
 
   function showAll() {
     if (!runtime || !places.length) return;
@@ -158,7 +160,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     runtime.map.fitBounds(bounds, 48);
     if (places.length === 1) runtime.map.setZoom(14);
   }
-  const message = mapError ? 'The map is unavailable. Your places remain in the list below.' : !usableDestination ? 'Choose a destination in the conversation to frame your map.' : loading ? 'Finding your destination…' : error || (!final && resolved ? `Exploring ${usableDestination}. Your final destination is still yours to choose.` : '');
+  const message = mapError ? 'The map is unavailable. Your places are available in List view.' : !usableDestination ? 'Choose a destination in the conversation to frame your map.' : loading ? 'Finding your destination…' : error || (!final && resolved ? `Exploring ${usableDestination}. Your final destination is still yours to choose.` : '');
   return <div className="canvas-map-adapter">
     <div className="canvas-google-map" ref={canvas} aria-label={usableDestination ? `Map of ${usableDestination}` : 'Destination map'}/>
     {(message || candidates.length > 0) && <div className="canvas-map-message" role="status">
@@ -166,7 +168,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
       {candidates.length > 0 && <><p>Which location should the map show? This only adjusts your map view.</p>{candidates.map(result => <button type="button" className="ds-button small" key={result.place_id} onClick={() => { setResolved(result); setCandidates([]); }}>{result.formatted_address}</button>)}</>}
       {(error || mapError) && <button type="button" className="ds-button small" onClick={() => setAttempt(value => value + 1)}>Retry map</button>}
     </div>}
-    {preview && <div className="canvas-map-preview"><div><strong>{preview.name}</strong><small>{places.some(place => place.id === preview.id) ? 'In your draft' : 'Preview only · not added to your draft'}</small></div><button type="button" className="ds-text-button" onClick={onClearPreview}>Close preview</button></div>}
-    <div className="canvas-map-tools"><button type="button" className="ds-text-button" disabled={!runtime || !places.length} onClick={showAll}>Show all places</button>{onSearchArea && <button type="button" className="ds-button small" disabled={!bounds || disabled} onClick={() => onSearchArea(bounds)}>Search this map area</button>}</div>
+    {preview && <div className="canvas-map-preview"><div><strong>{preview.name}</strong><small>{places.some(place => place.id === preview.id) ? 'In your draft' : 'Preview only · not added to your draft'}</small></div><div className="places-actions">{onAddPreview && !places.some(place => place.id === preview.id) && <button type="button" className="ds-button small" disabled={disabled} onClick={() => onAddPreview(preview)}>Add to plan</button>}<button type="button" className="ds-text-button" onClick={onClearPreview}>Close preview</button></div></div>}
+    <div className="canvas-map-tools"><button type="button" className="ds-text-button" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}>Show all places</button>{onSearchArea && <button type="button" className="ds-button small" disabled={!bounds || disabled} onClick={() => onSearchArea(bounds)}>Search this map area</button>}</div>
   </div>;
 }

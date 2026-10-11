@@ -10,7 +10,7 @@ import { AppearanceProvider } from '../../appearance/AppearanceProvider';
 vi.mock('../travel/travelApi', () => ({ travelRequest: vi.fn() }));
 vi.mock('./CanvasDestinationMap', async () => {
   const { createContext } = await import('react');
-  return { CanvasMapContext: createContext({}), CanvasDestinationMap: () => <div>Destination map</div>, searchCanvasPlaces: vi.fn() };
+  return { CanvasMapContext: createContext({}), CanvasDestinationMap: () => <div>Destination map</div> };
 });
 vi.mock('../travel/TravelSearch', () => ({
   useTravelCapabilities: () => ({ capabilities: { hotels: true, flights: true, sandbox: true } }),
@@ -40,24 +40,24 @@ function setup() {
 
 test('open card edits and unsent chat survive flight and stay navigation', async () => {
   const user = userEvent.setup(); const api = setup();
-  await user.click(await screen.findByRole('button', { name: 'Add place', exact: true }));
-  await user.type(screen.getByRole('textbox', { name: 'Place name' }), 'Unfinished place');
-  const message = screen.getByRole('textbox', { name: 'Message your travel companion' });
+  await user.click(await screen.findByRole('button', { name: 'Edit details', exact: true }));
+  await user.type(screen.getByRole('textbox', { name: 'Date note' }), 'Unfinished date note');
+  const message = screen.getByRole('textbox', { name: 'Message Travella' });
   expect(message.disabled).toBe(false);
   await user.type(message, 'Which airport is easiest?');
   expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(true);
   await user.click(screen.getByRole('button', { name: 'Explore flights' }));
   expect(screen.getByRole('region', { name: 'flights search' })).toBeTruthy();
-  expect(screen.queryByRole('textbox', { name: 'Place name' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Date note' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Stays', exact: true }));
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
-  expect(screen.getByRole('textbox', { name: 'Place name' }).value).toBe('Unfinished place');
-  expect(screen.getByRole('textbox', { name: 'Message your travel companion' }).value).toBe('Which airport is easiest?');
-  await user.click(screen.getByRole('button', { name: 'Send ↑' }));
+  expect(screen.getByRole('textbox', { name: 'Date note' }).value).toBe('Unfinished date note');
+  expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Which airport is easiest?');
+  await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(api.editCanvas).toHaveBeenCalledOnce());
   expect(await screen.findByText('You can compare airports for Milan.')).toBeTruthy();
-  expect(screen.getByRole('textbox', { name: 'Place name' }).value).toBe('Unfinished place');
+  expect(screen.getByRole('textbox', { name: 'Date note' }).value).toBe('Unfinished date note');
   expect(api.saveCanvas).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Use dark mode' })).toBeNull();
 });
@@ -71,14 +71,14 @@ test('cancelling an editor during a reply releases the save lock after the reply
       resolve({ status: 'complete' });
     };
   }));
-  await user.click(await screen.findByRole('button', { name: 'Add place', exact: true }));
-  await user.type(screen.getByRole('textbox', { name: 'Message your travel companion' }), 'Help with this trip');
-  await user.click(screen.getByRole('button', { name: 'Send ↑' }));
+  await user.click(await screen.findByRole('button', { name: 'Edit details', exact: true }));
+  await user.type(screen.getByRole('textbox', { name: 'Message Travella' }), 'Help with this trip');
+  await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
   finish();
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(false));
-  expect(screen.queryByRole('textbox', { name: 'Place name' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Date note' })).toBeNull();
   expect(api.saveCanvas).not.toHaveBeenCalled();
 });
 
@@ -226,5 +226,73 @@ test('returning to the canvas recovers a flight booked in a closed checkout and 
   expect(screen.getByText('Mock booked')).toBeTruthy();
   expect(screen.getByText('Not booked')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Explore accommodation' })).toBeTruthy();
+  expect(api.saveCanvas).not.toHaveBeenCalled();
+});
+
+
+
+
+test('undo restores a removed place at its original position and stays unsaved', async () => {
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: { finalDestination: 'Milan' } }),
+    saveCanvas: vi.fn(),
+  };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.data).not.toBeNull());
+  act(() => result.current.addActivities([
+    { id: 'castle', name: 'Castle', position: { lat: 45.47, lng: 9.18 }, reason: 'Courtyard' },
+    { id: 'park', name: 'Park', position: { lat: 45.48, lng: 9.17 }, reason: 'Walk' },
+  ]));
+  const pin = result.current.data.map.pins[0];
+  act(() => result.current.action('map', 'remove_pin', { id: pin.id }));
+  act(() => result.current.action('map', 'restore_pin', { pin, index: 0 }));
+  expect(result.current.data.map.pins.map(p => p.id)).toEqual(['castle', 'park']);
+  act(() => result.current.action('map', 'restore_pin', { pin, index: 0 }));
+  expect(result.current.data.map.pins).toHaveLength(2);
+  expect(result.current.dirty).toBe(true);
+  expect(api.saveCanvas).not.toHaveBeenCalled();
+});
+
+test('manual full generation requires review and does not start on cancellation', async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  const user = userEvent.setup(); const api = setup();
+  api.generateCanvas = vi.fn(async () => ({ status: 'stopped' }));
+  const trigger = await screen.findByRole('button', { name: 'Generate plan', exact: true });
+  await waitFor(() => expect(trigger.disabled).toBe(false));
+  await user.click(trigger);
+  expect((await screen.findByRole('dialog', { name: 'Ready to generate your plan?' })).textContent).toContain('Milan');
+  expect(api.generateCanvas).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Keep editing', exact: true }));
+  expect(api.generateCanvas).not.toHaveBeenCalled();
+  await user.click(trigger);
+  await user.click(await screen.findByRole('button', { name: 'Confirm & generate' }));
+  await waitFor(() => expect(api.generateCanvas).toHaveBeenCalledOnce());
+  expect(api.generateCanvas.mock.calls[0][1].context_revision).toBe(1);
+});
+
+test('generation rejects details changed after the traveler reviewed them', async () => {
+  const api = { canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, snapshot: null })), researchContext: vi.fn(async () => ({ revision: 2, context: { finalDestination: 'Milan' } })), generateCanvas: vi.fn(), cancelAgentTurn: vi.fn(async () => {}) };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(() => result.current.generate('all', 1));
+  expect(api.generateCanvas).not.toHaveBeenCalled();
+  expect(result.current.error).toContain('Trip details changed after your review');
+});
+
+test('folding chat preserves its draft and restores keyboard focus without saving or sending', async () => {
+  const user = userEvent.setup(); const api = setup();
+  const message = await screen.findByRole('textbox', { name: 'Message Travella' });
+  await waitFor(() => expect(message.disabled).toBe(false));
+  await user.type(message, 'Keep this question for later');
+  await user.click(screen.getByRole('button', { name: 'Collapse plan chat' }));
+  expect(screen.queryByRole('textbox', { name: 'Message Travella' })).toBeNull();
+  const expand = screen.getByRole('button', { name: 'Expand plan chat' });
+  await waitFor(() => expect(document.activeElement).toBe(expand));
+  expect(expand.getAttribute('aria-expanded')).toBe('false');
+  await user.keyboard('{Enter}');
+  expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Keep this question for later');
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Collapse plan chat' })));
+  expect(api.editCanvas).not.toHaveBeenCalled();
   expect(api.saveCanvas).not.toHaveBeenCalled();
 });

@@ -103,3 +103,26 @@ test('failed destination lookup stays recoverable and frames only after a succes
   act(() => retry.click());
   await waitFor(() => expect(fitBounds).toHaveBeenCalledExactlyOnceWith(viewport, 24));
 });
+
+test('saved pins fit together once, selecting a pin does not refit, and show all reframes', async () => {
+  const markers = []; const fitBounds = vi.fn(); const panTo = vi.fn(); const onSelect = vi.fn();
+  const places = [{ id: 'castle', name: 'Castle', category: 'activity', position: { lat: 45.47, lng: 9.18 } }, { id: 'park', name: 'Park', category: 'activity', position: { lat: 45.48, lng: 9.17 } }];
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  loadGoogleMaps.mockResolvedValue({ maps: { LatLngBounds: class { extend() {} } }, libraries: {
+    maps: { Map: class { fitBounds = fitBounds; panTo = panTo; addListener() { return { remove() {} }; } getCenter() { return { toJSON: () => places[0].position }; } getZoom() { return 14; } } },
+    marker: { AdvancedMarkerElement: class { constructor(options) { Object.assign(this, options); markers.push(this); } addListener(_, fn) { this.select = fn; return { remove() {} }; } } },
+    geocoding: { Geocoder: class { async geocode() { return { results: [{ geometry: { viewport: {}, location: {} } }] }; } } },
+  } });
+  const view = (selectedId, fitRequest = 0) => <AppearanceProvider><CanvasDestinationMap destination="Milan" final places={places} selectedId={selectedId} onSelect={onSelect} fitRequest={fitRequest}/></AppearanceProvider>;
+  const { rerender } = render(view(null));
+  await waitFor(() => expect(markers).toHaveLength(2));
+  expect(fitBounds).toHaveBeenCalledOnce();
+  expect(markers[0].title).toBe('Inspect Castle');
+  expect(markers[0].content.textContent).toBe('');
+  act(() => markers[0].select()); expect(onSelect).toHaveBeenCalledWith('castle');
+  rerender(view('castle'));
+  expect(panTo).toHaveBeenCalledWith(places[0].position);
+  expect(fitBounds).toHaveBeenCalledOnce();
+  rerender(view(null, 1));
+  expect(fitBounds).toHaveBeenCalledTimes(2);
+});

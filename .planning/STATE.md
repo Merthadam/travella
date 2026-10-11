@@ -120,6 +120,8 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261011-06a | Refined foldable Plan chat; 13 tests and browser checks passed; final fresh-login smoke returned 401 | 2026-10-11 | 8ada633 | UI verified; auth readiness unresolved | [Task](quick/261011-06a-refine-plan-side-chat-and-foldable-panel/) |
+| 261011-01s | Started local container; health, authentication, HTTP and source hashes passed | 2026-10-11 | f30a986 (app source) | Complete | [Task](quick/261011-01s-start-local-container-and-verify-authent/) |
 | 1 | local-agent-without-agentcore · Outcome: Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. | 2026-10-03 | — | — | — |
 | 2 | plan-chat-primary · Outcome: Made Plan chat the primary Plan screen and retained the Plans switcher drawer; see `artifacts/testing/2026-10-03-chat-top-nav/verification.md`. | 2026-10-03 | — | — | — |
 | 3 | travella-local-start · Outcome: Added health-gated local startup and a one-shot sign-in/session smoke check; see `.planning/quick/261004-di1-add-reliable-local-travella-startup-and-/261004-di1-VERIFICATION.md`. | 2026-10-04 | — | — | — |
@@ -129,6 +131,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 | 7 | agentcore-profile-memory · Outcome: Mirrored canonical traveler preferences to AgentCore and supplied matching snapshots to Plan turns; see `artifacts/testing/2026-10-04-agentcore-profile-memory/verification.md`. | 2026-10-04 | — | — | — |
 | 8 | route-langgraph-through-agentcore-runtime · Outcome: Added Runtime HTTP contract, authenticated invocation routing, ARM64 image, and deployment runbook; AWS resource not deployed. | 2026-10-04 | — | — | — |
 | 9 | share-local-worktree-credentials-through · Outcome: Added shared Secrets Manager credential sync to local startup; verified live AWS fetch into independent worktrees and authenticated app startup. | 2026-10-04 | — | — | — |
+| 261010-iw4 | Selected places A: List/Map, small pins, conversational discovery, note/remove/Undo and prototype cleanup | 2026-10-10 | 54312da | Complete | [Task](quick/261010-iw4-implement-selected-places-list-and-map-d/) |
+| 261010-mtt | Removed redundant places controls; added real list photos with graceful fallback; 21 tests and authenticated desktop/mobile checks passed | 2026-10-10 | dbf9174 | Complete | [Task](quick/261010-mtt-remove-places-discovery-and-search-contr/) |
+| 261010-x66 | Places redesign rebased on main; 21 tests/build and refreshed browser checks passed; shipping through PR #6 | 2026-10-10 | f255a3e | Verified | [Task](quick/261010-x66-rebase-approved-places-redesign-onto-mai/) |
 
 | 2026-10-04 | right-trip-brief-ui | Restored right-side editable Trip Brief; 33 frontend tests/build and desktop interactions passed. Screenshot/mobile checks blocked by unresponsive DevTools. |
 | 2026-10-04 | local-rebuild-freshness | Updated startup skill; rebuild/auth checks passed and three frontend source hashes matched the running container. |
@@ -166,6 +171,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | 261009-14y | Rebased on main; approved A hotel/return-flight LiteAPI search; live sandbox, desktop/mobile and security checks verified; baseline failures documented | 2026-10-09 | 4cd70e1 | Feature verified | [261009-14y](./quick/261009-14y-rebase-on-main-and-implement-liteapi-acc/) |
 | 261009-q7n | Sandbox hotel checkout and ski resort lookup; 50 focused tests, live mock booking, reload recovery and desktop/mobile Chrome checks passed | 2026-10-09 | 6fce929 | Verified | [261009-q7n-add-sandbox-only-hotel-mock-checkout](./quick/261009-q7n-add-sandbox-only-hotel-mock-checkout/) |
+| 261010-j1q | Research composer cleanup and three interactive journey alternatives; 7 focused tests and browser checks pass; 7 baseline PlansApp fixture failures documented | 2026-10-10 | 00111da | — | [261010-j1q-refine-research-composer-live-agent-stat](./quick/261010-j1q-refine-research-composer-live-agent-stat/) |
+| 261010-qak | Preserve Trip Brief assessor and confirm details before canvas generation; 18 tests and live browser verification pass | 2026-10-10 | d536280 | — | [261010-qak-keep-trip-assessor-and-confirm-details-b](./quick/261010-qak-keep-trip-assessor-and-confirm-details-b/) |
+| 261010-x40 | Rebase onto main 032f16a; preserve divider fix; 25 tests, build and browser checks pass | 2026-10-10 | 60c23e3 | Verified | [261010-x40](./quick/261010-x40-rebase-research-ui-and-canvas-confirmati/) |
 
 | 261010-j4x | Straight canvas travel, preference and saved-place dividers; desktop/mobile light/dark browser verification and 14 tests passed | 2026-10-10 | 9d3884d | Verified | [261010-j4x](./quick/261010-j4x-clean-up-curved-dividers-on-planning-can/) |
 
@@ -186,7 +194,6 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - Quick 261008-rkt reconciled phase verification and reran 41 frontend tests, 68 account HTTP/SQL tests and production build successfully. Existing broader test debt remains documented.
 - Dedicated preview moved to http://localhost:5194/account; health and authentication passed. Unrelated local files and the separate main checkout are preserved.
 
-
 ### LiteAPI search and sandbox booking shipment (2026-10-10)
 
 - PR #4: https://github.com/Merthadam/travella/pull/4 — accumulated LiteAPI hotel/flight search, sandbox checkout, canvas booking state/recovery, themes, navigation and destination map framing. User explicitly authorized merging all completed work into main.
@@ -199,3 +206,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - PR #5: https://github.com/Merthadam/travella/pull/5 — approved focused CSS cleanup and verification evidence. User explicitly requested merge into main.
 - Quick-task verification and scoped security gates passed. The production patch is unchanged from the tested implementation; 14 tests, build and authenticated desktop/mobile browser checks passed.
 - Merge through GitHub after final branch/check validation. Preserve other worktrees and the separate local main checkout. This shipment does not change Phase 15 acceptance status.
+
+### Foldable Plan chat shipment — 2026-10-11
+
+- PR #8: https://github.com/Merthadam/travella/pull/8 — approved open-by-default chat, persistent fold rail, cleaner composer and typography.
+- User explicitly requested merge after 13 tests, build and authenticated browser verification passed and the final fresh-login HTTP 401 was disclosed. Scoped security review passed; no open patch findings.
+- Source patch unchanged since verification. Merge through GitHub; preserve other worktrees, local Docker volumes and Phase 15 acceptance status.
