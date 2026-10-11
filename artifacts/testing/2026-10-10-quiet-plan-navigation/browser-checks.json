@@ -1,0 +1,23 @@
+[
+  {
+    "variant": "A",
+    "result": "passed",
+    "sizes": "Script ran on page and returned:\n```json\n{\"width\":390,\"documentWidth\":390,\"panelWidth\":330}\n```",
+    "console": "Emulating viewport: {\"deviceScaleFactor\":2,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Console messages\n<no console messages found>",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":2,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Network requests\nShowing 1-2 of 2 (Page 1 of 1).\nreqid=21 GET http://localhost:5191/005-quiet-plan-navigation/?variant=A [304]\nreqid=22 GET http://localhost:5191/themes/default.css [200]"
+  },
+  {
+    "variant": "B",
+    "result": "passed",
+    "sizes": "Script ran on page and returned:\n```json\n{\"width\":390,\"documentWidth\":390,\"panelWidth\":330}\n```",
+    "console": "Emulating viewport: {\"deviceScaleFactor\":2,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Console messages\n<no console messages found>",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":2,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Network requests\nShowing 1-2 of 2 (Page 1 of 1).\nreqid=29 GET http://localhost:5191/005-quiet-plan-navigation/?variant=B [304]\nreqid=30 GET http://localhost:5191/themes/default.css [200]"
+  },
+  {
+    "variant": "C",
+    "result": "passed",
+    "sizes": "Script ran on page and returned:\n```json\n{\"width\":390,\"documentWidth\":390,\"panelWidth\":366}\n```",
+    "console": "Emulating viewport: {\"deviceScaleFactor\":2,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Console messages\n<no console messages found>",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":2,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Network requests\nShowing 1-2 of 2 (Page 1 of 1).\nreqid=37 GET http://localhost:5191/005-quiet-plan-navigation/?variant=C [304]\nreqid=38 GET http://localhost:5191/themes/default.css [200]"
+  }
+]

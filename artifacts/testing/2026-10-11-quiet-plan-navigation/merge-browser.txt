@@ -1,0 +1,24 @@
+Script ran on page and returned:
+```json
+{"status":200,"title":"Drawer merge verification","lifecycle":"deleted","recoverable":true}
+```
+Emulating viewport: {"deviceScaleFactor":2,"isMobile":true,"hasTouch":true,"isLandscape":false,"width":390,"height":844}
+## Console messages
+Showing 1-1 of 1 (Page 1 of 1).
+msgid=78 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)
+Emulating viewport: {"deviceScaleFactor":2,"isMobile":true,"hasTouch":true,"isLandscape":false,"width":390,"height":844}
+## Network requests
+Showing 1-12 of 12 (Page 1 of 1).
+reqid=1407 GET http://localhost:5181/auth/session [200]
+reqid=1408 GET http://localhost:5181/v1/traveler-profile [200]
+reqid=1409 GET http://localhost:5181/v1/plans/1d24f00f-bf95-4c5f-9bfe-425cb898c33a?view=active [200]
+reqid=1410 GET http://localhost:5181/v1/plans/1d24f00f-bf95-4c5f-9bfe-425cb898c33a/destinations [200]
+reqid=1411 GET http://localhost:5181/v1/plans/1d24f00f-bf95-4c5f-9bfe-425cb898c33a/research-context [200]
+reqid=1412 GET http://localhost:5181/v1/plans/1d24f00f-bf95-4c5f-9bfe-425cb898c33a/conversation/messages [200]
+reqid=1413 GET http://localhost:5181/v1/plans?view=active [200]
+reqid=1414 GET http://localhost:5181/v1/plans/1d24f00f-bf95-4c5f-9bfe-425cb898c33a/brief [200]
+reqid=1416 POST http://localhost:5181/v1/plans/1d24f00f-bf95-4c5f-9bfe-425cb898c33a/challenges [200]
+reqid=1417 DELETE http://localhost:5181/v1/plans/1d24f00f-bf95-4c5f-9bfe-425cb898c33a [200]
+reqid=1418 GET http://localhost:5181/v1/plans?view=active [200]
+reqid=1419 GET http://localhost:5181/v1/plans/1d24f00f-bf95-4c5f-9bfe-425cb898c33a?view=deleted [200]
+PASS: combined main browser rename/reload/delete; created record cleaned up

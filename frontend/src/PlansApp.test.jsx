@@ -19,6 +19,7 @@ function makeApi(initial = []) {
     create: vi.fn(async () => { const created = plan(`new-${plans.length}`, 'Untitled plan'); plans = [...plans, created]; return created; }),
     activity: vi.fn(async item => ({ ...item, revision: item.revision + 1 })),
     conversationMessages: vi.fn(async () => []),
+    researchContext: vi.fn(async () => ({})),
     agentTurn: vi.fn(async (item, message, eventId) => ({ status: 'shortlist_ready', plan_id: item.plan_id, event_id: eventId, assistant_text: `Ideas for ${message}`, candidates: [{ candidate_id: 'crete', name: 'Crete', summary: 'A relaxed island stay' }] })),
     agentTurnStream: vi.fn(async (item, message, eventId, { onEvent }) => {
       onEvent({ type: 'TEXT_MESSAGE_CONTENT', delta: `Ideas for ${message}` });
@@ -143,7 +144,7 @@ test('Plans drawer switches directly to another Plan chat', async () => {
   const drawer = screen.getByRole('dialog', { name: 'Your plans' });
   await user.click(await within(drawer).findByRole('link', { name: /Second plan/ }));
   await screen.findByRole('textbox', { name: 'Message Travella' });
-  expect(window.location.pathname).toBe('/plans/b');
+  await waitFor(() => expect(window.location.pathname).toBe('/plans/b'));
   await user.click(screen.getByRole('button', { name: 'Open plans navigation' }));
   const reopenedDrawer = await screen.findByRole('dialog', { name: 'Your plans' });
   const activePlan = await within(reopenedDrawer).findByRole('link', { name: /Second plan/ });
@@ -179,4 +180,25 @@ test('direct Plan conversation URL loads the same Plan transcript', async () => 
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   expect(await screen.findByText('Japan')).toBeTruthy();
   expect(api.conversationMessages).toHaveBeenCalledWith({ plan_id: id });
+});
+
+
+test('renaming and deleting another plan in the drawer keeps the current conversation', async () => {
+  const api = makeApi([plan('a', 'Current plan'), plan('b', 'Other plan')]);
+  const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('link', { name: 'Current plan' }));
+  await screen.findByRole('textbox', { name: 'Message Travella' });
+  await user.click(screen.getByRole('button', { name: 'Open plans navigation' }));
+  const drawer = await screen.findByRole('dialog', { name: 'Your plans' });
+  await user.dblClick(await within(drawer).findByText('Other plan'));
+  await user.clear(within(drawer).getByRole('textbox', { name: 'Plan name' }));
+  await user.type(within(drawer).getByRole('textbox', { name: 'Plan name' }), 'Renamed other{Enter}');
+  await within(drawer).findByRole('link', { name: /Renamed other/ });
+  expect(location.pathname).toBe('/plans/a');
+  await user.click(within(drawer).getByRole('button', { name: 'Delete Renamed other' }));
+  await user.click(within(drawer).getByRole('button', { name: 'Delete plan' }));
+  await waitFor(() => expect(within(drawer).queryByText('Renamed other')).toBeNull());
+  expect(location.pathname).toBe('/plans/a');
+  expect(within(drawer).getByRole('link', { name: /Current plan/ }).getAttribute('aria-current')).toBe('page');
 });
