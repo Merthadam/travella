@@ -204,3 +204,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - PR #5: https://github.com/Merthadam/travella/pull/5 — approved focused CSS cleanup and verification evidence. User explicitly requested merge into main.
 - Quick-task verification and scoped security gates passed. The production patch is unchanged from the tested implementation; 14 tests, build and authenticated desktop/mobile browser checks passed.
 - Merge through GitHub after final branch/check validation. Preserve other worktrees and the separate local main checkout. This shipment does not change Phase 15 acceptance status.
+
+### Foldable Plan chat shipment — 2026-10-11
+
+- PR #8: https://github.com/Merthadam/travella/pull/8 — approved open-by-default chat, persistent fold rail, cleaner composer and typography.
+- User explicitly requested merge after 13 tests, build and authenticated browser verification passed and the final fresh-login HTTP 401 was disclosed. Scoped security review passed; no open patch findings.
+- Source patch unchanged since verification. Merge through GitHub; preserve other worktrees, local Docker volumes and Phase 15 acceptance status.
