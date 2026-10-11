@@ -212,3 +212,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - PR #8: https://github.com/Merthadam/travella/pull/8 — approved open-by-default chat, persistent fold rail, cleaner composer and typography.
 - User explicitly requested merge after 13 tests, build and authenticated browser verification passed and the final fresh-login HTTP 401 was disclosed. Scoped security review passed; no open patch findings.
 - Source patch unchanged since verification. Merge through GitHub; preserve other worktrees, local Docker volumes and Phase 15 acceptance status.
+
+### Quiet Plans drawer shipment — 2026-10-11
+
+- PR #9: https://github.com/Merthadam/travella/pull/9 — approved recent-first drawer, inline title editing and trailing hover/focus trash with touch access. User explicitly requested merge into main.
+- Current main (2a47115) integrated; production auto-merged, both planning workstreams retained. 38 focused tests, production build, authenticated desktop/mobile rename/reload/delete checks and scoped security gate passed. Sequential full suite: 125 passed, six known AccountApp/TripBrief failures reproduced on main. Parallel runs additionally expose an unchanged canvas chat-fold timing failure; documented in quick verification.
+- Merge through GitHub after final PR state check; preserve other worktrees, Docker volumes and the running preview. Phase 15 acceptance status is unchanged. Evidence: `.planning/quick/261011-01k-implement-selected-recent-first-plans-dr/261011-01k-VERIFICATION.md`.
