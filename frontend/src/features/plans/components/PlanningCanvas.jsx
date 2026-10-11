@@ -22,6 +22,17 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const canvas = usePlanningCanvas({ selected, api, onExpired, onSaved, externalBusy: chatBusy });
   const chat = useCanvasConversation({ selected, api, data: canvas.data, blocked: Boolean(canvas.activeGroup || canvas.saving || canvas.loading), onExpired, onAdd: canvas.addActivities, onBusyChange: setChatBusy });
   const [chatOpen, setChatOpen] = useState(true);
+  const chatCollapseButton = useRef(null);
+  const chatReopenButton = useRef(null);
+  const mobileChatButton = useRef(null);
+  function openChat() {
+    setChatOpen(true); setMobileView('chat');
+    requestAnimationFrame(() => chatCollapseButton.current?.focus());
+  }
+  function collapseChat() {
+    setChatOpen(false); setMobileView('canvas');
+    requestAnimationFrame(() => (window.matchMedia('(max-width: 760px)').matches ? mobileChatButton : chatReopenButton).current?.focus());
+  }
   const [mobileView, setMobileView] = useState(autoGenerate ? 'chat' : 'canvas');
   const [preview, setPreview] = useState(null);
   const [searchArea, setSearchArea] = useState(null);
@@ -129,10 +140,10 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   return <main id="canvas-main" className={`planning-canvas canvas-workspace ${chatOpen && !screen ? 'with-chat' : 'chat-closed'} mobile-${mobileView} ${screen ? 'travel-open' : ''}`} aria-label="Planning canvas" tabIndex={-1}>
     <PlanStages canvas/>
     {review && <CanvasGenerationReview context={review.context} replacing={Boolean(canvas.saved || canvas.data?.themes.items.length || canvas.data?.findings.items.length || canvas.data?.links.items.length)} cancelLabel="Keep editing" onCancel={() => setReview(null)} onConfirm={() => { const revision = review.revision; setReview(null); void canvas.generate('all', revision); }}/>}
-    <nav className="canvas-mobile-tabs" aria-label="Plan workspace view"><button type="button" aria-pressed={mobileView === 'canvas'} onClick={() => setMobileView('canvas')}>Plan & map {canvas.data?.map.pins.length ? `(${canvas.data.map.pins.length})` : ''}</button><button type="button" aria-pressed={mobileView === 'chat' && chatOpen} onClick={() => { setChatOpen(true); setMobileView('chat'); }}>Conversation {chat.active ? '· replying' : ''}</button></nav>
+    <nav className="canvas-mobile-tabs" aria-label="Plan workspace view"><button type="button" aria-pressed={mobileView === 'canvas'} onClick={() => setMobileView('canvas')}>Plan & map {canvas.data?.map.pins.length ? `(${canvas.data.map.pins.length})` : ''}</button><button ref={mobileChatButton} type="button" aria-controls="plan-chat-panel" aria-expanded={mobileView === 'chat' && chatOpen} aria-pressed={mobileView === 'chat' && chatOpen} onClick={openChat}>Conversation {chat.active ? '· replying' : ''}</button></nav>
     <div className="canvas-workspace-body">
     <div className="planning-canvas-inner" tabIndex={screen ? 0 : undefined} role={screen ? 'region' : undefined} aria-label={screen ? 'Travel search' : undefined}>
-      <header className="canvas-page-heading"><div><button type="button" className="ds-text-button" onClick={leave} disabled={canvas.saving}>← Back to conversation</button><span className="ds-eyebrow">YOUR PLAN, TAKING SHAPE</span><h1>{selected.title || 'Your travel plan'}</h1><p>Review the details, make it yours, and save when you’re ready.</p></div><div className="canvas-main-actions"><span className="canvas-save-state" role="status" aria-live="polite">{chatBusy ? 'Your companion is replying…' : progress}</span>{canvas.activeGroup ? <button type="button" className="ds-button" onClick={canvas.stop}>Stop generation</button> : <button type="button" className="ds-button" disabled={canvas.loading || busy || canvas.editing || !canvas.data} onClick={() => generate('all')}><Icon name="spark" size={16}/>{canvas.saved || canvas.data?.themes.items.length ? 'Regenerate plan' : 'Generate plan'}</button>}<button type="button" className="ds-button primary" disabled={canvas.loading || busy || canvas.editing || !canvas.valid || canvas.conflict || !canvas.dirty} onClick={canvas.save}>{canvas.saving ? 'Saving…' : 'Save plan'}</button>{!chatOpen && <button type="button" className="ds-button" onClick={() => { setChatOpen(true); setMobileView('chat'); }}>Open chat</button>}</div></header>
+      <header className="canvas-page-heading"><div><button type="button" className="ds-text-button" onClick={leave} disabled={canvas.saving}>← Back to conversation</button><span className="ds-eyebrow">YOUR PLAN, TAKING SHAPE</span><h1>{selected.title || 'Your travel plan'}</h1><p>Review the details, make it yours, and save when you’re ready.</p></div><div className="canvas-main-actions"><span className="canvas-save-state" role="status" aria-live="polite">{chatBusy ? 'Your companion is replying…' : progress}</span>{canvas.activeGroup ? <button type="button" className="ds-button" onClick={canvas.stop}>Stop generation</button> : <button type="button" className="ds-button" disabled={canvas.loading || busy || canvas.editing || !canvas.data} onClick={() => generate('all')}><Icon name="spark" size={16}/>{canvas.saved || canvas.data?.themes.items.length ? 'Regenerate plan' : 'Generate plan'}</button>}<button type="button" className="ds-button primary" disabled={canvas.loading || busy || canvas.editing || !canvas.valid || canvas.conflict || !canvas.dirty} onClick={canvas.save}>{canvas.saving ? 'Saving…' : 'Save plan'}</button></div></header>
       {reviewLoading && <p role="status" className="canvas-notice">Loading trip details for review…</p>}
       {reviewError && <p role="alert" className="canvas-error">{reviewError}</p>}
       {canvas.loading && <p role="status" className="canvas-notice">Loading your saved plan…</p>}
@@ -151,7 +162,8 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
         <div><button type="button" className="ds-button" autoFocus onClick={() => setConfirm(null)}>Keep editing</button><button type="button" className="ds-button primary" onClick={confirmed}>{confirm?.kind === 'generate' ? 'Replace draft sections' : confirm?.kind === 'reload' ? 'Load saved plan' : 'Leave canvas'}</button></div>
       </dialog>
     </div>
-    <div className="canvas-chat-panel" hidden={Boolean(screen)}><CanvasConversation chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={() => { setChatOpen(false); setMobileView('canvas'); }} onPreview={showPlace} onAdd={canvas.addActivities} area={searchArea} onClearArea={() => setSearchArea(null)}/></div>
+    <div id="plan-chat-panel" className="canvas-chat-panel" hidden={Boolean(screen) || !chatOpen}><CanvasConversation collapseRef={chatCollapseButton} visible={chatOpen && !screen} chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={collapseChat} onPreview={showPlace} onAdd={canvas.addActivities} area={searchArea} onClearArea={() => setSearchArea(null)}/></div>
+    {!chatOpen && !screen && <div className="canvas-chat-rail"><button ref={chatReopenButton} type="button" className="canvas-chat-expand" aria-label="Expand plan chat" title="Expand plan chat" aria-controls="plan-chat-panel" aria-expanded={false} onClick={openChat}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 4v16m15-8H8m5-5-5 5 5 5"/></svg><span>Chat</span>{chat.active && <span className="canvas-chat-rail-status" aria-label="Travella is replying"/>}</button></div>}
     </div>
   </main>;
 }

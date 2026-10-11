@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
 Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-10 - PR #7 prepared for authorized merge after rebasing onto fc3ad50; places changes preserved; 37 focused tests, build and browser verification passed.
+Last activity: 2026-10-11 - Completed quick task 261011-06a: foldable Plan chat verified; final fresh-login smoke returned 401 and was not retried.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -120,6 +120,8 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261011-06a | Refined foldable Plan chat; 13 tests and browser checks passed; final fresh-login smoke returned 401 | 2026-10-11 | 8ada633 | UI verified; auth readiness unresolved | [Task](quick/261011-06a-refine-plan-side-chat-and-foldable-panel/) |
+| 261011-01s | Started local container; health, authentication, HTTP and source hashes passed | 2026-10-11 | f30a986 (app source) | Complete | [Task](quick/261011-01s-start-local-container-and-verify-authent/) |
 | 1 | local-agent-without-agentcore · Outcome: Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. | 2026-10-03 | — | — | — |
 | 2 | plan-chat-primary · Outcome: Made Plan chat the primary Plan screen and retained the Plans switcher drawer; see `artifacts/testing/2026-10-03-chat-top-nav/verification.md`. | 2026-10-03 | — | — | — |
 | 3 | travella-local-start · Outcome: Added health-gated local startup and a one-shot sign-in/session smoke check; see `.planning/quick/261004-di1-add-reliable-local-travella-startup-and-/261004-di1-VERIFICATION.md`. | 2026-10-04 | — | — | — |
@@ -202,3 +204,9 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - PR #5: https://github.com/Merthadam/travella/pull/5 — approved focused CSS cleanup and verification evidence. User explicitly requested merge into main.
 - Quick-task verification and scoped security gates passed. The production patch is unchanged from the tested implementation; 14 tests, build and authenticated desktop/mobile browser checks passed.
 - Merge through GitHub after final branch/check validation. Preserve other worktrees and the separate local main checkout. This shipment does not change Phase 15 acceptance status.
+
+### Foldable Plan chat shipment — 2026-10-11
+
+- PR #8: https://github.com/Merthadam/travella/pull/8 — approved open-by-default chat, persistent fold rail, cleaner composer and typography.
+- User explicitly requested merge after 13 tests, build and authenticated browser verification passed and the final fresh-login HTTP 401 was disclosed. Scoped security review passed; no open patch findings.
+- Source patch unchanged since verification. Merge through GitHub; preserve other worktrees, local Docker volumes and Phase 15 acceptance status.
