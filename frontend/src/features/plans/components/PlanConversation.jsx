@@ -33,7 +33,7 @@ function SourceLinks({ sources }) {
 
 function messageKey(message) { return message.message_id || `${message.role}-${message.event_id || message.sequence || message.created_at}`; }
 
-export function PlanConversation({ selected, api, onExpired, onBack, onCanvas }) {
+export function PlanConversation({ selected, api, onExpired, onBack, onCanvas, prototypeNavigation, prototypeInvitation }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -171,6 +171,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
 
   return <div className="chat-layout">
     <main className="chat-page" id="conversation-main">
+    {prototypeNavigation}
     {onCanvas && <div className="chat-canvas-entry"><PlanStages/><div className="research-canvas-actions"><button type="button" onClick={() => onCanvas(false)} disabled={Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Open canvas</button><button type="button" className="primary" onClick={() => setReview({ context: structuredClone(brief.context), revision: brief.revision })} disabled={loading || Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Review & generate</button></div></div>}
     {review && <CanvasGenerationReview context={review.context} onCancel={() => setReview(null)} onConfirm={async flights => {
       const confirmed = await confirmFlightNeed(api, selected, review, flights);
@@ -196,6 +197,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
           </div>
         </article>;
       })}
+      {prototypeInvitation}
     </section>
     <form className="chat-composer research-composer" onSubmit={send}>
       <div className="research-composer-box">
