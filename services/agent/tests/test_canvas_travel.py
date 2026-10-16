@@ -43,6 +43,7 @@ def components():
 def hotels(count=4):
     return {'provider':'LiteAPI','sandbox':True,'status':'ready' if count else 'empty','searched_at':'2026-10-16T12:00:00Z', 'returned_count':count,'truncated':False,'notices':[],
         'results':[{'id':f'stay-{i}','hotel_id':f'property-{i}','name':f'Observed stay {i}', 'address':'Lisbon',
+                    'image_url':f'https://photos.example.com/hotel-{i}.jpg','stars':4,'review_score':8.5,'review_count':120,'facilities':['Wi-Fi'],
                     'price':{'amount':str(700+i), 'currency':'EUR', 'basis':'stay','estimated':i==1,'excluded_taxes':[{'name':'City tax','amount':'14','currency':'EUR'}]},
                     'rooms':[{'id':f'room-{i}','name':'Double room','total':{'amount':str(700+i),'currency':'EUR'},'refundable':False,'board_name':'Breakfast included','checkout_token':'PRIVATE_CHECKOUT_SENTINEL'}],
                     'raw_payload':'PRIVATE_RAW_SENTINEL'} for i in range(count)]}

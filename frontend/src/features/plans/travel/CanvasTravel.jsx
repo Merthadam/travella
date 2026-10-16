@@ -6,11 +6,25 @@ import { canvasEditResultSchema as activities } from '../../../design-system/a2u
 import './travel-results.css';
 
 const text = z.string().max(240), id = z.string().min(1).max(100);
+export function safeTravelImage(value) {
+  if (typeof value !== 'string' || value.length > 2000 || /[\s\\\x00-\x1f]/.test(value)) return null;
+  try {
+    const url = new URL(value), host = url.hostname.replace(/\.$/, '');
+    return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash && !url.port &&
+      /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host) && !/\.(local|localhost|internal)$/i.test(host) ? value : null;
+  } catch { return null; }
+}
+export function TravelPhoto({ url, name }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
+  const source = safeTravelImage(url);
+  return source && !failed ? <img className="canvas-travel-photo" src={source} alt={`${name}, hotel photo`} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)}/> : <div className="canvas-travel-photo canvas-travel-photo-empty"><span aria-hidden="true">⌂</span><span>Photo unavailable</span></div>;
+}
 const money = z.object({ amount: z.string().max(40).regex(/^\d+(?:\.\d+)?$/).nullable(), currency: z.string().regex(/^[A-Z]{3}$/).nullable() }).strict();
 const tax = money.extend({ name: text });
 const price = money.extend({ basis: z.literal('stay'), estimated: z.boolean(), excluded_taxes: z.array(tax).max(50) });
 const room = z.object({ id, name: text, board_name: text.nullable(), refundable: z.boolean().nullable(), cancellation_summary: text.nullable(), cancellation_deadline: text.nullable(), total: money, excluded_taxes: z.array(tax).max(50), occupancy_summary: text.nullable() }).strict();
-const option = z.object({ id, name: text, address: text.nullable(), price, rooms: z.array(room).max(30) }).strict();
+const option = z.object({ id, hotel_id:id, name: text, address: text.nullable(), image_url:z.string().nullable().transform(safeTravelImage), stars:z.number().min(0).max(5).nullable(),review_score:z.number().min(0).max(10).nullable(),review_count:z.number().int().nonnegative().nullable(),facilities:z.array(text).max(40), price, rooms: z.array(room).max(30) }).strict();
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const criteria = z.object({ destination: z.object({ city: z.string().min(2).max(120), country_code: z.string().regex(/^[A-Z]{2}$/), place_id: z.string().max(255).nullable() }).strict(), check_in: date, check_out: date, rooms: z.array(z.object({ adults: z.number().int().min(1).max(6), children_ages: z.array(z.number().int().min(0).max(17)).max(4) }).strict()).min(1).max(4), guest_nationality: z.string().regex(/^[A-Z]{2}$/), currency: z.enum(['EUR','USD','GBP','HUF','CAD','AUD','JPY','CHF']), hotel_id: z.string().max(100).nullable() }).strict();
 const flightCriteria = z.object({ origin:z.string().regex(/^[A-Z]{3}$/),destination:z.string().regex(/^[A-Z]{3}$/),departure_date:date,return_date:date,adults:z.number().int().min(1).max(9),children_ages:z.array(z.number().int().min(2).max(11)).max(8),infant_ages:z.array(z.number().int().min(0).max(1)).max(8),cabin_class:z.enum(['ECONOMY','PREMIUM_ECONOMY','BUSINESS','FIRST']),currency:z.enum(['EUR','USD','GBP','HUF','CAD','AUD','JPY','CHF']),country_code:z.string().regex(/^[A-Z]{2}$/) }).strict();
@@ -52,6 +66,7 @@ function StayCard({ item, snapshot, full = false }) {
   const rooms = snapshot.criteria.rooms, adults = rooms.reduce((n,x) => n+x.adults,0), children = rooms.reduce((n,x) => n+x.children_ages.length,0);
   const nights = Math.round((Date.parse(snapshot.criteria.check_out)-Date.parse(snapshot.criteria.check_in))/86400000);
   return <article className="canvas-travel-option" data-option-id={item.id}>
+    <TravelPhoto url={item.image_url} name={item.name}/>
     <h3>{item.name}</h3>{item.address && <p>{item.address}</p>}
     <p>{snapshot.criteria.check_in} → {snapshot.criteria.check_out}</p>
     <strong className="canvas-travel-price">{item.price.amount !== null ? 'From ' : ''}{amount(item.price)}</strong>
@@ -74,7 +89,7 @@ function FlightLeg({value,label}) {
 }
 function FlightCard({item,snapshot}) {
   const c=snapshot.criteria;
-  return <article className="canvas-travel-option" data-option-id={item.id}><h3>{item.airlines.length ? item.airlines.join(', ') : 'Return flight'}</h3><strong className="canvas-travel-price">{amount(item.price)}</strong><p>Return total for the party · {c.adults} adults{c.children_ages.length ? ` · ${c.children_ages.length} children` : ''}{c.infant_ages.length ? ` · ${c.infant_ages.length} infants` : ''}</p><Taxes items={item.price.excluded_taxes}/><FlightLeg value={item.outbound} label="Outbound"/><FlightLeg value={item.inbound} label="Return"/><p>All times are local to each airport.</p><p>{item.baggage_summary || 'Baggage information unavailable'}</p><p>{item.cabin_bag_included===true ? 'Cabin bag included' : item.cabin_bag_included===false ? 'Cabin bag not included' : 'Cabin bag allowance unavailable'}</p><p>{item.cancellation_summary || (item.refundable===false ? 'Non-refundable' : item.refundable===true ? 'Refundable; detailed cancellation terms unavailable' : 'Cancellation terms unavailable')}</p></article>;
+  return <article className="canvas-travel-option" data-option-id={item.id}><svg className="canvas-travel-plane" viewBox="0 0 48 48" role="img" aria-label="Flight illustration"><path d="m43 21-15-8V5a4 4 0 0 0-8 0v8L5 21v6l15-4v13l-5 4v4l9-2 9 2v-4l-5-4V23l15 4z" fill="currentColor"/></svg><h3>{item.airlines.length ? item.airlines.join(', ') : 'Return flight'}</h3><p>{c.origin} ↔ {c.destination} · {c.departure_date} – {c.return_date}</p><strong className="canvas-travel-price">{amount(item.price)}</strong><p>Return total for the party · {c.adults} adults{c.children_ages.length ? ` · ${c.children_ages.length} children` : ''}{c.infant_ages.length ? ` · ${c.infant_ages.length} infants` : ''}</p><Taxes items={item.price.excluded_taxes}/><p>{item.baggage_summary || 'Baggage information unavailable'}</p><p>{item.cancellation_summary || (item.refundable===false ? 'Non-refundable' : item.refundable===true ? 'Refundable; detailed cancellation terms unavailable' : 'Cancellation terms unavailable')}</p><details><summary>Flight and fare details</summary><FlightLeg value={item.outbound} label="Outbound"/><FlightLeg value={item.inbound} label="Return"/><p>All times are local to each airport.</p><p>{item.cabin_bag_included===true ? 'Cabin bag included' : item.cabin_bag_included===false ? 'Cabin bag not included' : 'Cabin bag allowance unavailable'}</p></details></article>;
 }
 function OptionCard(props) {return props.snapshot.mode==='flights' ? <FlightCard {...props}/> : <StayCard {...props}/>;}
 const Options = createContext({});
@@ -109,10 +124,4 @@ export function TravelPreviews({ snapshot, onOpen, reason }) {
     return () => { processor.current?.dispose(); processor.current=null; };
   }, [snapshot, surfaceId, reason]);
   return <Options.Provider value={{ reason }}>{reason ? <p role="status" aria-live="polite" className="canvas-travel-notice">{reason}</p> : error ? <p role="alert">These travel results couldn’t be displayed. Try again from Plan chat. Your draft is unchanged.</p> : surface && <A2uiSurface surface={surface}/>}</Options.Provider>;
-}
-export function TravelResults({ snapshot, reason, onBack }) {
-  const heading = useRef(null);
-  useEffect(() => { heading.current?.focus(); }, [snapshot?.search_id]);
-  return <section className="canvas-travel canvas-travel-results" aria-label="Travel results only"><button type="button" className="ds-text-button" onClick={onBack}>← Back to plan chat</button><h2 ref={heading} tabIndex={-1}>{snapshot?.mode==='flights' ? 'Return flights' : 'Stays'} for your trip</h2>
-    {reason || !snapshot ? <p role="status">{reason || 'These results are no longer available. Return to Plan chat to search again.'}</p> : <><SearchContext snapshot={snapshot}/><p>{snapshot.returned_count} {snapshot.mode==='flights' ? 'flight' : 'stay'} {snapshot.returned_count === 1 ? 'option' : 'options'} from this search</p><div className="canvas-travel-grid">{snapshot.results.map(item => <OptionCard full key={item.id} item={item} snapshot={snapshot}/>)}</div><p>Nothing has been saved or booked.</p></>}</section>;
 }

@@ -74,42 +74,45 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   await user.type(screen.getByRole('textbox',{name:'Message Travella'}),'Keep this unsent message');
   const count=requests.length;
   await user.click(open);
-  const results=screen.getByRole('region',{name:'Travel results only'});
+  const results=await screen.findByRole('region',{name:mode==='stays' ? 'Accommodation search' : 'Flight search'});
+  await within(results).findByRole('heading',{name:`${mode==='flights' ? 'Observed Air' : 'Observed stay'} ${resultCount-1}`});
   expect(within(results).getAllByRole('article')).toHaveLength(resultCount);
-  expect(within(results).getByText(`${mode==='flights' ? 'Observed Air' : 'Observed stay'} ${resultCount-1}`)).toBeTruthy();
+  expect(within(results).getByRole('heading',{name:`${mode==='flights' ? 'Observed Air' : 'Observed stay'} ${resultCount-1}`})).toBeTruthy();
   expect(requests).toHaveLength(count);
-  expect(results.textContent).toContain('Nothing has been saved or booked');
+  expect(within(results).getByLabelText(mode==='stays' ? 'Check-in' : 'Departure').value).toBe(fixture.search_start || fixture.components.essentials.dates.start);
+  expect(within(results).getByLabelText(mode==='stays' ? 'Destination or ski area' : 'From airport').value).toBe(mode==='stays' ? 'Lisbon' : 'BUD');
   expect(results.textContent).not.toContain('PRIVATE_CHECKOUT');
-  await user.click(within(results).getByRole('button',{name:'← Back to plan chat'}));
+  await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   expect(screen.getByRole('textbox',{name:'Date note'}).value).toBe('Unfinished editor');
   expect(api.saveCanvas).not.toHaveBeenCalled();
   if(fixture.mixed) {
     const flightOpen=screen.getByRole('button',{name:'View all flights'});
     await user.click(flightOpen);
-    const flightsView=screen.getByRole('region',{name:'Travel results only'});
+    const flightsView=await screen.findByRole('region',{name:'Flight search'});
+    await within(flightsView).findByRole('heading',{name:'Observed Air 3'});
     expect(within(flightsView).getAllByRole('article')).toHaveLength(4);
-    expect(within(flightsView).getByText('Observed Air 3')).toBeTruthy();
+    expect(within(flightsView).getByRole('heading',{name:'Observed Air 3'})).toBeTruthy();
     expect(flightsView.textContent).not.toContain('Observed stay');
-    expect(flightsView.textContent).toContain('Return total for the party');
+    expect(flightsView.textContent).toContain('Return total · all travelers');
     expect(requests).toHaveLength(count);
-    await user.click(within(flightsView).getByRole('button',{name:'← Back to plan chat'}));
+    await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
     await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   }
   expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
   expect(requests.some(x=>/checkout|prebook|hotels\/search/.test(x))).toBe(false);
   await act(async()=>{history.forward();});
-  await screen.findByRole('region',{name:'Travel results only'});
+  await screen.findByRole('region',{name:fixture.mixed || mode==='flights' ? 'Flight search' : 'Accommodation search'});
   await act(async()=>{history.back();});
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   await user.click(screen.getByRole('button',{name:`View all ${mode}`}));
   expect(Object.keys(history.state).sort()).toEqual(['canvasTravelId','canvasTravelView']);
   mounted.unmount();
   render(<AppearanceProvider><PlanningCanvas selected={{plan_id:fixture.plan_id,title:'Test stays'}} api={api}/></AppearanceProvider>);
-  const recovered=await screen.findByRole('region',{name:'Travel results only'});
+  const recovered=await screen.findByRole('region',{name:'Travel result recovery'});
   expect(recovered.textContent).toContain('no longer available');
   expect(within(recovered).queryAllByRole('article')).toHaveLength(0);
-  await user.click(within(recovered).getByRole('button',{name:'← Back to plan chat'}));
+  await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
   await screen.findByRole('textbox',{name:'Message Travella'});
   expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
 });
@@ -117,7 +120,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
 const hookData=()=>({essentials:{dates:{start:'2027-06-10',end:'2027-06-17',note:'',flexible:false},travelers:2},map:{destination:'Lisbon, Portugal'}});
 function snapshot(id='s1',data=hookData()) {
   const now=new Date();
-  return {search_id:id,plan_id:'plan-1',generation:1,mode:'stays',criteria:{destination:{city:'Lisbon',country_code:'PT',place_id:null},check_in:'2027-06-10',check_out:'2027-06-17',rooms:[{adults:2,children_ages:[]}],guest_nationality:'HU',currency:'EUR',hotel_id:null},fingerprint:'a'.repeat(64),draft_facts:draftTravelFacts(data),searched_at:now.toISOString(),expires_at:new Date(+now+600000).toISOString(),provider:'LiteAPI',sandbox:true,returned_count:1,truncated:false,notices:[],results:[{id:'stay-1',name:'Observed stay',address:null,price:{amount:'700',currency:'EUR',basis:'stay',estimated:false,excluded_taxes:[]},rooms:[]}],preview_ids:['stay-1'],search_only_dates:false};
+  return {search_id:id,plan_id:'plan-1',generation:1,mode:'stays',criteria:{destination:{city:'Lisbon',country_code:'PT',place_id:null},check_in:'2027-06-10',check_out:'2027-06-17',rooms:[{adults:2,children_ages:[]}],guest_nationality:'HU',currency:'EUR',hotel_id:null},fingerprint:'a'.repeat(64),draft_facts:draftTravelFacts(data),searched_at:now.toISOString(),expires_at:new Date(+now+600000).toISOString(),provider:'LiteAPI',sandbox:true,returned_count:1,truncated:false,notices:[],results:[{id:'stay-1',hotel_id:'hotel-1',image_url:null,stars:null,review_score:null,review_count:null,facilities:[],name:'Observed stay',address:null,price:{amount:'700',currency:'EUR',basis:'stay',estimated:false,excluded_taxes:[]},rooms:[]}],preview_ids:['stay-1'],search_only_dates:false};
 }
 function deliver(options,s) {options.onEvent({type:'STATE_SNAPSHOT',snapshot:{canvas_edit_result:{suggestions:[],add_ids:[],area:null,travel:[s]}}});}
 function hookHarness(editCanvas,data=hookData()) {

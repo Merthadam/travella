@@ -4,6 +4,7 @@ import { travelRequest } from "./travelApi";
 import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
 import { FlightSandboxCheckout, FlightMockRecovery } from "./FlightSandboxCheckout";
 import { StayDestination } from "./StayDestination";
+import { travelSnapshotSchema, travelState, TravelPhoto } from "./CanvasTravel";
 import "./travel-search.css";
 
 const currencies = ["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"];
@@ -85,6 +86,7 @@ function Airport({ label, value, onChange, planId, active, onExpired }) {
   const [query, setQuery] = useState(value?.label || "");
   const [options, setOptions] = useState([]);
   const [message, setMessage] = useState("");
+  useEffect(() => { if (value) setQuery(value.label); }, [value]);
   useEffect(() => {
     if (!active || value || query.trim().length < 2) {
       setOptions([]);
@@ -244,7 +246,7 @@ function Room({ room, onCheckout }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
@@ -373,6 +375,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           </p>
           <Price price={item.price} />
           {sandbox && item.checkout_token && <button className="travel-primary" onClick={() => setCheckout(item.checkout_token)}>Try mock flight booking</button>}
+          {!item.checkout_token && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
         </>
       )}
       <p className="travel-note">
@@ -422,7 +425,7 @@ export function filterResults(
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
 }
-export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult }) {
+export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importReason = '' }) {
   const stay = mode === "accommodation";
   const dates = initialData?.essentials?.dates;
   const [city, setCity] = useState(initialData?.map?.destination || "");
@@ -454,8 +457,43 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
   const [direct, setDirect] = useState(false);
   const [bag, setBag] = useState(false);
   const [sort, setSort] = useState("provider");
+  const [imported, setImported] = useState(false);
+  const [, setImportClock] = useState(0);
+  const importedId = useRef(null);
+  const heading = useRef(null);
+  const form = useRef(null);
   const pending = useRef(null);
   const epoch = useRef(0);
+  useEffect(() => {
+    if (!imported || !active) return;
+    const timer = setInterval(() => setImportClock(Date.now()), 10000);
+    return () => clearInterval(timer);
+  }, [imported, active]);
+  // New search identity is an explicit import; parent clock/rerenders never
+  // rehydrate the form or overwrite a subsequent manual result.
+  useEffect(() => {
+    if (!importedSnapshot || importedSnapshot.search_id === importedId.current) return;
+    epoch.current++;
+    pending.current?.abort();
+    setLoading(false); setDetail(null); setCompared([]); resetFilters();
+    const parsed = travelSnapshotSchema.safeParse(importedSnapshot);
+    if (!parsed.success || parsed.data.plan_id !== planId || parsed.data.mode !== (stay ? 'stays' : 'flights') || importReason || travelState(parsed.data, initialData)) {
+      setSnapshot(null); setError('These results are no longer available. Return to Plan chat to search again.'); return;
+    }
+    const value = parsed.data, c = value.criteria;
+    importedId.current = value.search_id;
+    setImported(true); setError(''); setSnapshot(value); setCurrency(c.currency);
+    if (stay) {
+      setCity(c.destination.city); setPlace({name:c.destination.city,place_id:c.destination.place_id});
+      setCountry(c.destination.country_code); setNationality(c.guest_nationality);
+      setStart(c.check_in); setEnd(c.check_out); setRooms(c.rooms);
+    } else {
+      setOrigin({iata:c.origin,label:c.origin}); setDestination({iata:c.destination,label:c.destination});
+      setStart(c.departure_date); setEnd(c.return_date); setAdults(c.adults);
+      setChildren(c.children_ages); setInfants(c.infant_ages); setCabin(c.cabin_class); setCountry(c.country_code);
+    }
+    heading.current?.focus();
+  }, [importedSnapshot?.search_id, planId, mode]);
   useEffect(() => {
     if (!active) {
       epoch.current++;
@@ -555,6 +593,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
         controller.signal,
       );
       if (current === epoch.current) {
+        setImported(false);
         setSnapshot({ ...result, criteria });
         setCompared([]);
         resetFilters();
@@ -568,7 +607,12 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       if (current === epoch.current) setLoading(false);
     }
   }
-  const results = filterResults(snapshot?.results || [], {
+  const unavailable = imported && (importReason || travelState(snapshot, initialData));
+  function openDetail(item) {
+    if (imported && (importReason || travelState(snapshot, initialData))) { setImportClock(Date.now()); return; }
+    setDetail(item);
+  }
+  const results = filterResults(unavailable ? [] : snapshot?.results || [], {
     stay,
     budget,
     refundable,
@@ -589,7 +633,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
         <span className="travel-kicker">
           {stay ? "SOMEWHERE TO CALL HOME" : "THE WAY THERE"}
         </span>
-        <h2>
+        <h2 ref={heading} tabIndex={-1}>
           {stay
             ? "Find your little corner of the world."
             : "A good trip starts with a good flight."}
@@ -617,6 +661,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       {stay && <MockBookingRecovery planId={planId} onOpen={setRecovery} />}
       {stay && recovery && <SandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
       <form
+        ref={form}
         className="travel-form"
         onSubmit={search}
         onInvalid={(event) =>
@@ -833,7 +878,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
           {error} {snapshot && "Your last completed results are still shown."}
         </p>
       )}
-      {snapshot ? (
+      {unavailable ? <p role="status" className="travel-notice">{unavailable}</p> : snapshot ? (
         <>
           <div className="travel-results-meta">
             <span>
@@ -1000,24 +1045,12 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
               {results.slice(0, limit).map((item) => (
                 <article
                   className={`travel-result ${stay ? "stay" : "flight"}`}
+                  data-option-id={item.id}
                   key={item.id}
                 >
                   {stay ? (
                     <>
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.hidden = true;
-                          }}
-                        />
-                      ) : (
-                        <div className="travel-photo-placeholder">
-                          ⌂<small>Photo unavailable</small>
-                        </div>
-                      )}
+                      <TravelPhoto url={item.image_url} name={item.name}/>
                       <div className="travel-result-body">
                         <small className="travel-kicker">
                           {item.stars
@@ -1057,7 +1090,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                     <Price price={item.price} stay={stay} />
                     <button
                       className="travel-primary"
-                      onClick={() => setDetail(item)}
+                      onClick={() => openDetail(item)}
                     >
                       {stay ? "View rooms" : "View flight"} →
                     </button>
@@ -1108,7 +1141,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                           ? refund(item.rooms[0]?.refundable)
                           : `${duration(item.outbound.duration_minutes)} out · ${duration(item.inbound.duration_minutes)} back`}
                       </p>
-                      <button onClick={() => setDetail(item)}>
+                      <button onClick={() => openDetail(item)}>
                         View details
                       </button>
                     </article>
@@ -1142,7 +1175,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       <p className="travel-note">
         Search results are not saved to your Plan. Sandbox flights and stays support test-only mock checkout. For flight testing, choose Nuitée Air when available.
       </p>
-      {detail && (
+      {detail && !unavailable && (
         <Detail
           key={detail.id}
           item={detail}
@@ -1153,6 +1186,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
           onClose={() => setDetail(null)}
           onExpired={onExpired}
           onBookingResult={onBookingResult}
+          onRefresh={() => { setDetail(null); form.current?.requestSubmit(); }}
         />
       )}
     </section>

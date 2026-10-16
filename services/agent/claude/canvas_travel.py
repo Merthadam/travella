@@ -10,13 +10,14 @@ import time
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal, get_args
 from uuid import uuid4
+from urllib.parse import urlsplit
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 from pydantic import Field, model_validator
 
 from services.shared.traveler_profile import reference_catalog
 from ..travel_contracts import Currency, HotelSearch, Hotel, FlightSearch, Flight, Airports, Capabilities, validate_dates
-from .research_result import StrictResult
+from .research_result import StrictResult, public_https_url
 
 
 Text = Annotated[str, Field(max_length=240)]
@@ -52,8 +53,14 @@ class StayRoom(StrictResult):
 
 class StayOption(StrictResult):
     id: Identifier
+    hotel_id: Identifier
     name: Text
     address: Text | None = None
+    image_url: str | None = Field(default=None, max_length=2000)
+    stars: float | None = Field(default=None, ge=0, le=5)
+    review_score: float | None = Field(default=None, ge=0, le=10)
+    review_count: int | None = Field(default=None, ge=0)
+    facilities: list[Text] = Field(default_factory=list, max_length=40)
     price: Price
     rooms: list[StayRoom] = Field(default_factory=list, max_length=30)
 
@@ -452,10 +459,25 @@ def safe_flight(raw, criteria):
     return result
 
 
+def safe_photo(value):
+    if not isinstance(value, str) or len(value) > 2000:
+        return None
+    try:
+        public_https_url(value)
+        parsed = urlsplit(value)
+        if parsed.query or parsed.fragment or parsed.port not in (None, 443):
+            return None
+        return value
+    except ValueError:
+        return None
+
+
 def safe_stay(raw):
     # Validate the provider shape, then explicitly reconstruct every nested field.
     hotel = Hotel.model_validate(raw)
-    return StayOption(id=hotel.id, name=hotel.name, address=hotel.address,
+    return StayOption(id=hotel.id, hotel_id=hotel.hotel_id, name=hotel.name, address=hotel.address,
+        image_url=safe_photo(hotel.image_url), stars=hotel.stars, review_score=hotel.review_score,
+        review_count=hotel.review_count, facilities=hotel.facilities,
         price=Price(**hotel.price.model_dump()),
         rooms=[StayRoom(**room.model_dump(include=set(StayRoom.model_fields))) for room in hotel.rooms])
 
