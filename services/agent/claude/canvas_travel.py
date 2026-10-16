@@ -440,10 +440,16 @@ class CanvasTravelObserver:
         timeout = min(45, self.deadline - time.monotonic() - 5)
         if timeout <= 0:
             raise TimeoutError()
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(timeout) as deadline:
             result = await self.client.call("travel_search", {"action": action, "criteria": criteria},
                 subject=self.context.traveler_scope, plan_id=self.context.plan_id,
                 authorization_token=self.authorization_token)
+            # A transport may finish after swallowing cancellation; that cannot make
+            # its obsolete result eligible for caching or publication.
+            if deadline.expired():
+                raise TimeoutError()
+            if asyncio.current_task().cancelling():
+                raise asyncio.CancelledError()
         self.cache[key] = result
         return result
 

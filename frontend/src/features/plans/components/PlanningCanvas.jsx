@@ -43,6 +43,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const resultReturnFocus = useRef(null);
   const resultsOpen = useRef(false);
   const resultsPath = useRef('');
+  const resultOwnedEntries = useRef(new Set());
   function restorePlanChat() {
     resultsOpen.current = false; setScreen(null); setTravelResultId(null); setChatOpen(true); setMobileView('chat');
     requestAnimationFrame(() => {
@@ -54,17 +55,24 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
     const snapshot = chat.travelSnapshots[searchId];
     if (!snapshot || snapshot.plan_id !== selected.plan_id || chat.travelReason(snapshot)) return;
     resultReturnFocus.current = searchId; resultsOpen.current = true; resultsPath.current = location.pathname;
-    history.pushState({ ...history.state, canvasTravelView: 'results', canvasTravelId: searchId }, '', location.href);
+    resultOwnedEntries.current.add(searchId);
+    history.pushState({ canvasTravelView: 'results', canvasTravelId: searchId }, '', location.href);
     setTravelResultId(searchId); setScreen('travel-results'); setMobileView('canvas');
   }
-  function closeTravelResults() { if (history.state?.canvasTravelView === 'results') history.back(); else restorePlanChat(); }
+  function closeTravelResults() {
+    if (history.state?.canvasTravelView === 'results' && resultOwnedEntries.current.has(history.state.canvasTravelId)) history.back();
+    else { history.replaceState({},'',location.href); restorePlanChat(); }
+  }
   useEffect(() => {
+    const path=location.pathname;
+    resultOwnedEntries.current.clear();
     function pop(event) {
-      if (resultsOpen.current && location.pathname === resultsPath.current) {
-        event.stopImmediatePropagation(); restorePlanChat();
-      } else if (event.state?.canvasTravelView === 'results') {
+      if(location.pathname!==path) return;
+      if (event.state?.canvasTravelView === 'results') {
         event.stopImmediatePropagation(); resultsOpen.current = true; resultsPath.current = location.pathname;
         setTravelResultId(event.state.canvasTravelId); setScreen('travel-results'); setMobileView('canvas');
+      } else if (resultsOpen.current) {
+        event.stopImmediatePropagation(); restorePlanChat();
       }
     }
     if (history.state?.canvasTravelView === 'results') {

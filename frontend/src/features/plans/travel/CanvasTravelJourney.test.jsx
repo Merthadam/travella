@@ -1,18 +1,19 @@
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, test, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PlanningCanvas } from '../components/PlanningCanvas';
 import { plansApi } from '../../../plansApi';
 import { AppearanceProvider } from '../../appearance/AppearanceProvider';
-import { canvasTravelResultSchema } from './CanvasTravel';
+import { canvasTravelResultSchema, draftTravelFacts, requestedTravelModes, travelState } from './CanvasTravel';
+import { useCanvasConversation } from '../useCanvasConversation';
 
 vi.mock('../components/CanvasDestinationMap', async () => {
   const { createContext } = await import('react');
   return { CanvasMapContext:createContext({}),CanvasDestinationMap:()=> <div>Map boundary</div> };
 });
-afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.useRealTimers();});
 
 test('legacy activities parse and unknown top-level fields fail closed',()=>{
   expect(canvasTravelResultSchema.parse({suggestions:[],add_ids:[],area:null}).travel).toEqual([]);
@@ -36,7 +37,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
     throw new Error(`Unexpected network boundary: ${url}`);
   }));
   const api={...plansApi,canvas:vi.fn(async()=>({revision:1,context_revision:1,saved_context_revision:1,snapshot:{components:fixture.components}})),researchContext:vi.fn(async()=>({revision:1,context:{}})),conversationMessages:vi.fn(async()=>[]),saveCanvas:vi.fn(),cancelAgentTurn:vi.fn(async()=>{})};
-  render(<AppearanceProvider><PlanningCanvas selected={{plan_id:fixture.plan_id,title:'Test stays'}} api={api}/></AppearanceProvider>);
+  const mounted=render(<AppearanceProvider><PlanningCanvas selected={{plan_id:fixture.plan_id,title:'Test stays'}} api={api}/></AppearanceProvider>);
   const user=userEvent.setup();
   await user.click(await screen.findByRole('button',{name:'Edit details',exact:true}));
   await user.type(screen.getByRole('textbox',{name:'Date note'}),'Unfinished editor');
@@ -97,4 +98,100 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   }
   expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
   expect(requests.some(x=>/checkout|prebook|hotels\/search/.test(x))).toBe(false);
+  await act(async()=>{history.forward();});
+  await screen.findByRole('region',{name:'Travel results only'});
+  await act(async()=>{history.back();});
+  await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
+  await user.click(screen.getByRole('button',{name:`View all ${mode}`}));
+  expect(Object.keys(history.state).sort()).toEqual(['canvasTravelId','canvasTravelView']);
+  mounted.unmount();
+  render(<AppearanceProvider><PlanningCanvas selected={{plan_id:fixture.plan_id,title:'Test stays'}} api={api}/></AppearanceProvider>);
+  const recovered=await screen.findByRole('region',{name:'Travel results only'});
+  expect(recovered.textContent).toContain('no longer available');
+  expect(within(recovered).queryAllByRole('article')).toHaveLength(0);
+  await user.click(within(recovered).getByRole('button',{name:'← Back to plan chat'}));
+  await screen.findByRole('textbox',{name:'Message Travella'});
+  expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
+});
+
+const hookData=()=>({essentials:{dates:{start:'2027-06-10',end:'2027-06-17',note:'',flexible:false},travelers:2},map:{destination:'Lisbon, Portugal'}});
+function snapshot(id='s1',data=hookData()) {
+  const now=new Date();
+  return {search_id:id,plan_id:'plan-1',generation:1,mode:'stays',criteria:{destination:{city:'Lisbon',country_code:'PT',place_id:null},check_in:'2027-06-10',check_out:'2027-06-17',rooms:[{adults:2,children_ages:[]}],guest_nationality:'HU',currency:'EUR',hotel_id:null},fingerprint:'a'.repeat(64),draft_facts:draftTravelFacts(data),searched_at:now.toISOString(),expires_at:new Date(+now+600000).toISOString(),provider:'LiteAPI',sandbox:true,returned_count:1,truncated:false,notices:[],results:[{id:'stay-1',name:'Observed stay',address:null,price:{amount:'700',currency:'EUR',basis:'stay',estimated:false,excluded_taxes:[]},rooms:[]}],preview_ids:['stay-1'],search_only_dates:false};
+}
+function deliver(options,s) {options.onEvent({type:'STATE_SNAPSHOT',snapshot:{canvas_edit_result:{suggestions:[],add_ids:[],area:null,travel:[s]}}});}
+function hookHarness(editCanvas,data=hookData()) {
+  const api={conversationMessages:vi.fn(async()=>[]),editCanvas,cancelAgentTurn:vi.fn(async()=>{})};
+  const initialProps={selected:{plan_id:'plan-1'},api,data,blocked:false,onAdd:vi.fn(()=>true)};
+  return {...renderHook(props=>useCanvasConversation(props),{initialProps}),api,initialProps};
+}
+
+test('cancelled staged snapshot and late terminal never publish, newer run survives',async()=>{
+  let release,oldOptions;let first=true;
+  const h=hookHarness(vi.fn(async(_s,_d,_m,_id,options)=>{
+    if(first){first=false;oldOptions=options;deliver(options,snapshot('old'));return new Promise(resolve=>{release=resolve;});}
+    deliver(options,snapshot('new'));return {status:'complete',generation:1};
+  }));
+  await waitFor(()=>expect(h.result.current.loading).toBe(false));
+  let pending;
+  act(()=>{pending=h.result.current.send('Find stays');});
+  expect(Object.keys(h.result.current.travelSnapshots)).toHaveLength(0);
+  await act(async()=>{await h.result.current.stop();});
+  expect(oldOptions.signal.aborted).toBe(true);
+  await act(async()=>{await h.result.current.send('Find stays again');});
+  await act(async()=>{deliver(oldOptions,snapshot('old'));release({status:'complete',generation:1});await pending;});
+  expect(Object.keys(h.result.current.travelSnapshots)).toEqual(['new']);
+  expect(h.result.current.messages.find(x=>x.status==='stopped').travel).toBeUndefined();
+});
+
+test('supersession on request, failures, four-snapshot retention, and Plan switch are honest',async()=>{
+  let index=0,fail=false;
+  const h=hookHarness(vi.fn(async(_s,_d,_m,_id,o)=>{if(fail)return {status:'error'};deliver(o,snapshot(`s${++index}`));return {status:'complete',generation:1};}));
+  await waitFor(()=>expect(h.result.current.loading).toBe(false));
+  await act(async()=>{await h.result.current.send('Find stays');});
+  const old=h.result.current.travelSnapshots.s1;fail=true;
+  await act(async()=>{await h.result.current.send('Find stays again');});
+  expect(h.result.current.travelReason(old)).toContain('replaced');fail=false;
+  for(let n=0;n<4;n++) await act(async()=>{await h.result.current.send('Find stays');});
+  expect(Object.keys(h.result.current.travelSnapshots)).toHaveLength(4);
+  expect(h.result.current.travelReason(old)).toContain('no longer available');
+  expect(h.result.current.messages.find(x=>x.travel?.[0]?.search_id==='s1').travel[0].results).toBeUndefined();
+  h.rerender({...h.initialProps,selected:{plan_id:'plan-2'}});
+  await waitFor(()=>expect(Object.keys(h.result.current.travelSnapshots)).toHaveLength(0));
+  expect(h.result.current.travelReason(snapshot())).toContain('no longer available');
+});
+
+test('search-only dates survive notes, relevant changes invalidate, and expiry rechecks current time',async()=>{
+  vi.useFakeTimers();vi.setSystemTime('2026-10-16T12:00:00Z');
+  const s=snapshot();s.criteria.check_in='2027-06-11';s.search_only_dates=true;
+  const h=hookHarness(vi.fn(async(_s,_d,_m,_id,o)=>{deliver(o,s);return {status:'complete',generation:1};}));
+  await act(async()=>{await Promise.resolve();});
+  await act(async()=>{await h.result.current.send('Find stays');});
+  expect(h.result.current.travelReason(s)).toBe('');
+  const notes=hookData();notes.essentials.dates.note='Only a note';h.rerender({...h.initialProps,data:notes});
+  expect(h.result.current.travelReason(s)).toBe('');
+  const changed=hookData();changed.essentials.travelers=3;h.rerender({...h.initialProps,data:changed});
+  expect(h.result.current.travelReason(s)).toContain('changed');
+  h.rerender(h.initialProps);
+  await act(async()=>{vi.advanceTimersByTime(600001);});
+  expect(h.result.current.travelReason(s)).toContain('expired');
+  expect(h.api.editCanvas).toHaveBeenCalledTimes(1);
+});
+
+test('criteria intents invalidate their mode and unrelated note changes do not',()=>{
+  expect(requestedTravelModes('nationality: FR',['stays','flights'])).toEqual(['stays']);
+  expect(requestedTravelModes('cabin: BUSINESS',['stays','flights'])).toEqual(['flights']);
+  expect(requestedTravelModes('currency: USD',['stays','flights'])).toEqual(['stays','flights']);
+  expect(requestedTravelModes('Find a park',['stays','flights'])).toEqual([]);
+  const s=snapshot();const data=hookData();data.essentials.dates.start='2027-06-11';
+  expect(travelState(s,data)).toContain('changed');
+});
+
+test('strict snapshot rejects Unicode byte overflow and historical offers cannot be reconstructed',async()=>{
+  const s=snapshot();s.results=Array.from({length:100},(_,i)=>({...s.results[0],id:`s${i}`,name:'旅'.repeat(240),address:'旅'.repeat(240)}));s.returned_count=100;s.preview_ids=['s0','s1','s2'];
+  expect(()=>canvasTravelResultSchema.parse({suggestions:[],add_ids:[],area:null,travel:[s]})).toThrow();
+  const api={conversationMessages:vi.fn(async()=>[{role:'assistant',content:'Old offers',travel:[snapshot()]}]),cancelAgentTurn:vi.fn(async()=>{})};
+  const h=renderHook(()=>useCanvasConversation({selected:{plan_id:'plan-1'},api,data:hookData()}));
+  await waitFor(()=>expect(h.result.current.loading).toBe(false));
+  expect(h.result.current.messages[0].travel).toBeUndefined();
 });

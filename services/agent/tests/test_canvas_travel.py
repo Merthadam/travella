@@ -69,7 +69,8 @@ class Provider:
 
 
 class Transport:
-    def __init__(self, **kwargs): self.closed=False
+    instances=[]
+    def __init__(self, **kwargs): self.closed=False;self.instances.append(self)
     async def close(self): self.closed=True
 
 
@@ -442,4 +443,61 @@ def test_mixed_snapshot_byte_limit_keeps_whole_options():
         assert snapshot.truncated and 0<snapshot.returned_count<100
         assert len(snapshot.model_dump_json().encode())<=131072 and all(len(item.rooms)==30 for item in snapshot.results)
         assert observer.tool_bytes<=24576
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('late',[False,True])
+def test_cancelled_real_graph_provider_cannot_publish_and_transport_closes(monkeypatch,late):
+    from services.agent.http_contracts import AgentRequest
+    from services.agent.service import AgentTurnService
+    from services.agent.state import PlanRunStore, ProcessReceiptCache
+    async def run():
+        started=asyncio.Event();release=asyncio.Event();cancelled=asyncio.Event()
+        class Blocking(Provider):
+            async def call(self,name,args,**scope):
+                if args['action']=='hotels/search':
+                    started.set()
+                    try: await release.wait()
+                    except asyncio.CancelledError:
+                        cancelled.set()
+                        if not late: raise
+                        await release.wait()
+                return await super().call(name,args,**scope)
+        provider=Blocking();pid=str(uuid4());Transport.instances.clear()
+        monkeypatch.setattr('services.agent.travel_client.TravelClient.call',lambda self,*a,**k:provider.call(*a,**k))
+        graph=AgentGraph(runtime(provider,[]))
+        service=AgentTurnService(plan_reader=lambda *_:{'lifecycle':'active','traveler_subject':'owner'},context_reader=None,graph=graph,runs=PlanRunStore(),receipts=ProcessReceiptCache())
+        request=AgentRequest(plan_id=pid,event_id='cancel-search',message=MESSAGE,canvas_edit={'draft':{'components':components()},'suggestions':[],'area':None})
+        async def connected(): return False
+        async def consume(): return [item async for item in service.stream(request,'owner','Bearer valid',is_disconnected=connected)]
+        task=asyncio.create_task(consume());await started.wait()
+        assert await service.cancel('owner',pid,'cancel-search')
+        await cancelled.wait();release.set();output=''.join(await task)
+        wire=[json.loads(line[6:]) for line in output.splitlines() if line.startswith('data: ')]
+        assert next(item for item in wire if item['type']=='TERMINAL')['status']=='stopped'
+        assert 'search_id' not in output and 'stay-0' not in output
+        assert Transport.instances and all(item.closed for item in Transport.instances)
+        newer=await service.handle(AgentRequest(plan_id=pid,event_id='retry-search',message=MESSAGE,canvas_edit=request.canvas_edit),'owner','Bearer valid')
+        assert newer.canvas_edit_result.travel and newer.generation>1
+    asyncio.run(run())
+
+
+def test_new_generation_discards_late_real_graph_snapshot(monkeypatch):
+    from services.agent.http_contracts import AgentRequest
+    from services.agent.service import AgentTurnService
+    from services.agent.state import PlanRunStore, ProcessReceiptCache
+    async def run():
+        started=asyncio.Event();release=asyncio.Event()
+        class Blocking(Provider):
+            async def call(self,name,args,**scope):
+                if args['action']=='hotels/search': started.set();await release.wait()
+                return await super().call(name,args,**scope)
+        provider=Blocking();pid=str(uuid4())
+        monkeypatch.setattr('services.agent.travel_client.TravelClient.call',lambda self,*a,**k:provider.call(*a,**k))
+        service=AgentTurnService(plan_reader=lambda *_:{'lifecycle':'active','traveler_subject':'owner'},context_reader=None,graph=AgentGraph(runtime(provider,[])),runs=PlanRunStore(),receipts=ProcessReceiptCache())
+        request=AgentRequest(plan_id=pid,event_id='old',message=MESSAGE,canvas_edit={'draft':{'components':components()},'suggestions':[],'area':None})
+        task=asyncio.create_task(service.handle(request,'owner','Bearer valid'));await started.wait()
+        await service.runs.reserve('owner',pid,'new')
+        release.set();response=await task
+        assert response.status=='interrupted' and response.canvas_edit_result is None
     asyncio.run(run())

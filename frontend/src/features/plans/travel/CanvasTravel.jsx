@@ -33,6 +33,13 @@ export const canvasTravelResultSchema = z.object({ suggestions: z.unknown(), add
 export function draftTravelFacts(data) {
   return { start: data?.essentials?.dates?.start || '', end: data?.essentials?.dates?.end || '', flexible: Boolean(data?.essentials?.dates?.flexible), travelers: data?.essentials?.travelers ?? null, destination: data?.map?.destination || '' };
 }
+export function requestedTravelModes(message, previous=[]) {
+  const modes=[];
+  if (/\b(?:stays?|hotels?|accommodation|rooms?|nationality)\b/i.test(message)) modes.push('stays');
+  if (/\b(?:flights?|airports?|passengers|cabin)\b/i.test(message)) modes.push('flights');
+  if (!modes.length && /\b(?:dates?|instead|travelers?|adults?|children|infants?|destination|origin|currency|country|again|retry)\b|\d{4}-\d{2}-\d{2}/i.test(message)) return previous;
+  return modes;
+}
 export function travelState(snapshot, data, now = Date.now()) {
   if (!snapshot) return 'These results are no longer available. Return to Plan chat to search again.';
   if (now >= Date.parse(snapshot.expires_at)) return 'These results have expired. Return to Plan chat to search again. Prices and availability may have changed.';
@@ -90,6 +97,7 @@ export function TravelPreviews({ snapshot, onOpen, reason }) {
   const [surface, setSurface] = useState(null), [error, setError] = useState(false);
   const surfaceId = `travel-${snapshot.search_id}`;
   useEffect(() => {
+    if(reason) return undefined;
     try {
       const data = travelSnapshotSchema.parse(snapshot);
       processor.current = new MessageProcessor([catalog], action => {
@@ -99,8 +107,8 @@ export function TravelPreviews({ snapshot, onOpen, reason }) {
       setSurface(processor.current.model.surfacesMap.get(surfaceId)); setError(false);
     } catch { setError(true); }
     return () => { processor.current?.dispose(); processor.current=null; };
-  }, [snapshot, surfaceId]);
-  return <Options.Provider value={{ reason }}>{error ? <p role="alert">These travel results couldn’t be displayed. Try again from Plan chat. Your draft is unchanged.</p> : surface && <A2uiSurface surface={surface}/>}</Options.Provider>;
+  }, [snapshot, surfaceId, reason]);
+  return <Options.Provider value={{ reason }}>{reason ? <p role="status" aria-live="polite" className="canvas-travel-notice">{reason}</p> : error ? <p role="alert">These travel results couldn’t be displayed. Try again from Plan chat. Your draft is unchanged.</p> : surface && <A2uiSurface surface={surface}/>}</Options.Provider>;
 }
 export function TravelResults({ snapshot, reason, onBack }) {
   const heading = useRef(null);
