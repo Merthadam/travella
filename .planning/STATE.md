@@ -3,7 +3,7 @@ gsd_state_version: "1.0"
 current_phase: 16
 current_phase_name: Date-gated travel previews and booking navigation
 status: executing
-stopped_at: 16-03 tasks 01-02 complete; root Chrome task 03 and independent reviews pending
+stopped_at: 16-04 implementation and reopening fix complete; root corrected Chrome gate and incremental reviews pending
 last_updated: "2026-10-16T11:10:35.042Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 16 execution started
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 16 (Date-gated travel previews and booking navigation) — EXECUTING
-Plan: 3 of 3
-Status: Executing — 16-03 tasks 01-02 complete; root browser verification pending
+Plan: 4 of 4
+Status: Executing — corrected 16-04 implementation complete; root browser verification and incremental reviews pending
 Last activity: 2026-10-16 — Phase 16 execution started
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
