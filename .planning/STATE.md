@@ -1,13 +1,13 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 15
-current_phase_name: Bounded agentic canvas generation
-status: verifying
+current_phase: 16
+current_phase_name: Date-gated travel previews and booking navigation
+status: planning
 stopped_at: Phase 15 implemented; live generation acceptance pending
-last_updated: "2026-10-10T22:18:58.302534+00:00"
+last_updated: "2026-10-16T10:09:50.104Z"
 last_activity: 2026-10-11
 last_activity_desc: Approved quiet Plans drawer implemented and verified on desktop/mobile
-state_head: 359b57f276f5322a6f20ad908d536ca34ee6b213
+state_head: 1454a547433996967fcc2ed56ef36f91aa3221d9
 progress:
   total_phases: 11
   completed_phases: 1
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
-Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
+Status: planning
 Last activity: 2026-10-11 - Completed quick task 261011-01k: quiet Plans drawer; 18 tests, build and authenticated desktop/mobile rename/delete/recovery passed.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
@@ -85,6 +85,8 @@ Account settings: Phase 13 completed and merged in PR #3. DynamoDB profile stora
 - Missing security workflows above are implementation gaps, not merely missing credentials. Phase 1 remains incomplete.
 
 ### Roadmap Evolution
+
+- Phase 16 added: Date-gated travel previews and booking navigation; full GSD discussion, research, planning, implementation and verification requested. Separate booking LangGraph flow deferred.
 
 - Phase 13 added: Account settings and travel preferences; user selected C and requested GSD implementation.
 - Phase 15 added and planned: Bounded agentic canvas generation; approved layouts, bounded SDK self-review and explicit Save plan.

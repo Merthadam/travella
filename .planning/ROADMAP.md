@@ -394,6 +394,7 @@ Plans:
 **Status:** Implemented; manual UI/CRUD checks recorded, live generation and remaining UAT pending (2026-10-07).
 **Scope:** Two focused SDK worker groups, deterministic state mapping, destination-centered map, typed AG-UI/A2UI delivery, local draft editing and explicit atomic save/reopen. No RAG, LiteAPI search or booking integration.
 **Success Criteria:**
+
 1. Themes generation reads bounded complete context, respects corrections and saved-preference labels, and renders the approved editable component.
 2. Each model group performs one review and at most one revision within aggregate limits; mapped components require no model call.
 3. Essentials/travel cards map current state and map viewport follows the chosen destination without resetting manual navigation on unrelated changes.
@@ -410,3 +411,14 @@ Plans:
 - [ ] 15-05-PLAN.md — Manual UI/CRUD evidence recorded; live generation, measured limits and remaining UAT pending
 
 **Cross-cutting:** Keep approved appearance; current user decisions outrank older docs; Claude Agent SDK only for model work; no automatic durable mutation; one active generation per Plan; no tests or paid calls during planning; no automatic execution after planning.
+
+### Phase 16: Date-gated travel previews and booking navigation
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 15
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run $gsd-plan-phase 16 to break down)
