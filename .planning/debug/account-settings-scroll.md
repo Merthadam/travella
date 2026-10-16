@@ -32,3 +32,10 @@ finding: Account relied on outer document scrolling and automatic focus scrolled
 - 27 focused account/Plans tests pass; production build passes. Five broader AccountApp tests fail identically on unchanged HEAD (outdated onboarding expectations).
 - Limitation: the original complete inability to scroll was not reproduced in standalone Chrome. Whole-document scrolling worked before the fix; focus jumps were observed. The fix makes Account scrolling local to its viewport, including constrained app shells.
 - Evidence: artifacts/testing/2026-10-16-account-scroll/verification.md.
+
+## Shipping
+- User explicitly requested merge to main on 2026-10-16.
+- PR: https://github.com/Merthadam/travella/pull/10 (abrasive-menu → main).
+- Implementation commit: 2c76d19.
+- Verification and security shipping gates passed; no CI checks are configured on the PR.
+- The divergent local main worktree is preserved; GitHub origin/main is the merge target.

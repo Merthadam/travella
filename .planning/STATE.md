@@ -36,6 +36,8 @@ Phase 14 studio appearance including booking states approved by user on 2026-10-
 
 Account settings: Phase 13 completed and merged in PR #3. DynamoDB profile storage remains a queued follow-up.
 
+Account scrolling follow-up (2026-10-16): viewport scrolling and focus restoration verified with 27 focused tests, build, desktop/mobile browser checks, and scoped security review; user approved merge via PR #10. Five broader AccountApp failures reproduce on unchanged HEAD. See `.planning/debug/account-settings-scroll.md` and `artifacts/testing/2026-10-16-account-scroll/verification.md`.
+
 ## Performance Metrics
 
 **Velocity:**
