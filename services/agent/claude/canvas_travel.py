@@ -190,6 +190,13 @@ INVALID_DATE_QUESTION = "Those dates don’t form a valid trip. What exact start
 STAY_INPUT_QUESTION = "Please check your dates, room allocation and guest nationality before searching again."
 CLARIFICATIONS = {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION, CURRENCY_QUESTION, INVALID_DATE_QUESTION, STAY_INPUT_QUESTION}
 
+# One vocabulary for activation, clarification continuity and mode selection.
+# Spelling tolerance activates read-only discovery; criteria still require the
+# same explicit dates, destination, room allocation and nationality below.
+STAY_TERM_PATTERN = r"\b(?:stays?|hotels?|ac{1,2}om{1,2}odations?|apartments?|lodging|guest\s?houses?)\b"
+FLIGHT_TERM_PATTERN = r"\bflights?\b"
+TRAVEL_TERM_PATTERN = f"(?:{STAY_TERM_PATTERN}|{FLIGHT_TERM_PATTERN})"
+
 AFFIRMATIVE = re.compile(r"(?:yes|yes please|okay|ok|please do|go ahead|continue|(?:yes[ ,]+)?(?:look|search) for (?:those|these|the same) flights)[.!?]*", re.I)
 REPAIR = re.compile(r"(?:what are you doing|why are you asking again|i already told you)[.!?]*", re.I)
 CANCEL = re.compile(r"^\s*(?:please\s+)?(?:cancel|never mind|nevermind|forget (?:it|that|this)|stop)\b", re.I)
@@ -231,7 +238,7 @@ def search_history(message, context):
     # Explicit new searches and unrelated replies cannot silently revive old inputs.
     if starts_new_search(message):
         return []
-    return clarification_history(context) if focused_followup(message) or re.search(r'\b(?:flights?|stays?|hotels?|accommodation)\b', message, re.I) else []
+    return clarification_history(context) if focused_followup(message) or re.search(TRAVEL_TERM_PATTERN, message, re.I) else []
 
 
 def clarification_history(context):
@@ -412,7 +419,8 @@ def stay_criteria(message, context, draft):
 def travel_intent(message, context):
     if CANCEL.search(message):
         return False
-    return bool(re.search(r"\b(?:stays?|hotels?|accommodation|flights?|nationality|check-in|check-out|rooms?)\b", message, re.I)
+    return bool(re.search(TRAVEL_TERM_PATTERN, message, re.I)
+                or re.search(r"\b(?:nationality|check-in|check-out|rooms?)\b", message, re.I)
                 or search_history(message, context))
 
 
@@ -570,7 +578,7 @@ class CanvasTravelObserver:
         history = search_history(message, context)
         intent = " ".join([text for _, text in history] + [message])
         completed = completed_clarification_modes(context) if history else set()
-        self.modes = [mode for mode, pattern in [("stays", r"\b(?:stays?|hotels?|accommodation)\b"), ("flights", r"\bflights?\b")]
+        self.modes = [mode for mode, pattern in [("stays", STAY_TERM_PATTERN), ("flights", FLIGHT_TERM_PATTERN)]
                       if re.search(pattern, intent, re.I) and (mode not in completed or re.search(pattern, message, re.I))] or ["stays"]
         if flight_only:
             self.modes = ["flights"]

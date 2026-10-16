@@ -297,6 +297,44 @@ class Conversation:
     async def append(self,plan_id,token,**message): self.messages.append({'role':message['role'],'content':message['content']})
 
 
+@pytest.mark.parametrize('traveler_request', [
+    'okay can you show me some accomodations in obertauern?',
+    'can you look for accomodation list in obertauern?',
+    'Show me accommodations in Obertauern',
+    'Find apartments in Obertauern',
+    'Look for lodging in Obertauern',
+    'Show guesthouses in Obertauern',
+])
+def test_natural_stay_request_clarifies_then_searches(monkeypatch, traveler_request):
+    history=Conversation();app,pid,plan,provider,_,_=make_app(monkeypatch,context_reader=history)
+    draft=components();draft['map']['destination']='Obertauern, Austria'
+    before=deepcopy(draft)
+    with TestClient(app) as c:
+        first=post(c,pid,draft,traveler_request)
+        assert terminal(first)['status']=='needs your input', first.text
+        assert ROOM_QUESTION in first.text and not provider.calls
+        second=post(c,pid,draft,'1 room for 2 adults')
+        assert NATIONALITY_QUESTION in second.text and not provider.calls
+        third=post(c,pid,draft,'nationality: HU')
+    assert terminal(third)['status']=='complete', third.text
+    snapshot=bundles(third)[0]
+    assert snapshot['mode']=='stays' and len(snapshot['preview_ids'])==3
+    assert snapshot['criteria']['destination']=={'city':'Obertauern','country_code':'AT','place_id':None}
+    assert snapshot['criteria']['rooms']==[{'adults':2,'children_ages':[]}]
+    assert snapshot['criteria']['check_in']==START and snapshot['criteria']['check_out']==END
+    assert len(provider.calls)==2 and draft==before and plan['revision']==1
+
+
+@pytest.mark.parametrize('stay_word', ['accomodations', 'accommodations', 'apartments', 'lodging', 'guesthouses'])
+def test_mixed_search_recognizes_stay_mode_synonyms(monkeypatch, stay_word):
+    app,pid,_,provider,_,_=make_app(monkeypatch,modes=('stays','flights'))
+    with TestClient(app) as c:
+        response=post(c,pid,message=MIXED_MESSAGE.replace('and stays', f'and {stay_word}'))
+    assert terminal(response)['status']=='complete', response.text
+    assert {s['mode'] for s in bundles(response)}=={'stays','flights'}
+    assert {args['action'] for _,args,_ in provider.calls}=={'capabilities','hotels/search','flights/search'}
+
+
 def test_natural_adults_followup_reaches_actual_sdk_search(monkeypatch):
     from services.agent.claude.canvas_travel import FLIGHT_PARTY_QUESTION
     history=Conversation();app,pid,plan,provider,texts,_=make_app(monkeypatch,context_reader=history,modes=('flights',))
