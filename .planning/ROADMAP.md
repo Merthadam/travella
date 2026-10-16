@@ -426,10 +426,10 @@ Plans:
 4. Empty/failure/cancellation/changed-criteria/expired states never masquerade as current successful searches or bookings.
 5. Automated boundary/regression tests and authenticated Chrome desktop/mobile evidence verify the journey.
 
-**Plans:** 1/3 plans executed in 3 sequential waves.
+**Plans:** 2/3 plans executed in 3 sequential waves.
 
 Plans:
 
 - [x] 16-01-PLAN.md — Exact-date stays from Canvas chat to grounded previews and matching read-only results
-- [ ] 16-02-PLAN.md — Return-flight and mixed-mode search with honest prices, terms and shared bounds
+- [x] 16-02-PLAN.md — Return-flight and mixed-mode search with honest prices, terms and shared bounds
 - [ ] 16-03-PLAN.md — Lifecycle/privacy evaluation, regressions and root-run authenticated Chrome evidence
