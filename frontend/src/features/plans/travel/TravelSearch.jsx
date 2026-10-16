@@ -3,6 +3,7 @@ import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
 import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
 import { FlightSandboxCheckout, FlightMockRecovery } from "./FlightSandboxCheckout";
+import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
 import { StayDestination } from "./StayDestination";
 import { travelSnapshotSchema, travelState, TravelPhoto } from "./CanvasTravel";
 import "./travel-search.css";
@@ -31,20 +32,9 @@ const refund = (value) =>
     : value === false
       ? "Non-refundable"
       : "Cancellation terms unavailable";
+const countryOptions = countries.map((country) => ({ value: country.code, label: country.name }));
 function Country({ label, value, onChange }) {
-  return (
-    <label>
-      {label}
-      <select required value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Choose country</option>
-        {countries.map((c) => (
-          <option key={c.code} value={c.code}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+  return <SearchSelect label={label} value={value} onChange={onChange} options={countryOptions} required placeholder="Search country or code…" />;
 }
 function Ages({ label, ages, min, max, onChange, limit }) {
   return (
@@ -451,7 +441,8 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
   const [stars, setStars] = useState("");
   const [rating, setRating] = useState("");
   const [airline, setAirline] = useState("");
-  const [limit, setLimit] = useState(10);
+  const [page, setPage] = useState(1);
+  const resultsHeading = useRef(null);
   const [budget, setBudget] = useState("");
   const [refundable, setRefundable] = useState(false);
   const [direct, setDirect] = useState(false);
@@ -515,7 +506,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
     setStars("");
     setRating("");
     setAirline("");
-    setLimit(10);
+    setPage(1);
     setBudget("");
     setRefundable(false);
     setDirect(false);
@@ -608,6 +599,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       if (current === epoch.current) setLoading(false);
     }
   }
+  useEffect(() => { setPage(1); }, [budget, refundable, direct, bag, sort, stars, rating, airline]);
   const unavailable = imported && (importReason || travelState(snapshot, initialData));
   function openDetail(item) {
     if (imported && (importReason || travelState(snapshot, initialData))) { setImportClock(Date.now()); return; }
@@ -624,6 +616,13 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
     rating,
     airline,
   });
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(results.length / PAGE_SIZE)));
+  function changeResultsPage(next) {
+    setPage(next);
+    resultsHeading.current?.focus();
+    resultsHeading.current?.scrollIntoView?.({ behavior: "instant", block: "start" });
+  }
+  const paging = <Pagination page={currentPage} total={results.length} onChange={changeResultsPage} label="results pages" />;
   return (
     <section
       className="travel-search"
@@ -952,24 +951,11 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                   </label>
                 </>
               ) : (
-                <label>
-                  Airline
-                  <select
-                    value={airline}
-                    onChange={(e) => setAirline(e.target.value)}
-                  >
-                    <option value="">All airlines</option>
-                    {[
-                      ...new Set(
-                        snapshot.results.flatMap((item) => item.airlines),
-                      ),
-                    ]
-                      .sort()
-                      .map((name) => (
-                        <option key={name}>{name}</option>
-                      ))}
-                  </select>
-                </label>
+                <SearchSelect
+                  label="Airline" value={airline} onChange={setAirline}
+                  options={[{ value: "", label: "All airlines" }, ...[...new Set(snapshot.results.flatMap((item) => item.airlines))].sort().map((name) => ({ value: name, label: name }))]}
+                  placeholder="Search airlines…"
+                />
               )}
               <label className="travel-check">
                 <input
@@ -1006,7 +992,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
             </aside>
             <div className="travel-results">
               <div className="travel-results-heading">
-                <h3>
+                <h3 ref={resultsHeading} tabIndex={-1}>
                   {results.length} {stay ? "stays" : "return flights"} to
                   explore
                 </h3>
@@ -1024,6 +1010,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                   </select>
                 </label>
               </div>
+              {paging}
               {!results.length && (
                 <div className="travel-empty">
                   <h3>
@@ -1043,7 +1030,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                   )}
                 </div>
               )}
-              {results.slice(0, limit).map((item) => (
+              {results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((item) => (
                 <article
                   className={`travel-result ${stay ? "stay" : "flight"}`}
                   data-option-id={item.id}
@@ -1115,11 +1102,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                   </div>
                 </article>
               ))}
-              {results.length > limit && (
-                <button onClick={() => setLimit((n) => n + 10)}>
-                  Show more ({results.length - limit} remaining)
-                </button>
-              )}
+              {results.length > PAGE_SIZE && paging}
             </div>
           </div>
           {compared.length > 0 && (

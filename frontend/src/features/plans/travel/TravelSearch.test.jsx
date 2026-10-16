@@ -46,11 +46,16 @@ const props = {
   active: true,
   initialData: { map: { destination: "Rome" } },
 };
+async function chooseCountry(user, label, name) {
+  await user.click(screen.getByRole('combobox', { name: label }));
+  await user.type(screen.getByRole('combobox', { name: label }), name);
+  await user.click(screen.getByRole('option', { name }));
+}
 async function fill() {
   const user = userEvent.setup();
-  await user.selectOptions(screen.getByLabelText("Destination country"), "IT");
+  await chooseCountry(user, "Destination country", "Italy");
   await user.click(await screen.findByRole("button", { name: "Rome Italy" }));
-  await user.selectOptions(screen.getByLabelText("Guest nationality"), "HU");
+  await chooseCountry(user, "Guest nationality", "Hungary");
   fireEvent.change(screen.getByLabelText("Check-in"), {
     target: { value: "2027-11-13" },
   });
@@ -129,7 +134,7 @@ test("editing a selected city or its country requires selecting a destination ag
   );
   expect(searchRequest).not.toHaveBeenCalled();
   await user.click(await screen.findByRole("button", { name: "Rome Italy" }));
-  await user.selectOptions(screen.getByLabelText("Destination country"), "AT");
+  await chooseCountry(user, "Destination country", "Austria");
   await user.click(screen.getByRole("button", { name: "Search stays" }));
   expect(searchRequest).not.toHaveBeenCalled();
 });
@@ -178,13 +183,13 @@ test.each(['accommodation','flights'])('new %s import defeats an older manual re
   expect(screen.getByLabelText('Currency').value).toBe('USD');
   if(stay) {
     expect(screen.getByLabelText('Destination or ski area').value).toBe('Lisbon');
-    expect(screen.getByLabelText('Destination country').value).toBe('PT');
-    expect(screen.getByLabelText('Guest nationality').value).toBe('HU');
+    expect(screen.getByLabelText('Destination country').value).toBe('Portugal');
+    expect(screen.getByLabelText('Guest nationality').value).toBe('Hungary');
   } else {
     expect(screen.getByLabelText('From airport').value).toBe('BUD');
     expect(screen.getByLabelText('To airport').value).toBe('LIS');
     expect(screen.getByLabelText('Cabin').value).toBe('BUSINESS');
-    expect(screen.getByLabelText('Country of residence').value).toBe('HU');
+    expect(screen.getByLabelText('Country of residence').value).toBe('Hungary');
   }
   fireEvent.submit(screen.getByRole('button',{name:button}).closest('form'));
   expect(searchRequest.mock.calls[0][2]).toEqual(stay ? {...first.criteria,hotel_id:undefined} : first.criteria);
@@ -268,5 +273,40 @@ test('changing Plan on a mounted search removes a previous Plan import',async()=
   view.rerender(<TravelSearch {...props} planId="other-plan" importedSnapshot={s}/>);
   await screen.findByText(/These results are no longer available/);
   expect(screen.queryByRole('heading',{name:s.search_id})).toBeNull();
+  expect(travelRequest).not.toHaveBeenCalled();
+});
+
+
+test.each(['accommodation', 'flights'])('%s paginates ten at a time, preserves comparisons, and resets after sorting/filtering/import', async (mode) => {
+  const data = imported(mode);
+  data.results = Array.from({length: 23}, (_, i) => ({...data.results[0], id: `option-${i + 1}`, ...(mode === 'accommodation' ? {name: `Option ${i + 1}`} : {airlines: [`Option ${i + 1}`]}), price: {...data.results[0].price, amount: String(i + 1)}}));
+  data.returned_count = 23; data.preview_ids = ['option-1', 'option-2', 'option-3'];
+  const user = userEvent.setup();
+  const view = render(<TravelSearch {...props} mode={mode} importedSnapshot={data} />);
+  const cards = () => view.container.querySelectorAll('.travel-result');
+  expect(cards()).toHaveLength(10);
+  await user.click(screen.getAllByLabelText('Compare')[0]);
+  await user.click(screen.getAllByRole('button', {name: 'Next results pages'})[0]);
+  expect(cards()).toHaveLength(10);
+  expect(cards()[0].dataset.optionId).toBe('option-11');
+  expect(screen.getByText('Your comparison (1/3)')).toBeTruthy();
+  await user.click(screen.getAllByRole('button', {name: 'Next results pages'})[0]);
+  expect(cards()).toHaveLength(3);
+  expect(screen.getAllByRole('button', {name: 'Next results pages'})[0].disabled).toBe(true);
+  await user.selectOptions(screen.getByLabelText('Sort by'), 'price');
+  expect(cards()[0].dataset.optionId).toBe('option-1');
+  expect(screen.getAllByLabelText('Compare')[0].checked).toBe(true);
+  await user.click(screen.getAllByRole('button', {name: 'Next results pages'})[0]);
+  fireEvent.change(screen.getByLabelText('Maximum total (USD)'), {target: {value: '2'}});
+  expect(cards()).toHaveLength(2);
+  expect(cards()[0].dataset.optionId).toBe('option-1');
+  fireEvent.change(screen.getByLabelText('Maximum total (USD)'), {target: {value: '0'}});
+  expect(screen.getByText('No options match these filters.')).toBeTruthy();
+  expect(screen.queryByRole('navigation', {name: 'results pages'})).toBeNull();
+  await user.click(screen.getAllByRole('button', {name: 'Reset filters'})[0]);
+  await user.click(screen.getAllByRole('button', {name: 'Next results pages'})[0]);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...data, search_id: 'new-search'}} />);
+  expect(cards()[0].dataset.optionId).toBe('option-1');
+  expect(screen.queryByText('Your comparison (1/3)')).toBeNull();
   expect(travelRequest).not.toHaveBeenCalled();
 });
