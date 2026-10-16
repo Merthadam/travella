@@ -120,6 +120,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261016-rgd | Quiet Research/Canvas navigation and generation prototypes | 2026-10-16 | 5b5a31a | Preview verified; awaiting design choice | [Task](quick/261016-rgd-prototype-quieter-canvas-generation-and-/) |
 | 261016-h1a | Confirm flight needs during research; generate flights only for confirmed Yes | 2026-10-16 | e616d3b | Complete; two unrelated baseline test failures documented | [Task](quick/261016-h1a-confirm-flight-needs-during-research-and/) |
 | 261011-06a | Refined foldable Plan chat; 13 tests and browser checks passed; final fresh-login smoke returned 401 | 2026-10-11 | 8ada633 | UI verified; auth readiness unresolved | [Task](quick/261011-06a-refine-plan-side-chat-and-foldable-panel/) |
 | 261011-01s | Started local container; health, authentication, HTTP and source hashes passed | 2026-10-11 | f30a986 (app source) | Complete | [Task](quick/261011-01s-start-local-container-and-verify-authent/) |
