@@ -1,5 +1,5 @@
 ---
-status: verifying
+status: resolved
 trigger: "found a bug very weird searching doesnt work now"
 created: 2026-10-16
 updated: 2026-10-16
@@ -20,7 +20,7 @@ updated: 2026-10-16
 hypothesis: rigid passenger grammar rejects natural replies; exact assistant-copy matching also drops active search context after a freeform explanation.
 test: replay screenshot turns against production criteria/editor/service boundaries with isolated fixtures.
 expecting: "all 3 adults" currently repeats passenger question; no checkout or durable Plan mutation should be enabled by fix.
-next_action: root rebuilds e498b8a and checks the existing broken conversation in Chrome; independent review pending.
+next_action: none; fix verified against the existing broken conversation in authenticated Chrome, evidence retained, isolated test Plan cleaned up.
 
 reasoning_checkpoint:
   hypothesis: "The mandatory passengers: grammar rejects all 3 adults; a later non-fixed assistant apology terminates the clarification chain, so pronoun follow-ups lose even explicit traveler facts."
@@ -29,7 +29,7 @@ reasoning_checkpoint:
     - "The parser reads passenger facts only after passengers:, and clarification_history requires the last assistant turn to exactly equal fixed host copy."
   falsification_test: "If ordinary adult answers still repeat the question after parsing, or a correct party cannot reach SDK tool invocation with all other fields explicit, these are not sufficient causes."
   fix_rationale: "Parse unambiguous traveler clauses and retain only a bounded host-anchored chain of recognized replies/repair requests; never extract facts from assistant prose."
-  blind_spots: "Live model behavior remains for root Chrome verification; unknown phrasing must clarify rather than guess."
+  blind_spots: "Unknown phrasing must clarify rather than guess; a separate Research retry interrupted after rebuild and is not covered by this Canvas fix."
   candidate_causes:
     - "code: rigid grammar and overly fragile clarification continuity"
     - "data/config: incomplete Canvas location/flight pricing country, or stale container source"
@@ -47,6 +47,10 @@ reasoning_checkpoint:
 - `uv run --locked pytest services/agent/tests/test_canvas_travel.py services/agent/tests/test_agent_checkpoint.py -q`: 191 passed in 16.19s, including the eight HTTP→SSE→React journeys. Final focused run after narrowing cancellation to avoid matching non-stop flights: 16 passed, 170 deselected in 0.69s.
 - Guardrail temporary source-only revert (bounded subprocesses, all modified source restored in finally): original natural-adult and exact-date repair regressions both failed on baseline; both passed after reapply. No unowned files or browser state were altered.
 
+- Post-rebuild Chrome verification passed against actual SDK/LiteAPI sandbox: same existing broken history recovered BUD–MXP 2027-04-14 to 2027-04-21 for 3 adults, 63 options, 3 illustrated previews. View all flights preloaded existing manual fields/results; Back retained previews. Canvas revision remained 1 with no saved snapshot. Only the isolated test Plan was deleted and its lifecycle verified.
+- An initial retry after rebuild occurred on Research because the browser reloaded; it interrupted with a generic provider error. Reopening Canvas then succeeded. This record does not claim a Research fix.
+- Runtime source hashes matched e498b8a. Root independent review found no blockers. Evidence: artifacts/testing/2026-10-16-travel-followup-loop/verification.md.
+
 ## Resolution
 
 root_cause: "Rigid passengers: grammar rejected ordinary answers; exact assistant-copy continuity lost active traveler criteria after a repair/apology. Model prompt did not clearly separate read-only search readiness from Plan destination confirmation."
@@ -59,8 +63,8 @@ verification:
   adjacent_tests: {result: pass, suites_run: [test_canvas_travel, test_agent_checkpoint]}
   revert_and_reconfirm: {result: pass, bug_returned_on_revert: true, fixed_on_reapply: true}
   guardrail_verdict: accepted
-  chrome: pending root verification after rebuild
-  independent_review: pending
+  chrome: pass; same broken conversation recovered original dates and three adults, returned 63 sandbox results with 3 previews, and preloaded the existing manual page
+  independent_review: pass; root reviewed source, prompt and regression tests
 commit: e498b8a
 files_changed:
   - services/agent/claude/canvas_travel.py
