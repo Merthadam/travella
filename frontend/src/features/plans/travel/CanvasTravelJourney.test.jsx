@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { act, cleanup, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PlanningCanvas } from '../components/PlanningCanvas';
+import { PlansApp } from '../../../PlansApp';
 import { plansApi } from '../../../plansApi';
 import { AppearanceProvider } from '../../appearance/AppearanceProvider';
 import { canvasTravelResultSchema, draftTravelFacts, requestedTravelModes, travelState } from './CanvasTravel';
@@ -24,6 +25,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   const fixture=JSON.parse(readFileSync(process.env.TRAVELLA_CANVAS_SSE_FIXTURE,'utf8'));
   history.replaceState({},'',`/plans/${fixture.plan_id}`);
   vi.stubGlobal('matchMedia',()=>({matches:false}));
+  HTMLDialogElement.prototype.showModal=function(){this.open=true;};
   HTMLDialogElement.prototype.close=function(){this.open=false;};
   const requests=[];
   const turns=fixture.turns || [{message:fixture.message,sse:fixture.sse}]; let turnIndex=0;
@@ -34,6 +36,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
       return new Response(turns[turnIndex++].sse,{status:200,headers:{'Content-Type':'text/event-stream'}});
     }
     if(String(url).endsWith('/travel/capabilities'))return new Response(JSON.stringify({provider:'LiteAPI',sandbox:true,hotels:true,flights:true}),{status:200});
+    if(String(url).endsWith('/travel/hotels/detail'))return new Response(JSON.stringify({hotel:{images:[],address:'Observed address'}}),{status:200});
     if(/\/travel\/(hotels|flights)\/search$/.test(String(url))) {
       const selectedMode=String(url).includes('/flights/')?'flights':'stays';
       const source=fixture.sse.split('\n').filter(line=>line.startsWith('data:')).map(line=>JSON.parse(line.slice(5))).find(event=>event.snapshot?.canvas_edit_result?.travel?.some(s=>s.mode===selectedMode)).snapshot.canvas_edit_result.travel.find(s=>s.mode===selectedMode);
@@ -41,8 +44,10 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
     }
     throw new Error(`Unexpected network boundary: ${url}`);
   }));
-  const api={...plansApi,canvas:vi.fn(async()=>({revision:1,context_revision:1,saved_context_revision:1,snapshot:{components:fixture.components}})),researchContext:vi.fn(async()=>({revision:1,context:{}})),conversationMessages:vi.fn(async()=>[]),saveCanvas:vi.fn(),cancelAgentTurn:vi.fn(async()=>{})};
-  const mounted=render(<AppearanceProvider><PlanningCanvas selected={{plan_id:fixture.plan_id,title:'Test stays'}} api={api}/></AppearanceProvider>);
+  const api={...plansApi,brief:vi.fn(async()=>({})),destinations:vi.fn(async()=>[]),canvas:vi.fn(async()=>({revision:1,context_revision:1,saved_context_revision:1,snapshot:{components:fixture.components}})),researchContext:vi.fn(async()=>({revision:1,context:{}})),conversationMessages:vi.fn(async()=>[]),saveCanvas:vi.fn(),cancelAgentTurn:vi.fn(async()=>{})};
+  api.get=vi.fn(async()=>({plan_id:fixture.plan_id,title:'Test stays',lifecycle:'active',resume_target:'workspace'}));
+  const leavePrompt=vi.fn(()=>true); vi.stubGlobal('confirm',leavePrompt);
+  const mounted=render(<AppearanceProvider><PlansApp api={api}/></AppearanceProvider>);
   const user=userEvent.setup();
   await user.click(await screen.findByRole('button',{name:'Edit details',exact:true}));
   await user.type(screen.getByRole('textbox',{name:'Date note'}),'Unfinished editor');
@@ -92,6 +97,13 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   expect(within(results).getByLabelText(mode==='stays' ? 'Check-in' : 'Departure').value).toBe(fixture.search_start || fixture.components.essentials.dates.start);
   expect(within(results).getByLabelText(mode==='stays' ? 'Destination or ski area' : 'From airport').value).toBe(mode==='stays' ? 'Lisbon' : 'BUD');
   expect(results.textContent).not.toContain('PRIVATE_CHECKOUT');
+  await user.click(within(results).getAllByRole('checkbox',{name:'Compare'})[0]);
+  await user.click(within(results).getAllByRole('button',{name:mode==='stays'?'View rooms →':'View flight →'})[0]);
+  const detail=await screen.findByRole('dialog');
+  if(mode==='stays') await waitFor(()=>expect(within(detail).queryByText('Refreshing hotel and room details…')).toBeNull());
+  await user.click(within(detail).getByRole('button',{name:'Close details'}));
+  if(mode==='stays') count+=2;
+  expect(requests).toHaveLength(count);
   await user.click(within(results).getByRole('button',{name:mode==='stays'?'Search stays':'Search flights'}));
   await within(results).findByRole('heading',{name:'Manual B'});
   expect(within(results).getAllByRole('article')).toHaveLength(1);
@@ -99,6 +111,8 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   expect(screen.getByRole('textbox',{name:'Date note'}).value).toBe('Unfinished editor');
+  expect(leavePrompt).not.toHaveBeenCalled();
+  expect(api.get).toHaveBeenCalledTimes(1);
   expect(api.saveCanvas).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button',{name:`View all ${mode}`}));
   const reopened=await screen.findByRole('region',{name:mode==='stays'?'Accommodation search':'Flight search'});
@@ -123,7 +137,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   }
   expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
   expect(requests.some(x=>/checkout|prebook/.test(x))).toBe(false);
-  expect(requests.filter(x=>/\/travel\/(hotels|flights)\/search$/.test(x))).toHaveLength(1);
+  expect(requests.filter(x=>/\/travel\/(hotels|flights)\/search$/.test(x))).toHaveLength(mode==='stays'?2:1);
   await act(async()=>{history.forward();});
   await screen.findByRole('region',{name:fixture.mixed || mode==='flights' ? 'Flight search' : 'Accommodation search'});
   await act(async()=>{history.back();});
