@@ -79,6 +79,7 @@ Both implementation tasks are complete. Corrected production browser acceptance 
 
 1. **16-04-01: Existing-page preload and image preview tracer** — `fa05765`
 2. **16-04-02: Import races, manual continuation and image safety** — `b1114e4`
+3. **Incremental review fix: explicit reopening restores the selected chat snapshot** — `b2d3f7e`
 
 Source baseline was `5bf1fb9`; execution HEAD was `635c6bc` after the root committed revised planning/sketch evidence. Actuals are realized diff characters/4 across implementation commits, not model usage.
 
@@ -87,6 +88,7 @@ Source baseline was `5bf1fb9`; execution HEAD was `635c6bc` after the root commi
 - The separate `TravelResults` renderer is removed. PlanningCanvas retains its mounted draft/editor/chat and existing per-mode TravelSearch instances. View all selects the matching instance and supplies the safe snapshot. Existing opaque history, Back/Forward and reload recovery continue to work; no criteria, inventory or credentials enter history.
 - Strict import validates Plan, mode, schema and currentness. A new identity aborts older manual requests and advances their epoch; it resets filters, comparison and open details, then hydrates dates, city/country/place ID, guest nationality, rooms/ages/currency or airport codes/party/cabin/pricing country. Airport labels synchronize on mounted imports. A legitimate missing place ID remains null.
 - Same-identity rerenders preserve form edits. A successful explicit manual search takes ownership of its snapshot, so the earlier import clock or expired import prop cannot overwrite or hide fresh manual results. Imported offers still honor expiry, supersession and changed Canvas facts; detail activation rechecks current time.
+- Deliberate View all or history Forward carries a local navigation request identity separate from search ID. Reopening chat search A after manual search B restores A; ordinary parent rerenders leave B and its edits alone. The nonce is not stored in URLs or history payloads.
 - Existing filters, comparison, show-more, View rooms, View flight and manual sandbox controls remain. Hotel View rooms uses the observed hotel ID and captured search criteria only after the click. Token-free flight detail offers “Search again to check current availability”; clicking submits the existing form. Only a subsequent manual response carrying its normal private checkout token exposes the existing mock booking action. Import and refresh never automatically prebook/book.
 - Safe stay DTOs now include observed `hotel_id`, sanitized `image_url`, stars, review score/count and bounded facilities. URL validation reuses the Agent public HTTPS boundary plus no-query/fragment/nonstandard-port photo policy. Unsafe/missing photos become null without losing inventory. No private connector implementation was imported and no photo/detail provider request was added.
 - Chat hotel photos use 16:9 space, lazy loading, descriptive text and no-referrer. Missing/broken photos retain an honest “Photo unavailable” fallback. Flights use an inline neutral plane SVG, not invented branding. Verbose flight/room details use native disclosures, with essential price/estimate/tax/meal/baggage/cancellation facts visible. Existing manual price display now preserves the estimate label.
@@ -99,6 +101,7 @@ Source baseline was `5bf1fb9`; execution HEAD was `635c6bc` after the root commi
 - `npm --prefix frontend test -- src/features/plans/travel/CanvasTravelJourney.test.jsx src/features/plans/travel/TravelSearch.test.jsx src/features/plans/travel/SandboxCheckout.test.jsx src/features/plans/travel/FlightSandboxCheckout.test.jsx` — **30 passed, 1 fixture-only skipped in 5.57s**. Covers both modes' mounted replacement and late response rejection, same-ID edits, independent manual continuation, BUD→VIE label replacement, explicit hotel detail calls, token-free flight refresh, comparison, foreign/wrong-mode/expired/superseded imports, Plan change, safe/broken image fallback and legacy sandbox confirmations.
 - `npm --prefix frontend run build` — passed after final source change; existing large-chunk warning only. `git diff --check` passed.
 - Initial tracer failures were obsolete test selectors matching the new airline filter as well as card headings; selectors now assert actual headings. A mounted Plan-change regression exposed duplicate recovery notices, corrected by clearing rejected import ownership. All final targeted checks pass.
+- Incremental review found same-search reopening retained a later manual result. After `b2d3f7e`, all **8 actual HTTP/SSE/PlanningCanvas journeys passed in 13.77s**, now exercising A→manual B→Back→View all A, exact restored option identity, preserved editor/composer, one deliberate manual request and no navigation request. Focused TravelSearch/CanvasTravelJourney frontend: **21 passed, 1 fixture-only skip in 2.60s**; final production build passed. Unchanged backend/privacy and sandbox suites were not redundantly rerun.
 
 ## Deviations and Remaining Gates
 
@@ -108,7 +111,7 @@ No live paid model/provider call or browser operation was performed by the execu
 
 ## Root Handoff
 
-Rebuild `b1114e4` or later and verify `canvas_travel.py`, `CanvasTravel.jsx`, `PlanningCanvas.jsx`, `TravelSearch.jsx` and `travel-results.css` hashes. Root owns the isolated Plan and Chrome session. Check View all opens **Accommodation search / Flight search**, fields and option identity match, no opening search/lookup/detail request occurs, photos/neutral flight visuals appear, normal compare/details/explicit refresh work, and Back retains unsaved editor/composer. Inspect mobile wrapping and expired/reloaded recovery. Existing manual checkout remains deliberate and test-only.
+Rebuild `b2d3f7e` or later and verify `canvas_travel.py`, `CanvasTravel.jsx`, `PlanningCanvas.jsx`, `TravelSearch.jsx` and `travel-results.css` hashes. Root owns the isolated Plan and Chrome session. Check View all opens **Accommodation search / Flight search**, fields and option identity match, no opening search/lookup/detail request occurs, photos/neutral flight visuals appear, normal compare/details/explicit refresh work, and Back retains unsaved editor/composer. Reopening chat search A after manual B must restore A. Inspect mobile wrapping and expired/reloaded recovery. Existing manual checkout remains deliberate and test-only.
 
 ## Self-Check: PASSED for implementation; browser/review PENDING
 
