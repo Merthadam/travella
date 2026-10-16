@@ -121,3 +121,7 @@ Rebuild `f61fc82` or later and verify `service.py`, `canvas_travel.py`, `CanvasT
 ## Self-Check: PASSED for implementation; browser/review PENDING
 
 Both task commits and all eight source/test files exist. Summary is committed before progress changes. Phase completion and shared requirement sign-off remain with root after the corrected browser gate and incremental review.
+
+## Final root browser acceptance
+
+Completed on rebuilt228f322 with matching source hashes. Authenticated Chrome verified real hotel photos, neutral flight illustrations, exact preloaded manual forms/results, no automatic search, manual comparison/room details, mobile layout, Stop→Retry, same-path Back preserving budget/composer/focus, and honest reload recovery. Root evidence and capture limitations are recorded in `artifacts/testing/2026-10-16-travel-previews/verification.md`. Both verification Plans cleaned up; no Canvas saved and no booking submitted. This supersedes historical pending browser statements above.

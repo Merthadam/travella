@@ -32,11 +32,11 @@ key-decisions:
   - Reproduce unrelated regression failures against preimplementation source and retain them as explicit debt.
 patterns-established:
   - Real provider barriers and deferred browser promises prove cancellation and generation behavior without guessed sleeps.
-requirements-completed: []
-requirements-pending: [TRAVEL-16-01, TRAVEL-16-02, TRAVEL-16-03, TRAVEL-16-04, TRAVEL-16-05, TRAVEL-16-06, TRAVEL-16-07]
+requirements-completed: [TRAVEL-16-01, TRAVEL-16-02, TRAVEL-16-03, TRAVEL-16-04, TRAVEL-16-05, TRAVEL-16-06, TRAVEL-16-07]
+requirements-pending: []
 actuals:
   tokens: 12848
-  tasks: 2
+  tasks: 3
   commits: 2
 plan_head_before: 4091af23022c0e385dc7864e87ccf0147460fea8
 coverage:
@@ -61,22 +61,25 @@ coverage:
   - id: browser-acceptance
     description: Authenticated Chrome desktop/mobile, network and screenshot inspection
     requirement: TRAVEL-16-07
-    verification: []
-    human_judgment: true
-    rationale: Task 16-03-03 is assigned to root and has not executed; fixtures do not establish live SDK/provider behavior.
+    verification:
+      - kind: browser
+        ref: artifacts/testing/2026-10-16-travel-previews/verification.md
+        status: pass
+    human_judgment: false
+    rationale: Root exercised authenticated Chrome with live SDK/private sandbox inventory; screenshot capture limitation is explicit.
 updated: 2026-10-16
-status: in_progress
+status: complete
 ---
 
-# Phase 16 Plan 03: Lifecycle and privacy Summary — partial
+# Phase 16 Plan 03: Lifecycle and privacy Summary
 
-**Travel snapshots now reject cancelled, superseded, stale, expired and missing references, with deterministic privacy and authority checks passing. Root browser acceptance is still pending.**
+**Travel snapshots now reject cancelled, superseded, stale, expired and missing references, with deterministic privacy and authority checks passing. Root browser acceptance completed on the corrected Plan04 UI.**
 
 ## Task Commits
 
 1. **16-03-01: Obsolete result guards and local navigation recovery** — `a6bc489`
 2. **16-03-02: Privacy, evaluation and regression gates** — `5c0320b`
-3. **16-03-03: Root Chrome verification** — pending; no completion claimed.
+3. **16-03-03: Root Chrome verification** — completed on final source228f322; see final evidence addendum below.
 
 ## Accomplishments
 
@@ -117,3 +120,9 @@ Verify View all matching IDs, explicit/browser Back with unsaved editor and comp
 ## Self-Check: PASSED for tasks 01–02; task 03 PENDING
 
 Both source commits and test/eval files exist. This partial summary is committed without advancing the plan or marking the phase complete. Root must complete the mandatory browser gate and independent reviews before final sign-off.
+
+## Final root acceptance — 2026-10-16
+
+This addendum supersedes the historical pending handoff above. All three tasks are complete. Root rebuilt the final source, verified container hashes and exercised actual authenticated Chrome: missing-date clarification, live mixed provider searches, three photos/flight illustrations, existing manual pages with exact preloaded fields/results and zero navigation search, manual compare/detail actions, mobile layouts, Stop→immediate Retry, reload recovery and final single Back with unsaved budget/composer/focus preservation. Both isolated Plans had no saved Canvas and were cleaned up through existing soft-delete dialogs with deleted readback.
+
+Two live-discovered defects were reproduced and fixed: repeated cancellation interrupting lease release (`f61fc82`), and parent same-path history firing the leave guard (`228f322`). Independent targeted reviews pass. Source/fixture counts and seven reproduced baseline failures remain as recorded; full suites are not claimed green. See `artifacts/testing/2026-10-16-travel-previews/verification.md` for inspected screenshots and provenance. Back DOM verification passed; its screenshot call hung and no Back image is claimed. Live providers were sandbox inventory, not real bookings. Formal goal verification remains a separate phase gate.

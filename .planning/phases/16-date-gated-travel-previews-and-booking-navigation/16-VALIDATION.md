@@ -1,15 +1,15 @@
 ---
 phase: 16
 slug: date-gated-travel-previews-and-booking-navigation
-status: in_progress
-nyquist_compliant: false
+status: complete
+nyquist_compliant: true
 wave_0_complete: true
 created: 2026-10-16
 ---
 
 # Phase 16 — Validation Strategy
 
-The deterministic implementation checks below have executed. Production Chrome, live SDK/provider checks, and final independent review remain pending; this is not phase sign-off.
+Deterministic checks and authenticated Chrome acceptance have executed. Corrected manual-page/imagery acceptance and live-discovered fixes are documented in the final evidence below; formal goal verification is separate.
 
 ## Test Infrastructure
 
@@ -82,13 +82,13 @@ Deferred booking graph/payment/supplier handoff, initial-chat tools, autonomous 
 
 | Requirement | Must prove | Test location / method | Status |
 |---|---|---|---|
-| TRAVEL-16-01 | Initial chat has no new tools; Canvas exact tool allowlist; foreign/deleted/missing Plan cannot invoke provider; trusted subject/Plan cannot be overridden | New `test_canvas_travel.py`; extend `test_travel_api.py` and SDK option capture | Pending |
-| TRAVEL-16-02 | Missing/yearless/ambiguous/reversed/past/equal/too-long dates make zero provider calls; incomplete country/party/airports clarify; current exact correction supersedes old dates; ambiguous correction blocks old-date reuse; Canvas and durable context unchanged | Table-driven deterministic date gate and fake editor tests; before/after data assertions | Pending |
-| TRAVEL-16-03 | Travel skill packaged into isolated project, exact allowlist, project-only settings, forbidden skill/tool/action rejected; no checkout access | SDK session/option inspection and adversarial fake tool invocation | Pending |
-| TRAVEL-16-04 | At most three actual observed previews; duplicate/unobserved/cross-mode IDs fail; correct dates and price basis; estimates/unknown terms/provider/sandbox/freshness visible; recursive token exclusion | Backend DTO/projection tests and A2UI component tests | Pending |
-| TRAVEL-16-05 | View all renders the matching complete bounded snapshot with zero new provider and checkout calls; back preserves chat, unsent text and unsaved editor; focus returns; reload/expiry shows explicit recovery | PlanningCanvas + results-only component tests and authenticated Chrome | Pending |
-| TRAVEL-16-06 | Stop/disconnect/superseded run cannot commit late result; changed relevant criteria mark stale; unrelated note change does not; failure/empty/timeout honest; no booking/saving claim | Deferred-promise component tests, Agent streaming tests, fake clock | Pending |
-| TRAVEL-16-07 | Real authenticated desktop/mobile interaction and inspected visual evidence; activity and legacy checkout remain intact | Browser gates + existing activity/checkout suites | Pending |
+| TRAVEL-16-01 | Initial chat has no new tools; Canvas exact tool allowlist; foreign/deleted/missing Plan cannot invoke provider; trusted subject/Plan cannot be overridden | New `test_canvas_travel.py`; extend `test_travel_api.py` and SDK option capture | Passed |
+| TRAVEL-16-02 | Missing/yearless/ambiguous/reversed/past/equal/too-long dates make zero provider calls; incomplete country/party/airports clarify; current exact correction supersedes old dates; ambiguous correction blocks old-date reuse; Canvas and durable context unchanged | Table-driven deterministic date gate and fake editor tests; before/after data assertions | Passed |
+| TRAVEL-16-03 | Travel skill packaged into isolated project, exact allowlist, project-only settings, forbidden skill/tool/action rejected; no checkout access | SDK session/option inspection and adversarial fake tool invocation | Passed |
+| TRAVEL-16-04 | At most three actual observed previews; duplicate/unobserved/cross-mode IDs fail; correct dates and price basis; estimates/unknown terms/provider/sandbox/freshness visible; recursive token exclusion | Backend DTO/projection tests and A2UI component tests | Passed |
+| TRAVEL-16-05 | View all renders the matching complete bounded snapshot in existing manual pages with zero navigation provider and checkout calls; back preserves chat, unsent text and unsaved editor; focus returns; reload/expiry shows explicit recovery | PlanningCanvas + existing manual-page import tests and authenticated Chrome | Passed |
+| TRAVEL-16-06 | Stop/disconnect/superseded run cannot commit late result; changed relevant criteria mark stale; unrelated note change does not; failure/empty/timeout honest; no booking/saving claim | Deferred-promise component tests, Agent streaming tests, fake clock | Passed |
+| TRAVEL-16-07 | Real authenticated desktop/mobile interaction and inspected visual evidence; activity and legacy checkout remain intact | Browser gates + existing activity/checkout suites | Passed |
 
 ## Wave 0 Requirements
 
@@ -107,11 +107,11 @@ Follow `docs/skills/travella-testing/SKILL.md` and `.agents/skills/travella-loca
 
 | Journey | Required evidence |
 |---|---|
-| Before implementation | Existing Canvas state plus rendered intended preview/results-only sketch, inspected desktop/mobile screenshots |
+| Before implementation | Existing Canvas state plus rendered intended preview/manual-page sketch (original results-only design superseded), inspected desktop/mobile screenshots |
 | Missing dates | Ask Canvas for flights/stays without exact dates; focused clarification and no provider search |
 | Flight previews | Exact criteria lead to up to three provider-backed cards with dates, return-party total, terms and sandbox/freshness labels |
 | Stay previews | Exact criteria lead to up to three stay cards with whole-stay basis, excluded-tax/unknown-term notices |
-| Matching results | View all shows the same option IDs/dates/price facts; no automatic search; no booking/checkout control |
+| Matching results | View all opens existing manual pages with the same option IDs/dates/price facts; no automatic search or checkout; existing deliberate manual controls remain |
 | Return and draft preservation | Back preserves unsaved card changes, conversation and unsent composer text; keyboard focus restored |
 | Stale and recovery | Criteria edit, timeout/empty/error, Stop and reload produce honest states; obsolete results are not presented as current |
 | Responsive | Desktop and narrow/mobile widths; keyboard navigation; no clipping/overlap; focus visibility |
@@ -135,16 +135,18 @@ On 2026-10-16, the quick backend command above passed: **31 passed, 25 warnings 
 - Actual injected `InMemorySaver` channel values and serialized storage exclude result IDs, token sentinels and date evidence; recursive checkpoint projection defense passes separately. Default application construction still has no saver. Concurrent real graph calls isolate owner/Plan collectors, and receipts replay original expiry without another provider call.
 - The existing activity, legacy travel, sandbox checkout, proxy and CRUD mock-booking tests passed apart from the explicitly reproduced unrelated failures. No new CRUD operation or durable Plan schema was added; travel integration assertions read back unchanged Plan data.
 
-Requirement map status: TRAVEL-16-01 through TRAVEL-16-06 have passing deterministic coverage, with browser-facing acceptance still pending. TRAVEL-16-07 remains partial until root completes authenticated Chrome/source-hash/network/screenshot inspection. Every Wave 0 fixture/dependency item above is implemented and exercised; unchecked requirement and sign-off rows remain intentionally pending final browser/review gates. Full regression suites are **not green** because of the seven reproduced baseline failures.
+Requirement map status: TRAVEL-16-01 through TRAVEL-16-07 have executed phase-specific coverage and root authenticated Chrome acceptance. Final evidence includes corrected desktop/mobile photos and manual forms, live model/private sandbox searches, source hashes, diagnostic inspection, actual CRUD cancellation readback and cleanup. Full regression suites remain **not green** because of seven reproduced preimplementation failures. Back preservation was verified in Chrome DOM/focus; its screenshot call hung and no image is claimed.
+
+Final fixes/tests:162 travel/checkpoint checks;30 manual/legacy checkout checks;8 actual HTTP→SSE→parent-router journeys;26 Plan/account routing checks;7 independent cancellation checks; build passes. These are separate runs, not a summed unique-test count. Details in plan summaries and `artifacts/testing/2026-10-16-travel-previews/verification.md`.
 
 ## Sign-off
 
-- [ ] All requirement tests implemented and passing.
-- [ ] No new durable Plan schema; or any justified scope change explicitly reviewed and CRUD HTTP persistence checks added.
-- [ ] No secrets/checkout data in model context, public projection, browser history/storage, logs or checkpoints.
-- [ ] Browser plan/implementation screenshots captured and visually inspected.
-- [ ] Current checkout source hashes match running container for affected files.
-- [ ] Console/network inspection complete.
-- [ ] Exact provider/model checks marked executed or explicitly unverified.
-- [ ] Existing activity flow and unrelated sandbox checkout regressions pass.
-- [ ] Set `nyquist_compliant: true`, `wave_0_complete: true` and final status only when supported by execution evidence.
+- [x] All requirement tests implemented and passing.
+- [x] No new durable Plan schema; or any justified scope change explicitly reviewed and CRUD HTTP persistence checks added.
+- [x] No secrets/checkout data in model context, public projection, browser history/storage, logs or checkpoints.
+- [x] Browser plan/implementation screenshots captured and visually inspected.
+- [x] Current checkout source hashes match running container for affected files.
+- [x] Console/network inspection complete.
+- [x] Exact provider/model checks marked executed or explicitly unverified.
+- [x] Existing activity flow and unrelated sandbox checkout regressions pass.
+- [x] Set `nyquist_compliant: true`, `wave_0_complete: true` and final status only when supported by execution evidence.
