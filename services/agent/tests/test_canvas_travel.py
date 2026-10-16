@@ -325,6 +325,38 @@ def test_composed_clarification_requires_exact_host_reply(alteration):
     assert clarification_history(context(history))==[]
 
 
+@pytest.mark.parametrize('currency',['USD','gbp','HUF'])
+def test_stay_explicit_currency_reaches_provider_and_snapshot(monkeypatch,currency):
+    app,pid,_,provider,_,_=make_app(monkeypatch)
+    with TestClient(app) as c: response=post(c,pid,message=MESSAGE+f'; currency: {currency}')
+    assert terminal(response)['status']=='complete'
+    assert next(args for _,args,_ in provider.calls if args['action']=='hotels/search')['criteria']['currency']==currency.upper()
+    assert bundles(response)[0]['criteria']['currency']==currency.upper()
+
+
+@pytest.mark.parametrize('correction,expected',[('', 'USD'),('; currency: GBP', 'GBP')])
+def test_stay_currency_survives_clarification_and_current_value_overrides(monkeypatch,correction,expected):
+    history=Conversation();app,pid,_,provider,_,_=make_app(monkeypatch,context_reader=history)
+    with TestClient(app) as c:
+        first=post(c,pid,message='Find stays; 1 room for 2 adults; currency: USD')
+        assert terminal(first)['status']=='needs your input' and not provider.calls
+        second=post(c,pid,message='nationality: HU'+correction)
+    assert bundles(second)[0]['criteria']['currency']==expected
+    assert next(args for _,args,_ in provider.calls if args['action']=='hotels/search')['criteria']['currency']==expected
+
+
+@pytest.mark.parametrize('currency',['ZZZ','', 'USD or EUR'])
+def test_invalid_stay_currency_clarifies_without_provider_and_can_recover(monkeypatch,currency):
+    from services.agent.claude.canvas_travel import CURRENCY_QUESTION
+    history=Conversation();app,pid,_,provider,_,_=make_app(monkeypatch,context_reader=history)
+    with TestClient(app) as c:
+        first=post(c,pid,message=MESSAGE+f'; currency: {currency}')
+        assert terminal(first)['status']=='needs your input' and CURRENCY_QUESTION in first.text and not provider.calls
+        second=post(c,pid,message='currency: USD')
+    assert terminal(second)['status']=='complete'
+    assert bundles(second)[0]['criteria']['currency']=='USD'
+
+
 @pytest.mark.parametrize('failure',['exception','malformed','unavailable'])
 def test_provider_failure_is_sanitized_without_cards(monkeypatch,failure):
     class Failed(Provider):

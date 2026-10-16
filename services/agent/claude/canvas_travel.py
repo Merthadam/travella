@@ -8,14 +8,14 @@ import logging
 import re
 import time
 from datetime import UTC, date, datetime, timedelta
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 from uuid import uuid4
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 from pydantic import Field, model_validator
 
 from services.shared.traveler_profile import reference_catalog
-from ..travel_contracts import HotelSearch, Hotel, FlightSearch, Flight, Airports, Capabilities, validate_dates
+from ..travel_contracts import Currency, HotelSearch, Hotel, FlightSearch, Flight, Airports, Capabilities, validate_dates
 from .research_result import StrictResult
 
 
@@ -178,7 +178,8 @@ DATE_QUESTION = "What are your check-in and check-out dates, including the year?
 ROOM_QUESTION = "How many adults and children will stay in each room? For adults only, reply ‘1 room for 2 adults’; include every child’s age if traveling with children."
 NATIONALITY_QUESTION = "What is the guests’ nationality for this search? Reply nationality: country."
 DESTINATION_QUESTION = "Which city and country should I search? Reply destination: city, country."
-CLARIFICATIONS = {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION}
+CURRENCY_QUESTION = "Which currency should I use for stays? Reply currency: EUR, USD, GBP, HUF, CAD, AUD, JPY or CHF."
+CLARIFICATIONS = {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION, CURRENCY_QUESTION}
 
 
 def clarification_history(context):
@@ -321,9 +322,16 @@ def stay_criteria(message, context, draft):
             nationality = country_code(match[1])
     if not nationality:
         raise Clarification(NATIONALITY_QUESTION)
+    currency = "EUR"
+    for text in texts:
+        match = re.search(r"\bcurrency:\s*([^;\n]*)", text, re.I)
+        if match:
+            currency = match[1].strip().upper()
+    if currency not in get_args(Currency):
+        raise Clarification(CURRENCY_QUESTION)
     try:
         criteria = HotelSearch(destination={"city": parts[0].strip(), "country_code": code},
-                               check_in=start, check_out=end, rooms=rooms, guest_nationality=nationality)
+                               check_in=start, check_out=end, rooms=rooms, guest_nationality=nationality, currency=currency)
     except ValueError:
         raise Clarification("Please check your dates, room allocation and guest nationality before searching again.") from None
     return criteria, evidence
@@ -331,7 +339,7 @@ def stay_criteria(message, context, draft):
 
 def travel_intent(message, context):
     return bool(re.search(r"\b(?:stays?|hotels?|accommodation|flights?|nationality|check-in|check-out|rooms?)\b", message, re.I)
-                or clarification_history(context) and (DATE_CUE.search(message) or re.search(r"\b(?:adults?|children|nationality|citizenship|destination)\b", message, re.I)))
+                or clarification_history(context) and (DATE_CUE.search(message) or re.search(r"\b(?:adults?|children|nationality|citizenship|destination|currency)\b", message, re.I)))
 
 
 FLIGHT_PARTY_QUESTION = "How many adults, children and infants are flying? Reply passengers: 2 adults, and include every child’s and infant’s age."
@@ -350,7 +358,7 @@ def clarification_completed_modes(content):
     """
     if content in CLARIFICATIONS:
         return set()
-    questions = {"stays": {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION},
+    questions = {"stays": {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION, CURRENCY_QUESTION},
                  "flights": {FLIGHT_DATE_QUESTION, FLIGHT_PARTY_QUESTION, FLIGHT_COUNTRY_QUESTION, AIRPORT_QUESTION}}
     statements = {mode: [*values,
         f"Here are {mode} options for your exact search dates.",
