@@ -4,9 +4,9 @@ current_phase: 15
 current_phase_name: Bounded agentic canvas generation
 status: verifying
 stopped_at: Phase 15 implemented; live generation acceptance pending
-last_updated: "2026-10-10T22:18:58.302534+00:00"
-last_activity: 2026-10-11
-last_activity_desc: Approved quiet Plans drawer implemented and verified on desktop/mobile
+last_updated: "2026-10-16T10:35:31.996159+00:00"
+last_activity: 2026-10-16
+last_activity_desc: Flight need confirmation and conditional generation verified through live Yes/No save and reload
 state_head: 359b57f276f5322a6f20ad908d536ca34ee6b213
 progress:
   total_phases: 11
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 15 — Bounded agentic canvas generation
 Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
 Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-11 - Completed quick task 261011-01k: quiet Plans drawer; 18 tests, build and authenticated desktop/mobile rename/delete/recovery passed.
+Last activity: 2026-10-16 - Completed quick task 261016-h1a: flight confirmation and optional flight generation; 72 focused tests, build and authenticated desktop/mobile Yes/No save/reload passed.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -120,6 +120,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261016-h1a | Confirm flight needs during research; generate flights only for confirmed Yes | 2026-10-16 | e616d3b | Complete; two unrelated baseline test failures documented | [Task](quick/261016-h1a-confirm-flight-needs-during-research-and/) |
 | 261011-06a | Refined foldable Plan chat; 13 tests and browser checks passed; final fresh-login smoke returned 401 | 2026-10-11 | 8ada633 | UI verified; auth readiness unresolved | [Task](quick/261011-06a-refine-plan-side-chat-and-foldable-panel/) |
 | 261011-01s | Started local container; health, authentication, HTTP and source hashes passed | 2026-10-11 | f30a986 (app source) | Complete | [Task](quick/261011-01s-start-local-container-and-verify-authent/) |
 | 1 | local-agent-without-agentcore · Outcome: Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. | 2026-10-03 | — | — | — |
