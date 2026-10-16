@@ -12,6 +12,12 @@ description: Find observed stays for exact traveler-grounded dates in the curren
 5. View all stays is explicit navigation to matching results, not a saved or booked option. Date overrides are search-only. Leave activity suggestions/add_ids empty unless the traveler separately explicitly requested an authorized activity action.
 6. Five travel calls total per turn, including capabilities and lookups; one stay search. Failed calls count. Do not automatically retry failures or malformed output. Explain limitations and let the traveler retry.
 
+## Return flights
+
+Use search_flights with no arguments for return flights. The host accepts explicit airports (for example origin: BUD; destination airport: LIS), passengers (passengers: 2 adults and children ages 7 and infant age 1), and flight country: HU. Flight pricing country is not guest nationality. Missing dates, passenger ages or country must be clarified before any capability or airport call. search_airports can resolve explicitly supplied airport/city text only after the non-location gate; multiple airports require a traveler choice. Currency EUR and cabin ECONOMY are existing defaults and must remain visible.
+
+Flight selections use mode: flights and observed IDs only. Fares are return totals for the whole party, never per-person/one-way prices. Preserve local segment dates/times, operating carriers, baggage, estimated price and excluded taxes. Unknown fields stay unknown. No booking/verification/prebooking/detail call is available.
+
 ## Focused examples
 
 - Traveler: “Stays 5–12 July.” Ask for check-in and check-out including the year. Do not choose a year or call capabilities/lookups/search first, even when older Canvas dates exist.

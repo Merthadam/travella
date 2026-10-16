@@ -241,18 +241,20 @@ class ClaudeSdkCanvasEditor:
                     bundles = travel.selected(reply.travel)
                     answer = reply.answer
                     if travel.active:
-                        answer = ("We couldn’t load stays. Try again from Plan chat. Your draft is unchanged." if travel.failure else
-                                  "Here are stay options for your exact search dates. Nothing has been saved or booked." if any(x["results"] for x in bundles) else
-                                  "No stays found. Try different dates or a different destination in Plan chat." if bundles else
-                                  "Ask me to search stays using your exact dates and room details.")
+                        answer = (travel.question or
+                                  f"We couldn’t load {travel.mode}. Try again from Plan chat. Your draft is unchanged." if travel.question or travel.failure else
+                                  f"Here are {travel.mode} options for your exact search dates. Nothing has been saved or booked." if any(x["results"] for x in bundles) else
+                                  f"No {travel.mode} found. Try different dates or a different destination in Plan chat." if bundles else
+                                  "Ask me to search using your exact dates and traveler details.")
                         if on_text_delta:
                             await on_text_delta(answer)
                     else:
                         await answer_stream.finish(answer)
                     collect_travel_results(bundles)
                     logging.getLogger(__name__).info("canvas_editor_usage calls=1 cost_usd=%s maps_calls=%s", result.total_cost_usd, observer.calls)
-                    return {"status": "needs your input" if reply.needs_input else "in_progress",
-                            "assistant_text": answer, "question": answer if reply.needs_input else None,
+                    needs_input = bool(reply.needs_input or travel.question)
+                    return {"status": "needs your input" if needs_input else "in_progress",
+                            "assistant_text": answer, "question": answer if needs_input else None,
                             "canvas_edit_result": output.model_dump(exclude={"travel"}), "state_changes": []}
         except asyncio.CancelledError:
             raise

@@ -29,6 +29,7 @@ from services.crud.canvas import CanvasSnapshot
 START = (date.today() + timedelta(days=180)).isoformat()
 END = (date.today() + timedelta(days=187)).isoformat()
 MESSAGE = 'Find stays; 1 room for 2 adults; nationality: HU'
+FLIGHT_MESSAGE = 'Find return flights; origin: BUD; destination airport: LIS; passengers: 2 adults; flight country: HU'
 
 
 def components():
@@ -46,12 +47,23 @@ def hotels(count=4):
                     'raw_payload':'PRIVATE_RAW_SENTINEL'} for i in range(count)]}
 
 
+def flights(count=4,unknown=False):
+    def leg(origin,destination,departure,arrival):
+        return {'stops':0,'duration_minutes':150,'segments':[{'origin':origin,'destination':destination,'departure_at':departure,'arrival_at':arrival,'airline':'Observed Air','operating_airline':'Operating Air','flight_number':'OA 42','duration_minutes':150,'technical_stops':[],'raw_payload':'PRIVATE_SEGMENT'}]}
+    return {'provider':'LiteAPI','sandbox':True,'status':'ready' if count else 'empty','searched_at':'2026-10-16T12:00:00Z','returned_count':count,'truncated':False,'notices':[],
+        'results':[{'id':f'flight-{i}','checkout_token':'PRIVATE_FLIGHT_CHECKOUT','price':{'amount':None if unknown else '824.50','currency':'EUR','basis':'party_return','estimated':True,'excluded_taxes':[{'name':'Airport tax','amount':'10','currency':'EUR'}]},'airlines':[f'Observed Air {i}'],
+            'outbound':leg('BUD','LIS',START+'T23:30:00+02:00',(date.fromisoformat(START)+timedelta(days=1)).isoformat()+'T01:00:00+01:00'),
+            'inbound':leg('LIS','BUD',END+'T08:00:00+01:00',END+'T11:30:00+02:00'),
+            'baggage_summary':None if unknown else '1 checked bag per adult','cabin_bag_included':None if unknown else True,'refundable':None if unknown else False,'cancellation_summary':None} for i in range(count)]}
+
+
 class Provider:
     def __init__(self, count=4): self.calls=[]; self.count=count
     async def call(self, name, args, **scope):
         self.calls.append((name, deepcopy(args), scope))
-        assert name=='travel_search' and args['action'] in {'capabilities','places','hotels/search'}
+        assert name=='travel_search' and args['action'] in {'capabilities','places','hotels/search','flights/search','airports'}
         if args['action']=='capabilities': return dict(provider='LiteAPI',sandbox=True,hotels=True,flights=True)
+        if args['action']=='flights/search': return flights(self.count)
         return hotels(self.count)
 
 
@@ -60,7 +72,7 @@ class Transport:
     async def close(self): self.closed=True
 
 
-def runtime(provider, tool_texts, *, tamper=None):
+def runtime(provider, tool_texts, *, tamper=None, modes=('stays',)):
     config=ResearchWorkerConfig(api_key='sk-ant-test-only-no-network')
     async def query(*, prompt, options, transport):
         assert options.skills == ['canvas-activities','canvas-travel']
@@ -71,20 +83,22 @@ def runtime(provider, tool_texts, *, tamper=None):
         assert await guard({'tool_name':'mcp__maps__search_places','tool_input':{}},'',None)=={}
         assert await guard({'tool_name':'mcp__travel__sandbox/book','tool_input':{}},'',None)!={}
         server=options.mcp_servers['travel']['instance']
-        result=await server.request_handlers[CallToolRequest](CallToolRequest(method='tools/call', params=CallToolRequestParams(name='search_stays',arguments={})))
-        wire=result.root.model_dump()
-        payload={} if wire.get('isError') else json.loads(wire['content'][0]['text']); tool_texts.append(wire)
-        selected=[] if 'search_id' not in payload else [{'search_id':payload['search_id'],'mode':'stays','option_ids':[x['id'] for x in payload['options'][:3]]}]
+        selected=[]
+        for mode in modes:
+            result=await server.request_handlers[CallToolRequest](CallToolRequest(method='tools/call', params=CallToolRequestParams(name=f'search_{mode}',arguments={})))
+            wire=result.root.model_dump()
+            payload={} if wire.get('isError') else json.loads(wire['content'][0]['text']); tool_texts.append(wire)
+            if 'search_id' in payload: selected.append({'search_id':payload['search_id'],'mode':mode,'option_ids':[x['id'] for x in payload['options'][:3]]})
         if tamper: selected=tamper(selected)
         yield ResultMessage(subtype='success',duration_ms=1,duration_api_ms=1,is_error=False,num_turns=1,session_id='fixture',total_cost_usd=0.01,
             structured_output=dict(answer='MODEL_UNGROUNDED_BOOKING_CLAIM',needs_input=False,suggestions=[],add_ids=[],addition_quote='',travel=selected))
     return SimpleNamespace(config=config,worker=ClaudeSdkRuntime(config,query_fn=query,transport_factory=Transport))
 
 
-def make_app(monkeypatch, provider=None, tamper=None, context_reader=None):
+def make_app(monkeypatch, provider=None, tamper=None, context_reader=None, modes=('stays',)):
     provider=provider or Provider(); texts=[]; pid=str(uuid4()); plan={'lifecycle':'active','traveler_subject':'owner','revision':1}
     monkeypatch.setattr('services.agent.travel_client.TravelClient.call', lambda self,*args,**kwargs: provider.call(*args,**kwargs))
-    graph=AgentGraph(runtime(provider,texts,tamper=tamper))
+    graph=AgentGraph(runtime(provider,texts,tamper=tamper,modes=modes))
     graph_results=[]
     # Observe actual compiled execution without replacing the graph/node/editor.
     original=graph.compiled.ainvoke
@@ -275,3 +289,54 @@ def test_provider_failure_is_sanitized_without_cards(monkeypatch,failure):
     assert terminal(response)['status']=='complete' and not bundles(response)
     assert 'couldn’t load stays' in response.text and 'PRIVATE_' not in response.text
     assert len(provider.calls)<=2
+
+
+@pytest.mark.parametrize('count,unknown',[(4,False),(1,True)])
+def test_flight_journey_actual_sse_to_react(monkeypatch,tmp_path,count,unknown):
+    class FlightProvider(Provider):
+        async def call(self,name,args,**scope):
+            value=await super().call(name,args,**scope)
+            return flights(count,unknown) if args['action']=='flights/search' else value
+    app,pid,plan,provider,texts,compiled=make_app(monkeypatch,FlightProvider(count),modes=('flights',))
+    original=components();before=deepcopy(original)
+    with TestClient(app) as c: response=post(c,pid,original,FLIGHT_MESSAGE)
+    assert terminal(response)['status']=='complete',response.text
+    s=bundles(response)[0]
+    assert s['mode']=='flights' and s['preview_ids']==[f'flight-{i}' for i in range(min(3,count))]
+    assert s['results'][0]['price']['basis']=='party_return' and s['results'][0]['outbound']['segments'][0]['departure_at']==START+'T23:30:00+02:00'
+    assert len(provider.calls)==2 and original==before and plan['revision']==1
+    assert all('PRIVATE_' not in value for value in [response.text,json.dumps(texts),json.dumps(compiled)])
+    fixture=tmp_path/'flights-sse.json';fixture.write_text(json.dumps({'sse':response.text,'plan_id':pid,'components':original,'message':FLIGHT_MESSAGE,'count':count,'mode':'flights','unknown':unknown}))
+    result=subprocess.run(['npm','--prefix','frontend','test','--','src/features/plans/travel/CanvasTravelJourney.test.jsx'],env={**os.environ,'TRAVELLA_CANVAS_SSE_FIXTURE':str(fixture)},capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+
+
+@pytest.mark.parametrize('case',['dates','country','party','age','origin','unknown_code','same_airport'])
+def test_flight_input_gate_before_any_call(monkeypatch,case):
+    message=FLIGHT_MESSAGE;draft=components()
+    if case=='dates': message+='; instead next month'
+    if case=='country': message=message.replace('flight country: HU','nationality: HU')
+    if case=='party': message=message.replace('passengers: 2 adults','travelers: 2')
+    if case=='age': message=message.replace('passengers: 2 adults','passengers: 2 adults and 1 child')
+    if case=='origin': message=message.replace('origin: BUD; ','')
+    if case=='unknown_code': message=message.replace('BUD','ZZZ')
+    if case=='same_airport': message=message.replace('LIS','BUD')
+    app,pid,_,provider,_,_=make_app(monkeypatch,modes=('flights',))
+    with TestClient(app) as c: response=post(c,pid,draft,message)
+    assert terminal(response)['status']=='needs your input' and not provider.calls
+
+
+@pytest.mark.parametrize('ambiguous',[False,True])
+def test_flight_airports_observed_after_nonlocation_gate(monkeypatch,ambiguous):
+    class Lookup(Provider):
+        async def call(self,name,args,**scope):
+            if args['action']=='airports':
+                self.calls.append((name,deepcopy(args),scope))
+                codes=['BUD','DEB'] if ambiguous else ['BUD']
+                return {'provider':'LiteAPI','sandbox':True,'status':'ready','airports':[{'iata':code,'name':code} for code in codes]}
+            return await super().call(name,args,**scope)
+    app,pid,_,provider,_,_=make_app(monkeypatch,Lookup(),modes=('flights',))
+    with TestClient(app) as c: response=post(c,pid,message=FLIGHT_MESSAGE.replace('origin: BUD','origin: Budapest'))
+    assert len(provider.calls)==(2 if ambiguous else 3)
+    assert terminal(response)['status']==('needs your input' if ambiguous else 'complete')
+    if not ambiguous: assert bundles(response)[0]['criteria']['origin']=='BUD'

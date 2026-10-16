@@ -48,7 +48,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
       expect(screen.queryByRole('button',{name:'View all stays'})).toBeNull();
     }
   }
-  const resultCount=fixture.count ?? 4;
+  const resultCount=fixture.count ?? 4, mode=fixture.mode || 'stays';
   if (!resultCount) {
     const empty=await screen.findByRole('heading',{name:'No stays found'});
     expect(screen.queryByRole('button',{name:'View all stays'})).toBeNull();
@@ -56,18 +56,26 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
     expect(api.saveCanvas).not.toHaveBeenCalled();
     return;
   }
-  const open=await screen.findByRole('button',{name:'View all stays'});
-  const previews=screen.getByRole('region',{name:'Stay previews'});
+  const open=await screen.findByRole('button',{name:`View all ${mode}`});
+  const previews=screen.getByRole('region',{name:mode==='flights' ? 'Flight previews' : 'Stay previews'});
   expect(within(previews).getAllByRole('article')).toHaveLength(Math.min(3,resultCount));
   expect(previews.textContent).toContain(`Showing ${Math.min(3,resultCount)} of ${resultCount}`);
   expect(previews.textContent).toContain(fixture.search_start || fixture.components.essentials.dates.start);
-  expect(previews.textContent).toContain('Breakfast included');
+  if(mode==='stays') expect(previews.textContent).toContain('Breakfast included');
+  else {
+    expect(previews.textContent).toContain('Return total for the party · 2 adults');
+    expect(previews.textContent).toContain(`${fixture.components.essentials.dates.start} 23:30:00+02:00`);
+    expect(previews.textContent).toContain('ECONOMY · EUR');
+    expect(previews.textContent).toContain(fixture.unknown ? 'Price unavailable' : 'Estimated EUR 824.50');
+    expect(previews.textContent).toContain(fixture.unknown ? 'Baggage information unavailable' : '1 checked bag per adult');
+    expect(previews.textContent).toContain(fixture.unknown ? 'Cancellation terms unavailable' : 'Non-refundable');
+  }
   await user.type(screen.getByRole('textbox',{name:'Message Travella'}),'Keep this unsent message');
   const count=requests.length;
   await user.click(open);
   const results=screen.getByRole('region',{name:'Travel results only'});
   expect(within(results).getAllByRole('article')).toHaveLength(resultCount);
-  expect(within(results).getByText(`Observed stay ${resultCount-1}`)).toBeTruthy();
+  expect(within(results).getByText(`${mode==='flights' ? 'Observed Air' : 'Observed stay'} ${resultCount-1}`)).toBeTruthy();
   expect(requests).toHaveLength(count);
   expect(results.textContent).toContain('Nothing has been saved or booked');
   expect(results.textContent).not.toContain('PRIVATE_CHECKOUT');

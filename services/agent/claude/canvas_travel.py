@@ -14,7 +14,7 @@ from claude_agent_sdk import create_sdk_mcp_server, tool
 from pydantic import Field, model_validator
 
 from services.shared.traveler_profile import reference_catalog
-from ..travel_contracts import HotelSearch, Hotel, Capabilities, validate_dates
+from ..travel_contracts import HotelSearch, Hotel, FlightSearch, Flight, Airports, Capabilities, validate_dates
 from .research_result import StrictResult
 
 
@@ -63,12 +63,46 @@ class StayOption(StrictResult):
         return self
 
 
-class TravelSnapshot(StrictResult):
+class FlightSegment(StrictResult):
+    origin: str = Field(pattern=r"^[A-Z]{3}$")
+    destination: str = Field(pattern=r"^[A-Z]{3}$")
+    departure_at: str = Field(max_length=40, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+    arrival_at: str = Field(max_length=40, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+    airline: Text | None = None
+    operating_airline: Text | None = None
+    flight_number: Text | None = None
+    duration_minutes: int | None = Field(default=None, ge=0, le=10080)
+    technical_stops: list[Text] = Field(default_factory=list, max_length=10)
+
+
+class FlightLeg(StrictResult):
+    duration_minutes: int | None = Field(default=None, ge=0, le=10080)
+    stops: int | None = Field(default=None, ge=0, le=30)
+    segments: list[FlightSegment] = Field(min_length=1, max_length=12)
+
+
+class FlightOption(StrictResult):
+    id: Identifier
+    price: Price
+    airlines: list[Text] = Field(max_length=12)
+    outbound: FlightLeg
+    inbound: FlightLeg
+    baggage_summary: Text | None = None
+    cabin_bag_included: bool | None = None
+    refundable: bool | None = None
+    cancellation_summary: Text | None = None
+
+    @model_validator(mode="after")
+    def basis(self):
+        if self.price.basis != "party_return":
+            raise ValueError("Wrong flight price basis")
+        return self
+
+
+class SnapshotBase(StrictResult):
     search_id: Identifier
     plan_id: str = Field(max_length=100)
     generation: int = Field(ge=0)
-    mode: Literal["stays"]
-    criteria: HotelSearch
     fingerprint: str = Field(pattern=r"^[a-f0-9]{64}$")
     draft_facts: dict  # Host-authored relevant draft baseline; no provider fields.
     searched_at: str = Field(max_length=40)
@@ -78,7 +112,6 @@ class TravelSnapshot(StrictResult):
     returned_count: int = Field(ge=0, le=100)
     truncated: bool
     notices: list[Text] = Field(default_factory=list, max_length=10)
-    results: list[StayOption] = Field(max_length=100)
     preview_ids: list[Identifier] = Field(default_factory=list, max_length=3)
     search_only_dates: bool = False
 
@@ -94,9 +127,24 @@ class TravelSnapshot(StrictResult):
         return self
 
 
+class StaySnapshot(SnapshotBase):
+    mode: Literal["stays"]
+    criteria: HotelSearch
+    results: list[StayOption] = Field(max_length=100)
+
+
+class FlightSnapshot(SnapshotBase):
+    mode: Literal["flights"]
+    criteria: FlightSearch
+    results: list[FlightOption] = Field(max_length=100)
+
+
+TravelSnapshot = Annotated[StaySnapshot | FlightSnapshot, Field(discriminator="mode")]
+
+
 class TravelSelection(StrictResult):
     search_id: Identifier
-    mode: Literal["stays"]
+    mode: Literal["stays", "flights"]
     option_ids: list[Identifier] = Field(max_length=3)
 
 
@@ -141,7 +189,7 @@ def clarification_history(context):
     return list(reversed(output))
 
 
-def explicit_dates(text):
+def explicit_dates(text, maximum=30):
     """Small exact grammar; source text, never model normalization, is authoritative."""
     if not DATE_CUE.search(text):
         return None
@@ -173,28 +221,28 @@ def explicit_dates(text):
         remainder = re.sub(r"\binstead\b", "", remainder, flags=re.I)
         if len(values) != 2 or DATE_CUE.search(remainder):
             raise ValueError()
-        validate_dates(values[0], values[1], 30)
+        validate_dates(values[0], values[1], maximum)
     except (ValueError, KeyError):
         raise Clarification(DATE_QUESTION) from None
     return [v.isoformat() for v in values], [{"start": start, "end": end, "text": text[start:end]} for start, end in spans]
 
 
-def resolve_dates(message, context, draft):
+def resolve_dates(message, context, draft, maximum=30):
     """Current exact correction > active clarification evidence > exact Canvas pair."""
     facts = draft_facts(draft)
-    current = explicit_dates(message)
+    current = explicit_dates(message, maximum)
     if current:
         pair, spans = current
         return *pair, {"source": "current", "role": "user", "spans": spans, "normalized": pair}
     for index, text in reversed(clarification_history(context)):
-        previous = explicit_dates(text)  # A newer ambiguous correction blocks older dates.
+        previous = explicit_dates(text, maximum)  # A newer ambiguous correction blocks older dates.
         if previous:
             pair, spans = previous
             return *pair, {"source": f"recent_messages:{index}", "role": "user", "spans": spans, "normalized": pair}
     if not facts["start"] or not facts["end"] or facts["flexible"]:
         raise Clarification(DATE_QUESTION)
     try:
-        validate_dates(date.fromisoformat(facts["start"]), date.fromisoformat(facts["end"]), 30)
+        validate_dates(date.fromisoformat(facts["start"]), date.fromisoformat(facts["end"]), maximum)
     except ValueError:
         raise Clarification("Those dates don’t form a valid trip. What exact start and end dates should I use?") from None
     return facts["start"], facts["end"], {"source": "canvas", "fields": ["essentials.dates.start", "essentials.dates.end"], "normalized": [facts["start"], facts["end"]]}
@@ -276,6 +324,72 @@ def travel_intent(message, context):
                 or clarification_history(context) and (DATE_CUE.search(message) or re.search(r"\b(?:adults?|children|nationality|citizenship|destination)\b", message, re.I)))
 
 
+FLIGHT_PARTY_QUESTION = "How many adults, children and infants are flying? Reply passengers: 2 adults, and include every child’s and infant’s age."
+FLIGHT_DATE_QUESTION = "What are your departure and return dates, including the year?"
+FLIGHT_COUNTRY_QUESTION = "Which country should be used for flight pricing? Reply flight country: country. This is separate from guest nationality."
+AIRPORT_QUESTION = "Which departure and destination airports should I use? Reply origin: airport code; destination airport: airport code."
+CLARIFICATIONS.update({FLIGHT_DATE_QUESTION, FLIGHT_PARTY_QUESTION, FLIGHT_COUNTRY_QUESTION, AIRPORT_QUESTION})
+
+
+class FlightInputs(FlightSearch):
+    """Validate non-location inputs before resolving explicitly requested airports."""
+    origin: str = Field(min_length=2, max_length=80)
+    destination: str = Field(min_length=2, max_length=80)
+
+
+def flight_criteria(message, context, draft):
+    start, end, evidence = resolve_dates(message, context, draft, 365)
+    texts = [text for _, text in clarification_history(context) if len(text) <= 2000] + [message]
+    fields, party = {}, None
+    for text in texts:
+        for key, pattern in {"origin": r"\borigin:", "destination": r"\bdestination airport:",
+                             "country_code": r"\b(?:flight country|country of sale):",
+                             "currency": r"\bcurrency:", "cabin_class": r"\bcabin:"}.items():
+            match = re.search(pattern + r"\s*([^;\n]+)", text, re.I)
+            if match:
+                fields[key] = match[1].strip()
+        route = re.search(r"\b([A-Z]{3})\s+(?:to|→)\s+([A-Z]{3})\b", text)
+        if route:
+            fields.update(origin=route[1], destination=route[2])
+        match = re.search(r"\bpassengers:\s*([^;\n]+)", text, re.I)
+        if match:
+            # Explicit passenger allocation; child/infant ages are never inferred.
+            p = re.fullmatch(r"(\d+) adults?(?: and children ages? (\d+(?:\s*,\s*\d+)*))?(?: and infants? ages? (\d+(?:\s*,\s*\d+)*))?", match[1].strip(), re.I)
+            party = {"adults": int(p[1]), "children_ages": [int(x.strip()) for x in (p[2] or "").split(",") if x.strip()],
+                     "infant_ages": [int(x.strip()) for x in (p[3] or "").split(",") if x.strip()]} if p else None
+    if not party:
+        raise Clarification(FLIGHT_PARTY_QUESTION)
+    fields["country_code"] = country_code(fields.get("country_code", ""))
+    if not fields["country_code"]:
+        raise Clarification(FLIGHT_COUNTRY_QUESTION)
+    if not fields.get("origin") or not fields.get("destination"):
+        raise Clarification(AIRPORT_QUESTION)
+    known = {item["code"] for item in reference_catalog("airports")}
+    if any(re.fullmatch(r"[A-Z]{3}", fields[key]) and fields[key] not in known for key in ("origin", "destination")):
+        raise Clarification(AIRPORT_QUESTION)
+    fields["currency"] = fields.get("currency", "EUR").upper()
+    fields["cabin_class"] = fields.get("cabin_class", "ECONOMY").upper().replace(" ", "_")
+    try:
+        return FlightInputs(**fields, **party, departure_date=start, return_date=end), evidence
+    except ValueError:
+        raise Clarification("Please check the distinct airports, passenger ages, flight country and travel dates before searching again.") from None
+
+
+def safe_flight(raw, criteria):
+    flight = Flight.model_validate(raw)
+    result = FlightOption.model_validate(flight.model_dump(include=set(FlightOption.model_fields)))
+    for leg, origin, destination, day in [(result.outbound, criteria.origin, criteria.destination, criteria.departure_date),
+                                         (result.inbound, criteria.destination, criteria.origin, criteria.return_date)]:
+        if leg.segments[0].origin != origin or leg.segments[-1].destination != destination or leg.segments[0].departure_at[:10] != day.isoformat():
+            raise ValueError("flight_route_mismatch")
+        for index, segment in enumerate(leg.segments):
+            datetime.fromisoformat(segment.departure_at)
+            datetime.fromisoformat(segment.arrival_at)
+            if index and leg.segments[index-1].destination != segment.origin:
+                raise ValueError("flight_connection_mismatch")
+    return result
+
+
 def safe_stay(raw):
     # Validate the provider shape, then explicitly reconstruct every nested field.
     hotel = Hotel.model_validate(raw)
@@ -285,24 +399,27 @@ def safe_stay(raw):
 
 
 class CanvasTravelObserver:
-    names = {"travel_capabilities", "search_destinations", "search_stays"}
+    names = {"travel_capabilities", "search_destinations", "search_stays", "search_airports", "search_flights"}
 
     def __init__(self, client, context, authorization_token, draft, message, deadline=None):
         self.client, self.context, self.authorization_token = client, context, authorization_token
         self.draft, self.message = draft, message
         self.deadline = deadline or time.monotonic() + 120
         self.calls = 0
-        self.counts = {"capabilities": 0, "lookup": 0, "stays": 0}
+        self.counts = {"capabilities": 0, "lookup": 0, "stays": 0, "flights": 0}
         self.cache, self.snapshots = {}, {}
         self.tool_bytes = 0
         self.active = travel_intent(message, context)
+        self.mode = "flights" if re.search(r"\bflights?\b", message, re.I) else "stays"
+        if not re.search(r"\b(?:stays?|hotels?|accommodation|flights?)\b", message, re.I):
+            self.mode = "flights" if any(re.search(r"\bflights?\b", text, re.I) for _, text in clarification_history(context)) else "stays"
         self.question, self.failure = None, False
         self.criteria, self.evidence = None, None
         if self.active:
             try:
-                self.criteria, self.evidence = stay_criteria(message, context, draft)
+                self.criteria, self.evidence = (flight_criteria if self.mode == "flights" else stay_criteria)(message, context, draft)
             except Clarification as error:
-                self.question = str(error)
+                self.question = FLIGHT_DATE_QUESTION if self.mode == "flights" and str(error) == DATE_QUESTION else str(error)
 
     async def _call(self, action, criteria, category):
         if not self.active or self.question or self.criteria is None:
@@ -330,11 +447,18 @@ class CanvasTravelObserver:
             if name not in self.names or arguments:
                 raise ValueError("travel_tool_forbidden")
             caps = Capabilities.model_validate(await self._call("capabilities", {}, "capabilities"))
-            if not caps.hotels:
-                raise ValueError("stays_unavailable")
+            if not (caps.flights if self.mode == "flights" else caps.hotels):
+                raise ValueError("mode_unavailable")
             if name == "travel_capabilities":
-                payload = {"stays": caps.hotels, "flights": False, "sandbox": caps.sandbox}
+                payload = {"stays": caps.hotels, "flights": caps.flights, "sandbox": caps.sandbox}
+            elif name == "search_airports":
+                if self.mode != "flights":
+                    raise ValueError("wrong_mode")
+                await self.resolve_airports()
+                payload = {"origin": self.criteria.origin, "destination": self.criteria.destination}
             elif name == "search_destinations":
+                if self.mode != "stays":
+                    raise ValueError("wrong_mode")
                 # Criteria already contain an explicit city/country. Lookup cannot override them.
                 raw = await self._call("places", {"q": self.criteria.destination.city,
                     "country_code": self.criteria.destination.country_code}, "lookup")
@@ -342,42 +466,67 @@ class CanvasTravelObserver:
                 places = Places.model_validate(raw)
                 payload = {"places": [item.model_dump() for item in places.places]}
             else:
+                if name != f"search_{self.mode}":
+                    raise ValueError("wrong_mode")
+                if self.mode == "flights":
+                    await self.resolve_airports()
                 if self.snapshots:
                     snapshot = next(iter(self.snapshots.values()))
                 else:
-                    raw = await self._call("hotels/search", self.criteria.model_dump(mode="json"), "stays")
+                    raw = await self._call("flights/search" if self.mode == "flights" else "hotels/search", self.criteria.model_dump(mode="json"), self.mode)
                     if raw.get("provider") != "LiteAPI" or type(raw.get("sandbox")) is not bool or raw.get("status") not in {"ready", "empty"}:
                         raise ValueError("travel_response_invalid")
-                    results = [safe_stay(item) for item in raw["results"]]
+                    results = [safe_flight(item, self.criteria) if self.mode == "flights" else safe_stay(item) for item in raw["results"]]
                     if len(results) > 100 or raw.get("returned_count") != len(results) or (raw["status"] == "empty") != (not results):
                         raise ValueError("travel_count_invalid")
                     now = datetime.now(UTC)
                     normalized = self.criteria.model_dump(mode="json")
-                    snapshot = TravelSnapshot(search_id=uuid4().hex, plan_id=self.context.plan_id,
-                        generation=self.context.generation, mode="stays", criteria=self.criteria,
+                    snapshot = (FlightSnapshot if self.mode == "flights" else StaySnapshot)(search_id=uuid4().hex, plan_id=self.context.plan_id,
+                        generation=self.context.generation, mode=self.mode, criteria=self.criteria,
                         fingerprint=hashlib.sha256(json.dumps(normalized, sort_keys=True).encode()).hexdigest(),
                         draft_facts=draft_facts(self.draft), searched_at=now.isoformat(), expires_at=(now+timedelta(minutes=10)).isoformat(),
                         provider="LiteAPI", sandbox=raw["sandbox"], returned_count=len(results),
                         truncated=bool(raw.get("truncated")), notices=raw.get("notices", []), results=results,
-                        search_only_dates=[normalized["check_in"], normalized["check_out"]] != [draft_facts(self.draft)["start"], draft_facts(self.draft)["end"]])
+                        search_only_dates=[normalized.get("check_in", normalized.get("departure_date")), normalized.get("check_out", normalized.get("return_date"))] != [draft_facts(self.draft)["start"], draft_facts(self.draft)["end"]])
                     while len(snapshot.model_dump_json().encode()) > 130000 and snapshot.results:
                         snapshot.results.pop(); snapshot.returned_count -= 1; snapshot.truncated = True
                     if len(snapshot.model_dump_json().encode()) > 130000:
                         raise ValueError("travel_payload_limit")
                     self.snapshots[snapshot.search_id] = snapshot
-                payload = {"search_id": snapshot.search_id, "mode": "stays", "count": snapshot.returned_count,
-                           "options": [{"id": item.id, "name": item.name, "price": item.price.model_dump()} for item in snapshot.results[:10]]}
+                payload = {"search_id": snapshot.search_id, "mode": self.mode, "count": snapshot.returned_count,
+                           "options": [{"id": item.id, "label": getattr(item, "name", None) or ", ".join(item.airlines), "price": item.price.model_dump()} for item in snapshot.results[:10]]}
             encoded = json.dumps(payload, ensure_ascii=False)
             if self.tool_bytes + len(encoded.encode()) > 24576:
                 raise ValueError("travel_text_limit")
             self.tool_bytes += len(encoded.encode())
             return {"content": [{"type": "text", "text": encoded}]}
+        except Clarification as error:
+            self.question = str(error)
+            return {"is_error": True, "content": [{"type": "text", "text": self.question}]}
         except asyncio.CancelledError:
             self.snapshots.clear()
             raise
         except Exception:
             self.failure = True
             return {"is_error": True, "content": [{"type": "text", "text": self.question or "Travel search is unavailable. Ask the traveler to try again; do not invent options."}]}
+
+    async def resolve_airports(self):
+        if isinstance(self.criteria, FlightSearch) and not isinstance(self.criteria, FlightInputs):
+            return
+        fields = self.criteria.model_dump(mode="json")
+        known = {item["code"] for item in reference_catalog("airports")}
+        for key in ("origin", "destination"):
+            value = fields[key]
+            if value in known:
+                continue
+            if re.fullmatch(r"[A-Z]{3}", value):
+                raise Clarification(AIRPORT_QUESTION)
+            result = Airports.model_validate(await self._call("airports", {"q": value}, "lookup"))
+            candidates = {item.iata for item in result.airports if item.iata in known}
+            if len(candidates) != 1:
+                raise Clarification(AIRPORT_QUESTION)
+            fields[key] = next(iter(candidates))
+        self.criteria = FlightSearch.model_validate(fields)
 
     def selected(self, selections):
         if self.failure:
@@ -404,4 +553,8 @@ class CanvasTravelObserver:
         async def destinations(args): return await self.invoke("search_destinations", args)
         @tool("search_stays", "Search stays using host-validated current dates, rooms, destination and nationality. No arguments.", {})
         async def stays(args): return await self.invoke("search_stays", args)
-        return create_sdk_mcp_server(name="travel", version="1.0.0", tools=[capabilities, destinations, stays])
+        @tool("search_airports", "Resolve explicitly supplied airports only after required flight facts pass the host gate. No arguments.", {})
+        async def airports(args): return await self.invoke("search_airports", args)
+        @tool("search_flights", "Search return flights with host-validated dates, airports, passenger ages and country. No arguments.", {})
+        async def flights(args): return await self.invoke("search_flights", args)
+        return create_sdk_mcp_server(name="travel", version="1.0.0", tools=[capabilities, destinations, stays, airports, flights])
