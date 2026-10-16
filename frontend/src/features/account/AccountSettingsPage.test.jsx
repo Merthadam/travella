@@ -18,6 +18,22 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
 
+test('setting and editor focus does not jump the account scroll position', async () => {
+  const user = userEvent.setup();
+  render(<AccountSettingsPage initialProfile={profile} onExpired={vi.fn()} />);
+  const heading = screen.getByRole('heading', { name: 'Home base' });
+  const focus = vi.spyOn(heading, 'focus');
+  try {
+    await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
+    expect(document.activeElement).toBe(heading);
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    focus.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
+    expect(document.activeElement).toBe(heading);
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+  } finally { focus.mockRestore(); }
+});
+
 test('account loading is distinct from failure and local retry preserves selected security setting', async () => {
   const user = userEvent.setup(); let finish;
   fetch.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
