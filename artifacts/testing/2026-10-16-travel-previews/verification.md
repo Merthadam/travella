@@ -23,8 +23,6 @@ Plan 16-02 deterministic evidence: commits `707775c` and `663aeab`. Flight trace
 
 Legacy travel/checkout frontend command across CanvasTravelJourney, TravelSearch, SandboxCheckout and FlightSandboxCheckout: 15 passed, one actual-SSE-fixture-only standalone skip (executed by Python). Build passed with the existing chunk warning. No dependency, infrastructure or checkout change. Production Chrome and live evidence remain pending.
 
-## Workflow runtime notes
-
 ## Plan 16-03 deterministic handoff (production browser pending)
 
 Task 01 commit `a6bc489` implements cancellation/currentness, four-snapshot memory bounds, reference-only chat, relevant-fact invalidation, expiry and opaque history/reload recovery. Its backend suite passed 85 tests; lifecycle/PlanningCanvas frontend passed 19 with one standalone fixture-only skip. Actual emitted-SSE journeys cover history Forward/Back and reload without refetch.
@@ -35,6 +33,6 @@ Full requested backend regressions: **257 passed, 1 failed in 14.24s**. The prof
 
 `16-03-SUMMARY.md` is partial, two tasks complete and root task 03 pending. `16-VALIDATION.md` retains incomplete browser/sign-off status. Root must rebuild current source, verify container hashes, use the isolated Plan, inspect real Chrome desktop/mobile interaction, network/console and eight implementation screenshots. Planning JPEGs and fixture tests do not satisfy production browser acceptance. No new CRUD operation or durable schema was added; tests assert unchanged Plan storage through research/navigation.
 
-### Runtime notes
+## Workflow runtime notes
 
 The native collaboration service refused a fourth child thread (`agent thread limit reached`). Existing separate agent contexts are reused for subsequent roles. Planning and checking remain in different contexts; role-specific new agent creation is unavailable. GSD isolation negotiation reported `head-diverged-from-fork` after planning commits, so execution is sequential in this existing worktree; the resolved mode was recorded as `none`. No branch was switched and no unrelated worktree was altered.

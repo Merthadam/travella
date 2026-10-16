@@ -92,14 +92,14 @@ Deferred booking graph/payment/supplier handoff, initial-chat tools, autonomous 
 
 ## Wave 0 Requirements
 
-- [ ] Restore frontend lockfile dependencies; no new package required.
-- [ ] Create focused Canvas travel fixture module with injected SDK worker and TravelClient spy; provider calls forbidden unless test explicitly expects them.
-- [ ] Create deterministic date evidence fixtures with frozen/current-relative dates and current/recent traveler roles; include conflicting current messages and malicious assistant/provider text.
-- [ ] Add token-free flight/stay fixtures with more than three options, material terms, unavailable prices, excluded taxes, estimated totals and nested secret sentinels.
-- [ ] Add strict public schema and UI fixtures for ready, empty, loading, failed, interrupted, superseded, stale and expired behavior. Final enum names must come from implementation contract, not this prose.
-- [ ] Add snapshot isolation tests across Plan/identity, duplicate IDs, invalid byte sizes and wrong mode.
-- [ ] Test nested projection/checkpoint serialization and process receipt payloads; assert no token/raw payload. Transient result data must not become durable checkpoint state.
-- [ ] Include legacy activity and sandbox checkout tests in phase regression commands; preserve their existing behavior.
+- [x] Restore frontend lockfile dependencies; no new package required.
+- [x] Create focused Canvas travel fixture module with injected SDK worker and TravelClient spy; provider calls forbidden unless test explicitly expects them.
+- [x] Create deterministic date evidence fixtures with frozen/current-relative dates and current/recent traveler roles; include conflicting current messages and malicious assistant/provider text.
+- [x] Add token-free flight/stay fixtures with more than three options, material terms, unavailable prices, excluded taxes, estimated totals and nested secret sentinels.
+- [x] Add strict public schema and UI fixtures for ready, empty, loading, failed, interrupted, superseded, stale and expired behavior. Final enum names come from implementation.
+- [x] Add snapshot isolation tests across Plan/identity, duplicate IDs, invalid byte sizes and wrong mode.
+- [x] Test nested projection/checkpoint serialization and process receipt payloads; assert no token/raw payload. Transient result data must not become durable checkpoint state.
+- [x] Include legacy activity and sandbox checkout tests in phase regression commands; preserve their existing behavior.
 
 ## Manual Browser Verification
 
