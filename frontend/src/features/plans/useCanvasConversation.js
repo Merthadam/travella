@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
-import { canvasEditResultSchema } from '../../design-system/a2ui/ActivitySuggestions';
+import { canvasTravelResultSchema as canvasEditResultSchema, travelState } from './travel/CanvasTravel';
 
 export function useCanvasConversation({ selected, api, data, blocked, onExpired, onAdd, onBusyChange }) {
   const [messages, setMessages] = useState([]);
@@ -10,6 +10,9 @@ export function useCanvasConversation({ selected, api, data, blocked, onExpired,
   const [active, setActive] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [travelSnapshots, setTravelSnapshots] = useState({});
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 10000); return () => clearInterval(timer); }, []);
   const runRef = useRef(null);
   const epoch = useRef(0);
   const callbacks = useRef(null); callbacks.current = { onExpired, onAdd, onBusyChange };
@@ -19,6 +22,7 @@ export function useCanvasConversation({ selected, api, data, blocked, onExpired,
   useEffect(() => {
     const generation = ++epoch.current;
     setMessages([]); setLoading(true); setHistoryError(''); setError(''); setSuggestions([]); setActive(false);
+    setTravelSnapshots({});
     api.conversationMessages(selected).then(items => {
       if (generation !== epoch.current) return;
       setMessages((Array.isArray(items) ? items : []).map((item, index) => ({ ...item, message_id: item.message_id || `history-${index}`, content: String(item.content || '') })));
@@ -57,12 +61,14 @@ export function useCanvasConversation({ selected, api, data, blocked, onExpired,
       if (['error', 'interrupted'].includes(terminal.status)) throw new Error(terminal.message || 'The reply could not finish. Your draft is safe.');
       if (terminal.status === 'stopped') { update(assistantId, { status: 'stopped' }); return false; }
       if (!pending) throw new Error('The reply ended without a complete update. Your draft is unchanged.');
+      if (pending.travel.some(item => item.plan_id !== selected.plan_id)) throw new Error('Travel results are unavailable for this Plan.');
       const known = new Map([...current.suggestions, ...pending.suggestions].map(place => [place.id, place]));
       const additions = pending.add_ids.map(placeId => known.get(placeId));
       if (additions.some(place => !place)) throw new Error('An unrecognized place update was rejected. Your draft is unchanged.');
       if (additions.length && !callbacks.current.onAdd(additions, JSON.stringify(draft))) throw new Error('Your draft changed during the reply. Review the suggestions and add them again.');
       if (pending.suggestions.length) setSuggestions(pending.suggestions);
-      update(assistantId, { status: 'complete', suggestions: pending.suggestions, resultArea: pending.area });
+      if (pending.travel.length) setTravelSnapshots(previous => Object.fromEntries([...Object.entries(previous), ...pending.travel.map(item => [item.search_id, structuredClone(item)])].slice(-6)));
+      update(assistantId, { status: 'complete', suggestions: pending.suggestions, resultArea: pending.area, travel: pending.travel });
       return true;
     } catch (err) {
       if (runRef.current !== run || epoch.current !== run.epoch) return false;
@@ -86,5 +92,5 @@ export function useCanvasConversation({ selected, api, data, blocked, onExpired,
     catch { if (epoch.current === run.epoch) setError('The reply stopped locally. Cancellation could not be confirmed; retry in a moment.'); }
     finally { if (epoch.current === run.epoch) { setActive(false); callbacks.current.onBusyChange?.(false); } }
   }
-  return { messages, loading, historyError, error, active, suggestions, send, stop, retryHistory: () => setHistoryVersion(value => value + 1) };
+  return { messages, loading, historyError, error, active, suggestions, send, stop, travelSnapshots, travelReason: snapshot => travelState(snapshot, data, clock), retryHistory: () => setHistoryVersion(value => value + 1) };
 }

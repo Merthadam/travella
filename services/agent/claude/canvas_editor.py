@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -17,6 +18,8 @@ from ..turn import TurnContext, load_prompt
 from .chat_stream import ChatAnswerStream
 from .research_result import StrictResult
 from .runtime import ClaudeSdkRuntime, ResearchWorkerError, _deny
+from .canvas_travel import CanvasTravelObserver, TravelSelection
+from ..request_context import collect_travel_results
 
 
 class PlaceSelection(StrictResult):
@@ -30,6 +33,7 @@ class EditorAnswer(StrictResult):
     suggestions: list[PlaceSelection] = Field(max_length=5)
     add_ids: list[str] = Field(max_length=5)
     addition_quote: str = Field(max_length=2000)
+    travel: list[TravelSelection] = Field(default_factory=list, max_length=2)
 
 
 def _explicit_addition(message: str, quote: str) -> bool:
@@ -174,7 +178,24 @@ class ClaudeSdkCanvasEditor:
         area = MapArea.model_validate(canvas_edit["area"]) if canvas_edit.get("area") else None
         observer = _MapsObserver(self.maps_client or MapsClient(), bounded, authorization_token,
                                  draft, suggestions, area)
-        answer_stream = ChatAnswerStream(on_text_delta, observer)
+        from ..travel_client import TravelClient
+        travel = CanvasTravelObserver(TravelClient(), context, authorization_token, draft, message,
+                                     time.monotonic() + min(120, self.config.timeout_seconds))
+        # Travel prose is host-authored after validated completion. Activity streaming stays unchanged.
+        answer_stream = ChatAnswerStream(None if travel.active else on_text_delta, observer)
+        if travel.active and travel.question:
+            if on_text_delta:
+                await on_text_delta(travel.question)
+            return {"status": "needs your input", "assistant_text": travel.question, "question": travel.question,
+                    "canvas_edit_result": CanvasEditResult().model_dump(exclude={"travel"}), "state_changes": []}
+
+        async def tool_guard(data, tool_use_id, hook_context):
+            name = data.get("tool_name", "")
+            if name in {f"mcp__travel__{value}" for value in travel.names}:
+                return {} if travel.active and not travel.question else _deny()
+            if name == "Skill" and data.get("tool_input", {}).get("skill") == "canvas-travel":
+                return {}
+            return await observer.before(data, tool_use_id, hook_context)
         addition_allowed = _explicit_addition(message, message)
         payload = {
             "current_date_utc": datetime.now(UTC).date().isoformat(),
@@ -194,11 +215,12 @@ class ClaudeSdkCanvasEditor:
                                                    budget=min(0.5, self.config.max_budget_usd))
                     options.system_prompt = load_prompt("canvas-editing-v1")
                     options.tools = ["Skill"]
-                    options.allowed_tools = ["Skill", *[f"mcp__maps__{name}" for name in sorted(observer.names)]]
-                    options.skills = ["canvas-activities"]
+                    options.allowed_tools = ["Skill", *[f"mcp__maps__{name}" for name in sorted(observer.names)],
+                                             *[f"mcp__travel__{name}" for name in sorted(travel.names)]]
+                    options.skills = ["canvas-activities", "canvas-travel"]
                     options.setting_sources = ["project"]
-                    options.mcp_servers = {"maps": observer.server()}
-                    options.hooks = {"PreToolUse": [HookMatcher(hooks=[observer.before])]}
+                    options.mcp_servers = {"maps": observer.server(), "travel": travel.server()}
+                    options.hooks = {"PreToolUse": [HookMatcher(hooks=[tool_guard])]}
                     options.max_turns = min(8, self.config.max_turns)
                     options.include_partial_messages = True
                     schema = EditorAnswer.model_json_schema()
@@ -216,11 +238,22 @@ class ClaudeSdkCanvasEditor:
                     if reply.add_ids and not _explicit_addition(message, reply.addition_quote):
                         raise ResearchWorkerError("canvas_addition_not_requested")
                     output = CanvasEditResult(suggestions=projected, add_ids=reply.add_ids, area=observer.area)
-                    await answer_stream.finish(reply.answer)
+                    bundles = travel.selected(reply.travel)
+                    answer = reply.answer
+                    if travel.active:
+                        answer = ("We couldn’t load stays. Try again from Plan chat. Your draft is unchanged." if travel.failure else
+                                  "Here are stay options for your exact search dates. Nothing has been saved or booked." if any(x["results"] for x in bundles) else
+                                  "No stays found. Try different dates or a different destination in Plan chat." if bundles else
+                                  "Ask me to search stays using your exact dates and room details.")
+                        if on_text_delta:
+                            await on_text_delta(answer)
+                    else:
+                        await answer_stream.finish(answer)
+                    collect_travel_results(bundles)
                     logging.getLogger(__name__).info("canvas_editor_usage calls=1 cost_usd=%s maps_calls=%s", result.total_cost_usd, observer.calls)
                     return {"status": "needs your input" if reply.needs_input else "in_progress",
-                            "assistant_text": reply.answer, "question": reply.answer if reply.needs_input else None,
-                            "canvas_edit_result": output.model_dump(), "state_changes": []}
+                            "assistant_text": answer, "question": answer if reply.needs_input else None,
+                            "canvas_edit_result": output.model_dump(exclude={"travel"}), "state_changes": []}
         except asyncio.CancelledError:
             raise
         except Exception as error:

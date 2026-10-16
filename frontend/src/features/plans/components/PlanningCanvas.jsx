@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TravelSearch, useTravelCapabilities } from '../travel/TravelSearch';
+import { TravelResults } from '../travel/CanvasTravel';
 import { useFlightBookingSync } from '../travel/useFlightBookingSync';
 import { CanvasSurface } from '../../../design-system/a2ui/CanvasSurface';
 import { ids } from '../../../design-system/schemas';
@@ -38,6 +39,41 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const [searchArea, setSearchArea] = useState(null);
   const generated = useRef(false);
   const [screen, setScreen] = useState(null);
+  const [travelResultId, setTravelResultId] = useState(null);
+  const resultReturnFocus = useRef(null);
+  const resultsOpen = useRef(false);
+  const resultsPath = useRef('');
+  function restorePlanChat() {
+    resultsOpen.current = false; setScreen(null); setTravelResultId(null); setChatOpen(true); setMobileView('chat');
+    requestAnimationFrame(() => {
+      const button = [...document.querySelectorAll('[data-travel-search]')].find(el => el.dataset.travelSearch === resultReturnFocus.current);
+      (button || chatCollapseButton.current)?.focus();
+    });
+  }
+  function openTravelResults(searchId) {
+    const snapshot = chat.travelSnapshots[searchId];
+    if (!snapshot || snapshot.plan_id !== selected.plan_id || chat.travelReason(snapshot)) return;
+    resultReturnFocus.current = searchId; resultsOpen.current = true; resultsPath.current = location.pathname;
+    history.pushState({ ...history.state, canvasTravelView: 'results', canvasTravelId: searchId }, '', location.href);
+    setTravelResultId(searchId); setScreen('travel-results'); setMobileView('canvas');
+  }
+  function closeTravelResults() { if (history.state?.canvasTravelView === 'results') history.back(); else restorePlanChat(); }
+  useEffect(() => {
+    function pop(event) {
+      if (resultsOpen.current && location.pathname === resultsPath.current) {
+        event.stopImmediatePropagation(); restorePlanChat();
+      } else if (event.state?.canvasTravelView === 'results') {
+        event.stopImmediatePropagation(); resultsOpen.current = true; resultsPath.current = location.pathname;
+        setTravelResultId(event.state.canvasTravelId); setScreen('travel-results'); setMobileView('canvas');
+      }
+    }
+    if (history.state?.canvasTravelView === 'results') {
+      resultsOpen.current = true; resultsPath.current = location.pathname;
+      setTravelResultId(history.state.canvasTravelId); setScreen('travel-results'); setMobileView('canvas');
+    }
+    window.addEventListener('popstate', pop, true);
+    return () => window.removeEventListener('popstate', pop, true);
+  }, [selected.plan_id]);
   useFlightBookingSync(selected.plan_id, !screen && !canvas.loading && Boolean(canvas.data), canvas.updateMockBooking);
   const travel = useTravelCapabilities(selected.plan_id, onExpired);
   const [visitedTravel, setVisitedTravel] = useState({});
@@ -153,7 +189,8 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
       {!screen && !busy && canvas.notice && <p className="canvas-notice" role="status">{canvas.notice}</p>}
       {canvas.data && <div className="canvas-group-actions" aria-label="Generate individual plan sections">{['themes', 'research'].map(group => <div key={group}><span>{group === 'themes' ? 'Themes & preferences' : 'Research & websites'}</span><button type="button" className="ds-text-button" disabled={busy || canvas.editing} onClick={() => generate(group)}>{canvas.groups[group] === 'error' ? 'Retry' : 'Regenerate'}</button>{canvas.groups[group] === 'error' && <small role="status">Couldn’t finish. Completed details are still here.</small>}</div>)}</div>}
       {travel.error && <p role="alert" className="canvas-error">{travel.error} <button className="ds-button" onClick={travel.retry}>Retry travel connection</button></p>}
-      {screen && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus onClick={() => { travelReturnFocus.current = screen; setScreen(null); }}>← Back to canvas</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([, , key]) => travel.capabilities?.[key]).map(([mode, label]) => <button key={mode} aria-pressed={screen === mode} onClick={() => { setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); }}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
+      {screen === 'travel-results' && <TravelResults snapshot={chat.travelSnapshots[travelResultId]} reason={chat.travelReason(chat.travelSnapshots[travelResultId])} onBack={closeTravelResults}/>}
+      {screen && screen !== 'travel-results' && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus onClick={() => { travelReturnFocus.current = screen; setScreen(null); }}>← Back to canvas</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([, , key]) => travel.capabilities?.[key]).map(([mode, label]) => <button key={mode} aria-pressed={screen === mode} onClick={() => { setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); }}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
       {['accommodation', 'flights'].filter(mode => visitedTravel[mode]).map(mode => <TravelSearch key={`${selected.plan_id}-${mode}`} planId={selected.plan_id} mode={mode} active={screen === mode} initialData={canvas.data} onExpired={onExpired} onBookingResult={canvas.updateMockBooking}/>)}
       {canvas.renderData && <div hidden={Boolean(screen)}><CanvasMapContext.Provider value={{ preview, destinationHint: canvas.mapDestinationHint, onClearPreview: () => setPreview(null), onSearchArea: searchMapArea, onAddPreview: place => canvas.addActivities([place]), disabled: busy || canvas.data.map.pins.length >= 50 }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placePhoto={CanvasPlacePhoto} placePreview={preview} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider></div>}
       <dialog className="canvas-confirm" ref={dialog} aria-labelledby="canvas-confirm-title" onCancel={event => { event.preventDefault(); setConfirm(null); }}>
@@ -162,7 +199,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
         <div><button type="button" className="ds-button" autoFocus onClick={() => setConfirm(null)}>Keep editing</button><button type="button" className="ds-button primary" onClick={confirmed}>{confirm?.kind === 'generate' ? 'Replace draft sections' : confirm?.kind === 'reload' ? 'Load saved plan' : 'Leave canvas'}</button></div>
       </dialog>
     </div>
-    <div id="plan-chat-panel" className="canvas-chat-panel" hidden={Boolean(screen) || !chatOpen}><CanvasConversation collapseRef={chatCollapseButton} visible={chatOpen && !screen} chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={collapseChat} onPreview={showPlace} onAdd={canvas.addActivities} area={searchArea} onClearArea={() => setSearchArea(null)}/></div>
+    <div id="plan-chat-panel" className="canvas-chat-panel" hidden={Boolean(screen) || !chatOpen}><CanvasConversation collapseRef={chatCollapseButton} visible={chatOpen && !screen} chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={collapseChat} onPreview={showPlace} onAdd={canvas.addActivities} area={searchArea} onClearArea={() => setSearchArea(null)} onOpenTravel={openTravelResults}/></div>
     {!chatOpen && !screen && <div className="canvas-chat-rail"><button ref={chatReopenButton} type="button" className="canvas-chat-expand" aria-label="Expand plan chat" title="Expand plan chat" aria-controls="plan-chat-panel" aria-expanded={false} onClick={openChat}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 4v16m15-8H8m5-5-5 5 5 5"/></svg><span>Chat</span>{chat.active && <span className="canvas-chat-rail-status" aria-label="Travella is replying"/>}</button></div>}
     </div>
   </main>;
