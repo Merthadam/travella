@@ -184,12 +184,12 @@ CLARIFICATIONS = {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATIO
 def clarification_history(context):
     """Reuse evidence only while answering our most recent focused clarification."""
     history = context.recent_messages[-12:]
-    if not history or history[-1].get("role") != "assistant" or history[-1].get("content") not in CLARIFICATIONS:
+    if not history or history[-1].get("role") != "assistant" or clarification_completed_modes(history[-1].get("content")) is None:
         return []
     output = []
     for index, item in reversed(list(enumerate(history))):
         if item.get("role") == "assistant":
-            if item.get("content") not in CLARIFICATIONS:
+            if clarification_completed_modes(item.get("content")) is None:
                 break
         elif item.get("role") == "user":
             output.append((index, item.get("content", "")))
@@ -341,6 +341,47 @@ AIRPORT_QUESTION = "Which departure and destination airports should I use? Reply
 CLARIFICATIONS.update({FLIGHT_DATE_QUESTION, FLIGHT_PARTY_QUESTION, FLIGHT_COUNTRY_QUESTION, AIRPORT_QUESTION})
 
 
+def clarification_completed_modes(content):
+    """Recognize only complete fixed host replies, never an arbitrary quoted prefix.
+
+    A mixed reply may ask one mode's question while publishing the other mode.
+    Retain the traveler inputs for that clarification, but don't search the already
+    completed mode again unless the new traveler message explicitly requests it.
+    """
+    if content in CLARIFICATIONS:
+        return set()
+    questions = {"stays": {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION},
+                 "flights": {FLIGHT_DATE_QUESTION, FLIGHT_PARTY_QUESTION, FLIGHT_COUNTRY_QUESTION, AIRPORT_QUESTION}}
+    statements = {mode: [*values,
+        f"Here are {mode} options for your exact search dates.",
+        f"No {mode} found. Try different dates or a different destination in Plan chat.",
+        f"We couldn’t load {mode}. Try again from Plan chat. Your draft is unchanged."]
+        for mode, values in questions.items()}
+    for stay in statements["stays"]:
+        for flight in statements["flights"]:
+            lines = {"stays": stay, "flights": flight}
+            pending = {mode for mode, line in lines.items() if line in questions[mode]}
+            if not pending:
+                continue
+            suffix = " Nothing has been saved or booked." if any(line.startswith("Here are ") for line in lines.values()) else ""
+            if content == stay + " " + flight + suffix:
+                return set(lines) - pending
+    return None
+
+
+def completed_clarification_modes(context):
+    completed = set()
+    for item in reversed(context.recent_messages[-12:]):
+        if item.get("role") == "assistant":
+            modes = clarification_completed_modes(item.get("content"))
+            if modes is None:
+                break
+            completed.update(modes)
+        elif item.get("role") != "user":
+            break
+    return completed
+
+
 class FlightInputs(FlightSearch):
     """Validate non-location inputs before resolving explicitly requested airports."""
     origin: str = Field(min_length=2, max_length=80)
@@ -423,7 +464,9 @@ class CanvasTravelObserver:
         self._tool_lock = asyncio.Lock()
         self.active = travel_intent(message, context)
         intent = " ".join([text for _, text in clarification_history(context)] + [message])
-        self.modes = [mode for mode, pattern in [("stays", r"\b(?:stays?|hotels?|accommodation)\b"), ("flights", r"\bflights?\b")] if re.search(pattern, intent, re.I)] or ["stays"]
+        completed = completed_clarification_modes(context) if clarification_history(context) else set()
+        self.modes = [mode for mode, pattern in [("stays", r"\b(?:stays?|hotels?|accommodation)\b"), ("flights", r"\bflights?\b")]
+                      if re.search(pattern, intent, re.I) and (mode not in completed or re.search(pattern, message, re.I))] or ["stays"]
         self.mode = self.modes[0]
         self.question, self.failure = None, False
         self.criteria_by_mode, self.evidence_by_mode, self.questions, self.failures = {}, {}, {}, set()
@@ -472,6 +515,8 @@ class CanvasTravelObserver:
         try:
             if name not in self.names or arguments:
                 raise ValueError("travel_tool_forbidden")
+            if mode not in self.modes:
+                raise ValueError("travel_mode_not_requested")
             if mode not in self.criteria_by_mode:
                 raise Clarification(self.questions.get(mode, "Ask for this travel mode with complete search details first."))
             if mode in self.failures:
