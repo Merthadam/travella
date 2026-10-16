@@ -357,6 +357,35 @@ def test_invalid_stay_currency_clarifies_without_provider_and_can_recover(monkey
     assert bundles(second)[0]['criteria']['currency']=='USD'
 
 
+@pytest.mark.parametrize('message,modes',[(MESSAGE,('stays',)),(FLIGHT_MESSAGE,('flights',))])
+@pytest.mark.parametrize('bad_dates',['same_day','past'])
+def test_invalid_canvas_dates_keep_inputs_for_exact_date_followup(monkeypatch,message,modes,bad_dates):
+    history=Conversation();app,pid,_,provider,_,_=make_app(monkeypatch,context_reader=history,modes=modes)
+    original=components()
+    original['essentials']['dates'].update(start=END if bad_dates=='same_day' else '2020-01-01',end=END if bad_dates=='same_day' else '2020-01-08')
+    with TestClient(app) as c:
+        first=post(c,pid,original,message)
+        assert terminal(first)['status']=='needs your input' and not provider.calls
+        second=post(c,pid,original,f'{START} to {END}')
+    assert terminal(second)['status']=='complete',second.text
+    assert bundles(second)[0]['mode']==modes[0] and bundles(second)[0]['search_only_dates']
+    assert len(provider.calls)==2
+
+
+@pytest.mark.parametrize('message,correction,mode',[
+    (MESSAGE.replace('2 adults','7 adults'),'1 room for 2 adults','stays'),
+    (FLIGHT_MESSAGE.replace('origin: BUD','origin: LIS'),'origin: BUD','flights'),
+])
+def test_fixed_input_validation_question_keeps_other_traveler_inputs(monkeypatch,message,correction,mode):
+    history=Conversation();app,pid,_,provider,_,_=make_app(monkeypatch,context_reader=history,modes=(mode,))
+    with TestClient(app) as c:
+        first=post(c,pid,message=message)
+        assert terminal(first)['status']=='needs your input' and not provider.calls
+        second=post(c,pid,message=correction)
+    assert terminal(second)['status']=='complete',second.text
+    assert bundles(second)[0]['mode']==mode and len(provider.calls)==2
+
+
 @pytest.mark.parametrize('failure',['exception','malformed','unavailable'])
 def test_provider_failure_is_sanitized_without_cards(monkeypatch,failure):
     class Failed(Provider):

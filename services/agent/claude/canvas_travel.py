@@ -179,7 +179,9 @@ ROOM_QUESTION = "How many adults and children will stay in each room? For adults
 NATIONALITY_QUESTION = "What is the guests’ nationality for this search? Reply nationality: country."
 DESTINATION_QUESTION = "Which city and country should I search? Reply destination: city, country."
 CURRENCY_QUESTION = "Which currency should I use for stays? Reply currency: EUR, USD, GBP, HUF, CAD, AUD, JPY or CHF."
-CLARIFICATIONS = {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION, CURRENCY_QUESTION}
+INVALID_DATE_QUESTION = "Those dates don’t form a valid trip. What exact start and end dates should I use?"
+STAY_INPUT_QUESTION = "Please check your dates, room allocation and guest nationality before searching again."
+CLARIFICATIONS = {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION, CURRENCY_QUESTION, INVALID_DATE_QUESTION, STAY_INPUT_QUESTION}
 
 
 def clarification_history(context):
@@ -254,7 +256,7 @@ def resolve_dates(message, context, draft, maximum=30):
     try:
         validate_dates(date.fromisoformat(facts["start"]), date.fromisoformat(facts["end"]), maximum)
     except ValueError:
-        raise Clarification("Those dates don’t form a valid trip. What exact start and end dates should I use?") from None
+        raise Clarification(INVALID_DATE_QUESTION) from None
     return facts["start"], facts["end"], {"source": "canvas", "fields": ["essentials.dates.start", "essentials.dates.end"], "normalized": [facts["start"], facts["end"]]}
 
 
@@ -333,20 +335,21 @@ def stay_criteria(message, context, draft):
         criteria = HotelSearch(destination={"city": parts[0].strip(), "country_code": code},
                                check_in=start, check_out=end, rooms=rooms, guest_nationality=nationality, currency=currency)
     except ValueError:
-        raise Clarification("Please check your dates, room allocation and guest nationality before searching again.") from None
+        raise Clarification(STAY_INPUT_QUESTION) from None
     return criteria, evidence
 
 
 def travel_intent(message, context):
     return bool(re.search(r"\b(?:stays?|hotels?|accommodation|flights?|nationality|check-in|check-out|rooms?)\b", message, re.I)
-                or clarification_history(context) and (DATE_CUE.search(message) or re.search(r"\b(?:adults?|children|nationality|citizenship|destination|currency)\b", message, re.I)))
+                or clarification_history(context) and (DATE_CUE.search(message) or re.search(r"\b(?:adults?|children|nationality|citizenship|destination|currency|origin|passengers|cabin|country of sale)\b", message, re.I)))
 
 
 FLIGHT_PARTY_QUESTION = "How many adults, children and infants are flying? Reply passengers: 2 adults, and include every child’s and infant’s age."
 FLIGHT_DATE_QUESTION = "What are your departure and return dates, including the year?"
 FLIGHT_COUNTRY_QUESTION = "Which country should be used for flight pricing? Reply flight country: country. This is separate from guest nationality."
 AIRPORT_QUESTION = "Which departure and destination airports should I use? Reply origin: airport code; destination airport: airport code."
-CLARIFICATIONS.update({FLIGHT_DATE_QUESTION, FLIGHT_PARTY_QUESTION, FLIGHT_COUNTRY_QUESTION, AIRPORT_QUESTION})
+FLIGHT_INPUT_QUESTION = "Please check the distinct airports, passenger ages, flight country and travel dates before searching again."
+CLARIFICATIONS.update({FLIGHT_DATE_QUESTION, FLIGHT_PARTY_QUESTION, FLIGHT_COUNTRY_QUESTION, AIRPORT_QUESTION, FLIGHT_INPUT_QUESTION})
 
 
 def clarification_completed_modes(content):
@@ -358,8 +361,8 @@ def clarification_completed_modes(content):
     """
     if content in CLARIFICATIONS:
         return set()
-    questions = {"stays": {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION, CURRENCY_QUESTION},
-                 "flights": {FLIGHT_DATE_QUESTION, FLIGHT_PARTY_QUESTION, FLIGHT_COUNTRY_QUESTION, AIRPORT_QUESTION}}
+    questions = {"stays": {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION, CURRENCY_QUESTION, INVALID_DATE_QUESTION, STAY_INPUT_QUESTION},
+                 "flights": {FLIGHT_DATE_QUESTION, FLIGHT_PARTY_QUESTION, FLIGHT_COUNTRY_QUESTION, AIRPORT_QUESTION, INVALID_DATE_QUESTION, FLIGHT_INPUT_QUESTION}}
     statements = {mode: [*values,
         f"Here are {mode} options for your exact search dates.",
         f"No {mode} found. Try different dates or a different destination in Plan chat.",
@@ -431,7 +434,7 @@ def flight_criteria(message, context, draft):
     try:
         return FlightInputs(**fields, **party, departure_date=start, return_date=end), evidence
     except ValueError:
-        raise Clarification("Please check the distinct airports, passenger ages, flight country and travel dates before searching again.") from None
+        raise Clarification(FLIGHT_INPUT_QUESTION) from None
 
 
 def safe_flight(raw, criteria):
