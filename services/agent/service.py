@@ -418,8 +418,7 @@ class AgentTurnService:
             yield self._sse({"type": "TEXT_MESSAGE_START", "messageId": message_id, "role": "assistant"})
             while True:
                 if await is_disconnected() and not task.done():
-                    state["reason"] = state["reason"] or "interrupted"
-                    task.cancel()
+                    self._cancel_stream(state, "interrupted")
                 try:
                     item = await asyncio.wait_for(queue.get(), timeout=0.05)
                 except TimeoutError:
@@ -446,24 +445,37 @@ class AgentTurnService:
                     yield self._sse({"type": "TERMINAL", **value})
                     yield self._sse({"type": "RUN_FINISHED", "threadId": str(request.plan_id), "runId": request.event_id})
         except asyncio.CancelledError:
-            if not task.done():
-                state["reason"] = state["reason"] or "interrupted"
-                task.cancel()
+            self._cancel_stream(state, "interrupted")
             raise
         finally:
-            if not task.done():
-                state["reason"] = state["reason"] or "interrupted"
-                task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-            self._active_streams.pop(key, None)
+            self._cancel_stream(state, "interrupted")
+            # An ASGI disconnect can cancel the streaming consumer too. It must
+            # not propagate another cancellation into SDK/context-lease cleanup.
+            try:
+                await asyncio.shield(task)
+            finally:
+                if task.done():
+                    self._active_streams.pop(key, None)
+                else:
+                    task.add_done_callback(lambda _: self._active_streams.pop(key, None))
+
+    @staticmethod
+    def _cancel_stream(state: dict[str, Any], reason: str) -> bool:
+        task = state.get("task")
+        if not task or task.done() or state.get("committing"):
+            return False
+        if reason == "stopped" or not state.get("reason"):
+            state["reason"] = reason
+        # Cancellation is a transition, not a polling operation. Repeated
+        # task.cancel() interrupts the cleanup which releases the durable lease.
+        if not state.get("cancel_requested"):
+            state["cancel_requested"] = True
+            task.cancel()
+        return True
 
     async def cancel(self, subject: str, plan_id: str, event_id: str) -> bool:
         state = self._active_streams.get((subject, plan_id, event_id))
-        if not state or not state.get("task") or state["task"].done() or state.get("committing"):
-            return False
-        state["reason"] = "stopped"
-        state["task"].cancel()
-        return True
+        return self._cancel_stream(state, "stopped") if state else False
 
     async def _persist_partial(
         self,
