@@ -320,9 +320,9 @@ These are proposed engineering choices within the user's delegated discretion; r
 
 ## Open Questions
 
-1. **Finalize discretionary numeric bounds with AI/UI contracts.** No provider freshness guarantee was researched. A UI expiry is a local safety policy, not live inventory truth. [ASSUMED: A4]
-2. **Checkpoint invocation reality.** The builder accepts a checkpointer, while the public result contains transient data and the helper's projection copy is shallow. Inspect the exact configured production saver path before deciding which exclusion seam to change; test actual serialization if configured. Do not claim top-level helper tests establish full persistence safety. [CITED: services/agent/graph/builder.py:28-42; services/agent/checkpoint.py:31-35]
-3. **Live verification.** Health returned HTTP 200 but source-hash, authenticated Chrome, model discovery and live inventory checks were not executed by research. Carry explicit unverified status until execution provides evidence. [VERIFIED: research execution record]
+1. **Resolved — discretionary numeric bounds.** Plans and AI contract use ten-minute UI expiry, five total travel calls (one capability, two lookups, two searches), and at most131072 serialized UTF-8 bytes per snapshot. This is a local policy, not a provider guarantee. [ASSUMED: A4; CITED: 16-01-PLAN.md]
+2. **Resolved — checkpoint seam.** Current create_app constructs AgentGraph without a saver; the builder accepts an optional saver. Plan16-01 keeps the new result bundle/provenance in a request-scoped ContextVar collector outside graph channels and attaches the safe public bundle after graph completion; defensive nested projection exclusion and serialization tests are required. No new saver infrastructure is enabled. [CITED: services/agent/app.py:67; services/agent/graph/builder.py:28-42; 16-01-PLAN.md]
+3. **Execution gate, not unresolved design — live verification.** Root captured and inspected authenticated preimplementation evidence and restored frontend dependencies after research. Actual feature/model/provider verification belongs to root's Plan16-03 browser task and remains pending; it does not block plan authoring. [CITED: artifacts/testing/2026-10-16-travel-previews/verification.md; 16-03-PLAN.md]
 
 ## Sources
 

@@ -414,11 +414,22 @@ Plans:
 
 ### Phase 16: Date-gated travel previews and booking navigation
 
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 15
-**Plans:** 0 plans
+**Goal:** Travelers use Planning Canvas chat to search real flight and accommodation options after supplying exact dates, review three validated A2UI previews, and explicitly open matching full results without starting a booking.
+**Requirements**: TRAVEL-16-01, TRAVEL-16-02, TRAVEL-16-03, TRAVEL-16-04, TRAVEL-16-05, TRAVEL-16-06, TRAVEL-16-07
+**Depends on:** Phase 15 implementation and existing private travel search endpoints; older unrelated verification debt stays open.
+**Scope:** Canvas chat only; existing styling; bounded read-only tools and agent skill; exact-date prerequisite; three previews; results-only navigation. Separate booking LangGraph flow is deferred.
+**Success Criteria:**
+
+1. The agent asks for missing exact dates/required inputs and makes no invalid provider search.
+2. Valid searches return observed, token-free flight/stay previews with honest provider, price, date, terms and sandbox labels.
+3. A View all action opens matching full results and Back preserves the unsaved canvas and chat.
+4. Empty/failure/cancellation/changed-criteria/expired states never masquerade as current successful searches or bookings.
+5. Automated boundary/regression tests and authenticated Chrome desktop/mobile evidence verify the journey.
+
+**Plans:** 0/3 plans executed in 3 sequential waves.
 
 Plans:
 
-- [ ] TBD (run $gsd-plan-phase 16 to break down)
+- [ ] 16-01-PLAN.md — Exact-date stays from Canvas chat to grounded previews and matching read-only results
+- [ ] 16-02-PLAN.md — Return-flight and mixed-mode search with honest prices, terms and shared bounds
+- [ ] 16-03-PLAN.md — Lifecycle/privacy evaluation, regressions and root-run authenticated Chrome evidence

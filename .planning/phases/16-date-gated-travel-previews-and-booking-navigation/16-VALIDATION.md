@@ -23,7 +23,53 @@ This is the implementation validation contract. Only the baseline run below has 
 | Full frontend | `npm --prefix frontend test` and `npm --prefix frontend run build` |
 | New focused tests | `uv run --locked pytest services/agent/tests/test_canvas_travel.py -q` (proposed file; create in Wave 0) |
 
-Default pytest testpaths omit Agent/MCP; explicit paths are required. Frontend dependencies were absent at research time: restore with `npm --prefix frontend ci` before invoking frontend tests.
+Default pytest testpaths omit Agent/MCP; explicit paths are required. Frontend dependencies were absent at research time; root subsequently completed `npm ci --prefix frontend`. Execution still checks/restores the lockfile environment before frontend tests.
+
+## Plan Assignment and Baseline
+
+Research/validation baseline commit: `b2b4157` (31 targeted tests passed before implementation). The approved sketch and inspected root Chrome captures are recorded in `artifacts/testing/2026-10-16-travel-previews/verification.md`. These are not Phase16 production verification.
+
+| Plan/task | Scope | Required automated gate |
+|---|---|---|
+| 16-01-01 | Stay end-to-end tracer | `uv run --locked pytest services/agent/tests/test_canvas_travel.py -k stay_journey -q` plus boundary tests |
+| 16-01-02 | Focused clarification/exact search-only dates | Date/provenance and stay journey tests; existing PlanningCanvas regressions |
+| 16-02-01 | Flight end-to-end tracer | `uv run --locked pytest services/agent/tests/test_canvas_travel.py -k flight_journey -q` plus strict flight rendering |
+| 16-02-02 | Mixed-mode/bounds/provider honesty | Both journey variants and existing travel/sandbox tests |
+| 16-03-01 | Stop/stale/reload/Back journey | Barrier race tests and browser-history/criteria/expiry component tests |
+| 16-03-02 | Authority/privacy/evals/regressions | E01–E20, complete targeted backend regressions, frontend suite/build |
+| 16-03-03 | Root-owned authenticated Chrome evidence | Required actual interactions/inspection plus artifact presence check; no fixture/live conflation |
+
+The cross-boundary journey test uses actual FastAPI/graph/editor-produced SSE, real plansApi stream parsing and React/A2UI rendering, with only external SDK/provider/network dependencies injected. It is deterministic application wiring evidence; it cannot establish real model behavior or live inventory. Root performs browser task once after executor handoff.
+
+## Multi-Source Coverage Audit
+
+| Source | Item | Plans | Status |
+|---|---|---|---|
+| GOAL | Canvas exact-date flight/stay previews and matching results without booking | 16-01,16-02,16-03 | COVERED |
+| REQ | TRAVEL-16-01 Canvas-only bounded Plan-authorized private tools | 16-01,16-02,16-03 | COVERED |
+| REQ | TRAVEL-16-02 exact grounded dates/inputs and no mutation | 16-01,16-02,16-03 | COVERED |
+| REQ | TRAVEL-16-03 packaged allowlisted skill and no checkout | 16-01,16-02,16-03 | COVERED |
+| REQ | TRAVEL-16-04 at most three observed honest previews | 16-01,16-02,16-03 | COVERED |
+| REQ | TRAVEL-16-05 matching results, preserved Back, honest reload | 16-01,16-02,16-03 | COVERED |
+| REQ | TRAVEL-16-06 all lifecycle/error/stale states | 16-01,16-02,16-03 | COVERED |
+| REQ | TRAVEL-16-07 tests, Chrome evidence and honest unavailable checks | 16-01,16-03 | COVERED |
+| CONTEXT | D-01 Canvas-only | 16-01,16-02,16-03 | COVERED |
+| CONTEXT | D-02 existing styling and evidence | 16-01,16-02,16-03 | COVERED |
+| CONTEXT | D-03 three previews and matching full results | 16-01,16-02 | COVERED |
+| CONTEXT | D-04 results-only; existing sandbox unchanged | 16-01,16-02,16-03 | COVERED |
+| CONTEXT | D-05 exact dates/current correction/search-only changes | 16-01,16-02,16-03 | COVERED |
+| CONTEXT | D-06 existing read-only transport and bounded skill | 16-01,16-02 | COVERED |
+| CONTEXT | D-07 full GSD/review/verification; delegated routine decisions | 16-01,16-02,16-03 | COVERED |
+| RESEARCH | Existing contracts/transport, no new package/store/schema | 16-01,16-02 | COVERED |
+| RESEARCH | Deterministic date provenance and ambiguous correction | 16-01,16-03 | COVERED |
+| RESEARCH | Nested token stripping and graph/checkpoint exclusion | 16-01,16-03 | COVERED |
+| RESEARCH | Registry IDs, strict A2UI, safe narrative | 16-01,16-02,16-03 | COVERED |
+| RESEARCH | Five-call/timeout/128KiB bounds and honest truncation | 16-01,16-02,16-03 | COVERED |
+| RESEARCH | Parent-owned snapshots, criteria fingerprints, expiry/Back | 16-01,16-03 | COVERED |
+| AI-SPEC | E01–E20, async cleanup, safe telemetry, no automatic retries | 16-01,16-02,16-03 | COVERED |
+| UI-SPEC | All eight state categories, themes, mobile, focus/history | 16-01,16-02,16-03 | COVERED |
+
+Deferred booking graph/payment/supplier handoff, initial-chat tools, autonomous saving and additional modes remain excluded by explicit user scope, not unplanned gaps.
 
 ## Sampling Rate
 
