@@ -1,63 +1,97 @@
-# UI-SPEC Review — Phase 16
+---
+phase: "16"
+audited: 2026-10-16
+source_head: 228f322
+status: passed_with_recommendation
+score: 23
+max_score: 24
+blockers: 0
+warnings: 1
+---
 
-**Reviewed:** 2026-10-16  
-**Status:** APPROVED WITH FLAGS  
-**Overall verdict:** FLAG — planning may proceed; no blocking design issues.
+# Phase 16 — UI Review
 
-Independent contract review against `16-UI-SPEC.md`, `16-CONTEXT.md`, `16-REQUIREMENTS.md`, project instructions, the mandatory Travella testing skill, and the seven `gsd-ui-checker` dimensions. The author of this review did not author the UI specification. No source changes, browser operations, or live-provider/model checks were performed in this review.
+**Audited:** 2026-10-16
 
-## Dimension Results
+**Baseline:** `16-UI-SPEC.md` authoritative corrected D-04 addendum; `16-04-PLAN.md` and `16-04-SUMMARY.md`.
 
-| Dimension | Verdict | Evidence |
-|-----------|---------|----------|
-| 1 — Copywriting | FLAG | Main actions are specific: View all flights, View all stays, Back to plan chat. Missing-input questions, empty/error copy, expiry and renderer recovery all provide a next step. One count instruction needs the refinement below. No generic forbidden CTA or missing recovery state was found. |
-| 2 — Visuals | PASS | Layout and data hierarchy declare the assistant-message preview placement, shared criteria summary, vertical cards and following View all action. The results page declares its heading/criteria/notices/collection order. Four type roles distinguish title, body and metadata. Native labeled actions, decorative-icon hiding, focus restoration and small-screen reflow are specified. |
-| 3 — Color | PASS | The 60/30/10 emphasis is explicit. Accent is restricted to three named actions, using existing green action/link tokens rather than a second decorative palette. Warning, destructive and focus colors have separate semantic roles; light/dark foregrounds are specified. No broad “all interactive elements” accent permission appears. |
-| 4 — Typography | PASS | Exactly four sizes: 14, 16, 20 and 28px; exactly two weights: 400 and 600. Body line height is 1.5 and heading line height is 1.2. Notices retain a 14px minimum and mobile text input a 16px minimum. |
-| 5 — Spacing | PASS | Declared layout spacing is 4, 8, 16, 24, 32, 48 and 64px. Radius, border and focus-ring measurements are explicitly shape/affordance dimensions, not layout spacing exceptions. Touch targets and responsive gutters are specified. |
-| 6 — Registry Safety | PASS | Registry section explicitly names no external registries or blocks. Existing local components/manual design system are declared; no shadcn migration or unreviewed third-party import is authorized. The configured safety gate remains enabled. |
-| 7 — Inventory Provenance | FLAG | The inventory is preceded by a genuine `Could not enumerate:` record explaining the missing installed A2UI package, with date and the failed inspection command. The source-verified table is explicitly non-exhaustive. This is an accepted FLAG under the checker contract, not a blocker. |
+**Screenshots:** Six actual authenticated desktop/mobile implementation captures independently inspected. Root captured them in Chrome; this auditor did not operate a browser or create screenshots.
 
-## Actionable recommendations
+The research/planning context is explicitly reused as final UI auditor because the native three-child thread limit prevents a new typed auditor. It did not implement production code. The GSD UI-review workflow, six-pillar auditor instructions and mandatory Travella testing skill were read. Parent assigned existing actual captures rather than a second browser session. This supersedes the earlier planning review; its preview-count and installed-inventory flags were resolved before execution. No new design scope is proposed.
 
-### C1 — Display the actual preview count
+## Pillar Scores
 
-**Dimension:** 1 — Copywriting. **Severity:** FLAG, non-blocking.
+| Pillar | Score | Key finding |
+|---|---|---|
+| 1. Copywriting | 3/4 | Prices, dates, recovery and actions are clear; singular party/night counts still use plural nouns. |
+| 2. Visuals | 4/4 | Real hotel photo, neutral flight illustration and existing manual result hierarchy are clear at both inspected widths. |
+| 3. Color | 4/4 | Token-based preview surfaces and muted facts retain dark-theme hierarchy; accent does not overwhelm results. |
+| 4. Typography | 4/4 | Preview text uses contracted 14/16px sizes and readable line heights; essential notices remain visible. |
+| 5. Spacing | 4/4 | Compact cards retain consistent padding, wrapping and disclosures; mobile form fits without horizontal clipping. |
+| 6. Experience Design | 4/4 | Exact manual-page preload, deliberate continuation, recovery and final Back/Stop fixes have integration and browser evidence. |
 
-**Evidence:** The Chat previews section instructs: `Showing 3 of {returned_count} results` whenever the count is known. The same contract correctly requires one or two cards when only one or two options were observed. A literal implementation could therefore display “Showing 3 of 1 results.”
+**Overall: 23/24. No UI blocker found.**
 
-**Required property:** Count copy must reflect the number of actual rendered previews, including singular/plural grammar.
+## Priority Fixes
 
-**Example fix (non-binding):** Specify `Showing {preview_count} of {returned_count} results`, where `preview_count` is the validated rendered count, and use singular wording for one result. Omitting the redundant count when every returned result is already previewed also satisfies the property. Continue showing View all for every nonempty collection as the contract requires.
+1. **WARNING — singular count grammar:** `CanvasTravel.jsx:73,93` can render “1 nights”, “1 adults”, “1 children” or “1 infants”. Use singular labels for one night/adult/child/infant while preserving values and price basis. This small copy issue does not prevent comparison or navigation. This source-derived case is not claimed to appear in the two-adult live captures.
 
-The otherwise explicit zero/one/many rules and the author’s `min(3, observed count)` instruction make this a localized wording refinement rather than an unimplementable design.
+No second or third evidenced priority defect was found. Do not introduce redesign work to fill a quota.
 
-### P1 — Preserve the inventory's non-exhaustive status
+## Detailed Findings
 
-**Dimension:** 7 — Inventory Provenance. **Severity:** FLAG, non-blocking.
+### Pillar 1: Copywriting (3/4)
 
-**Evidence:** The Component Inventory records that installed `@a2ui/react` could not be enumerated because its package file was absent. It accurately distinguishes declared dependencies from resolved installed versions and supplies local-source provenance.
+`CanvasTravel.jsx:71-85,93,106-108` displays exact years, currency, whole-stay/party-return basis, excluded taxes, material terms, observed counts, sandbox and freshness warnings. The desktop hotel capture shows EUR1053.27 with separate EUR56.48 city-tax exclusion; mobile flight shows EUR802.94 for the return party with baggage/refund limits. “View all stays/flights” and “Back to plan chat” identify actions. Reload recovery gives a precise next step. The only source copy defect is the singular grammar above. Explicit refresh says “Search again to check current availability” (`TravelSearch.jsx:378`), with no internal token language.
 
-**Recommendation:** Keep the inventory explicitly non-exhaustive. If implementation starts using additional package components after dependencies are installed, enumerate the installed exports and record command, count, package version and date above the inventory. Do not turn the current source-derived list into a closed allowlist or require installing a different design system. The recorded command was reviewed as evidence text and was not executed by this checker.
+### Pillar 2: Visuals (4/4)
 
-## Requirement and state consistency
+`desktop-stay-previews.jpg` shows the actual hotel photograph above name, exact dates and price; root separately checked all three image loads. `mobile-flight-previews.jpg` shows a small neutral plane and readable carrier/route/total, with no fabricated branding. `CanvasTravel.jsx:17-21,65-76,91-93` supplies descriptive alt text, no-referrer/lazy loading, fixed fallback space, labeled illustration and native disclosures. Desktop stays/flights open the established manual form/results hierarchy, not the superseded separate layout. Images support identification without hiding essential exclusions.
 
-- D-01/D-04 scope is preserved: new capabilities belong to Planning Canvas; the new results path remains read-only; initial chat and unrelated sandbox checkout behavior are not redesigned.
-- D-03/D-05 are represented: previews contain observed provider facts only, exact date requirements precede provider requests, and search-only dates do not mutate the Plan.
-- TRAVEL-16-04 through TRAVEL-16-06 have concrete display behavior for price basis, unknown facts, taxes, sandbox/freshness, loading, empty, failure, interruption, supersession, criteria changes and expired/reloaded references.
-- All eight consideration categories are covered: empty, loading, error, populated, partial, overflow, zero-one-many and long text. Optional image failure has an explicit dismissal/fallback reason.
-- Keyboard navigation, focus return, browser Back, unsaved draft/chat/composer preservation, mobile reflow and light/dark rendering have implementable contracts. Browser/history behavior still requires runtime verification; contract completeness does not prove it works.
+### Pillar 3: Color (4/4)
 
-## Pending evidence and execution gates
+The inspected views use dominant navy background, secondary raised navy cards and restrained green actions/selected mode. New preview CSS (`travel-results.css:1-3`) references existing ink, muted, surface, border, warning and focus variables; it adds zero hardcoded hex/RGB colors. One plane rule uses the existing accent token with ink fallback. Warnings contain text, not color alone. Existing manual-page controls retain established theme styles as D-04 requires. Light-theme behavior was inspected in token/source definitions, not certified by these dark-theme screenshots.
 
-The UI specification explicitly records that Chrome capture was pending because the researcher's DevTools profile was in use. The orchestrator owns the working browser session and screenshot task. That is **pending visual evidence**, not a missing design decision, and does not block this seven-dimension contract approval. This review does not claim that screenshots were captured or inspected.
+### Pillar 4: Typography (4/4)
 
-Before verified delivery, complete the project's required plan captures and authenticated desktop/mobile implementation checks, inspect screenshots, exercise View all → Back and stale/error paths, inspect console/network activity, and record actual outcomes in `artifacts/testing/2026-10-16-travel-previews/verification.md`. Keep fixture-backed verification distinct from live model/provider verification.
+Preview text uses14px metadata/body and16px title/price, weight600 emphasis with inherited normal400, line-height1.5 (`travel-results.css:1`). Retained unused results selectors declare28px display/400; the28px fallback house glyph is a visual, not reduced body text. Long names, route dates, baggage and refunds wrap at390px. The existing manual page's serif heading/form typography is preserved. Essential preview content is not shrunk to fit the sidechat.
 
-## Structured return
+### Pillar 5: Spacing (4/4)
 
-**Phase:** 16 — Date-gated travel previews and booking navigation.  
-**Status:** APPROVED.  
-**Blocking issues:** 0.  
-**Flags:** 2 — actual preview-count copy; honestly incomplete installed-package inventory.  
-**Ready for planning:** Yes. The researcher/orchestrator may update UI-SPEC frontmatter to `status: approved` and record `reviewed_at`; this reviewer leaves UI-SPEC unchanged.
+`travel-results.css:1-3` uses4px metadata gaps,8px stacks/gaps,16px card padding and16:9 photos. `min-width:0` and `overflow-wrap:anywhere` protect long content; summaries have44px minimum targets and mobile View all has48px minimum height. The desktop chat remains distinct from the editable Canvas. At390×844, flight facts fit and the composer stays separate; the stay form reflows into paired dates/full-width search. Content scrolls vertically, with no clipping/overlap or horizontal overflow in the supplied evidence. Existing manual control metrics were intentionally not redesigned.
+
+### Pillar 6: Experience Design (4/4)
+
+The captures confirm View all leads to existing Accommodation/Flight search with matching fields/cards. Source enforces import-once identity, deliberate reimport identity, cancellation/epoch protection, ordinary manual ownership and currentness (`TravelSearch.jsx:475-497,605-613`). Compare/details/search remain deliberate; no agent reservation is added. `CanvasTravel.jsx:57-60,101-108,127` covers unavailable/expired/changed criteria, empty, valid, invalid and renderer-error states. Native disclosure keeps detailed terms accessible without crowding initial cards.
+
+Independent final-source command `.venv/bin/python -m pytest services/agent/tests/test_canvas_travel.py -q -k 'journey and 4'`: **2 passed in4.47s**. Both journeys cross actual HTTP/graph/SSE/A2UI/React with fixture SDK/provider data, including parent same-path history without child interception, no extra Plan fetch, draft preservation, complete matching manual results and explicit reimport after manual continuation. They are not live-provider claims.
+
+Root's Chrome record separately reports live27 stays/91 flights, three previews per mode, loaded provider photos, matching manual fields, no navigation-triggered provider search, deliberate Compare/View rooms, successful Stop→immediate Retry and honest reload loss. After rebuilding `228f322`, one actual Back click produced no dialog, hid manual search, retained composer “Prefer morning departures.” and draft budget “EUR2400”, and restored focus to “View all stays”. Root observed actual DOM/state; the subsequent screenshot call hung. The provisional Back image is excluded and must not be cited as proof. The missing capture does not turn observed browser interaction into a mocked result.
+
+## Evidence and Limits
+
+Six inspected files under `artifacts/testing/2026-10-16-travel-previews/implementation/`:
+
+| Capture | Observed evidence |
+|---|---|
+| `desktop-stay-previews.jpg` | Hotel photo, exact dates, whole-stay price and excluded tax. |
+| `desktop-manual-stays.jpg` | Existing prefilled stay search,27 results, matching first property, View rooms/Compare. |
+| `desktop-flight-results.jpg` | Existing prefilled BUD/LIS return search,91 results and party-return price. |
+| `mobile-flight-previews.jpg` |390px card, plane, wrapped facts, disclosure and composer. |
+| `mobile-stay-results.jpg` |390px manual form, dates/country/nationality/currency. |
+| `stale-or-expired.jpg` | Actual reload recovery without expired offers. |
+
+See `artifacts/testing/2026-10-16-travel-previews/verification.md` for source hashes, Chrome network/console and live-versus-fixture provenance. No successful final Back screenshot, independent tablet/light-theme capture or formal accessibility audit is claimed. Screenshots establish their pictured states only; other assertions are explicitly attributed to source, executed integration tests or root's browser evidence. No new binaries were produced by this audit. Shadcn registry audit does not apply: this phase has no initialized shadcn/third-party blocks.
+
+## Files Audited
+
+- `frontend/src/PlansApp.jsx`
+- `frontend/src/features/plans/components/PlanningCanvas.jsx`
+- `frontend/src/features/plans/travel/CanvasTravel.jsx`
+- `frontend/src/features/plans/travel/TravelSearch.jsx`
+- `frontend/src/features/plans/travel/travel-results.css`
+- `frontend/src/features/plans/travel/travel-search.css`
+- `frontend/src/features/plans/travel/CanvasTravelJourney.test.jsx`
+- UI-SPEC, 04-PLAN, 04-SUMMARY and root verification record
+
+**Recommendation:** UI audit passes with one nonblocking copy recommendation. This does not mark phase completion or replace the orchestrator's delivery-gate decision.

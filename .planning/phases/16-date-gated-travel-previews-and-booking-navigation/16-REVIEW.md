@@ -5,12 +5,19 @@ depth: standard
 diff_base: aa4f16f
 initial_review_head: 5c0320b
 remediation_review_head: 5bf1fb9
-files_reviewed: 17
+corrected_navigation_review_head: b1114e4
+corrected_navigation_remediation_head: b2d3f7e
+lease_cleanup_review_head: f61fc82
+history_routing_review_head: 228f322
+files_reviewed: 22
 files_reviewed_list:
+  - frontend/src/PlansApp.jsx
   - frontend/src/features/plans/components/CanvasConversation.jsx
   - frontend/src/features/plans/components/PlanningCanvas.jsx
   - frontend/src/features/plans/travel/CanvasTravel.jsx
   - frontend/src/features/plans/travel/CanvasTravelJourney.test.jsx
+  - frontend/src/features/plans/travel/TravelSearch.jsx
+  - frontend/src/features/plans/travel/TravelSearch.test.jsx
   - frontend/src/features/plans/travel/travel-results.css
   - frontend/src/features/plans/useCanvasConversation.js
   - services/agent/checkpoint.py
@@ -21,8 +28,10 @@ files_reviewed_list:
   - services/agent/graph/builder.py
   - services/agent/prompts/canvas-editing-v1.md
   - services/agent/request_context.py
+  - services/agent/service.py
   - services/agent/research_assets/.claude/skills/canvas-travel/SKILL.md
   - services/agent/tests/test_agent_checkpoint.py
+  - services/agent/tests/test_agent_turn.py
   - services/agent/tests/test_canvas_travel.py
 findings:
   critical: 0
@@ -77,3 +86,33 @@ The real HTTP path for `Find stays; 1 room for 2 adults; nationality: HU; curren
 The root owns authenticated Chrome desktop/mobile, console/network and screenshot verification. This source audit does not certify that browser gate or live-model/provider reliability. Broad suites were not duplicated; implementation summaries record their results and separately reproduced pre-existing failures. No phase-completion claim is made here.
 
 **Scope cutoff:** all three findings are resolved through `5bf1fb9` against the original results-only contract. The user's subsequent correction to reuse the existing manual search page and add preview images requires a new implementation/review increment; this clean source report does not approve that as-yet-unimplemented correction.
+
+## Corrected D-04 incremental review
+
+Reviewed production/test changes in `fa05765` and `b1114e4` against `16-04-PLAN.md` and the user's corrected D-04. This section supersedes the scope cutoff above for those commits. Actual existing `TravelSearch` is now reused, with complete form hydration, observed hotel IDs/metadata, image validation/fallback and explicit manual continuation. The initial three findings remain resolved.
+
+### WR-03 — Reopening a chat search after manual continuation shows different results — RESOLVED
+
+**Files:** `frontend/src/features/plans/travel/TravelSearch.jsx:472-476` and `frontend/src/features/plans/components/PlanningCanvas.jsx:92-95` at `b1114e4`.
+
+Open chat snapshot A, submit a manual search B in the reused page, return to chat, then click View all for A again. Manual success sets `imported=false` and stores B. The parent retains the same import search ID; the child effect depends only on that ID/Plan/mode and returns for the previously imported identity. Therefore the deliberate View all A action displays B's criteria/results, violating the matching-snapshot requirement. Existing tests protect ordinary same-ID rerenders but do not cover explicit reopening.
+
+**Required fix:** distinguish explicit import-navigation identity from the underlying search ID. Each deliberate View all/open-history import must restore its selected snapshot; ordinary parent rerenders must continue to preserve manual form edits and manual results. Add a real PlanningCanvas A→manual B→Back→View all A regression for both modes, including zero automatic re-search on reimport.
+
+**Resolution:** `b2d3f7e` increments a local navigation request on View all and history traversal into an imported page, and includes that request in the child's import identity. Ordinary same-ID parent updates remain inert. Independently inspected the diff and ran `.venv/bin/python -m pytest services/agent/tests/test_canvas_travel.py -q -k 'journey and 4'`: **2 passed in 3.90s**. Both actual HTTP→graph→SSE→React/A2UI→PlanningCanvas stay/flight journeys now exercise A→manual B→Back→View all A, assert A's full collection returns, retain draft/composer, and permit only the one deliberate manual search. No outstanding source finding remains through this commit.
+
+**Other delta checks:** strict parsed Plan/mode/currentness import; prior manual request abort/epoch; airport-label synchronization; hotel detail request uses the observed `hotel_id` only after View rooms; tokenless flight refresh uses a deliberate form submit and does not prebook/book; safe backend/frontend photos and neutral local flight SVG; no private token in agent results. Independently ran `uv`-equivalent `.venv/bin/python -m pytest services/agent/tests/test_canvas_travel.py -q -k observed_hotel_metadata`: **10 passed** in 0.73s. No full-suite duplication or paid call. Root's corrected Chrome gate is still separate.
+
+## Stop/disconnect lease-cleanup review — f61fc82
+
+Independently reviewed the service delta and its real CRUD HTTP/SQLite tests. The live Stop→Retry lock reported by root was reproduced by the executor as repeated `task.cancel()` interrupting the cleanup that releases the research-context lease. The fix makes cancellation a single transition, preserves an explicit Stop reason, respects the existing committing boundary, shields the worker from further consumer cancellation, and removes its active-stream entry after the worker actually finishes. Existing generation checks and provider cancellation behavior remain unchanged.
+
+The four new test combinations use the actual CRUD FastAPI handlers, signed test JWT and isolated SQLite database; only graph execution and the timing barrier are injected. They read back `locked=true` before Stop/disconnect, repeatedly cancel/poll during lease cleanup, assert that cleanup is not cancelled, read back `locked=false`, run a fresh generation-2 request, and verify no active stream/lease remains. This is persistence evidence, not a mocked cleanup assertion.
+
+Independent targeted command: `.venv/bin/python -m pytest services/agent/tests/test_agent_turn.py services/agent/tests/test_canvas_travel.py -q -k 'disconnect_cancels_once or cancelled_real_graph_provider or new_generation_discards'` — **7 passed in 1.87s**, including all four new persistence cases and the three existing late/cancelled/superseded travel cases. No new actionable finding. Source review remains clean through `f61fc82`; root's current-build browser rerun is a separate gate.
+
+## Same-route browser history review — 228f322
+
+Root reproduced a single browser Back entering the parent dirty-Plan guard before the child's history interception. The fix in `frontend/src/PlansApp.jsx:59,146-150,262-268` tracks the currently mounted route and ignores same-path popstate in the parent itself. Initial mount still runs navigation; a different pathname still enters existing load/open and leave protection. No authorization, provider, persistence or checkout boundary changes. The parent no longer relies on child listener order to preserve mounted Canvas state.
+
+Independently inspected the complete two-file commit and ran `.venv/bin/python -m pytest services/agent/tests/test_canvas_travel.py -q -k 'journey and 4'`: **2 passed in 4.47s**. Both actual HTTP/SSE→React stay/flight journeys now push and traverse same-URL history without child interception, assert no leave prompt, exactly one Plan read and the retained unsaved editor value, then exercise matching preview/manual navigation. No new actionable source finding; source review remains clean through `228f322`. Final real-Chrome Back evidence remains root-owned and is not inferred from these fixture-provider integration tests. Minor visual/copy recommendations, if any, are recorded separately in `16-UI-REVIEW.md`.

@@ -32,8 +32,8 @@ key-decisions:
   - No checkout token crosses the agent snapshot; normal manual availability refresh is required for flight mock checkout eligibility.
 patterns-established:
   - Validate Plan/mode/currentness, abort and advance epoch, then hydrate once per Plan/mode/search identity.
-requirements-completed: []
-requirements-pending: [TRAVEL-16-04, TRAVEL-16-05, TRAVEL-16-06, TRAVEL-16-07]
+requirements-completed: [TRAVEL-16-04, TRAVEL-16-05, TRAVEL-16-06, TRAVEL-16-07]
+requirements-pending: []
 actuals:
   tokens: 13208
   tasks: 2
@@ -62,11 +62,14 @@ coverage:
   - id: corrected-browser-acceptance
     description: Authenticated desktop/mobile photo previews and existing manual-page journey
     requirement: TRAVEL-16-07
-    verification: []
-    human_judgment: true
-    rationale: Root owns postimplementation Chrome/source-hash/network/screenshot verification and incremental review; those gates remain pending.
+    verification:
+      - kind: browser
+        ref: artifacts/testing/2026-10-16-travel-previews/verification.md
+        status: pass
+    human_judgment: false
+    rationale: Root completed authenticated Chrome journey; independent reviews pass and screenshot capture limitation is explicit.
 updated: 2026-10-16
-status: in_progress
+status: complete
 ---
 
 # Phase 16 Plan 04: Existing manual pages and picture previews Summary
