@@ -4,9 +4,9 @@ current_phase: 1
 current_phase_name: Account Access
 status: planning
 stopped_at: Phase 16 complete, ready to plan Phase 1
-last_updated: "2026-10-16T17:22:52.476964+00:00"
+last_updated: "2026-10-16T17:25:45.000936+00:00"
 last_activity: 2026-10-16
-last_activity_desc: Completed quick 261016-l5g — Research flight previews without navigation
+last_activity_desc: Started separate Research preview container on port 5175
 state_head: f8968758970be9c2eb2061cd4b572a0d5a1ef0ab
 progress:
   total_phases: 17
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 1 — Account Access
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-16 — Completed quick 261016-l5g: Research flight previews without navigation
+Last activity: 2026-10-16 — Completed quick 261016-qyh: separate preview container on port 5175
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -123,6 +123,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261016-qyh | Separate Research preview stack on port 5175; health/auth/source hashes verified; original stack preserved | 2026-10-16 | 74df777 (app source) | Complete | [Task](quick/261016-qyh-start-separate-research-preview-docker-s/) |
 | 261016-l5g | Research flight A2UI previews with date/party gates and no navigation; authenticated desktop/mobile verified | 2026-10-16 | 1dce695, d2f1723 | Complete; known unrelated profile test failure | [Task](quick/261016-l5g-research-chat-flight-previews-without-na/) |
 | 261011-06a | Refined foldable Plan chat; 13 tests and browser checks passed; final fresh-login smoke returned 401 | 2026-10-11 | 8ada633 | UI verified; auth readiness unresolved | [Task](quick/261011-06a-refine-plan-side-chat-and-foldable-panel/) |
 | 261011-01s | Started local container; health, authentication, HTTP and source hashes passed | 2026-10-11 | f30a986 (app source) | Complete | [Task](quick/261011-01s-start-local-container-and-verify-authent/) |
