@@ -170,3 +170,63 @@ def test_lookup_does_not_require_room_allocation_or_exact_dates():
         assert not result.get('is_error') and provider.calls[0][1]['action']=='places'
         assert observer.snapshots=={}
     asyncio.run(run())
+
+@pytest.mark.parametrize('code', ['LON', 'NYC', 'ZZZ'])
+def test_city_or_unknown_airport_is_correctable_before_provider_search(code):
+    async def run():
+        provider = Provider()
+        observer = CanvasTravelTools(provider, context(), 'valid', CanvasSnapshot(components=components()), 'any airport is fine')
+        args = flight_args(); args['criteria']['destination'] = code
+        result = await observer.invoke('search_flights', args)
+        error = json.loads(result['content'][0]['text'])
+        assert error['error'] == 'airport_selection_required'
+        assert error['detail']['fields'] == ['destination']
+        assert provider.calls == [] and observer.counts['flights'] == 0
+        # Model can correct its city code without another user turn.
+        result = await observer.invoke('search_flights', flight_args())
+        assert not result.get('is_error') and len(observer.snapshots) == 1
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('code', ['provider_timeout', 'provider_response_invalid', 'provider_unavailable', 'PRIVATE_RAW_PROVIDER_ERROR'])
+def test_failure_codes_are_actionable_and_sanitized_and_new_turn_can_retry(code):
+    class Failing(Provider):
+        async def call(self, name, args, **scope):
+            if args['action'] == 'flights/search':
+                self.calls.append((name, args, scope))
+                return {'status': 'unavailable', 'code': code, 'message': 'PRIVATE_PROVIDER_RESPONSE'}
+            return await super().call(name, args, **scope)
+    async def run():
+        provider = Failing()
+        for message in ['search flights', 'can you retry or alter the search']:
+            observer = CanvasTravelTools(provider, context(), 'valid', CanvasSnapshot(components=components()), message)
+            result = await observer.invoke('search_flights', flight_args())
+            error = json.loads(result['content'][0]['text'])
+            assert error['error'] == (code if code.startswith('provider_') else 'provider_unavailable')
+            assert 'new traveler request' in error['instruction']
+            assert 'PRIVATE' not in json.dumps(result) and not observer.snapshots
+            before = len(provider.calls)
+            assert (await observer.invoke('search_flights', flight_args())).get('is_error')
+            assert len(provider.calls) == before  # no automatic retry on failure
+        assert len([c for c in provider.calls if c[1]['action'] == 'flights/search']) == 2
+    asyncio.run(run())
+
+
+def test_flight_timeout_allows_connector_latency_but_respects_turn_deadline(monkeypatch):
+    import time
+    timeouts = []
+    original = asyncio.timeout
+    def timeout(seconds):
+        timeouts.append(seconds)
+        return original(seconds)
+    monkeypatch.setattr(asyncio, 'timeout', timeout)
+    async def run():
+        observer = CanvasTravelTools(Provider(), context(), 'valid', CanvasSnapshot(components=components()), 'search', deadline=time.monotonic() + 300)
+        result = await observer.invoke('search_flights', flight_args())
+        assert not result.get('is_error')
+        assert timeouts == [45, 120]
+        timeouts.clear()
+        observer = CanvasTravelTools(Provider(), context(), 'valid', CanvasSnapshot(components=components()), 'search', deadline=time.monotonic() + 30)
+        await observer.invoke('search_flights', flight_args())
+        assert all(0 < seconds <= 25 for seconds in timeouts)
+    asyncio.run(run())

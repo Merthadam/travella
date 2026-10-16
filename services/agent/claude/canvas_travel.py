@@ -561,6 +561,14 @@ def safe_stay(raw):
         rooms=[StayRoom(**room.model_dump(include=set(StayRoom.model_fields))) for room in hotel.rooms])
 
 
+class TravelSearchFailure(Exception):
+    """An allow-listed failure code, never raw provider text."""
+
+    def __init__(self, code):
+        self.code = code if code in {"provider_timeout", "provider_unavailable", "provider_response_invalid", "invalid_search"} else "provider_unavailable"
+        super().__init__(self.code)
+
+
 class CanvasTravelObserver:
     names = {"travel_capabilities", "search_destinations", "search_stays", "search_airports", "search_flights"}
 
@@ -613,7 +621,9 @@ class CanvasTravelObserver:
             raise ValueError("travel_call_limit")
         self.calls += 1
         self.counts[category] += 1
-        timeout = min(45, self.deadline - time.monotonic() - 5)
+        # Flight rates can take up to the connector's 115-second deadline.
+        # Keep the enclosing turn deadline and time for the model's reply.
+        timeout = min(120 if category == "flights" else 45, self.deadline - time.monotonic() - 5)
         if timeout <= 0:
             raise TimeoutError()
         async with asyncio.timeout(timeout) as deadline:
@@ -670,6 +680,10 @@ class CanvasTravelObserver:
                     snapshot = existing
                 else:
                     raw = await self._call("flights/search" if mode == "flights" else "hotels/search", criteria.model_dump(mode="json"), mode)
+                    if raw.get("status") == "unavailable":
+                        raise TravelSearchFailure(raw.get("code"))
+                    if raw.get("status") == "invalid":
+                        raise TravelSearchFailure("invalid_search")
                     if raw.get("provider") != "LiteAPI" or type(raw.get("sandbox")) is not bool or raw.get("status") not in {"ready", "empty"}:
                         raise ValueError("travel_response_invalid")
                     results = [safe_flight(item, criteria) if mode == "flights" else safe_stay(item) for item in raw["results"]]
@@ -705,12 +719,21 @@ class CanvasTravelObserver:
             self.snapshots.clear()
             self.telemetry(mode, "cancelled", discard=1)
             raise
-        except Exception:
+        except Exception as error:
             self.failure = True
             self.failures.add(mode)
             self.snapshots = {key: value for key, value in self.snapshots.items() if value.mode != mode}
             self.telemetry(mode, "search_failed", discard=1)
-            return {"is_error": True, "content": [{"type": "text", "text": self.question or "Travel search is unavailable. Ask the traveler to try again; do not invent options."}]}
+            code = "provider_timeout" if isinstance(error, TimeoutError) else error.code if isinstance(error, TravelSearchFailure) else "search_failed"
+            details = {
+                "provider_timeout": "This search exceeded its time limit; no results were received.",
+                "provider_unavailable": "The provider could not complete this request; no results were received.",
+                "provider_response_invalid": "The response could not be validated for these search criteria; this does not establish a service-wide outage.",
+                "invalid_search": "The connector rejected the search criteria. Check airports, dates and passengers.",
+                "search_failed": "This search could not be completed or validated. The cause is unknown; do not claim a provider outage.",
+            }
+            payload = {"error": code, "detail": details[code], "instruction": "Do not invent results or repeat a failed provider call automatically. A new traveler request authorizes a new search. You may resolve airport choices or discuss changed criteria; a failed request does not prohibit alternatives. Retain exact dates unless the traveler changes them."}
+            return {"is_error": True, "content": [{"type": "text", "text": json.dumps(payload)}]}
 
     def telemetry(self, mode, outcome, results=0, discard=0):
         logging.getLogger(__name__).info("canvas_travel mode=%s outcome=%s calls=%d results=%d duration_ms=%d discard_count=%d",

@@ -7,6 +7,7 @@ from typing import Literal
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 from pydantic import Field, ValidationError
+from services.shared.traveler_profile import reference_catalog
 
 from ..travel_contracts import AirportQuery, Airports, FlightSearch, HotelSearch, PlaceQuery, Places
 from .canvas_travel import CanvasTravelObserver, draft_facts
@@ -65,6 +66,14 @@ class CanvasTravelTools(CanvasTravelObserver):
             try:
                 parsed = (StayArguments if mode == "stays" else FlightArguments).model_validate(arguments)
                 self._validate_dates(parsed)
+                if mode == "flights":
+                    airports = {a["code"] for a in reference_catalog("airports")}
+                    invalid = [field for field in ("origin", "destination") if getattr(parsed.criteria, field) not in airports]
+                    if invalid:
+                        return self._error("airport_selection_required", {
+                            "fields": invalid,
+                            "instruction": "Use search_airports to resolve actual airports. City codes such as LON are not airports. Retain dates and passengers. If several airports fit, ask which one, or use an explicitly authorized alternative and name it. This validation failure has not consumed a rate search.",
+                        })
             except ValidationError as error:
                 # Field paths only: validation errors can otherwise echo input.
                 fields = sorted({".".join(str(p) for p in e["loc"]) or "criteria" for e in error.errors()})
@@ -120,7 +129,7 @@ class CanvasTravelTools(CanvasTravelObserver):
         @tool("search_stays", "Search stays using complete structured criteria from the conversation/current Canvas. Exact dates, explicit room allocation/child ages and nationality required. dates.source=canvas uses current exact draft dates; conversation requires verbatim traveler date quotes. Read-only; nothing saved or booked.", StayArguments.model_json_schema())
         async def stays(args): return await self.invoke("search_stays", args)
 
-        @tool("search_flights", "Search return flights using complete structured criteria. Require exact dates, airports, explicit adults/child/infant ages and pricing country. dates.source=canvas uses exact draft dates; conversation requires verbatim traveler date quotes. Read-only.", FlightArguments.model_json_schema())
+        @tool("search_flights", "Search return flights using actual airport IATA codes (e.g. LHR, never city codes such as LON). Resolve cities with search_airports. Require exact dates, explicit adults/child/infant ages and pricing country. dates.source=canvas uses exact draft dates; conversation requires verbatim traveler date quotes. Read-only.", FlightArguments.model_json_schema())
         async def flights(args): return await self.invoke("search_flights", args)
 
         return create_sdk_mcp_server(name="travel", version="2.0.0", tools=[capabilities, destinations, stays, airports, flights])
