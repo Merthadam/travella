@@ -64,7 +64,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   }, [onExpired, accountReadAttempt]);
 
   useEffect(() => { alive.current = true; return () => { alive.current = false; attempt.current = null; }; }, []);
-  useEffect(() => { detailHeading.current?.focus(); }, [selected, Boolean(draft)]);
+  useEffect(() => { detailHeading.current?.focus({ preventScroll: true }); }, [selected, Boolean(draft)]);
   useEffect(() => {
     if (invalid) (document.getElementById('account-food-needs') || errorBox.current)?.focus();
     else if (error) errorBox.current?.focus();
@@ -96,7 +96,7 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
     const opener = document.activeElement;
     dialog.current?.showModal();
     keepButton.current?.focus();
-    return () => { dialog.current?.close(); if (opener?.isConnected) opener.focus(); };
+    return () => { dialog.current?.close(); if (opener?.isConnected) opener.focus({ preventScroll: true }); };
   }, [pendingExit]);
 
   function expired() {

@@ -128,7 +128,7 @@ test('reviews exact trip details and requires confirmation before canvas generat
   HTMLDialogElement.prototype.close = function () { this.open = false; };
   const api = settledApi(); const user = userEvent.setup(); const onCanvas = vi.fn();
   const base = await api.researchContext();
-  api.researchContext.mockResolvedValue({ ...base, revision: 7, context: { ...base.context, finalDestination: 'Milan', dateNote: 'Three days in spring', travelers: 2, budget: '€900', flights: 'not-needed' } });
+  api.researchContext.mockResolvedValue({ ...base, revision: 7, context: { ...base.context, finalDestination: 'Milan', dateNote: 'Three days in spring', travelers: 2, budget: '€900', flights: 'not-needed', provenance: { flights: { source: 'user_explicit', updated_at: '2026-10-16T10:00:00Z' } } } });
   render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={onCanvas}/>);
   const trigger = await screen.findByRole('button', { name: 'Review & generate' });
   await waitFor(() => expect(trigger.disabled).toBe(false));
@@ -136,7 +136,7 @@ test('reviews exact trip details and requires confirmation before canvas generat
   expect(screen.getByRole('dialog').textContent).toContain('Milan');
   expect(screen.getByRole('dialog').textContent).toContain('Three days in spring');
   expect(screen.getByRole('dialog').textContent).toContain('€900');
-  expect(screen.getByRole('dialog').textContent).toContain('Not needed');
+  expect(screen.getByRole('radio', { name: 'No, leave flights out' }).checked).toBe(true);
   expect(onCanvas).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Edit trip details' }));
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -152,4 +152,29 @@ test('does not allow review while trip details are unavailable', async () => {
   render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={vi.fn()}/>);
   await screen.findByText('Trip details unavailable. Refresh to try again.');
   expect(screen.getByRole('button', { name: 'Review & generate' }).disabled).toBe(true);
+});
+
+test('research confirms an undecided flight choice before opening generation at the returned revision', async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; };
+  const api = settledApi(); const user = userEvent.setup(); const onCanvas = vi.fn();
+  const base = { revision: 3, context: emptyTripContext(), locked: false };
+  api.researchContext.mockResolvedValue(base);
+  let resolve;
+  api.updateResearchContext = vi.fn(() => new Promise(done => { resolve = done; }));
+  render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={onCanvas}/>);
+  const trigger = screen.getByRole('button', { name: 'Review & generate' });
+  await waitFor(() => expect(trigger.disabled).toBe(false));
+  await user.click(trigger);
+  expect(screen.getByRole('button', { name: 'Confirm & generate' }).disabled).toBe(true);
+  await user.click(screen.getByRole('radio', { name: 'No, leave flights out' }));
+  await user.click(screen.getByRole('button', { name: 'Edit trip details' }));
+  expect(api.updateResearchContext).not.toHaveBeenCalled();
+  await user.click(trigger);
+  await user.click(screen.getByRole('radio', { name: 'Yes, include flights' }));
+  await user.click(screen.getByRole('button', { name: 'Confirm & generate' }));
+  expect(onCanvas).not.toHaveBeenCalled();
+  await act(async () => resolve({ ...base, revision: 4, context: { ...base.context, flights: 'needed', provenance: { flights: { source: 'user_edit' } } } }));
+  expect(onCanvas).toHaveBeenCalledExactlyOnceWith(true, 4);
+  expect(api.updateResearchContext.mock.calls[0][2]).toBe(3);
 });

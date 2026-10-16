@@ -19,6 +19,13 @@
 .generation-review-actions button { min-height:44px; padding:10px 14px; border:1px solid var(--app-line); border-radius:10px; background:var(--app-soft); color:var(--app-text); font:inherit; font-size:13px; cursor:pointer; }
 .generation-review-actions button.primary { background:var(--app-accent); color:#072034; border-color:transparent; }
 .generation-review-actions button:focus-visible { outline:2px solid var(--app-focus); outline-offset:3px; }
+.generation-review-actions button:disabled { opacity:.5; cursor:default; }
+.generation-flight-choice { border:1px solid var(--app-line); border-radius:10px; padding:12px 16px; margin:16px 0; min-width:0; }
+.generation-flight-choice legend { padding:0 4px; font-size:14px; font-weight:600; }
+.generation-flight-choice label { display:flex; align-items:center; gap:10px; min-height:44px; font-size:14px; cursor:pointer; }
+.generation-flight-choice input { accent-color:var(--app-accent); }
+.generation-flight-choice input:focus-visible { outline:2px solid var(--app-focus); outline-offset:3px; }
+.generation-flight-choice p { margin:8px 0 0; font-size:12px; }
 .canvas-workspace > .plan-stages { padding:16px 24px; border-bottom:1px solid var(--app-line); }
 @media(max-width:1000px) { .chat-canvas-entry { flex-wrap:wrap; } }
 @media(max-width:600px) {

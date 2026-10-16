@@ -1,13 +1,13 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 1
-current_phase_name: Account Access
-status: planning
-stopped_at: Phase 16 complete, ready to plan Phase 1
-last_updated: "2026-10-16T17:25:45.000936+00:00"
+current_phase: 15
+current_phase_name: Bounded agentic canvas generation
+status: verifying
+stopped_at: Phase 15 implemented; live generation acceptance pending
+last_updated: "2026-10-16T10:35:31.996159+00:00"
 last_activity: 2026-10-16
-last_activity_desc: Started separate Research preview container on port 5175
-state_head: f8968758970be9c2eb2061cd4b572a0d5a1ef0ab
+last_activity_desc: Flight need confirmation and conditional generation verified through live Yes/No save and reload
+state_head: 359b57f276f5322a6f20ad908d536ca34ee6b213
 progress:
   total_phases: 17
   completed_phases: 1
@@ -27,14 +27,16 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 ## Current Position
 
-Phase: 1 — Account Access
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-16 — Completed quick 261016-qyh: separate preview container on port 5175
+Phase: 15 — Bounded agentic canvas generation
+Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
+Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
+Last activity: 2026-10-16 - Completed quick task 261016-h1a: flight confirmation and optional flight generation; 72 focused tests, build and authenticated desktop/mobile Yes/No save/reload passed.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
 Account settings: Phase 13 completed and merged in PR #3. DynamoDB profile storage remains a queued follow-up.
+
+Account scrolling follow-up (2026-10-16): viewport scrolling and focus restoration verified with 27 focused tests, build, desktop/mobile browser checks, and scoped security review; user approved merge via PR #10. Five broader AccountApp failures reproduce on unchanged HEAD. See `.planning/debug/account-settings-scroll.md` and `artifacts/testing/2026-10-16-account-scroll/verification.md`.
 
 ## Performance Metrics
 
@@ -125,6 +127,7 @@ Resume file: None
 | --- | ------------- | ------ | -------- | -------- | ----------- |
 | 261016-qyh | Separate Research preview stack on port 5175; health/auth/source hashes verified; original stack preserved | 2026-10-16 | 74df777 (app source) | Complete | [Task](quick/261016-qyh-start-separate-research-preview-docker-s/) |
 | 261016-l5g | Research flight A2UI previews with date/party gates and no navigation; authenticated desktop/mobile verified | 2026-10-16 | 1dce695, d2f1723 | Complete; known unrelated profile test failure | [Task](quick/261016-l5g-research-chat-flight-previews-without-na/) |
+| 261016-h1a | Confirm flight needs during research; generate flights only for confirmed Yes | 2026-10-16 | e616d3b | Complete; two unrelated baseline test failures documented | [Task](quick/261016-h1a-confirm-flight-needs-during-research-and/) |
 | 261011-06a | Refined foldable Plan chat; 13 tests and browser checks passed; final fresh-login smoke returned 401 | 2026-10-11 | 8ada633 | UI verified; auth readiness unresolved | [Task](quick/261011-06a-refine-plan-side-chat-and-foldable-panel/) |
 | 261011-01s | Started local container; health, authentication, HTTP and source hashes passed | 2026-10-11 | f30a986 (app source) | Complete | [Task](quick/261011-01s-start-local-container-and-verify-authent/) |
 | 1 | local-agent-without-agentcore · Outcome: Local FastMCP transport and Docker setup verified; see `artifacts/testing/2026-10-03-local-agent-without-agentcore/verification.md`. | 2026-10-03 | — | — | — |

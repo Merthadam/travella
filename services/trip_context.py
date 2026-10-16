@@ -79,6 +79,12 @@ class StateChange(StrictModel):
         return self
 
 
+def flight_need_confirmed(context: TripContext) -> bool:
+    provenance = context.provenance.get("flights")
+    return (context.flights in {"needed", "not-needed"} and provenance is not None
+            and provenance.source in {"user_explicit", "user_edit"})
+
+
 class TurnResult(StrictModel):
     answer: str = Field(min_length=1, max_length=2000)
     state_changes: list[StateChange] = Field(default_factory=list, max_length=24)
@@ -156,6 +162,8 @@ def apply_changes(context: TripContext, changes: list[StateChange], *, now: str,
                 raise ValueError("explicit change requires a quote from this message")
             if (change.operation in {"clear", "remove_candidate"} or change.field == "finalDestination") and not explicit:
                 raise ValueError("removal and final choice require explicit traveler intent")
+            if change.field == "flights" and not explicit:
+                raise ValueError("flight needs require explicit traveler confirmation")
             if source == "research" and change.operation != "add_candidate":
                 raise ValueError("research cannot decide personal trip details")
             if source == "memory" and (change.field != "budget" or data["budget"] or data["noFixedBudget"] or "budget" in data["provenance"]):

@@ -6,6 +6,7 @@ import { ids } from '../../../design-system/schemas';
 import { Icon } from '../../../design-system/components/primitives';
 import { CanvasDestinationMap, CanvasMapContext } from './CanvasDestinationMap';
 import { usePlanningCanvas } from '../usePlanningCanvas';
+import { confirmFlightNeed } from '../flightNeeds';
 import { useCanvasConversation } from '../useCanvasConversation';
 import { CanvasPlacePhoto } from './CanvasPlacePhoto';
 import { CanvasConversation } from './CanvasConversation';
@@ -85,12 +86,15 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
     window.addEventListener('popstate', pop, true);
     return () => window.removeEventListener('popstate', pop, true);
   }, [selected.plan_id]);
-  useFlightBookingSync(selected.plan_id, !screen && !canvas.loading && Boolean(canvas.data), canvas.updateMockBooking);
+  useFlightBookingSync(selected.plan_id, !screen && !canvas.loading && canvas.data?.flights?.need === 'needed', canvas.updateMockBooking);
   const travel = useTravelCapabilities(selected.plan_id, onExpired);
   const [visitedTravel, setVisitedTravel] = useState({});
   const selectedTravel = chat.travelSnapshots[travelResultId];
   const resultMode = selectedTravel?.mode === 'stays' ? 'accommodation' : selectedTravel?.mode === 'flights' ? 'flights' : null;
   const activeTravel = screen === 'travel-results' ? resultMode : screen;
+  // An explicit preview handoff permits read-only flight browsing even when the
+  // saved generation preference hides the flight card. It does not change it.
+  const flightBrowsing = canvas.data?.flights?.need === 'needed' || Boolean(travelImports.flights);
   useEffect(() => {
     if (screen === 'travel-results' && selectedTravel && resultMode) {
       setVisitedTravel(prev => ({...prev,[resultMode]:true}));
@@ -186,6 +190,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   }
   function action(id, name, payload) {
     if (name === 'clear_place_preview') { setPreview(null); return; }
+    if (name === 'open_flights' && canvas.data?.flights?.need !== 'needed') return;
     if (name === 'open_flights' || name === 'open_accommodation') { const mode = name === 'open_flights' ? 'flights' : 'accommodation'; setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); setMobileView('canvas'); return; }
     if (name === 'retry') { generate(id === 'themes' ? 'themes' : id === 'findings' || id === 'links' ? 'research' : 'all'); return; }
     if (name === 'editor_state' || !chatBusy) canvas.action(id, name, payload);
@@ -195,7 +200,10 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const progress = canvas.activeGroup ? canvas.notice || 'Preparing your trip…' : canvas.saving ? 'Saving your plan…' : canvas.dirty || canvas.editing ? 'Unsaved changes' : canvas.saved ? 'Saved' : 'Ready to plan';
   return <main id="canvas-main" className={`planning-canvas canvas-workspace ${chatOpen && !screen ? 'with-chat' : 'chat-closed'} mobile-${mobileView} ${screen ? 'travel-open' : ''}`} aria-label="Planning canvas" tabIndex={-1}>
     <PlanStages canvas/>
-    {review && <CanvasGenerationReview context={review.context} replacing={Boolean(canvas.saved || canvas.data?.themes.items.length || canvas.data?.findings.items.length || canvas.data?.links.items.length)} cancelLabel="Keep editing" onCancel={() => setReview(null)} onConfirm={() => { const revision = review.revision; setReview(null); void canvas.generate('all', revision); }}/>}
+    {review && <CanvasGenerationReview context={review.context} replacing={Boolean(canvas.saved || canvas.data?.themes.items.length || canvas.data?.findings.items.length || canvas.data?.links.items.length)} cancelLabel="Keep editing" onCancel={() => setReview(null)} onConfirm={async flights => {
+      const confirmed = await confirmFlightNeed(api, selected, review, flights);
+      setReview(null); void canvas.generate('all', confirmed.revision);
+    }}/>}
     <nav className="canvas-mobile-tabs" aria-label="Plan workspace view"><button type="button" aria-pressed={mobileView === 'canvas'} onClick={() => setMobileView('canvas')}>Plan & map {canvas.data?.map.pins.length ? `(${canvas.data.map.pins.length})` : ''}</button><button ref={mobileChatButton} type="button" aria-controls="plan-chat-panel" aria-expanded={mobileView === 'chat' && chatOpen} aria-pressed={mobileView === 'chat' && chatOpen} onClick={openChat}>Conversation {chat.active ? '· replying' : ''}</button></nav>
     <div className="canvas-workspace-body">
     <div className="planning-canvas-inner" tabIndex={screen ? 0 : undefined} role={screen ? 'region' : undefined} aria-label={screen ? 'Travel search' : undefined}>
@@ -209,10 +217,10 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
       {!screen && !busy && canvas.notice && <p className="canvas-notice" role="status">{canvas.notice}</p>}
       {canvas.data && <div className="canvas-group-actions" aria-label="Generate individual plan sections">{['themes', 'research'].map(group => <div key={group}><span>{group === 'themes' ? 'Themes & preferences' : 'Research & websites'}</span><button type="button" className="ds-text-button" disabled={busy || canvas.editing} onClick={() => generate(group)}>{canvas.groups[group] === 'error' ? 'Retry' : 'Regenerate'}</button>{canvas.groups[group] === 'error' && <small role="status">Couldn’t finish. Completed details are still here.</small>}</div>)}</div>}
       {travel.error && <p role="alert" className="canvas-error">{travel.error} <button className="ds-button" onClick={travel.retry}>Retry travel connection</button></p>}
-      {screen && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus onClick={() => { if (resultsOpen.current) closeTravelResults(); else { travelReturnFocus.current = screen; setScreen(null); } }}>{resultsOpen.current ? '← Back to plan chat' : '← Back to canvas'}</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([, , key]) => travel.capabilities?.[key]).map(([mode, label]) => <button key={mode} aria-pressed={activeTravel === mode} onClick={() => { setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); }}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
+      {screen && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus onClick={() => { if (resultsOpen.current) closeTravelResults(); else { travelReturnFocus.current = screen; setScreen(null); } }}>{resultsOpen.current ? '← Back to plan chat' : '← Back to canvas'}</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([mode, , key]) => travel.capabilities?.[key] && (mode !== 'flights' || flightBrowsing)).map(([mode, label]) => <button key={mode} aria-pressed={activeTravel === mode} onClick={() => { setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); }}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
       {screen === 'travel-results' && !selectedTravel && <section aria-label="Travel result recovery"><p role="status">These results are no longer available. Return to Plan chat to search again.</p></section>}
-      {['accommodation', 'flights'].filter(mode => visitedTravel[mode]).map(mode => <TravelSearch key={`${selected.plan_id}-${mode}`} planId={selected.plan_id} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} onExpired={onExpired} onBookingResult={canvas.updateMockBooking}/>)}
-      {canvas.renderData && <div hidden={Boolean(screen)}><CanvasMapContext.Provider value={{ preview, destinationHint: canvas.mapDestinationHint, onClearPreview: () => setPreview(null), onSearchArea: searchMapArea, onAddPreview: place => canvas.addActivities([place]), disabled: busy || canvas.data.map.pins.length >= 50 }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placePhoto={CanvasPlacePhoto} placePreview={preview} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider></div>}
+      {['accommodation', 'flights'].filter(mode => visitedTravel[mode] && (mode !== 'flights' || flightBrowsing)).map(mode => <TravelSearch key={`${selected.plan_id}-${mode}`} planId={selected.plan_id} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} onExpired={onExpired} onBookingResult={canvas.updateMockBooking}/>)}
+      {canvas.renderData && <div hidden={Boolean(screen)}><CanvasMapContext.Provider value={{ preview, destinationHint: canvas.mapDestinationHint, onClearPreview: () => setPreview(null), onSearchArea: searchMapArea, onAddPreview: place => canvas.addActivities([place]), disabled: busy || canvas.data.map.pins.length >= 50 }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids.filter(id => canvas.renderData[id] && (id !== 'flights' || canvas.renderData.flights.need === 'needed'))} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placePhoto={CanvasPlacePhoto} placePreview={preview} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider></div>}
       <dialog className="canvas-confirm" ref={dialog} aria-labelledby="canvas-confirm-title" onCancel={event => { event.preventDefault(); setConfirm(null); }}>
         <h2 id="canvas-confirm-title">{confirm?.kind === 'generate' ? `Replace the draft ${groupLabel[confirm.group]}?` : confirm?.kind === 'reload' ? 'Discard edits and load the saved plan?' : 'Leave without saving?'}</h2>
         <p>{confirm?.kind === 'generate' ? 'New results replace the selected generated sections, including edits in those sections. Your essentials and saved map places stay in the draft. Save plan is still required to keep the result.' : 'Your unsaved canvas edits will be discarded. Your last saved plan will remain available.'}</p>
