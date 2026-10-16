@@ -223,6 +223,22 @@ def test_ambiguous_or_invalid_current_override_never_calls(monkeypatch,text):
     assert terminal(response)['status']=='needs your input' and not provider.calls
 
 
+@pytest.mark.parametrize('message,modes',[(MESSAGE,('stays',)),(FLIGHT_MESSAGE,('flights',)),(MIXED_MESSAGE,('stays','flights'))])
+@pytest.mark.parametrize('date_intent',[
+    'from Friday to Sunday', 'Fri to Sun', 'this week', 'last month', 'coming fortnight',
+    'in two weeks', 'for 7 days', 'today to tomorrow', 'over Christmas', 'at Easter',
+    'over the bank holiday', 'during New Year', 'from the 14th to the 21st',
+])
+def test_unresolved_calendar_intent_never_reuses_canvas_dates(monkeypatch,message,modes,date_intent):
+    app,pid,plan,provider,_,_=make_app(monkeypatch,modes=modes)
+    original=components();before=deepcopy(original)
+    with TestClient(app) as c:
+        response=post(c,pid,original,f'{message}; {date_intent}')
+    assert terminal(response)['status']=='needs your input'
+    assert not provider.calls and not bundles(response)
+    assert original==before and plan['revision']==1
+
+
 @pytest.mark.parametrize('case',['assistant','provider','missing_role','old_completed','truncated','superseded'])
 def test_prior_date_authority_fails_closed(case):
     draft=components();draft['essentials']['dates'].update(start='',end='')

@@ -165,7 +165,15 @@ MONTHS = "January February March April May June July August September October No
 MONTH_NUMBER = {name.lower(): index for index, name in enumerate(MONTHS, 1)}
 MONTH_NUMBER.update({name[:3].lower(): index for index, name in enumerate(MONTHS, 1)})
 MONTH_PATTERN = "(?:" + "|".join(sorted(MONTH_NUMBER, key=len, reverse=True)) + ")"
-DATE_CUE = re.compile(r"\b" + MONTH_PATTERN + r"\b|\b(?:tomorrow|weekend|summer|winter|spring|autumn|instead|next|sometime|different dates|change dates|dates? unknown|not sure)\b|\d{4}-\d|\d+[/-]\d", re.I)
+# A calendar expression that we cannot normalize exactly must still block Canvas
+# fallback. Relative/weekday/holiday requests are intent, never date authority.
+WEEKDAY_PATTERN = r"(?:mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs?(?:day)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)"
+RELATIVE_DATE_PATTERN = r"(?:today|tonight|tomorrow|yesterday|weekends?|weekdays?|summer|winter|spring|autumn|fall|instead|next|sometime|different dates|change dates|dates? unknown|not sure|christmas|xmas|easter|thanksgiving|new year(?:s|'s)?|hanukkah|diwali|ramadan|holidays?|half[- ]term|spring break)"
+DATE_CUE = re.compile(
+    r"\b(?:" + MONTH_PATTERN + "|" + WEEKDAY_PATTERN + "|" + RELATIVE_DATE_PATTERN + r")\b"
+    r"|\b(?:this|last|coming|following)\s+(?:week|month|year|fortnight)\b"
+    r"|\b(?:in|for)\s+(?:\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:days?|weeks?|months?|years?|fortnights?)\b"
+    r"|\b\d{1,2}(?:st|nd|rd|th)\b|\d{4}-\d|\d+[/-]\d", re.I)
 DATE_QUESTION = "What are your check-in and check-out dates, including the year?"
 ROOM_QUESTION = "How many adults and children will stay in each room? For adults only, reply ‘1 room for 2 adults’; include every child’s age if traveling with children."
 NATIONALITY_QUESTION = "What is the guests’ nationality for this search? Reply nationality: country."
