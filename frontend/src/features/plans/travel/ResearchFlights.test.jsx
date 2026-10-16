@@ -66,3 +66,23 @@ test.skipIf(!fixture)('expired preview hides inventory and has no navigation',()
   expect(screen.getByRole('status').textContent).toContain('expired');
   expect(screen.queryByRole('region',{name:'Flight previews'})).toBeNull();
 });
+
+test.skipIf(!fixture)('Plan switch cancels the old request and rejects its late preview',async()=>{
+  const a=api();let emit,finish;
+  a.agentTurnStream=vi.fn((_p,_m,_id,{onEvent})=>new Promise(resolve=>{emit=onEvent;finish=resolve;}));
+  const mounted=render(<PlanConversation selected={{plan_id:fixture.plan_id}} api={a} onExpired={vi.fn()}/>);
+  await userEvent.setup().type(await screen.findByRole('textbox',{name:'Message Travella'}),'show flights{enter}');
+  mounted.rerender(<PlanConversation selected={{plan_id:'new-plan'}} api={a} onExpired={vi.fn()}/>);
+  await waitFor(()=>expect(a.cancelAgentTurn).toHaveBeenCalledOnce());
+  expect(a.cancelAgentTurn.mock.calls[0][0]).toEqual({plan_id:fixture.plan_id});
+  await act(async()=>{emit({type:'STATE_SNAPSHOT',snapshot:{flight_preview:fixture.snapshot}});finish({status:'complete',generation:fixture.snapshot.generation});});
+  expect(screen.queryByRole('region',{name:'Flight previews'})).toBeNull();
+});
+
+test.skipIf(!fixture)('empty provider result shows an honest empty state without actions',async()=>{
+  render(<ResearchFlightPreview snapshot={{...fixture.snapshot,results:[],preview_ids:[],returned_count:0}}/>);
+  expect(await screen.findByRole('heading',{name:'No flights found'})).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toContain('Research chat');
+  expect(screen.queryAllByRole('button')).toHaveLength(0);
+  expect(screen.queryAllByRole('article')).toHaveLength(0);
+});
