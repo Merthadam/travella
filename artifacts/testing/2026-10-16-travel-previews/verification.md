@@ -13,7 +13,11 @@
 
 ## Implementation verification
 
-Pending. Planning/sketch evidence is not production verification. Live model/provider behavior has not been exercised for Phase 16.
+Plan 16-01 deterministic implementation evidence: commits `0e0e190` and `447d776`. Final backend suite `uv run --locked pytest services/agent/tests/test_canvas_travel.py services/agent/tests/test_travel_api.py -q`: 58 passed in 9.20s. Five actual HTTP→LangGraph→SDK-tool-handler→SSE→plansApi→React/A2UI journeys cover 0/1/2/4 stays and two-turn clarification. SDK/provider network edges are fixtures; graph, handlers, projection, parser and renderers are production code. View all has matching IDs and no extra provider call; Back preserves editor/composer; dates remain search-only; invalid/foreign/deleted inputs never call travel; nested private sentinels do not reach tool text/SSE/compiled checkpoint output.
+
+Frontend focused command passed 14 tests with 1 fixture-dependent skip; that skipped test runs in all five Python-driven journeys. Production build passed with the existing chunk-size warning. No dependency/lockfile change. No durable saver was enabled; nested projection defense remains Plan 16-03.
+
+Production Chrome verification remains pending for root/Plan 16-03. Planning/sketch evidence is not production verification. Live model/provider behavior has not been exercised for Phase 16.
 
 ## Workflow runtime notes
 
