@@ -25,11 +25,12 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   vi.stubGlobal('matchMedia',()=>({matches:false}));
   HTMLDialogElement.prototype.close=function(){this.open=false;};
   const requests=[];
+  const turns=fixture.turns || [{message:fixture.message,sse:fixture.sse}]; let turnIndex=0;
   vi.stubGlobal('fetch',vi.fn(async(url,options={})=>{
     requests.push(String(url));
     if(String(url).endsWith('/events/stream')) {
       const body=JSON.parse(options.body);expect(body.canvas_edit.draft.components.essentials.dates).toEqual(fixture.components.essentials.dates);
-      return new Response(fixture.sse,{status:200,headers:{'Content-Type':'text/event-stream'}});
+      return new Response(turns[turnIndex++].sse,{status:200,headers:{'Content-Type':'text/event-stream'}});
     }
     if(String(url).endsWith('/travel/capabilities'))return new Response(JSON.stringify({provider:'LiteAPI',sandbox:true,hotels:true,flights:true}),{status:200});
     throw new Error(`Unexpected network boundary: ${url}`);
@@ -39,19 +40,34 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   const user=userEvent.setup();
   await user.click(await screen.findByRole('button',{name:'Edit details',exact:true}));
   await user.type(screen.getByRole('textbox',{name:'Date note'}),'Unfinished editor');
-  await user.type(screen.getByRole('textbox',{name:'Message Travella'}),fixture.message);
-  await user.click(screen.getByRole('button',{name:'Send message'}));
+  for (const [index,turn] of turns.entries()) {
+    await user.type(screen.getByRole('textbox',{name:'Message Travella'}),turn.message);
+    await user.click(screen.getByRole('button',{name:'Send message'}));
+    if(index<turns.length-1) {
+      await screen.findByText(/What is the guests’ nationality/);
+      expect(screen.queryByRole('button',{name:'View all stays'})).toBeNull();
+    }
+  }
+  const resultCount=fixture.count ?? 4;
+  if (!resultCount) {
+    const empty=await screen.findByRole('heading',{name:'No stays found'});
+    expect(screen.queryByRole('button',{name:'View all stays'})).toBeNull();
+    expect(within(empty.closest('[role="status"]')).queryAllByRole('article')).toHaveLength(0);
+    expect(api.saveCanvas).not.toHaveBeenCalled();
+    return;
+  }
   const open=await screen.findByRole('button',{name:'View all stays'});
   const previews=screen.getByRole('region',{name:'Stay previews'});
-  expect(within(previews).getAllByRole('article')).toHaveLength(3);
-  expect(previews.textContent).toContain(fixture.components.essentials.dates.start);
+  expect(within(previews).getAllByRole('article')).toHaveLength(Math.min(3,resultCount));
+  expect(previews.textContent).toContain(`Showing ${Math.min(3,resultCount)} of ${resultCount}`);
+  expect(previews.textContent).toContain(fixture.search_start || fixture.components.essentials.dates.start);
   expect(previews.textContent).toContain('Breakfast included');
   await user.type(screen.getByRole('textbox',{name:'Message Travella'}),'Keep this unsent message');
   const count=requests.length;
   await user.click(open);
   const results=screen.getByRole('region',{name:'Travel results only'});
-  expect(within(results).getAllByRole('article')).toHaveLength(4);
-  expect(within(results).getByText('Observed stay 3')).toBeTruthy();
+  expect(within(results).getAllByRole('article')).toHaveLength(resultCount);
+  expect(within(results).getByText(`Observed stay ${resultCount-1}`)).toBeTruthy();
   expect(requests).toHaveLength(count);
   expect(results.textContent).toContain('Nothing has been saved or booked');
   expect(results.textContent).not.toContain('PRIVATE_CHECKOUT');
@@ -59,6 +75,6 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   expect(screen.getByRole('textbox',{name:'Date note'}).value).toBe('Unfinished editor');
   expect(api.saveCanvas).not.toHaveBeenCalled();
-  expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(1);
+  expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
   expect(requests.some(x=>/checkout|prebook|hotels\/search/.test(x))).toBe(false);
 });

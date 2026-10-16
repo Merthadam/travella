@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal
 from uuid import uuid4
 
@@ -112,22 +112,120 @@ def draft_facts(draft):
             "destination": draft.components.get("map", {}).get("destination", "")}
 
 
-DATE_CUE = re.compile(r"\b(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec|tomorrow|weekend|summer|winter|spring|autumn|instead|next week)\b|\d{4}-\d|\d+[/-]\d", re.I)
+MONTHS = "January February March April May June July August September October November December".split()
+MONTH_NUMBER = {name.lower(): index for index, name in enumerate(MONTHS, 1)}
+MONTH_NUMBER.update({name[:3].lower(): index for index, name in enumerate(MONTHS, 1)})
+MONTH_PATTERN = "(?:" + "|".join(sorted(MONTH_NUMBER, key=len, reverse=True)) + ")"
+DATE_CUE = re.compile(r"\b" + MONTH_PATTERN + r"\b|\b(?:tomorrow|weekend|summer|winter|spring|autumn|instead|next|sometime|different dates|change dates|dates? unknown|not sure)\b|\d{4}-\d|\d+[/-]\d", re.I)
+DATE_QUESTION = "What are your check-in and check-out dates, including the year?"
+ROOM_QUESTION = "How many adults and children will stay in each room? For adults only, reply ‘1 room for 2 adults’; include every child’s age if traveling with children."
+NATIONALITY_QUESTION = "What is the guests’ nationality for this search? Reply nationality: country."
+DESTINATION_QUESTION = "Which city and country should I search? Reply destination: city, country."
+CLARIFICATIONS = {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION}
+
+
+def clarification_history(context):
+    """Reuse evidence only while answering our most recent focused clarification."""
+    history = context.recent_messages[-12:]
+    if not history or history[-1].get("role") != "assistant" or history[-1].get("content") not in CLARIFICATIONS:
+        return []
+    output = []
+    for index, item in reversed(list(enumerate(history))):
+        if item.get("role") == "assistant":
+            if item.get("content") not in CLARIFICATIONS:
+                break
+        elif item.get("role") == "user":
+            output.append((index, item.get("content", "")))
+        else:
+            break
+    return list(reversed(output))
+
+
+def explicit_dates(text):
+    """Small exact grammar; source text, never model normalization, is authoritative."""
+    if not DATE_CUE.search(text):
+        return None
+    if len(text) > 2000 or re.search(r'["“”`<>]|\b(?:assistant|provider|quoted|example|ignore|not|don.t|maybe|either|or)\b', text, re.I):
+        raise Clarification(DATE_QUESTION)
+    pattern = re.compile(r"\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+" + MONTH_PATTERN + r"\s+\d{4}|" + MONTH_PATTERN + r"\s+\d{1,2},?\s+\d{4})\b", re.I)
+    matches = list(pattern.finditer(text))
+    spans = [(m.start(), m.end()) for m in matches]
+    values = []
+    try:
+        for match in matches:
+            value = match.group()
+            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                values.append(date.fromisoformat(value))
+            else:
+                parts = value.replace(",", "").split()
+                day, month, year = parts if parts[0].isdigit() else (parts[1], parts[0], parts[2])
+                values.append(date(int(year), MONTH_NUMBER[month.lower()], int(day)))
+        if len(matches) < 2:
+            compact = re.search(r"\b(\d{1,2})\s*(?:–|-|to)\s*(\d{1,2})\s+(" + MONTH_PATTERN + r")\s+(\d{4})\b", text, re.I)
+            if compact:
+                values = [date(int(compact[4]), MONTH_NUMBER[compact[3].lower()], int(compact[i])) for i in (1, 2)]
+                spans = [(compact.start(), compact.end())]
+        # Remove exactly recognized spans and permitted correction words; any remaining
+        # date cue means an unresolved second range or yearless correction.
+        remainder = text
+        for start, end in reversed(spans):
+            remainder = remainder[:start] + " " * (end-start) + remainder[end:]
+        remainder = re.sub(r"\binstead\b", "", remainder, flags=re.I)
+        if len(values) != 2 or DATE_CUE.search(remainder):
+            raise ValueError()
+        validate_dates(values[0], values[1], 30)
+    except (ValueError, KeyError):
+        raise Clarification(DATE_QUESTION) from None
+    return [v.isoformat() for v in values], [{"start": start, "end": end, "text": text[start:end]} for start, end in spans]
 
 
 def resolve_dates(message, context, draft):
-    """Initial tracer accepts only an exact unchanged draft date pair."""
+    """Current exact correction > active clarification evidence > exact Canvas pair."""
     facts = draft_facts(draft)
-    if DATE_CUE.search(message):
-        raise Clarification("What are your check-in and check-out dates, including the year?")
+    current = explicit_dates(message)
+    if current:
+        pair, spans = current
+        return *pair, {"source": "current", "role": "user", "spans": spans, "normalized": pair}
+    for index, text in reversed(clarification_history(context)):
+        previous = explicit_dates(text)  # A newer ambiguous correction blocks older dates.
+        if previous:
+            pair, spans = previous
+            return *pair, {"source": f"recent_messages:{index}", "role": "user", "spans": spans, "normalized": pair}
     if not facts["start"] or not facts["end"] or facts["flexible"]:
-        raise Clarification("What are your check-in and check-out dates, including the year?")
-    from datetime import date
+        raise Clarification(DATE_QUESTION)
     try:
         validate_dates(date.fromisoformat(facts["start"]), date.fromisoformat(facts["end"]), 30)
     except ValueError:
         raise Clarification("Those dates don’t form a valid trip. What exact start and end dates should I use?") from None
-    return facts["start"], facts["end"], {"source": "canvas", "span": [facts["start"], facts["end"]]}
+    return facts["start"], facts["end"], {"source": "canvas", "fields": ["essentials.dates.start", "essentials.dates.end"], "normalized": [facts["start"], facts["end"]]}
+
+
+def explicit_rooms(text):
+    """Accept an explicit one-room allocation or numbered room allocations."""
+    if re.search(r'["“”`<>]|\b(?:not|don.t|example|quoted|assistant|provider)\b', text, re.I):
+        return None
+    allocations = list(re.finditer(r"\b(?:1 room(?: for)?|room\s+\d+\s*:)\s*(\d+)\s+adults?([^;\n]*)", text, re.I))
+    if not allocations:
+        return None
+    rooms = []
+    for allocation in allocations:
+        tail = allocation[2].strip()
+        ages = []
+        if re.search(r"\b(?:child|children|kids?)\b", tail, re.I):
+            found = re.fullmatch(r"(?:and\s+|\+\s*)?(?:children|kids?)\s+ages?\s+(\d+(?:\s*,\s*\d+)*)", tail, re.I)
+            if not found:
+                return None
+            ages = [int(age.strip()) for age in found[1].split(",")]
+        elif tail:
+            return None
+        rooms.append({"adults": int(allocation[1]), "children_ages": ages})
+    # Every allocation must be explicit, including every mentioned child.
+    remainder = text
+    for allocation in reversed(allocations):
+        remainder = remainder[:allocation.start()] + " " + remainder[allocation.end():]
+    if re.search(r"\b(?:adults?|child|children|kids?)\b", remainder, re.I):
+        return None
+    return rooms
 
 
 def country_code(value):
@@ -139,8 +237,7 @@ def country_code(value):
 def stay_criteria(message, context, draft):
     start, end, evidence = resolve_dates(message, context, draft)
     # Only authenticated traveler turns are eligible. Current values take precedence.
-    texts = [str(item.get("content", "")) for item in context.recent_messages
-             if item.get("role") == "user" and len(str(item.get("content", ""))) <= 2000] + [message]
+    texts = [text for _, text in clarification_history(context) if len(text) <= 2000] + [message]
     destination = draft.components.get("map", {}).get("destination", "")
     for text in texts:
         match = re.search(r"\bdestination:\s*([^;\n]+)", text, re.I)
@@ -149,18 +246,13 @@ def stay_criteria(message, context, draft):
     parts = destination.rsplit(",", 1)
     code = country_code(parts[-1]) if len(parts) == 2 else None
     if not code:
-        raise Clarification("Which city and country should I search? Reply destination: city, country.")
+        raise Clarification(DESTINATION_QUESTION)
     rooms = None
     for text in texts:
         if re.search(r"\b(?:rooms?|adults?|children|child|kids?)\b", text, re.I):
-            # A conservative supported room grammar; never infer allocation from a headcount.
-            match = re.search(r"\b1 room\b.{0,15}?\b(\d+) adults?\b", text, re.I)
-            if not match or re.search(r"\b(?:children|child|kids?)\b", text, re.I):
-                rooms = None
-            else:
-                rooms = [{"adults": int(match[1]), "children_ages": []}]
+            rooms = explicit_rooms(text)
     if rooms is None:
-        raise Clarification("How many adults and children will stay in each room? For adults only, reply ‘1 room for 2 adults’; include every child’s age if traveling with children.")
+        raise Clarification(ROOM_QUESTION)
     nationality = None
     citizenships = context.traveler_profile.get("citizenships", [])
     if len(citizenships) == 1:
@@ -170,7 +262,7 @@ def stay_criteria(message, context, draft):
         if match:
             nationality = country_code(match[1])
     if not nationality:
-        raise Clarification("What is the guests’ nationality for this search? Reply nationality: country.")
+        raise Clarification(NATIONALITY_QUESTION)
     try:
         criteria = HotelSearch(destination={"city": parts[0].strip(), "country_code": code},
                                check_in=start, check_out=end, rooms=rooms, guest_nationality=nationality)
@@ -181,8 +273,7 @@ def stay_criteria(message, context, draft):
 
 def travel_intent(message, context):
     return bool(re.search(r"\b(?:stays?|hotels?|accommodation|flights?|nationality|check-in|check-out|rooms?)\b", message, re.I)
-                or any(item.get("role") == "user" and re.search(r"\b(?:stays?|hotels?|accommodation)\b", item.get("content", ""), re.I)
-                       for item in context.recent_messages[-4:]))
+                or clarification_history(context) and (DATE_CUE.search(message) or re.search(r"\b(?:adults?|children|nationality|citizenship|destination)\b", message, re.I)))
 
 
 def safe_stay(raw):

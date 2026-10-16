@@ -45,7 +45,7 @@ function StayCard({ item, snapshot, full = false }) {
     <strong className="canvas-travel-price">{item.price.amount !== null ? 'From ' : ''}{amount(item.price)}</strong>
     <p>Stay total · {nights} nights · {rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} · {adults} adults{children ? ` · ${children} children` : ''}</p>
     <Taxes items={item.price.excluded_taxes}/>
-    {item.rooms.length ? <details open={full}><summary>Room and cancellation details</summary>{item.rooms.map(r => <div key={r.id} className="canvas-travel-room"><strong>{r.name}</strong><p>{amount(r.total)} · {r.occupancy_summary || 'Room occupancy details unavailable'}</p><p>{r.board_name || 'Meal information unavailable'}</p><p>{r.cancellation_summary || (r.refundable === false ? 'Non-refundable' : 'Cancellation terms unavailable')}</p>{r.cancellation_deadline && <p>Cancellation deadline: {r.cancellation_deadline}</p>}<Taxes items={r.excluded_taxes}/></div>)}</details> : <p>Room and cancellation terms unavailable</p>}
+    {item.rooms.length ? <details open={full}><summary>Room and cancellation details</summary>{item.rooms.map(r => <div key={r.id} className="canvas-travel-room"><strong>{r.name}</strong><p>{amount(r.total)} · {r.occupancy_summary || 'Room occupancy details unavailable'}</p><p>{r.board_name || 'Meal information unavailable'}</p><p>{r.cancellation_summary || (r.refundable === false ? 'Non-refundable' : r.refundable === true ? 'Refundable; detailed cancellation terms unavailable' : 'Cancellation terms unavailable')}</p>{r.cancellation_deadline && <p>Cancellation deadline: {r.cancellation_deadline}</p>}<Taxes items={r.excluded_taxes}/></div>)}</details> : <p>Room and cancellation terms unavailable</p>}
   </article>;
 }
 function SearchContext({ snapshot }) {
