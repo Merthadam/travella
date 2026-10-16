@@ -19,6 +19,10 @@ Frontend focused command passed 14 tests with 1 fixture-dependent skip; that ski
 
 Production Chrome verification remains pending for root/Plan 16-03. Planning/sketch evidence is not production verification. Live model/provider behavior has not been exercised for Phase 16.
 
+Plan 16-02 deterministic evidence: commits `707775c` and `663aeab`. Flight tracer: 2 passed; mixed cases: 16 passed; final `uv run --locked pytest services/agent/tests/test_canvas_travel.py -q`: 82 passed in 10.87s. Eight real application-boundary SSE/React journeys now include flights and both mixed-mode View all paths. Explicit local overnight timestamps, estimated EUR 824.50 return-party fares, unknown terms, separate mode IDs, shared five-call limit/dedup, unavailable/failed/empty modes, and token exclusion are asserted. Provider/SDK network responses remain fixtures.
+
+Legacy travel/checkout frontend command across CanvasTravelJourney, TravelSearch, SandboxCheckout and FlightSandboxCheckout: 15 passed, one actual-SSE-fixture-only standalone skip (executed by Python). Build passed with the existing chunk warning. No dependency, infrastructure or checkout change. Production Chrome and live evidence remain pending.
+
 ## Workflow runtime notes
 
 The native collaboration service refused a fourth child thread (`agent thread limit reached`). Existing separate agent contexts are reused for subsequent roles. Planning and checking remain in different contexts; role-specific new agent creation is unavailable. GSD isolation negotiation reported `head-diverged-from-fork` after planning commits, so execution is sequential in this existing worktree; the resolved mode was recorded as `none`. No branch was switched and no unrelated worktree was altered.

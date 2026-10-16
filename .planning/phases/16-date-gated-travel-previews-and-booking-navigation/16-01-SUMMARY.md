@@ -120,6 +120,6 @@ All implementation test failures were fixed and the failed paths rerun. Producti
 
 Approved preimplementation screenshots and runtime notes are in [verification.md](../../../artifacts/testing/2026-10-16-travel-previews/verification.md) and its `plan/` directory. The root inspected these before implementation. Plan 16-02 can now extend the working stays path to return flights and mixed modes. Shared phase requirements remain pending until their remaining declaring plans and final phase gates pass.
 
-## Self-Check
+## Self-Check: PASSED
 
 Both task commits exist; all six new files and this summary exist. The changed source/test paths match Plan 16-01. No live model/provider call, booking flow, durable schema, browser storage or infrastructure change was introduced.
