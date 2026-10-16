@@ -81,6 +81,7 @@ Both implementation tasks are complete. Corrected production browser acceptance 
 2. **16-04-02: Import races, manual continuation and image safety** — `b1114e4`
 3. **Incremental review fix: explicit reopening restores the selected chat snapshot** — `b2d3f7e`
 4. **Browser-discovered Stop→Retry lease cleanup fix** — `f61fc82`
+5. **Browser-discovered same-route Back guard fix** — `228f322`
 
 Source baseline was `5bf1fb9`; execution HEAD was `635c6bc` after the root committed revised planning/sketch evidence. Actuals are realized diff characters/4 across implementation commits, not model usage.
 
@@ -96,7 +97,7 @@ Source baseline was `5bf1fb9`; execution HEAD was `635c6bc` after the root commi
 
 ## Executed Checks
 
-- Browser Back investigation: upgraded all eight actual HTTP→SSE journeys to mount the production `PlansApp` router around Canvas and use native test-environment history traversal. The flow now checks Compare → View rooms/View flight → close details → manual search → Back, then same-search reopening and Forward/Back. The unsaved editor and composer survive; no leave confirmation or Plan reload occurs. `uv run --locked pytest services/agent/tests/test_canvas_travel.py -k journey -q` — **8 passed, 149 deselected in 14.36s**. This did not reproduce the reported live Chrome traversal failure; no speculative production routing change was made. Controlled Chrome re-verification remains the root's delivery gate.
+- Browser Back investigation: all eight actual HTTP→SSE journeys now mount the production `PlansApp` router around Canvas and use native test-environment history traversal. Initial tests passed because child interception masked parent listener ordering. Root then reproduced a single Back firing the Plan leave confirmation in Chrome. A direct same-path native traversal without child interception failed with that exact prompt before the fix. `PlansApp` now tracks its mounted route and ignores same-path popstate itself, leaving internal views to Canvas without depending on listener ordering. Different-path navigation continues through the existing leave guard. The flow also covers Compare → View rooms/View flight → close details → manual search → Back, same-search reopening and Forward/Back; the unsaved editor and composer survive with no Plan reload. Post-fix `uv run --locked pytest services/agent/tests/test_canvas_travel.py -k journey -q` — **8 passed, 149 deselected in 14.46s**; `npm --prefix frontend test -- src/PlansApp.test.jsx src/features/account/AccountSettingsPage.test.jsx` — **26 passed**; frontend production build passed. Controlled Chrome re-verification remains the root's delivery gate.
 
 - `uv run --locked pytest services/agent/tests/test_canvas_travel.py -k journey -q` — **8 passed in 12.40s**. Actual HTTP/graph/tool-handler/SSE/plansApi/React boundaries are exercised; only external provider/SDK network edges are fixtures. Both manual pages receive matching option IDs and fields, import makes zero extra request, and Back/Forward preserve editor/composer. Reload shows recovery rather than offers.
 - `npm --prefix frontend test -- src/features/plans/travel/CanvasTravelJourney.test.jsx` — **6 passed, 1 skipped** standalone. The fixture-only case runs in all eight Python-triggered journeys.
