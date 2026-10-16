@@ -83,6 +83,18 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   expect(screen.getByRole('textbox',{name:'Date note'}).value).toBe('Unfinished editor');
   expect(api.saveCanvas).not.toHaveBeenCalled();
+  if(fixture.mixed) {
+    const flightOpen=screen.getByRole('button',{name:'View all flights'});
+    await user.click(flightOpen);
+    const flightsView=screen.getByRole('region',{name:'Travel results only'});
+    expect(within(flightsView).getAllByRole('article')).toHaveLength(4);
+    expect(within(flightsView).getByText('Observed Air 3')).toBeTruthy();
+    expect(flightsView.textContent).not.toContain('Observed stay');
+    expect(flightsView.textContent).toContain('Return total for the party');
+    expect(requests).toHaveLength(count);
+    await user.click(within(flightsView).getByRole('button',{name:'← Back to plan chat'}));
+    await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
+  }
   expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
   expect(requests.some(x=>/checkout|prebook|hotels\/search/.test(x))).toBe(false);
 });

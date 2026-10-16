@@ -297,6 +297,7 @@ def stay_criteria(message, context, draft):
         raise Clarification(DESTINATION_QUESTION)
     rooms = None
     for text in texts:
+        text = re.sub(r"\bpassengers:\s*[^;\n]+", "", text, flags=re.I)
         if re.search(r"\b(?:rooms?|adults?|children|child|kids?)\b", text, re.I):
             rooms = explicit_rooms(text)
     if rooms is None:
@@ -409,20 +410,24 @@ class CanvasTravelObserver:
         self.counts = {"capabilities": 0, "lookup": 0, "stays": 0, "flights": 0}
         self.cache, self.snapshots = {}, {}
         self.tool_bytes = 0
+        self._tool_lock = asyncio.Lock()
         self.active = travel_intent(message, context)
-        self.mode = "flights" if re.search(r"\bflights?\b", message, re.I) else "stays"
-        if not re.search(r"\b(?:stays?|hotels?|accommodation|flights?)\b", message, re.I):
-            self.mode = "flights" if any(re.search(r"\bflights?\b", text, re.I) for _, text in clarification_history(context)) else "stays"
+        intent = " ".join([text for _, text in clarification_history(context)] + [message])
+        self.modes = [mode for mode, pattern in [("stays", r"\b(?:stays?|hotels?|accommodation)\b"), ("flights", r"\bflights?\b")] if re.search(pattern, intent, re.I)] or ["stays"]
+        self.mode = self.modes[0]
         self.question, self.failure = None, False
-        self.criteria, self.evidence = None, None
+        self.criteria_by_mode, self.evidence_by_mode, self.questions, self.failures = {}, {}, {}, set()
         if self.active:
-            try:
-                self.criteria, self.evidence = (flight_criteria if self.mode == "flights" else stay_criteria)(message, context, draft)
-            except Clarification as error:
-                self.question = FLIGHT_DATE_QUESTION if self.mode == "flights" and str(error) == DATE_QUESTION else str(error)
+            for mode in self.modes:
+                try:
+                    self.criteria_by_mode[mode], self.evidence_by_mode[mode] = (flight_criteria if mode == "flights" else stay_criteria)(message, context, draft)
+                except Clarification as error:
+                    self.questions[mode] = FLIGHT_DATE_QUESTION if mode == "flights" and str(error) == DATE_QUESTION else str(error)
+            if not self.criteria_by_mode:
+                self.question = next(iter(self.questions.values()))
 
     async def _call(self, action, criteria, category):
-        if not self.active or self.question or self.criteria is None:
+        if not self.active or self.question or not self.criteria_by_mode:
             raise ValueError("travel_input_required")
         key = json.dumps([action, criteria], sort_keys=True)
         if key in self.cache:
@@ -443,46 +448,53 @@ class CanvasTravelObserver:
         return result
 
     async def invoke(self, name, arguments):
+        async with self._tool_lock:
+            return await self._invoke(name, arguments)
+
+    async def _invoke(self, name, arguments):
+        mode = "flights" if name in {"search_airports", "search_flights"} else "stays" if name in {"search_destinations", "search_stays"} else next(iter(self.criteria_by_mode), self.mode)
         try:
             if name not in self.names or arguments:
                 raise ValueError("travel_tool_forbidden")
+            if mode not in self.criteria_by_mode:
+                raise Clarification(self.questions.get(mode, "Ask for this travel mode with complete search details first."))
+            if mode in self.failures:
+                raise ValueError("travel_mode_failed")
+            criteria = self.criteria_by_mode[mode]
             caps = Capabilities.model_validate(await self._call("capabilities", {}, "capabilities"))
-            if not (caps.flights if self.mode == "flights" else caps.hotels):
+            if name != "travel_capabilities" and not (caps.flights if mode == "flights" else caps.hotels):
                 raise ValueError("mode_unavailable")
             if name == "travel_capabilities":
                 payload = {"stays": caps.hotels, "flights": caps.flights, "sandbox": caps.sandbox}
             elif name == "search_airports":
-                if self.mode != "flights":
-                    raise ValueError("wrong_mode")
-                await self.resolve_airports()
-                payload = {"origin": self.criteria.origin, "destination": self.criteria.destination}
+                criteria = await self.resolve_airports()
+                payload = {"origin": criteria.origin, "destination": criteria.destination}
             elif name == "search_destinations":
-                if self.mode != "stays":
-                    raise ValueError("wrong_mode")
                 # Criteria already contain an explicit city/country. Lookup cannot override them.
-                raw = await self._call("places", {"q": self.criteria.destination.city,
-                    "country_code": self.criteria.destination.country_code}, "lookup")
+                raw = await self._call("places", {"q": criteria.destination.city,
+                    "country_code": criteria.destination.country_code}, "lookup")
                 from ..travel_contracts import Places
                 places = Places.model_validate(raw)
                 payload = {"places": [item.model_dump() for item in places.places]}
             else:
-                if name != f"search_{self.mode}":
+                if name != f"search_{mode}":
                     raise ValueError("wrong_mode")
-                if self.mode == "flights":
-                    await self.resolve_airports()
-                if self.snapshots:
-                    snapshot = next(iter(self.snapshots.values()))
+                if mode == "flights":
+                    criteria = await self.resolve_airports()
+                existing = next((item for item in self.snapshots.values() if item.mode == mode), None)
+                if existing:
+                    snapshot = existing
                 else:
-                    raw = await self._call("flights/search" if self.mode == "flights" else "hotels/search", self.criteria.model_dump(mode="json"), self.mode)
+                    raw = await self._call("flights/search" if mode == "flights" else "hotels/search", criteria.model_dump(mode="json"), mode)
                     if raw.get("provider") != "LiteAPI" or type(raw.get("sandbox")) is not bool or raw.get("status") not in {"ready", "empty"}:
                         raise ValueError("travel_response_invalid")
-                    results = [safe_flight(item, self.criteria) if self.mode == "flights" else safe_stay(item) for item in raw["results"]]
+                    results = [safe_flight(item, criteria) if mode == "flights" else safe_stay(item) for item in raw["results"]]
                     if len(results) > 100 or raw.get("returned_count") != len(results) or (raw["status"] == "empty") != (not results):
                         raise ValueError("travel_count_invalid")
                     now = datetime.now(UTC)
-                    normalized = self.criteria.model_dump(mode="json")
-                    snapshot = (FlightSnapshot if self.mode == "flights" else StaySnapshot)(search_id=uuid4().hex, plan_id=self.context.plan_id,
-                        generation=self.context.generation, mode=self.mode, criteria=self.criteria,
+                    normalized = criteria.model_dump(mode="json")
+                    snapshot = (FlightSnapshot if mode == "flights" else StaySnapshot)(search_id=uuid4().hex, plan_id=self.context.plan_id,
+                        generation=self.context.generation, mode=mode, criteria=criteria,
                         fingerprint=hashlib.sha256(json.dumps(normalized, sort_keys=True).encode()).hexdigest(),
                         draft_facts=draft_facts(self.draft), searched_at=now.isoformat(), expires_at=(now+timedelta(minutes=10)).isoformat(),
                         provider="LiteAPI", sandbox=raw["sandbox"], returned_count=len(results),
@@ -493,27 +505,30 @@ class CanvasTravelObserver:
                     if len(snapshot.model_dump_json().encode()) > 130000:
                         raise ValueError("travel_payload_limit")
                     self.snapshots[snapshot.search_id] = snapshot
-                payload = {"search_id": snapshot.search_id, "mode": self.mode, "count": snapshot.returned_count,
-                           "options": [{"id": item.id, "label": getattr(item, "name", None) or ", ".join(item.airlines), "price": item.price.model_dump()} for item in snapshot.results[:10]]}
+                payload = {"search_id": snapshot.search_id, "mode": mode, "count": snapshot.returned_count,
+                           "options": [{"id": item.id, "label": (getattr(item, "name", None) or ", ".join(item.airlines))[:240], "price": item.price.model_dump(exclude={"excluded_taxes"})} for item in snapshot.results[:10]]}
             encoded = json.dumps(payload, ensure_ascii=False)
             if self.tool_bytes + len(encoded.encode()) > 24576:
                 raise ValueError("travel_text_limit")
             self.tool_bytes += len(encoded.encode())
             return {"content": [{"type": "text", "text": encoded}]}
         except Clarification as error:
-            self.question = str(error)
-            return {"is_error": True, "content": [{"type": "text", "text": self.question}]}
+            self.questions[mode] = str(error)
+            return {"is_error": True, "content": [{"type": "text", "text": str(error)}]}
         except asyncio.CancelledError:
             self.snapshots.clear()
             raise
         except Exception:
             self.failure = True
+            self.failures.add(mode)
+            self.snapshots = {key: value for key, value in self.snapshots.items() if value.mode != mode}
             return {"is_error": True, "content": [{"type": "text", "text": self.question or "Travel search is unavailable. Ask the traveler to try again; do not invent options."}]}
 
     async def resolve_airports(self):
-        if isinstance(self.criteria, FlightSearch) and not isinstance(self.criteria, FlightInputs):
-            return
-        fields = self.criteria.model_dump(mode="json")
+        criteria = self.criteria_by_mode["flights"]
+        if not isinstance(criteria, FlightInputs):
+            return criteria
+        fields = criteria.model_dump(mode="json")
         known = {item["code"] for item in reference_catalog("airports")}
         for key in ("origin", "destination"):
             value = fields[key]
@@ -526,11 +541,11 @@ class CanvasTravelObserver:
             if len(candidates) != 1:
                 raise Clarification(AIRPORT_QUESTION)
             fields[key] = next(iter(candidates))
-        self.criteria = FlightSearch.model_validate(fields)
+        self.criteria_by_mode["flights"] = FlightSearch.model_validate(fields)
+        return self.criteria_by_mode["flights"]
 
     def selected(self, selections):
-        if self.failure:
-            return []
+        # Failed modes contribute no batch; independent complete modes stay available.
         if len(selections) != len(self.snapshots):
             raise ValueError("travel_selection_missing")
         output, seen = [], set()
@@ -545,6 +560,20 @@ class CanvasTravelObserver:
             snap = snap.model_copy(update={"preview_ids": [x.id for x in snap.results if x.id in ids]})
             output.append(snap.model_dump(mode="json"))
         return output
+
+    def answer(self, bundles):
+        lines = []
+        for mode in self.modes:
+            batch = next((value for value in bundles if value["mode"] == mode), None)
+            if batch is not None:
+                lines.append(f"Here are {mode} options for your exact search dates." if batch["results"] else f"No {mode} found. Try different dates or a different destination in Plan chat.")
+            elif mode in self.questions:
+                lines.append(self.questions[mode])
+            else:
+                lines.append(f"We couldn’t load {mode}. Try again from Plan chat. Your draft is unchanged.")
+        if any(value["results"] for value in bundles):
+            lines.append("Nothing has been saved or booked.")
+        return " ".join(lines)
 
     def server(self):
         @tool("travel_capabilities", "Check enabled travel modes after required stay inputs are complete.", {})

@@ -18,6 +18,12 @@ Use search_flights with no arguments for return flights. The host accepts explic
 
 Flight selections use mode: flights and observed IDs only. Fares are return totals for the whole party, never per-person/one-way prices. Preserve local segment dates/times, operating carriers, baggage, estimated price and excluded taxes. Unknown fields stay unknown. No booking/verification/prebooking/detail call is available.
 
+## Mixed research
+
+When the traveler requests both stays and flights, call each eligible mode once. Return separate selections with the exact search_id and mode; IDs from one mode can never stand in for the other. Shared limits are one capability call, two airport/destination lookups total, and one search per mode (five calls maximum, including failures). Cached duplicate requests do not requery the provider. Do not spend lookups after the budget is exhausted.
+
+Each mode has an independent input gate. A missing guest nationality can leave stays pending while complete flights are researched; a missing flight pricing country can leave flights pending while complete stays are researched. An ambiguous shared date correction blocks both. A disabled/failed mode gets no selection, and an empty observed mode gets an empty ID selection. Preserve the other mode’s completed selection. Do not rerun failed tools, reuse an earlier turn’s search, or fabricate fallback inventory. The host composes the partial-success explanation and focused question.
+
 ## Focused examples
 
 - Traveler: “Stays 5–12 July.” Ask for check-in and check-out including the year. Do not choose a year or call capabilities/lookups/search first, even when older Canvas dates exist.
