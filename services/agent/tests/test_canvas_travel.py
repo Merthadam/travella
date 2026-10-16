@@ -186,6 +186,27 @@ def test_stay_counts_and_no_padding(monkeypatch,count):
     assert len(s['results'])==count and len(s['preview_ids'])==min(3,count)
 
 
+@pytest.mark.parametrize('url',[
+    None,'http://photos.example.com/a.jpg','https://user:PRIVATE@photos.example.com/a.jpg',
+    'https://photos.example.com/a.jpg?token=PRIVATE','https://photos.example.com/a.jpg#PRIVATE',
+    'https://127.0.0.1/a.jpg','https://[::1]/a.jpg','https://photos.internal/a.jpg',
+    'https://photos.example.com:8443/a.jpg','https://photos.example.com/\\evil.jpg',
+])
+def test_observed_hotel_metadata_is_safe_and_invalid_photo_does_not_drop_inventory(monkeypatch,url):
+    class PhotoProvider(Provider):
+        async def call(self,name,args,**scope):
+            value=await super().call(name,args,**scope)
+            if args['action']=='hotels/search': value['results'][0]['image_url']=url
+            return value
+    app,pid,_,provider,texts,_=make_app(monkeypatch,PhotoProvider(1))
+    with TestClient(app) as client: response=post(client,pid)
+    option=bundles(response)[0]['results'][0]
+    assert option['image_url'] is None and option['hotel_id']=='property-0'
+    assert option['stars']==4 and option['review_score']==8.5 and option['review_count']==120 and option['facilities']==['Wi-Fi']
+    assert 'PRIVATE' not in response.text and 'PRIVATE' not in json.dumps(texts)
+    assert len(provider.calls)==2
+
+
 def context(history=()):
     return TurnContext(traveler_scope='owner',plan_id=str(uuid4()),recent_messages=tuple(history))
 

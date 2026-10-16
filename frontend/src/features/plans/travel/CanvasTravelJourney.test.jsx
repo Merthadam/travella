@@ -62,8 +62,13 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   expect(within(previews).getAllByRole('article')).toHaveLength(Math.min(3,resultCount));
   expect(previews.textContent).toContain(`Showing ${Math.min(3,resultCount)} of ${resultCount}`);
   expect(previews.textContent).toContain(fixture.search_start || fixture.components.essentials.dates.start);
-  if(mode==='stays') expect(previews.textContent).toContain('Breakfast included');
+  if(mode==='stays') {
+    expect(previews.textContent).toContain('Breakfast included');
+    expect(within(previews).getAllByRole('img')).toHaveLength(Math.min(3,resultCount));
+    expect(within(previews).getAllByRole('img')[0].getAttribute('src')).toBe('https://photos.example.com/hotel-0.jpg');
+  }
   else {
+    expect(within(previews).getAllByRole('img',{name:'Flight illustration'})).toHaveLength(Math.min(3,resultCount));
     expect(previews.textContent).toContain('Return total for the party · 2 adults');
     expect(previews.textContent).toContain(`${fixture.components.essentials.dates.start} 23:30:00+02:00`);
     expect(previews.textContent).toContain('ECONOMY · EUR');

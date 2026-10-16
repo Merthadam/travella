@@ -169,7 +169,7 @@ function Airport({ label, value, onChange, planId, active, onExpired }) {
 function Price({ price, stay }) {
   return (
     <div className="travel-price">
-      <strong>{priceLabel(price)}</strong>
+      <strong>{price?.estimated ? 'Estimated ' : ''}{priceLabel(price)}</strong>
       <small>
         {stay ? "Total for all rooms & nights" : "Return total · all travelers"}
       </small>
@@ -472,16 +472,17 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
   // New search identity is an explicit import; parent clock/rerenders never
   // rehydrate the form or overwrite a subsequent manual result.
   useEffect(() => {
-    if (!importedSnapshot || importedSnapshot.search_id === importedId.current) return;
+    const identity = `${planId}:${mode}:${importedSnapshot?.search_id}`;
+    if (!importedSnapshot || identity === importedId.current) return;
     epoch.current++;
     pending.current?.abort();
     setLoading(false); setDetail(null); setCompared([]); resetFilters();
     const parsed = travelSnapshotSchema.safeParse(importedSnapshot);
     if (!parsed.success || parsed.data.plan_id !== planId || parsed.data.mode !== (stay ? 'stays' : 'flights') || importReason || travelState(parsed.data, initialData)) {
-      setSnapshot(null); setError('These results are no longer available. Return to Plan chat to search again.'); return;
+      setImported(false); setSnapshot(null); setError('These results are no longer available. Return to Plan chat to search again.'); return;
     }
     const value = parsed.data, c = value.criteria;
-    importedId.current = value.search_id;
+    importedId.current = identity;
     setImported(true); setError(''); setSnapshot(value); setCurrency(c.currency);
     if (stay) {
       setCity(c.destination.city); setPlace({name:c.destination.city,place_id:c.destination.place_id});
