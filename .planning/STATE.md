@@ -228,3 +228,10 @@ Resume file: None
 - PR #9: https://github.com/Merthadam/travella/pull/9 — approved recent-first drawer, inline title editing and trailing hover/focus trash with touch access. User explicitly requested merge into main.
 - Current main (2a47115) integrated; production auto-merged, both planning workstreams retained. 38 focused tests, production build, authenticated desktop/mobile rename/reload/delete checks and scoped security gate passed. Sequential full suite: 125 passed, six known AccountApp/TripBrief failures reproduced on main. Parallel runs additionally expose an unchanged canvas chat-fold timing failure; documented in quick verification.
 - Merge through GitHub after final PR state check; preserve other worktrees, Docker volumes and the running preview. Phase 15 acceptance status is unchanged. Evidence: `.planning/quick/261011-01k-implement-selected-recent-first-plans-dr/261011-01k-VERIFICATION.md`.
+
+### Travel previews and manual search shipment — 2026-10-16
+
+- PR #11: https://github.com/Merthadam/travella/pull/11 — Phase 16 travel tools/A2UI/manual handoff plus natural follow-ups, Research flight previews, searchable ten-result pagination and London flight recovery. User explicitly authorized merge into main.
+- Integrated main a99d35f; retained flight-need confirmation and conditional cards while allowing explicit read-only preview navigation. Source 8ce1419 passed 306 backend tests, 61 frontend tests, production build and authenticated Chrome verification. Twelve standalone fixture-dependent tests skipped; actual SSE→React journeys passed in the backend suite.
+- Live merged-source check returned 95 flight options, preloaded manual search correctly and preserved the saved Plan without a flight component. Test Plan cleanup verified. Evidence: artifacts/testing/2026-10-16-phase16-ship/verification.md. Phase verification fingerprint and security ship gate passed.
+- Merge through GitHub; preserve separate local main, other worktrees, unrelated caches and running Docker volumes. Phase 15 acceptance status remains unchanged.
