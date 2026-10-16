@@ -36,3 +36,15 @@ Full requested backend regressions: **257 passed, 1 failed in 14.24s**. The prof
 ## Workflow runtime notes
 
 The native collaboration service refused a fourth child thread (`agent thread limit reached`). Existing separate agent contexts are reused for subsequent roles. Planning and checking remain in different contexts; role-specific new agent creation is unavailable. GSD isolation negotiation reported `head-diverged-from-fork` after planning commits, so execution is sequential in this existing worktree; the resolved mode was recorded as `none`. No branch was switched and no unrelated worktree was altered.
+
+## Root production browser checks in progress
+
+- Rebuilt with `bash scripts/start-local-ready.sh`; existing Cognito configuration validated read-only. Authentication sign-in/session/sign-out check passed. SHA-256 of `canvas_travel.py`, `CanvasTravel.jsx`, and `travel-results.css` matched running container source.
+- Authenticated example-account Chrome session opened isolated test Plan `f507ba21-deb6-467b-a566-a519934fc386`. Missing-date stay request returned the focused exact-date question with no previews; captured and inspected `implementation/missing-dates.jpg`.
+- Live SDK/private LiteAPI sandbox search for Lisbon, 2027-04-14 to 2027-04-21, 1 room/2 adults, HU nationality returned 27 observed stays, previewed 3, labeled sandbox/freshness/search-only dates and price/tax basis. Actual results screenshot `implementation/desktop-stay-results.jpg` inspected; no horizontal overflow. Navigation/Back preservation still needs controlled root check.
+- DevTools full-page screenshots repeatedly deadlocked its dedicated Chrome process. Viewport JPEG capture (`fullPage:false`) succeeds; restarted only dedicated automation browser. Existing auth refresh returned initial401 followed by refresh200/session200; not a new feature failure.
+- Review discovered and is fixing weekday date-intent fallback, mixed-result follow-up retention, and explicit stay currency handling. Final acceptance must use rebuilt corrected source.
+
+## Corrected navigation/imagery design gate
+
+User explicitly replaced the results-only destination with existing manual TravelSearch preloaded data and required sidechat pictures. Root inspected real existing page (`plan/manual-flight-page-before.jpg`) and revised simulated sketch in Chrome. View all opened prefilled manual form/results. Desktop/mobile screenshots inspected: `corrected-preview.jpg`, `corrected-manual-preload.jpg`, `corrected-mobile-preview.jpg`, `corrected-mobile-manual.jpg`; no horizontal overflow observed. Sketch controls/inventory are simulated; the actual existing manual page remains the implementation pattern. Earlier results-only browser evidence is superseded for final navigation acceptance.

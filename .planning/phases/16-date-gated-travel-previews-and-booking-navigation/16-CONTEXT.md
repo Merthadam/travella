@@ -1,19 +1,19 @@
 # Phase 16: Date-gated travel previews and booking navigation - Context
 
 **Gathered:** 2026-10-16
-**Status:** Ready for planning
+**Status:** Executing; navigation and imagery corrected by user 2026-10-16
 
 <domain>
 ## Phase Boundary
-Connect the existing flight and accommodation search endpoints to the Planning Canvas agent, render three provider-backed A2UI option previews in chat, and provide explicit navigation to a dedicated results page. Require exact dates before searches. Implement a reusable agent skill guiding this flow. The separate booking LangGraph flow is deferred.
+Connect the existing flight and accommodation search endpoints to the Planning Canvas agent, render three provider-backed A2UI option previews in chat, and provide explicit navigation to the existing manual flight/accommodation page with criteria and results preloaded. Require exact dates before searches. Implement a reusable agent skill guiding this flow. The separate booking LangGraph flow is deferred.
 </domain>
 
 <decisions>
 ## Implementation Decisions
 - **D-01:** Only Planning Canvas chat gets these tools; initial trip chat remains unchanged.
 - **D-02:** Reuse existing A2UI styling; user declined three alternative prototypes by agreeing with the recommendation. Still produce and inspect a preimplementation visual sketch and implementation screenshots.
-- **D-03:** Show up to three observed options per search in chat; a View all flights/stays button opens the dedicated page with the matching results.
-- **D-04:** New navigation opens a results-only page; booking functionality and a separate booking LangGraph flow are deferred. Preserve existing unrelated sandbox checkout behavior.
+- **D-03:** Show up to three observed options per search in chat; a View all flights/stays button opens the existing manual search page with matching criteria and results preloaded. Side-chat previews include pictures: observed hotel photos and honest flight visuals with fallback when provider imagery is absent.
+- **D-04 (supersedes initial results-only choice):** User explicitly corrected the implementation: navigate to the existing manual flight/accommodation page with search data preloaded, preserving its editing, filtering, comparison and detail/manual continuation controls. Do not create a separate stripped-down results page. The new booking LangGraph flow remains deferred; preserve existing sandbox checkout, and never automatically book or transmit checkout capabilities through the agent.
 - **D-05:** Exact departure/return or check-in/check-out dates are required before provider searches. Ask a focused question for missing/ambiguous dates; never invent dates or year. Prefer explicit current canvas dates; dates supplied for a search do not silently mutate durable Plan data.
 - **D-06:** Expose read-only search capabilities through the existing authenticated/private travel integration and a bounded agent skill, following the current activity-tool pattern.
 - **D-07:** Full GSD flow is authorized: research, UI and AI contracts, checked execution plans, implementation, review and verification. Routine implementation and verification choices are delegated to the agent.
@@ -33,7 +33,7 @@ Bounded search limits, exact field validation, result ownership/lifetime, loadin
 - `services/agent/travel_contracts.py` — exact-date flight and hotel input/output contracts.
 - `services/agent/travel_routes.py` and `services/agent/travel_client.py` — authorized travel endpoints/private connector access.
 - `frontend/src/features/plans/components/PlanningCanvas.jsx` — existing canvas navigation.
-- `frontend/src/features/plans/travel/TravelSearch.jsx` — provider results and existing sandbox checkout (new path must remain results-only).
+- `frontend/src/features/plans/travel/TravelSearch.jsx` — provider results and existing sandbox checkout (reuse this existing manual page with preloaded criteria/results).
 </canonical_refs>
 
 <code_context>

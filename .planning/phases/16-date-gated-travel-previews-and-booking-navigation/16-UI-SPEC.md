@@ -1,7 +1,7 @@
 ---
 phase: "16"
 slug: "date-gated-travel-previews-and-booking-navigation"
-status: approved
+status: revised-awaiting-check
 shadcn_initialized: false
 preset: none
 created: "2026-10-16"
@@ -10,17 +10,29 @@ reviewed_at: "2026-10-16"
 
 # Phase 16 — UI Design Contract
 
-Canonical visual and interaction contract for Planning Canvas travel previews and the dedicated results-only page. Sources: `16-CONTEXT.md` decisions D-01 through D-07, `16-REQUIREMENTS.md`, `16-RESEARCH.md`, and the existing frontend code. Research confirms the existing transport and transient snapshot approach; its proposed ten-minute UI lifetime is a local freshness policy, not a provider guarantee.
+Canonical visual and interaction contract for Planning Canvas travel previews and preloaded existing manual travel pages. Sources: `16-CONTEXT.md` decisions D-01 through D-07, `16-REQUIREMENTS.md`, `16-RESEARCH.md`, and the existing frontend code. Research confirms the existing transport and transient snapshot approach; its proposed ten-minute UI lifetime is a local freshness policy, not a provider guarantee.
+
+## User correction — authoritative D-04 addendum (2026-10-16)
+
+This addendum supersedes earlier results-only-page and no-imagery instructions below. The user explicitly requested the **existing manual Flight search / Accommodation search page**, preloaded with the chat search's exact criteria and full retained results, and pictures in chat. Do not build another destination page or disable the existing page's normal controls. Plan `16-04-PLAN.md` implements this correction; prior UI approval and captures cover the earlier design only.
+
+- **Destination:** use the existing `TravelSearch` page/header/form/result cards, filters, sort, comparison, show-more and details. View all hydrates all fields plus matching results once per search identity, including already-mounted airport input labels; it makes no airport/place lookup, search, detail, prebook or booking call. A small “From Plan chat · checked {time}” notice may explain the imported search. Do not show a separate results-only layout.
+- **Manual continuation:** the traveler can edit fields and choose the existing Search button, compare, or explicitly open View rooms/View flight. Existing hotel details refresh and sandbox workflows remain available through their normal deliberate controls. Token-free flight results can say “Search again to check current availability” and invoke the existing manual search only on that action. Never use internal token terminology in product copy; never automatically start a reservation. A successful manual search becomes the page's own result and is not overwritten/expired by the earlier import prop.
+- **Compact chat imagery:** stay cards use the observed, validated provider hotel photograph in a 16:9 region, `object-fit: cover`, lazy loading, no-referrer and descriptive alternative text. Missing/broken photos keep the same space with a hotel illustration and “Photo unavailable”. Flight cards show an observed logo only if an actual supported provider field exists; current contracts have none, so use a small neutral local plane illustration, never invented airline branding or a guessed image URL. The fixed plane visual is not a photograph of the offered aircraft.
+- **Card density:** retain up to three stacked cards. Show property/carrier, exact dates/route, total/currency/basis, sandbox/estimated/tax caveats and essential baggage/meal/cancellation information. Long individual segments, room lists and cancellation detail use native disclosure or the existing manual detail view; avoid full-page detail density in the sidechat. Do not hide material price exclusions behind hover-only controls.
+- **Continuity and invalid states:** preserve mounted Canvas, open editor, composer, scroll and focus; Back returns to the originating View all control/Plan chat. Preserve opaque-history reload recovery, expiry and changed-criteria rejection for imports. The existing normal manual screen remains usable, and a fresh explicit manual search can recover naturally. Distinguish an unavailable imported reference from a valid manual snapshot.
+- **Image safety:** only the host-observed public HTTPS photo value crosses the snapshot boundary after credential/query/fragment/private-literal checks. Invalid URLs become missing images. The model cannot choose or modify URLs. No image/detail fetch is added to agent search, no checkout token travels in the agent snapshot, and added metadata remains within its existing UTF-8 size cap.
+- **Corrected evidence:** root captures the revised single sketch before execution and actual chat/image→existing manual-page journey after execution on desktop/mobile. Verify exact prefilled fields and option identity, no opening search, normal explicit manual actions, missing/broken image fallback, currentness/reload/Back, console/network and inspected captures. Existing `plan/manual-flight-page-before.jpg` documents the real manual page before this correction. Earlier sketch captures do not certify the corrected journey.
 
 ## Scope and journey
 
 1. In **Planning Canvas → Plan chat**, the traveler requests flights or stays. Initial trip chat is unchanged. Hide unavailable modes using the existing travel-capability boundary.
 2. Resolve mode-specific requirements before making a provider request. Use explicit current Canvas dates, or exact dates the traveler supplies for this search. If any date or year is missing/ambiguous, ask a focused clarification in chat. Never invent dates or silently save search dates to the Plan.
 3. Show a loading status in the relevant assistant reply, then **up to three actual observed options**, in provider order, as a validated read-only A2UI surface. Do not pad a short result set, invent facts, or render model-authored price/provider facts.
-4. A single **View all flights** or **View all stays** action opens the matching full result collection in a dedicated results-only view. The action does not issue a fresh provider search or select, save, book, or prebook an option.
-5. **Back to plan chat** restores the same Canvas draft, open editor, chat history, scroll position and composer text, with focus returned to the originating View all control. Mobile returns to the Plan chat tab. Existing unrelated Canvas-card travel browsing and sandbox checkout remain separate.
+4. A single **View all flights** or **View all stays** action opens the existing manual TravelSearch page with matching full results and search criteria preloaded. Opening does not issue a fresh provider search or select, save, book, or prebook an option.
+5. **Back to plan chat** restores the same Canvas draft, open editor, chat history, scroll position and composer text, with focus returned to the originating View all control. Mobile returns to the Plan chat tab. The existing manual page keeps its normal deliberate search/details/comparison/sandbox continuation.
 
-No booking/payment/passenger-name form, supplier redirect, saved-option action, separate booking LangGraph flow, or generic model-authored navigation URL enters this new journey. No success wording may imply a booked or saved option.
+The agent/preview/import adds no booking/payment/passenger-name form, supplier redirect, saved-option action, separate booking graph or model-authored URL. Later explicit manual continuation preserves existing controls. Preview/navigation success never implies a booked or saved option.
 
 ## Design System
 
@@ -51,9 +63,9 @@ The following is a **non-exhaustive** list of source-verified local components, 
 | FlightsEntry, AccommodationEntry | `frontend/src/design-system/components/TravelEntry.jsx` | Existing unrelated travel entry points; preserve behavior |
 | ActivitySuggestions | `frontend/src/design-system/a2ui/ActivitySuggestions.jsx` | Pattern for strict schema, separate ephemeral surface, surface-bound actions and renderer error fallback |
 | CanvasConversation | `frontend/src/features/plans/components/CanvasConversation.jsx` | Chat host, loading/interruption status and composer preservation |
-| TravelSearch | `frontend/src/features/plans/travel/TravelSearch.jsx` | Reuse safe normalized result presentation where suitable; isolate this journey from checkout actions |
+| TravelSearch | `frontend/src/features/plans/travel/TravelSearch.jsx` | Actual destination; preload fields/results and preserve normal deliberate manual actions |
 | New travel-preview A2UI surface | To be implemented alongside ActivitySuggestions | Validated mode, criteria summary, three observed previews and one allowlisted View all action |
-| New results-only view | To be implemented under `features/plans/travel/` | Read-only matching collection and Back to plan chat; no checkout fallback |
+| Existing manual result cards/details | `frontend/src/features/plans/travel/TravelSearch.jsx` | Reused unchanged visual language with matching imported results; no duplicate destination |
 
 ## Spacing Scale
 
