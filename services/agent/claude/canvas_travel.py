@@ -556,7 +556,7 @@ def safe_stay(raw):
 class CanvasTravelObserver:
     names = {"travel_capabilities", "search_destinations", "search_stays", "search_airports", "search_flights"}
 
-    def __init__(self, client, context, authorization_token, draft, message, deadline=None):
+    def __init__(self, client, context, authorization_token, draft, message, deadline=None, *, flight_only=False):
         self.client, self.context, self.authorization_token = client, context, authorization_token
         self.draft, self.message = draft, message
         self.deadline = deadline or time.monotonic() + 120
@@ -572,6 +572,9 @@ class CanvasTravelObserver:
         completed = completed_clarification_modes(context) if history else set()
         self.modes = [mode for mode, pattern in [("stays", r"\b(?:stays?|hotels?|accommodation)\b"), ("flights", r"\bflights?\b")]
                       if re.search(pattern, intent, re.I) and (mode not in completed or re.search(pattern, message, re.I))] or ["stays"]
+        if flight_only:
+            self.modes = ["flights"]
+            self.names = {"travel_capabilities", "search_airports", "search_flights"}
         self.mode = self.modes[0]
         self.question, self.failure = None, False
         self.criteria_by_mode, self.evidence_by_mode, self.questions, self.failures = {}, {}, {}, set()

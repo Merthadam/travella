@@ -102,13 +102,13 @@ const Preview = createBinderlessComponentImplementation({ name: 'TravelPreviews'
   if (!parsed.success) return <p role="status">Waiting for valid travel results…</p>;
   const snapshot = parsed.data;
   if (options.reason) return <p role="status" className="canvas-travel-notice">{options.reason}</p>;
-  if (!snapshot.results.length) return <div role="status"><h3>No {snapshot.mode} found</h3><p>Try different dates or a different destination in Plan chat.</p></div>;
+  if (!snapshot.results.length) return <div role="status"><h3>No {snapshot.mode} found</h3><p>Try different dates or a different destination in {options.chatLabel}.</p></div>;
   return <section className="canvas-travel" aria-label={snapshot.mode==='flights' ? 'Flight previews' : 'Stay previews'}><SearchContext snapshot={snapshot}/><p>Showing {snapshot.preview_ids.length} of {snapshot.returned_count} {snapshot.returned_count === 1 ? 'result' : 'results'}</p>
     {snapshot.results.filter(x => snapshot.preview_ids.includes(x.id)).map(item => <OptionCard key={item.id} item={item} snapshot={snapshot}/>)}
-    <button type="button" className="ds-button primary canvas-travel-all" data-travel-search={snapshot.search_id} onClick={() => context.dispatchAction({ event: { name: 'view_all_travel', context: { search_id: snapshot.search_id } } })}>View all {snapshot.mode}</button><p>Nothing has been saved or booked.</p></section>;
+    {options.canOpen && <button type="button" className="ds-button primary canvas-travel-all" data-travel-search={snapshot.search_id} onClick={() => context.dispatchAction({ event: { name: 'view_all_travel', context: { search_id: snapshot.search_id } } })}>View all {snapshot.mode}</button>}<p>Nothing has been saved or booked.</p></section>;
 });
 const catalog = new Catalog(catalogId, 'v0.9', [Preview], []);
-export function TravelPreviews({ snapshot, onOpen, reason }) {
+export function TravelPreviews({ snapshot, onOpen, reason, chatLabel = 'Plan chat' }) {
   const processor = useRef(null), callback = useRef(onOpen); callback.current = onOpen;
   const [surface, setSurface] = useState(null), [error, setError] = useState(false);
   const surfaceId = `travel-${snapshot.search_id}`;
@@ -117,12 +117,12 @@ export function TravelPreviews({ snapshot, onOpen, reason }) {
     try {
       const data = travelSnapshotSchema.parse(snapshot);
       processor.current = new MessageProcessor([catalog], action => {
-        if (action.surfaceId === surfaceId && action.sourceComponentId === 'root' && action.name === 'view_all_travel' && Object.keys(action.context || {}).length === 1 && action.context?.search_id === data.search_id) callback.current(data.search_id);
+        if (action.surfaceId === surfaceId && action.sourceComponentId === 'root' && action.name === 'view_all_travel' && Object.keys(action.context || {}).length === 1 && action.context?.search_id === data.search_id) callback.current?.(data.search_id);
       });
       processor.current.processMessages([{ version:'v0.9',createSurface:{surfaceId,catalogId} }, {version:'v0.9',updateComponents:{surfaceId,components:[{id:'root',component:'TravelPreviews',value:{path:'/travel'}}]}}, {version:'v0.9',updateDataModel:{surfaceId,path:'/travel',value:data}}]);
       setSurface(processor.current.model.surfacesMap.get(surfaceId)); setError(false);
     } catch { setError(true); }
     return () => { processor.current?.dispose(); processor.current=null; };
   }, [snapshot, surfaceId, reason]);
-  return <Options.Provider value={{ reason }}>{reason ? <p role="status" aria-live="polite" className="canvas-travel-notice">{reason}</p> : error ? <p role="alert">These travel results couldn’t be displayed. Try again from Plan chat. Your draft is unchanged.</p> : surface && <A2uiSurface surface={surface}/>}</Options.Provider>;
+  return <Options.Provider value={{ reason, canOpen: typeof onOpen === 'function', chatLabel }}>{reason ? <p role="status" aria-live="polite" className="canvas-travel-notice">{reason}</p> : error ? <p role="alert">These travel results couldn’t be displayed. Try again from {chatLabel}. Your draft is unchanged.</p> : surface && <A2uiSurface surface={surface}/>}</Options.Provider>;
 }

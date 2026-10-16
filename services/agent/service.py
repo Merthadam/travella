@@ -180,6 +180,7 @@ class AgentTurnService:
                 "message": query,
                 "canvas_action": request.canvas_action,
                 "canvas_edit": edit_input,
+                "research_flights": False,
                 "canvas_draft": {"components": {"themes": request.canvas_themes.model_dump()}} if request.canvas_themes else None,
                 "reusable_evidence": self._evidence_cache.get((subject, plan_id), (0, []))[1] if self._evidence_cache.get((subject, plan_id), (0, []))[0] > time.monotonic() else [],
                 "generation_messages": context.get("messages", []) if request.canvas_action else [],
@@ -392,11 +393,12 @@ class AgentTurnService:
                         request, subject, authorization, "".join(emitted), "interrupted",
                         generation=response.generation,
                     )
-                await queue.put(("terminal", {"status": status, "sources": final.get("sources", []),
+                await queue.put(("terminal", {"status": status, "generation": response.generation, "sources": final.get("sources", []),
                                                "message": response.error if status == "error" else None,
                                                "trip_context": final.get("trip_context"),
                                                "canvas_draft": final.get("canvas_draft"),
                                                "canvas_edit_result": final.get("canvas_edit_result"),
+                                               "flight_preview": final.get("flight_preview"),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"
@@ -434,7 +436,7 @@ class AgentTurnService:
                     public_snapshot.update({name: item for name, item in value.items() if item is not None})
                     yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
                 else:
-                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result") if value.get(name) is not None}
+                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result", "flight_preview") if value.get(name) is not None}
                     if snapshot:
                         public_snapshot.update(snapshot)
                         yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})

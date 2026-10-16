@@ -15,7 +15,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 CHECKPOINT_SCHEMA_VERSION = 2
 _SECRET_KEYS = {"authorization_token", "access_token", "api_key", "token", "checkout_token", "raw_payload", "raw_html"}
-_TRANSIENT_KEYS = {"travel", "travel_results", "travel_snapshots", "_travel_results", "date_evidence", "evidence_by_mode"}
+_TRANSIENT_KEYS = {"travel", "flight_preview", "travel_results", "travel_snapshots", "_travel_results", "date_evidence", "evidence_by_mode"}
 _REUSE_FIELDS = (
     "evidence_id", "title", "url", "publisher", "domain", "read_status",
     "fact_type", "retrieved_at", "valid_until", "excerpt",

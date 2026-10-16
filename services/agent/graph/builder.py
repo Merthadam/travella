@@ -109,4 +109,6 @@ class AgentGraph:
         # Ephemeral provider snapshots never enter any compiled graph channel.
         if travel_results and result.get("canvas_edit_result") and status in {"in_progress", "needs your input"}:
             projection["canvas_edit_result"] = {**result["canvas_edit_result"], "travel": travel_results}
+        elif travel_results and result.get("research_flights") and status in {"in_progress", "needs your input"}:
+            projection["flight_preview"] = next((item for item in travel_results if item["mode"] == "flights"), None)
         return {**result, "projection": projection}
