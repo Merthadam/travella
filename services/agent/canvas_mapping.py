@@ -1,5 +1,5 @@
 """Deterministic approved component mappings; no inference or booking claims."""
-from services.trip_context import TripContext
+from services.trip_context import TripContext, flight_need_confirmed
 
 
 def mapped_components(context: dict) -> dict:
@@ -16,6 +16,8 @@ def mapped_components(context: dict) -> dict:
               " → ".join(value for value in (trip.dateStart, trip.dateEnd) if value) or "Dates not set")
     subtitle = f"{trip.travelers} travelers" if trip.travelers else "Travelers not set"
     for key, prefix in (("flights", "Flights to"), ("accommodation", "Stay in")):
+        if key == "flights" and not (flight_need_confirmed(trip) and trip.flights == "needed"):
+            continue
         title = f"{prefix} {trip.finalDestination}" if trip.finalDestination else "Destination not set"
         result[key] = {"status": "ready", "need": getattr(trip, key),
                        "bookingStatus": "not-booked", "title": title,

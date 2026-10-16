@@ -3,6 +3,7 @@ import { requestId } from '../../../plansApi';
 import { A2uiTripBrief } from './A2uiTripBrief';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useTripContext } from '../useTripContext';
+import { confirmFlightNeed } from '../flightNeeds';
 import './research-conversation.css';
 import { CanvasGenerationReview, PlanStages } from './CanvasGenerationReview';
 
@@ -171,7 +172,10 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   return <div className="chat-layout">
     <main className="chat-page" id="conversation-main">
     {onCanvas && <div className="chat-canvas-entry"><PlanStages/><div className="research-canvas-actions"><button type="button" onClick={() => onCanvas(false)} disabled={Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Open canvas</button><button type="button" className="primary" onClick={() => setReview({ context: structuredClone(brief.context), revision: brief.revision })} disabled={loading || Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Review & generate</button></div></div>}
-    {review && <CanvasGenerationReview context={review.context} onCancel={() => setReview(null)} onConfirm={() => { setReview(null); onCanvas(true, review.revision); }}/>}
+    {review && <CanvasGenerationReview context={review.context} onCancel={() => setReview(null)} onConfirm={async flights => {
+      const confirmed = await confirmFlightNeed(api, selected, review, flights);
+      brief.accept(confirmed); setReview(null); onCanvas(true, confirmed.revision);
+    }}/>}
     <section className="chat-transcript" aria-label="Plan conversation" aria-busy={loading || Boolean(active)} ref={history} onScroll={event => {
       const node = event.currentTarget;
       nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100;

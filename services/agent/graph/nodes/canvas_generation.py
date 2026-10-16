@@ -6,6 +6,8 @@ from copy import deepcopy
 from dataclasses import replace
 from typing import Any
 
+from services.trip_context import TripContext, flight_need_confirmed
+
 from ...canvas_contracts import CanvasDraft, ThemesComponent
 from ...canvas_mapping import mapped_components
 from ...claude.runtime import ResearchWorkerError
@@ -28,6 +30,9 @@ class CanvasGenerationNode:
             action = state.get("canvas_action")
             if action not in {"generate_themes", "generate_research", "generate_plan"}:
                 raise ValueError("Unsupported canvas action")
+            if not flight_need_confirmed(TripContext.model_validate(state.get("trip_context", {}))):
+                return {"status": "unable to continue", "assistant_text": "", "question": None,
+                        "state_changes": [], "error": "Confirm whether you need flights before generating your plan."}
             context = TurnContext(
                 traveler_scope=state["traveler_scope"], plan_id=state["plan_id"],
                 brief=state.get("brief", {}), trip_context=state.get("trip_context", {}),
@@ -39,6 +44,8 @@ class CanvasGenerationNode:
             previous = state.get("canvas_draft") or {}
             components = deepcopy(previous.get("components", {}))
             known = mapped_components(context.trip_context)
+            if "flights" not in known:
+                components.pop("flights", None)
             # Existing saved pins survive generation if the chosen destination is unchanged.
             old_map = components.get("map", {})
             if old_map.get("destination") == known["map"]["destination"]:

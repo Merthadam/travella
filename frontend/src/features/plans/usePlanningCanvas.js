@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
 import { definitions, ids } from '../../design-system/schemas';
+import { flightNeedConfirmed } from './flightNeeds';
 
 const groupIds = { themes: ['themes'], research: ['findings', 'links'], all: ids };
 const clone = value => structuredClone(value);
@@ -11,7 +12,7 @@ const mapHint = context => context?.candidates?.length === 1 ? context.candidate
 export function validateCanvasComponents(components, complete = false) {
   if (!components || typeof components !== 'object' || Array.isArray(components)) throw new Error('Invalid canvas update.');
   if (new TextEncoder().encode(JSON.stringify(components)).length > 65536) throw new Error('Canvas update is too large.');
-  if (Object.keys(components).some(id => !ids.includes(id)) || (complete && ids.some(id => !components[id]))) throw new Error('Invalid canvas components.');
+  if (Object.keys(components).some(id => !ids.includes(id)) || (complete && ids.some(id => id !== 'flights' && !components[id]))) throw new Error('Invalid canvas components.');
   return Object.fromEntries(Object.entries(components).map(([id, value]) => [id, definitions[id].schema.parse(value)]));
 }
 
@@ -22,7 +23,9 @@ function knownComponents(context = {}) {
   return validateCanvasComponents({
     essentials: { status: 'ready', dates, travelers: context.travelers ?? null, budget: { label: context.budget || '', noFixedBudget: Boolean(context.noFixedBudget) } },
     map: { status: 'ready', destination, final: Boolean(destination), pins: [] },
-    themes: { status: 'ready', items: [] }, flights: travel('flights'), accommodation: travel('accommodation'),
+    themes: { status: 'ready', items: [] },
+    ...(flightNeedConfirmed(context) && context.flights === 'needed' ? { flights: travel('flights') } : {}),
+    accommodation: travel('accommodation'),
     findings: { status: 'ready', items: [] }, links: { status: 'ready', items: [] },
   }, true);
 }
@@ -111,6 +114,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       next[id] = payload;
       // Keep visible travel dates/party aligned with the locally edited essentials.
       for (const mode of ['flights', 'accommodation']) {
+        if (!next[mode]) continue;
         next[mode].subtitle = payload.travelers ? `${payload.travelers} travelers` : 'Travelers not set';
         next[mode].detail = payload.dates.flexible ? 'Flexible dates' : [payload.dates.start, payload.dates.end].filter(Boolean).join(' → ') || 'Dates not set';
       }
@@ -144,6 +148,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (sourcePlanId !== base.current?.plan_id || !dataRef.current || !result?.sandbox || !result.booking_id) return;
     const next = clone(dataRef.current);
     const stay = next[result.mode === 'flights' ? 'flights' : 'accommodation'];
+    if (!stay || (result.mode === 'flights' && stay.need !== 'needed')) return;
     if (result.status === 'confirmed') {
       stay.bookingStatus = 'mock-booked';
       stay.mockBooking = result.mode === 'flights' ? { reference: result.booking_id, origin: result.flight?.outbound.segments[0].origin, destination: result.flight?.outbound.segments.at(-1).destination, departureDate: result.flight?.outbound.segments[0].departure_at.slice(0, 10), returnDate: result.flight?.inbound.segments[0].departure_at.slice(0, 10) } : { reference: result.booking_id, hotelName: result.hotel_name?.slice(0, 160), checkIn: result.check_in, checkOut: result.check_out };
@@ -174,6 +179,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       if (active.current !== run || epoch.current !== currentEpoch) return;
       if (currentContext.locked) throw new Error('Trip details are being updated. Wait for the reply to finish, then review again.');
       if (reviewedRevision !== undefined && currentContext.revision !== reviewedRevision) throw new Error('Trip details changed after your review. Review them again before generating.');
+      if (!flightNeedConfirmed(currentContext.context)) throw new Error('Confirm whether you need flights using Generate plan before generating sections.');
       setMapDestinationHint(mapHint(currentContext.context));
       if ((staleContext || currentContext.revision !== base.current.context_revision) && group !== 'all') { setStaleContext(true); throw new Error('The conversation changed. Regenerate the full plan to review the updated trip details.'); }
       run.contextRevision = currentContext.revision;
@@ -189,14 +195,22 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
             const statuses = Object.fromEntries(Object.entries(draft.group_status || {}).filter(([key, value]) => runGroups.includes(key) && ['loading', 'ready', 'error'].includes(value)));
             const replacement = Object.fromEntries(Object.entries(incoming).filter(([key, value]) => groupIds[group].includes(key) && !['loading', 'error'].includes(value.status)));
             if (group === 'all') {
-              for (const key of ['essentials', 'flights', 'accommodation']) if (editedComponents.current.has(key)) delete replacement[key];
+              for (const key of ['essentials', 'accommodation']) if (editedComponents.current.has(key)) delete replacement[key];
+              if (replacement.flights && editedComponents.current.has('essentials')) {
+                const { dates, travelers } = dataRef.current.essentials;
+                replacement.flights = { ...replacement.flights,
+                  subtitle: travelers ? `${travelers} travelers` : 'Travelers not set',
+                  detail: dates.flexible ? 'Flexible dates' : [dates.start, dates.end].filter(Boolean).join(' → ') || 'Dates not set' };
+              }
               if (replacement.map) replacement.map = { ...replacement.map, pins: dataRef.current.map.pins };
             }
             // Research can refresh trip labels, but cannot undo a confirmed test stay.
             for (const mode of ['accommodation', 'flights']) {
-              if (replacement[mode] && dataRef.current[mode].mockBooking) replacement[mode] = { ...replacement[mode], bookingStatus: 'mock-booked', mockBooking: dataRef.current[mode].mockBooking };
+              if (replacement[mode] && dataRef.current[mode]?.mockBooking) replacement[mode] = { ...replacement[mode], bookingStatus: 'mock-booked', mockBooking: dataRef.current[mode].mockBooking };
             }
-            const next = validateCanvasComponents({ ...dataRef.current, ...replacement }, true);
+            const combined = { ...dataRef.current, ...replacement };
+            if (group === 'all' && currentContext.context.flights === 'not-needed') delete combined.flights;
+            const next = validateCanvasComponents(combined, true);
             for (const [key, status] of Object.entries(statuses)) {
               if (status === 'ready') run.completed.add(key);
               else run.completed.delete(key);
@@ -265,6 +279,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       let bookingChanged = false;
       const next = { ...components };
       for (const mode of ['accommodation', 'flights']) {
+        if (!dataRef.current[mode] || !value.components[mode] || !components[mode]) continue;
         if (fingerprint(dataRef.current[mode].mockBooking) === fingerprint(value.components[mode].mockBooking)) continue;
         bookingChanged = true;
         next[mode] = { ...components[mode], bookingStatus: dataRef.current[mode].bookingStatus };

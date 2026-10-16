@@ -22,10 +22,11 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+const confirmedFlights = { flights: 'needed', provenance: { flights: { source: 'user_edit', updated_at: '2026-10-16T10:00:00Z' } } };
 function setup() {
   const api = {
     canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, snapshot: null })),
-    researchContext: vi.fn(async () => ({ revision: 1, context: { finalDestination: 'Milan', travelers: 2 } })),
+    researchContext: vi.fn(async () => ({ revision: 1, context: { ...confirmedFlights, finalDestination: 'Milan', travelers: 2 } })),
     conversationMessages: vi.fn(async () => []),
     saveCanvas: vi.fn(), cancelAgentTurn: vi.fn(async () => {}),
     editCanvas: vi.fn(async (_selected, _draft, _message, _id, { onEvent }) => {
@@ -37,6 +38,77 @@ function setup() {
   render(<AppearanceProvider><PlanningCanvas selected={{ plan_id: 'test-plan', title: 'Test trip' }} api={api} /></AppearanceProvider>);
   return api;
 }
+
+test('confirmed no flights omits the card and travel navigation while keeping accommodation usable', async () => {
+  const user = userEvent.setup();
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: { ...confirmedFlights, flights: 'not-needed' } }),
+    conversationMessages: async () => [],
+  };
+  render(<PlanningCanvas selected={{ plan_id: 'no-flights', title: 'Train trip' }} api={api}/>);
+  await screen.findByRole('button', { name: 'Explore accommodation' });
+  expect(screen.queryByRole('button', { name: 'Explore flights' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Edit details', exact: true }));
+  await user.type(screen.getByRole('textbox', { name: 'Date note' }), 'By train');
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  await user.click(screen.getByRole('button', { name: 'Explore accommodation' }));
+  expect(screen.queryByRole('button', { name: 'Flights', exact: true })).toBeNull();
+  expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
+});
+
+test('regenerating after a confirmed No removes the old flight and persists its absence', async () => {
+  let context = { ...confirmedFlights }, stored = null, revision = 1;
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: revision, saved_context_revision: revision, snapshot: stored }),
+    researchContext: async () => ({ revision, context }),
+    saveCanvas: vi.fn(async (_plan, body) => { stored = structuredClone(body.snapshot); return { ...body, revision: 2 }; }),
+  };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'flight-change' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.data.flights.need).toBe('needed');
+  const generated = structuredClone(result.current.data); delete generated.flights;
+  context = { ...confirmedFlights, flights: 'not-needed' }; revision = 2;
+  api.generateCanvas = vi.fn(async (_plan, body, _id, { onEvent }) => {
+    onEvent({ type: 'STATE_SNAPSHOT', snapshot: { canvas_draft: { generation_id: body.generation_id, context_revision: 2, components: generated, group_status: { themes: 'ready', research: 'ready' } } } });
+    return { status: 'complete' };
+  });
+  await act(() => result.current.generate('all', 2));
+  expect(result.current.data.flights).toBeUndefined();
+  expect(result.current.valid).toBe(true);
+  act(() => result.current.action('essentials', 'edit_essentials', { ...result.current.data.essentials, travelers: 3 }));
+  expect(result.current.data.accommodation.subtitle).toBe('3 travelers');
+  act(() => result.current.updateMockBooking('flight-change', { sandbox: true, mode: 'flights', status: 'confirmed', booking_id: 'old' }));
+  expect(result.current.data.flights).toBeUndefined();
+  await act(() => result.current.save());
+  expect(result.current.dirty).toBe(false);
+  expect(stored.components.flights).toBeUndefined();
+  act(() => result.current.reload());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.data.flights).toBeUndefined();
+  expect(result.current.data.essentials.travelers).toBe(3);
+});
+
+test('confirming Yes adds flights even when essentials were edited while flights were absent', async () => {
+  let context = { ...confirmedFlights, flights: 'not-needed' }, revision = 1;
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: revision, snapshot: null }),
+    researchContext: async () => ({ revision, context }),
+  };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'add-flights' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  act(() => result.current.action('essentials', 'edit_essentials', { ...result.current.data.essentials, travelers: 3 }));
+  const generated = structuredClone(result.current.data);
+  generated.flights = { ...generated.accommodation, need: 'needed', subtitle: 'Travelers not set' };
+  context = confirmedFlights; revision = 2;
+  api.generateCanvas = vi.fn(async (_plan, body, _id, { onEvent }) => {
+    onEvent({ type: 'STATE_SNAPSHOT', snapshot: { canvas_draft: { generation_id: body.generation_id, context_revision: 2, components: generated, group_status: { themes: 'ready', research: 'ready' } } } });
+    return { status: 'complete' };
+  });
+  await act(() => result.current.generate('all', 2));
+  expect(result.current.data.flights).toMatchObject({ need: 'needed', subtitle: '3 travelers' });
+  expect(result.current.error).toBe('');
+});
 
 test('open card edits and unsent chat survive flight and stay navigation', async () => {
   const user = userEvent.setup(); const api = setup();
@@ -86,7 +158,7 @@ test('cancelling an editor during a reply releases the save lock after the reply
 test('adding an explicitly chosen activity preserves an independent open editor', async () => {
   const api = {
     canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
-    researchContext: async () => ({ revision: 1, context: { finalDestination: 'Milan', travelers: 2 } }),
+    researchContext: async () => ({ revision: 1, context: { ...confirmedFlights, finalDestination: 'Milan', travelers: 2 } }),
   };
   const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
   await waitFor(() => expect(result.current.data).not.toBeNull());
@@ -119,7 +191,7 @@ test('mock stay is explicitly saved, restored, and preserved through regeneratio
   let stored = null;
   const api = {
     canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, saved_context_revision: 1, snapshot: stored })),
-    researchContext: vi.fn(async () => ({ revision: 1, context: { finalDestination: 'Milan', travelers: 2 } })),
+    researchContext: vi.fn(async () => ({ revision: 1, context: { ...confirmedFlights, finalDestination: 'Milan', travelers: 2 } })),
     saveCanvas: vi.fn(async (_plan, body) => { stored = structuredClone(body.snapshot); return { ...body, revision: 2 }; }),
   };
   const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
@@ -192,7 +264,7 @@ test('confirmed mock flight saves independently of a stay and survives reload an
   let stored = null, finish;
   const api = {
     canvas: async () => ({ revision: 1, context_revision: 1, saved_context_revision: 1, snapshot: stored }),
-    researchContext: async () => ({ revision: 1, context: {} }),
+    researchContext: async () => ({ revision: 1, context: confirmedFlights }),
     saveCanvas: vi.fn((_plan, body) => new Promise(resolve => { finish = () => { stored = structuredClone(body.snapshot); resolve({ ...body, revision: 2 }); }; })),
   };
   const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
