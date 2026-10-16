@@ -425,7 +425,7 @@ export function filterResults(
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
 }
-export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importReason = '' }) {
+export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = '' }) {
   const stay = mode === "accommodation";
   const dates = initialData?.essentials?.dates;
   const [city, setCity] = useState(initialData?.map?.destination || "");
@@ -472,7 +472,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
   // New search identity is an explicit import; parent clock/rerenders never
   // rehydrate the form or overwrite a subsequent manual result.
   useEffect(() => {
-    const identity = `${planId}:${mode}:${importedSnapshot?.search_id}`;
+    const identity = `${planId}:${mode}:${importedSnapshot?.search_id}:${importRequest}`;
     if (!importedSnapshot || identity === importedId.current) return;
     epoch.current++;
     pending.current?.abort();
@@ -494,7 +494,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       setChildren(c.children_ages); setInfants(c.infant_ages); setCabin(c.cabin_class); setCountry(c.country_code);
     }
     heading.current?.focus();
-  }, [importedSnapshot?.search_id, planId, mode]);
+  }, [importedSnapshot?.search_id, importRequest, planId, mode]);
   useEffect(() => {
     if (!active) {
       epoch.current++;

@@ -40,6 +40,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const [screen, setScreen] = useState(null);
   const [travelResultId, setTravelResultId] = useState(null);
   const [travelImports, setTravelImports] = useState({});
+  const [travelNavigationRequest, setTravelNavigationRequest] = useState(0);
   const resultReturnFocus = useRef(null);
   const resultsOpen = useRef(false);
   const resultsPath = useRef('');
@@ -57,6 +58,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
     resultReturnFocus.current = searchId; resultsOpen.current = true; resultsPath.current = location.pathname;
     resultOwnedEntries.current.add(searchId);
     history.pushState({ canvasTravelView: 'results', canvasTravelId: searchId }, '', location.href);
+    setTravelNavigationRequest(value => value + 1);
     setTravelResultId(searchId); setScreen('travel-results'); setMobileView('canvas');
   }
   function closeTravelResults() {
@@ -70,6 +72,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
       if(location.pathname!==path) return;
       if (event.state?.canvasTravelView === 'results') {
         event.stopImmediatePropagation(); resultsOpen.current = true; resultsPath.current = location.pathname;
+        setTravelNavigationRequest(value => value + 1);
         setTravelResultId(event.state.canvasTravelId); setScreen('travel-results'); setMobileView('canvas');
       } else if (resultsOpen.current) {
         event.stopImmediatePropagation(); restorePlanChat();
@@ -91,9 +94,9 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   useEffect(() => {
     if (screen === 'travel-results' && selectedTravel && resultMode) {
       setVisitedTravel(prev => ({...prev,[resultMode]:true}));
-      setTravelImports(prev => prev[resultMode] === travelResultId ? prev : {...prev,[resultMode]:travelResultId});
+      setTravelImports(prev => prev[resultMode]?.searchId === travelResultId && prev[resultMode]?.request === travelNavigationRequest ? prev : {...prev,[resultMode]:{searchId:travelResultId,request:travelNavigationRequest}});
     }
-  }, [screen, travelResultId, resultMode]);
+  }, [screen, travelResultId, resultMode, travelNavigationRequest]);
   const travelReturnFocus = useRef(null);
   useEffect(() => {
     if (screen || !travelReturnFocus.current) return;
@@ -208,7 +211,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
       {travel.error && <p role="alert" className="canvas-error">{travel.error} <button className="ds-button" onClick={travel.retry}>Retry travel connection</button></p>}
       {screen && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus onClick={() => { if (resultsOpen.current) closeTravelResults(); else { travelReturnFocus.current = screen; setScreen(null); } }}>{resultsOpen.current ? '← Back to plan chat' : '← Back to canvas'}</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([, , key]) => travel.capabilities?.[key]).map(([mode, label]) => <button key={mode} aria-pressed={activeTravel === mode} onClick={() => { setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); }}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
       {screen === 'travel-results' && !selectedTravel && <section aria-label="Travel result recovery"><p role="status">These results are no longer available. Return to Plan chat to search again.</p></section>}
-      {['accommodation', 'flights'].filter(mode => visitedTravel[mode]).map(mode => <TravelSearch key={`${selected.plan_id}-${mode}`} planId={selected.plan_id} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]]} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode]]) : ''} initialData={canvas.data} onExpired={onExpired} onBookingResult={canvas.updateMockBooking}/>)}
+      {['accommodation', 'flights'].filter(mode => visitedTravel[mode]).map(mode => <TravelSearch key={`${selected.plan_id}-${mode}`} planId={selected.plan_id} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} onExpired={onExpired} onBookingResult={canvas.updateMockBooking}/>)}
       {canvas.renderData && <div hidden={Boolean(screen)}><CanvasMapContext.Provider value={{ preview, destinationHint: canvas.mapDestinationHint, onClearPreview: () => setPreview(null), onSearchArea: searchMapArea, onAddPreview: place => canvas.addActivities([place]), disabled: busy || canvas.data.map.pins.length >= 50 }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} visible={ids} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placePhoto={CanvasPlacePhoto} placePreview={preview} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider></div>}
       <dialog className="canvas-confirm" ref={dialog} aria-labelledby="canvas-confirm-title" onCancel={event => { event.preventDefault(); setConfirm(null); }}>
         <h2 id="canvas-confirm-title">{confirm?.kind === 'generate' ? `Replace the draft ${groupLabel[confirm.group]}?` : confirm?.kind === 'reload' ? 'Discard edits and load the saved plan?' : 'Leave without saving?'}</h2>

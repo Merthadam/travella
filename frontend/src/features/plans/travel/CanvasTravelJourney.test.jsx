@@ -34,6 +34,11 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
       return new Response(turns[turnIndex++].sse,{status:200,headers:{'Content-Type':'text/event-stream'}});
     }
     if(String(url).endsWith('/travel/capabilities'))return new Response(JSON.stringify({provider:'LiteAPI',sandbox:true,hotels:true,flights:true}),{status:200});
+    if(/\/travel\/(hotels|flights)\/search$/.test(String(url))) {
+      const selectedMode=String(url).includes('/flights/')?'flights':'stays';
+      const source=fixture.sse.split('\n').filter(line=>line.startsWith('data:')).map(line=>JSON.parse(line.slice(5))).find(event=>event.snapshot?.canvas_edit_result?.travel?.some(s=>s.mode===selectedMode)).snapshot.canvas_edit_result.travel.find(s=>s.mode===selectedMode);
+      return new Response(JSON.stringify({...source,results:[{...source.results[0],id:'manual-b',name:'Manual B',airlines:['Manual B']}]}),{status:200});
+    }
     throw new Error(`Unexpected network boundary: ${url}`);
   }));
   const api={...plansApi,canvas:vi.fn(async()=>({revision:1,context_revision:1,saved_context_revision:1,snapshot:{components:fixture.components}})),researchContext:vi.fn(async()=>({revision:1,context:{}})),conversationMessages:vi.fn(async()=>[]),saveCanvas:vi.fn(),cancelAgentTurn:vi.fn(async()=>{})};
@@ -77,7 +82,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
     expect(previews.textContent).toContain(fixture.unknown ? 'Cancellation terms unavailable' : 'Non-refundable');
   }
   await user.type(screen.getByRole('textbox',{name:'Message Travella'}),'Keep this unsent message');
-  const count=requests.length;
+  let count=requests.length;
   await user.click(open);
   const results=await screen.findByRole('region',{name:mode==='stays' ? 'Accommodation search' : 'Flight search'});
   await within(results).findByRole('heading',{name:`${mode==='flights' ? 'Observed Air' : 'Observed stay'} ${resultCount-1}`});
@@ -87,10 +92,22 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   expect(within(results).getByLabelText(mode==='stays' ? 'Check-in' : 'Departure').value).toBe(fixture.search_start || fixture.components.essentials.dates.start);
   expect(within(results).getByLabelText(mode==='stays' ? 'Destination or ski area' : 'From airport').value).toBe(mode==='stays' ? 'Lisbon' : 'BUD');
   expect(results.textContent).not.toContain('PRIVATE_CHECKOUT');
+  await user.click(within(results).getByRole('button',{name:mode==='stays'?'Search stays':'Search flights'}));
+  await within(results).findByRole('heading',{name:'Manual B'});
+  expect(within(results).getAllByRole('article')).toHaveLength(1);
+  expect(requests).toHaveLength(++count);
   await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   expect(screen.getByRole('textbox',{name:'Date note'}).value).toBe('Unfinished editor');
   expect(api.saveCanvas).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button',{name:`View all ${mode}`}));
+  const reopened=await screen.findByRole('region',{name:mode==='stays'?'Accommodation search':'Flight search'});
+  await within(reopened).findByRole('heading',{name:`${mode==='flights'?'Observed Air':'Observed stay'} ${resultCount-1}`});
+  expect(within(reopened).getAllByRole('article')).toHaveLength(resultCount);
+  expect(within(reopened).queryByRole('heading',{name:'Manual B'})).toBeNull();
+  expect(requests).toHaveLength(count);
+  await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
+  await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   if(fixture.mixed) {
     const flightOpen=screen.getByRole('button',{name:'View all flights'});
     await user.click(flightOpen);
@@ -105,7 +122,8 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
     await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   }
   expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
-  expect(requests.some(x=>/checkout|prebook|hotels\/search/.test(x))).toBe(false);
+  expect(requests.some(x=>/checkout|prebook/.test(x))).toBe(false);
+  expect(requests.filter(x=>/\/travel\/(hotels|flights)\/search$/.test(x))).toHaveLength(1);
   await act(async()=>{history.forward();});
   await screen.findByRole('region',{name:fixture.mixed || mode==='flights' ? 'Flight search' : 'Accommodation search'});
   await act(async()=>{history.back();});
