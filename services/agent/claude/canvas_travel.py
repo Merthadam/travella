@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import re
 import time
 from datetime import UTC, date, datetime, timedelta
@@ -271,7 +272,7 @@ def explicit_rooms(text):
     remainder = text
     for allocation in reversed(allocations):
         remainder = remainder[:allocation.start()] + " " + remainder[allocation.end():]
-    if re.search(r"\b(?:adults?|child|children|kids?)\b", remainder, re.I):
+    if re.search(r"\b(?:rooms?|adults?|child|children|kids?)\b", remainder, re.I):
         return None
     return rooms
 
@@ -406,6 +407,7 @@ class CanvasTravelObserver:
         self.client, self.context, self.authorization_token = client, context, authorization_token
         self.draft, self.message = draft, message
         self.deadline = deadline or time.monotonic() + 120
+        self.started_at = time.monotonic()
         self.calls = 0
         self.counts = {"capabilities": 0, "lookup": 0, "stays": 0, "flights": 0}
         self.cache, self.snapshots = {}, {}
@@ -511,6 +513,7 @@ class CanvasTravelObserver:
                     if len(snapshot.model_dump_json().encode()) > 130000:
                         raise ValueError("travel_payload_limit")
                     self.snapshots[snapshot.search_id] = snapshot
+                    self.telemetry(mode, "complete", snapshot.returned_count, int(snapshot.truncated))
                 payload = {"search_id": snapshot.search_id, "mode": mode, "count": snapshot.returned_count,
                            "options": [{"id": item.id, "label": (getattr(item, "name", None) or ", ".join(item.airlines))[:240], "price": item.price.model_dump(exclude={"excluded_taxes"})} for item in snapshot.results[:10]]}
             encoded = json.dumps(payload, ensure_ascii=False)
@@ -520,15 +523,22 @@ class CanvasTravelObserver:
             return {"content": [{"type": "text", "text": encoded}]}
         except Clarification as error:
             self.questions[mode] = str(error)
+            self.telemetry(mode, "needs_input")
             return {"is_error": True, "content": [{"type": "text", "text": str(error)}]}
         except asyncio.CancelledError:
             self.snapshots.clear()
+            self.telemetry(mode, "cancelled", discard=1)
             raise
         except Exception:
             self.failure = True
             self.failures.add(mode)
             self.snapshots = {key: value for key, value in self.snapshots.items() if value.mode != mode}
+            self.telemetry(mode, "search_failed", discard=1)
             return {"is_error": True, "content": [{"type": "text", "text": self.question or "Travel search is unavailable. Ask the traveler to try again; do not invent options."}]}
+
+    def telemetry(self, mode, outcome, results=0, discard=0):
+        logging.getLogger(__name__).info("canvas_travel mode=%s outcome=%s calls=%d results=%d duration_ms=%d discard_count=%d",
+            mode, outcome, self.calls, results, min(120000, max(0, int((time.monotonic()-self.started_at)*1000))), discard)
 
     async def resolve_airports(self):
         criteria = self.criteria_by_mode["flights"]

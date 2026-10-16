@@ -501,3 +501,84 @@ def test_new_generation_discards_late_real_graph_snapshot(monkeypatch):
         release.set();response=await task
         assert response.status=='interrupted' and response.canvas_edit_result is None
     asyncio.run(run())
+
+
+def test_receipt_replay_keeps_original_expiry_without_provider_call(monkeypatch):
+    app,pid,_,provider,_,_=make_app(monkeypatch)
+    with TestClient(app) as c:
+        first=post(c,pid,event='same-event');second=post(c,pid,event='same-event')
+    assert bundles(first)==bundles(second) and len(provider.calls)==2
+    assert bundles(first)[0]['expires_at']==bundles(second)[0]['expires_at']
+    assert 'PRIVATE_' not in second.text
+
+
+def test_initial_chat_and_tool_argument_escalation_cannot_access_travel(monkeypatch):
+    app,pid,_,provider,_,_=make_app(monkeypatch)
+    with TestClient(app) as c:
+        response=c.post(f'/v1/agent/plans/{pid}/events/stream',headers={'Authorization':'Bearer valid'},json={'plan_id':pid,'event_id':'initial-chat','message':MIXED_MESSAGE})
+    assert response.status_code==200 and not provider.calls
+    async def run():
+        for name,args in [('sandbox/book',{}),('search_stays',{'action':'sandbox/book','subject':'other'}),('search_stays',{'check_in':START,'check_out':END,'source':'user','quote':'invented'})]:
+            p=Provider();o=CanvasTravelObserver(p,context(),'PRIVATE_TOKEN',CanvasSnapshot(components=components()),MESSAGE)
+            assert (await o.invoke(name,args)).get('is_error') and not p.calls
+    asyncio.run(run())
+
+
+def test_real_saver_serialization_excludes_travel_and_collector_resets(monkeypatch):
+    from langgraph.checkpoint.memory import InMemorySaver
+    from services.agent.request_context import _TRAVEL_RESULTS
+    async def run():
+        provider=Provider();pid=str(uuid4());saver=InMemorySaver()
+        monkeypatch.setattr('services.agent.travel_client.TravelClient.call',lambda self,*a,**k:provider.call(*a,**k))
+        graph=AgentGraph(runtime(provider,[]),checkpointer=saver)
+        original=graph.compiled.ainvoke
+        async def configured(state,config): return await original(state,config={**config,'configurable':{'thread_id':'isolated-checkpoint-test'}})
+        monkeypatch.setattr(graph.compiled,'ainvoke',configured)
+        state={'traveler_scope':'owner','plan_id':pid,'event_id':'saved-turn','generation':1,'message':MESSAGE,'canvas_edit':{'draft':{'components':components()},'suggestions':[],'area':None},'state_changes':[]}
+        result=await graph.invoke(state,authorization_token='PRIVATE_AUTH')
+        assert result['projection']['canvas_edit_result']['travel']
+        saved=await saver.aget_tuple({'configurable':{'thread_id':'isolated-checkpoint-test'}})
+        encoded=json.dumps(saved.checkpoint,default=str)
+        assert 'search_id' not in encoded and 'PRIVATE_' not in encoded and 'evidence_by_mode' not in encoded
+        assert 'search_id' not in repr(saver.storage) and 'PRIVATE_AUTH' not in repr(saver.storage)
+        assert _TRAVEL_RESULTS.get() is None
+        failed=AgentGraph(runtime(provider,[],tamper=lambda selections:[TravelSelection(search_id='bad',mode='stays',option_ids=[]).model_dump()]))
+        with pytest.raises(Exception): await failed.invoke(state,authorization_token='PRIVATE_AUTH')
+        assert _TRAVEL_RESULTS.get() is None
+    asyncio.run(run())
+
+
+def test_concurrent_real_graph_collectors_are_owner_and_plan_scoped(monkeypatch):
+    from services.agent.request_context import _TRAVEL_RESULTS
+    async def run():
+        both=asyncio.Event();arrived=0
+        class Concurrent(Provider):
+            async def call(self,name,args,**scope):
+                nonlocal arrived
+                if args['action']=='hotels/search':
+                    arrived+=1
+                    if arrived==2: both.set()
+                    await both.wait()
+                return await super().call(name,args,**scope)
+        provider=Concurrent();monkeypatch.setattr('services.agent.travel_client.TravelClient.call',lambda self,*a,**k:provider.call(*a,**k))
+        graph=AgentGraph(runtime(provider,[]));plans=[str(uuid4()),str(uuid4())]
+        async def invoke(index):
+            state={'traveler_scope':f'owner-{index}','plan_id':plans[index],'event_id':f'e-{index}','generation':1,'message':MESSAGE,'canvas_edit':{'draft':{'components':components()},'suggestions':[],'area':None},'state_changes':[]}
+            return await graph.invoke(state,authorization_token=f'PRIVATE_AUTH_{index}')
+        results=await asyncio.gather(invoke(0),invoke(1))
+        snapshots=[r['projection']['canvas_edit_result']['travel'] for r in results]
+        assert [s[0]['plan_id'] for s in snapshots]==plans and all(len(s)==1 for s in snapshots)
+        assert snapshots[0][0]['search_id']!=snapshots[1][0]['search_id'] and _TRAVEL_RESULTS.get() is None
+        assert {call[2]['subject'] for call in provider.calls}=={'owner-0','owner-1'}
+    asyncio.run(run())
+
+
+def test_travel_telemetry_contains_only_safe_fixed_fields(monkeypatch,caplog):
+    import logging
+    caplog.set_level(logging.INFO,logger='services.agent.claude.canvas_travel')
+    app,pid,_,provider,_,_=make_app(monkeypatch)
+    with TestClient(app) as c: response=post(c,pid,message=MESSAGE+'; private-note: PRIVATE_USER_TEXT')
+    assert terminal(response)['status']=='complete'
+    lines=[r.getMessage() for r in caplog.records if r.name=='services.agent.claude.canvas_travel']
+    assert lines and all('mode=stays' in line and 'outcome=complete' in line for line in lines)
+    assert all(secret not in '\n'.join(lines) for secret in ['PRIVATE_',pid,'Lisbon','nationality','HU',START])

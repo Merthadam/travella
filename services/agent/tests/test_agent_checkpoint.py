@@ -59,3 +59,11 @@ def test_checkpoint_rejects_oversized_serialized_state():
 
     with pytest.raises(ValueError, match="bounded size"):
         safe_checkpoint_state({"plan_id": "plan-1", "message": "x" * 50_000})
+
+
+def test_nested_travel_projection_and_private_evidence_never_persist():
+    import json
+    original={'plan_id':'plan-1','projection':{'canvas_edit_result':{'suggestions':[],'travel':[{'search_id':'PRIVATE_SEARCH','mode':'stays','results':[{'checkout_token':'PRIVATE_TOKEN'}]}]},'nested':{'date_evidence':{'spans':['PRIVATE_QUOTE']},'raw_payload':'PRIVATE_RAW','other':{'checkout_token':'PRIVATE_NESTED'},'offer':{'search_id':'PRIVATE_OTHER','mode':'flights'}}}}
+    encoded=json.dumps(safe_checkpoint_state(original))
+    assert 'PRIVATE_' not in encoded and 'travel' not in encoded
+    assert original['projection']['canvas_edit_result']['travel'][0]['search_id']=='PRIVATE_SEARCH'

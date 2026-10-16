@@ -14,13 +14,26 @@ from urllib.parse import urlsplit, urlunsplit
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 CHECKPOINT_SCHEMA_VERSION = 2
-_SECRET_KEYS = {"authorization_token", "access_token", "api_key", "token", "raw_payload", "raw_html"}
+_SECRET_KEYS = {"authorization_token", "access_token", "api_key", "token", "checkout_token", "raw_payload", "raw_html"}
+_TRANSIENT_KEYS = {"travel", "travel_results", "travel_snapshots", "_travel_results", "date_evidence", "evidence_by_mode"}
 _REUSE_FIELDS = (
     "evidence_id", "title", "url", "publisher", "domain", "read_status",
     "fact_type", "retrieved_at", "valid_until", "excerpt",
 )
 _MAX_REUSE_ENTRIES = 6
 _MAX_EXCERPT_CHARS = 1200
+
+
+def _without_transient(value):
+    """Defense in depth for nested projections passed by a checkpoint adapter."""
+    if isinstance(value, dict):
+        if "search_id" in value and value.get("mode") in {"stays", "flights"}:
+            return None
+        return {key: _without_transient(item) for key, item in value.items()
+                if key not in _SECRET_KEYS | _TRANSIENT_KEYS}
+    if isinstance(value, list):
+        return [_without_transient(item) for item in value]
+    return value
 
 
 def thread_id(traveler_scope: str, plan_id: str) -> str:
@@ -74,6 +87,7 @@ def safe_checkpoint_state(state: dict[str, Any]) -> dict[str, Any]:
                 if len(safe_entries) == _MAX_REUSE_ENTRIES:
                     break
         output["research_state"] = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "plan_id": plan_id, "evidence": safe_entries}
+    output = _without_transient(output)
     output["checkpoint_schema_version"] = CHECKPOINT_SCHEMA_VERSION
     encoded = json.dumps(output, ensure_ascii=False, default=str)
     if len(encoded) > 50000:

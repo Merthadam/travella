@@ -1,15 +1,15 @@
 ---
 phase: 16
 slug: date-gated-travel-previews-and-booking-navigation
-status: draft
+status: in_progress
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-10-16
 ---
 
 # Phase 16 — Validation Strategy
 
-This is the implementation validation contract. Only the baseline run below has executed; proposed coverage and browser gates remain pending.
+The deterministic implementation checks below have executed. Production Chrome, live SDK/provider checks, and final independent review remain pending; this is not phase sign-off.
 
 ## Test Infrastructure
 
@@ -21,7 +21,7 @@ This is the implementation validation contract. Only the baseline run below has 
 | Quick frontend | `npm --prefix frontend test -- src/features/plans/components/PlanningCanvas.test.jsx src/features/plans/travel/TravelSearch.test.jsx` |
 | Full phase backend | `uv run --locked pytest services/agent/tests services/mcps/tests services/auth/tests/test_travel_proxy.py services/crud/tests/test_canvas_mock_booking.py -q` |
 | Full frontend | `npm --prefix frontend test` and `npm --prefix frontend run build` |
-| New focused tests | `uv run --locked pytest services/agent/tests/test_canvas_travel.py -q` (proposed file; create in Wave 0) |
+| New focused tests | `uv run --locked pytest services/agent/tests/test_canvas_travel.py -q` |
 
 Default pytest testpaths omit Agent/MCP; explicit paths are required. Frontend dependencies were absent at research time; root subsequently completed `npm ci --prefix frontend`. Execution still checks/restores the lockfile environment before frontend tests.
 
@@ -122,6 +122,20 @@ Save evidence under `artifacts/testing/<date>-<task>/plan/`, `implementation/` a
 ## Research Baseline Executed
 
 On 2026-10-16, the quick backend command above passed: **31 passed, 25 warnings in 9.14s**. Warnings concerned LangGraph serializer defaults and Python coroutine-function deprecations. No frontend tests/build, authenticated browser journey, live model call or live provider search was executed by the researcher. Local health HTTP 200 is startup evidence only, not source-fidelity or feature verification.
+
+## Implementation Checks Executed (2026-10-16)
+
+- Plan 01: 58 backend checks and 14 focused frontend checks passed; Plan 02: 82 backend checks and 15 focused frontend checks passed. See the committed plan summaries for commands and fixture-only standalone skips.
+- Plan 03 task 01 (`a6bc489`): 85 travel backend checks passed; lifecycle/PlanningCanvas frontend command passed 19 with one fixture-only standalone skip. Eight Python-triggered HTTP/graph/SSE-to-React journeys execute that skipped case using actual emitted events.
+- `uv run --locked pytest services/agent/evals/test_canvas_travel_eval.py services/agent/tests/test_canvas_travel.py services/agent/tests/test_agent_checkpoint.py -q`: **115 passed in 19.97s**. E01–E20 all passed with zero critical host-invariant failures. Cases execute real gate, graph, handler, projection, serialization and browser parser code, with external SDK/provider network edges injected. They do not measure live model judgment or inventory.
+- `uv run --locked pytest services/agent/tests services/mcps/tests services/auth/tests/test_travel_proxy.py services/crud/tests/test_canvas_mock_booking.py -q`: **257 passed, 1 failed in 14.24s**. The failure is `test_profile_memory_sync_uses_verified_identity_and_safe_status`, whose old expected payload omits newer optional profile fields. Reproduced unchanged at preimplementation commit `aa4f16f`: **1 failed**.
+- `npm --prefix frontend test`: **131 passed, 6 failed, 1 skipped** across 21 files. Five AccountApp onboarding/auth heading expectations and one TripBrief confirmation expectation fail. All six reproduce in the same two test files from a temporary `git archive aa4f16f` checkout: **13 passed, 6 failed**. The standalone skip requires the Python-emitted SSE fixture and runs in the integrated journeys. No travel test failed.
+- `npm --prefix frontend run build`: passed; existing bundle-size warning remains. LangGraph/Python deprecation warnings and existing test-key warnings remain in backend output.
+- Baseline reproduction used the installed locked dependencies with archived source in `/tmp/phase16-baseline-aa4f16f`; no branch switch or source replacement. Initial archive lacked the shared JSON catalogs; extraction of baseline `services/` resolved that harness-only import error before the recorded reproduction.
+- Actual injected `InMemorySaver` channel values and serialized storage exclude result IDs, token sentinels and date evidence; recursive checkpoint projection defense passes separately. Default application construction still has no saver. Concurrent real graph calls isolate owner/Plan collectors, and receipts replay original expiry without another provider call.
+- The existing activity, legacy travel, sandbox checkout, proxy and CRUD mock-booking tests passed apart from the explicitly reproduced unrelated failures. No new CRUD operation or durable Plan schema was added; travel integration assertions read back unchanged Plan data.
+
+Requirement map status: TRAVEL-16-01 through TRAVEL-16-06 have passing deterministic coverage, with browser-facing acceptance still pending. TRAVEL-16-07 remains partial until root completes authenticated Chrome/source-hash/network/screenshot inspection. Every Wave 0 fixture/dependency item above is implemented and exercised; unchecked requirement and sign-off rows remain intentionally pending final browser/review gates. Full regression suites are **not green** because of the seven reproduced baseline failures.
 
 ## Sign-off
 
