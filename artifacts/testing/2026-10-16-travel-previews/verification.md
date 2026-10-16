@@ -25,4 +25,16 @@ Legacy travel/checkout frontend command across CanvasTravelJourney, TravelSearch
 
 ## Workflow runtime notes
 
+## Plan 16-03 deterministic handoff (production browser pending)
+
+Task 01 commit `a6bc489` implements cancellation/currentness, four-snapshot memory bounds, reference-only chat, relevant-fact invalidation, expiry and opaque history/reload recovery. Its backend suite passed 85 tests; lifecycle/PlanningCanvas frontend passed 19 with one standalone fixture-only skip. Actual emitted-SSE journeys cover history Forward/Back and reload without refetch.
+
+Task 02 commit `5c0320b`: E01–E20 plus travel/checkpoint tests **115 passed in 19.97s**. Actual injected saver channels and serialized storage exclude transient inventory, date evidence and private token sentinels. Concurrent real graph calls isolate owner/Plan collectors; receipt replay preserves original expiry. Fixed telemetry sentinel checks pass. SDK/provider network edges remain deterministic fixtures; no paid/live call was made by executor.
+
+Full requested backend regressions: **257 passed, 1 failed in 14.24s**. The profile-memory payload assertion failure reproduces at preimplementation `aa4f16f`. Full frontend: **131 passed, 6 failed, 1 skipped**; all six AccountApp/TripBrief failures reproduce from `git archive aa4f16f` (**13 passed, 6 failed** in those files). Temporary archive reproduction leaves shared working source unchanged. Existing travel/activity/legacy checkout regressions passed. Build and diff whitespace checks passed, with existing warnings. Full suites are not green; unrelated baseline failures were not altered.
+
+`16-03-SUMMARY.md` is partial, two tasks complete and root task 03 pending. `16-VALIDATION.md` retains incomplete browser/sign-off status. Root must rebuild current source, verify container hashes, use the isolated Plan, inspect real Chrome desktop/mobile interaction, network/console and eight implementation screenshots. Planning JPEGs and fixture tests do not satisfy production browser acceptance. No new CRUD operation or durable schema was added; tests assert unchanged Plan storage through research/navigation.
+
+### Runtime notes
+
 The native collaboration service refused a fourth child thread (`agent thread limit reached`). Existing separate agent contexts are reused for subsequent roles. Planning and checking remain in different contexts; role-specific new agent creation is unavailable. GSD isolation negotiation reported `head-diverged-from-fork` after planning commits, so execution is sequential in this existing worktree; the resolved mode was recorded as `none`. No branch was switched and no unrelated worktree was altered.
