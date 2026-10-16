@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivitySuggestions } from '../../../design-system/a2ui/ActivitySuggestions';
 import { Icon } from '../../../design-system/components/primitives';
 import { ChatMarkdown } from './ChatMarkdown';
+import { TravelPreviews } from '../travel/CanvasTravel';
 
-export function CanvasConversation({ chat, data, disabled, generating, onClose, onPreview, onAdd, area, onClearArea, collapseRef, visible }) {
+export function CanvasConversation({ chat, data, disabled, generating, onClose, onPreview, onAdd, area, onClearArea, collapseRef, visible, onOpenTravel }) {
   const [input, setInput] = useState('');
   const history = useRef(null); const nearBottom = useRef(true); const composer = useRef(null);
   useEffect(() => { if (visible && nearBottom.current && history.current) history.current.scrollTop = history.current.scrollHeight; }, [chat.messages, chat.active, visible]);
@@ -26,6 +27,7 @@ export function CanvasConversation({ chat, data, disabled, generating, onClose, 
         <p className="canvas-chat-author">{item.role === 'user' ? 'You' : 'Travella'}</p>
         {item.role === 'assistant' ? <div className="canvas-chat-markdown"><ChatMarkdown content={item.content}/></div> : <p className="canvas-chat-user-text">{item.content}</p>}
         {item.status === 'streaming' && !item.content && <div className="canvas-chat-thinking" role="status"><span/><span/><span/><p>Looking into your trip…</p></div>}
+        {item.travel?.map(snapshot => <TravelPreviews key={snapshot.search_id} snapshot={snapshot} reason={chat.travelReason(snapshot)} onOpen={onOpenTravel}/>)}
         {item.suggestions?.length > 0 && <ActivitySuggestions surfaceId={`activity-${item.message_id}`} suggestions={item.suggestions} added={item.suggestions.filter(isAdded).map(place => place.id)} disabled={blocked || pins.length >= 50} onAction={(name, payload) => { const place = item.suggestions.find(value => value.id === payload?.id); if (!place) return; if (name === 'preview_activity') onPreview(place); else if (!blocked && pins.length < 50) onAdd([place]); }}/>} 
         {['stopped', 'interrupted'].includes(item.status) && <div className="canvas-chat-reply-status"><span>{item.status === 'stopped' ? 'Reply stopped' : 'Reply interrupted'}</span>{item.request && <button type="button" className="ds-text-button" disabled={blocked} onClick={() => chat.send(item.request, item.area)}>Retry</button>}</div>}
       </article>)}

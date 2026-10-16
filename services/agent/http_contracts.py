@@ -10,6 +10,7 @@ from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
 
 from .canvas_contracts import CanvasDraft, ThemesComponent
 from .editing_contracts import CanvasEditRequest, PublicCanvasEditResult
+from .claude.canvas_travel import FlightSnapshot
 
 
 class AgentRequest(BaseModel):
@@ -55,6 +56,7 @@ class AgentResponse(BaseModel):
     trip_context: ContextSnapshot | None = None
     canvas_draft: CanvasDraft | None = None
     canvas_edit_result: PublicCanvasEditResult | None = None
+    flight_preview: FlightSnapshot | None = None
 
 
 class TravelerProfileMemoryRequest(BaseModel):

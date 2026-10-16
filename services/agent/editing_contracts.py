@@ -8,6 +8,7 @@ from services.crud.canvas import CanvasSnapshot
 
 from .canvas_contracts import PinPosition
 from .claude.research_result import StrictResult, public_https_url
+from .claude.canvas_travel import TravelSnapshot
 
 
 class MapArea(StrictResult):
@@ -64,6 +65,7 @@ class CanvasEditResult(StrictResult):
     suggestions: list[ActivityPlace] = Field(default_factory=list, max_length=5)
     add_ids: list[Annotated[str, Field(max_length=80)]] = Field(default_factory=list, max_length=5)
     area: MapArea | None = None
+    travel: list[TravelSnapshot] = Field(default_factory=list, max_length=2)
 
     @model_validator(mode="after")
     def known_additions(self):

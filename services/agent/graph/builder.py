@@ -7,6 +7,8 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 
 from ..request_context import (
+    bind_travel_results,
+    reset_travel_results,
     bind_authorization_token,
     bind_canvas_callback,
     bind_text_delta_callback,
@@ -54,9 +56,12 @@ class AgentGraph:
         profile_token = bind_traveler_profile(traveler_profile)
         text_token = bind_text_delta_callback(on_text_delta)
         canvas_token = bind_canvas_callback(on_canvas_draft)
+        travel_results = []
+        travel_token = bind_travel_results(travel_results)
         try:
             result = await self.compiled.ainvoke(state, config={"recursion_limit": 12})
         finally:
+            reset_travel_results(travel_token)
             reset_canvas_callback(canvas_token)
             reset_text_delta_callback(text_token)
             reset_traveler_profile(profile_token)
@@ -101,4 +106,9 @@ class AgentGraph:
         for field in ("question", "assistant_text", "error", "canvas_edit_result"):
             if result.get(field):
                 projection[field] = result[field]
+        # Ephemeral provider snapshots never enter any compiled graph channel.
+        if travel_results and result.get("canvas_edit_result") and status in {"in_progress", "needs your input"}:
+            projection["canvas_edit_result"] = {**result["canvas_edit_result"], "travel": travel_results}
+        elif travel_results and result.get("research_flights") and status in {"in_progress", "needs your input"}:
+            projection["flight_preview"] = next((item for item in travel_results if item["mode"] == "flights"), None)
         return {**result, "projection": projection}

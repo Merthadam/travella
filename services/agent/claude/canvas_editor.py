@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -17,6 +18,9 @@ from ..turn import TurnContext, load_prompt
 from .chat_stream import ChatAnswerStream
 from .research_result import StrictResult
 from .runtime import ClaudeSdkRuntime, ResearchWorkerError, _deny
+from .canvas_travel import TravelSelection
+from .canvas_travel_tools import CanvasTravelTools
+from ..request_context import collect_travel_results
 
 
 class PlaceSelection(StrictResult):
@@ -30,6 +34,7 @@ class EditorAnswer(StrictResult):
     suggestions: list[PlaceSelection] = Field(max_length=5)
     add_ids: list[str] = Field(max_length=5)
     addition_quote: str = Field(max_length=2000)
+    travel: list[TravelSelection] = Field(default_factory=list, max_length=2)
 
 
 def _explicit_addition(message: str, quote: str) -> bool:
@@ -174,7 +179,18 @@ class ClaudeSdkCanvasEditor:
         area = MapArea.model_validate(canvas_edit["area"]) if canvas_edit.get("area") else None
         observer = _MapsObserver(self.maps_client or MapsClient(), bounded, authorization_token,
                                  draft, suggestions, area)
+        from ..travel_client import TravelClient
+        travel = CanvasTravelTools(TravelClient(), bounded, authorization_token, draft, message,
+                                     time.monotonic() + min(120, self.config.timeout_seconds))
         answer_stream = ChatAnswerStream(on_text_delta, observer)
+
+        async def tool_guard(data, tool_use_id, hook_context):
+            name = data.get("tool_name", "")
+            if name in {f"mcp__travel__{value}" for value in travel.names}:
+                return {}
+            if name == "Skill" and data.get("tool_input", {}).get("skill") == "canvas-travel":
+                return {}
+            return await observer.before(data, tool_use_id, hook_context)
         addition_allowed = _explicit_addition(message, message)
         payload = {
             "current_date_utc": datetime.now(UTC).date().isoformat(),
@@ -194,11 +210,12 @@ class ClaudeSdkCanvasEditor:
                                                    budget=min(0.5, self.config.max_budget_usd))
                     options.system_prompt = load_prompt("canvas-editing-v1")
                     options.tools = ["Skill"]
-                    options.allowed_tools = ["Skill", *[f"mcp__maps__{name}" for name in sorted(observer.names)]]
-                    options.skills = ["canvas-activities"]
+                    options.allowed_tools = ["Skill", *[f"mcp__maps__{name}" for name in sorted(observer.names)],
+                                             *[f"mcp__travel__{name}" for name in sorted(travel.names)]]
+                    options.skills = ["canvas-activities", "canvas-travel"]
                     options.setting_sources = ["project"]
-                    options.mcp_servers = {"maps": observer.server()}
-                    options.hooks = {"PreToolUse": [HookMatcher(hooks=[observer.before])]}
+                    options.mcp_servers = {"maps": observer.server(), "travel": travel.server()}
+                    options.hooks = {"PreToolUse": [HookMatcher(hooks=[tool_guard])]}
                     options.max_turns = min(8, self.config.max_turns)
                     options.include_partial_messages = True
                     schema = EditorAnswer.model_json_schema()
@@ -216,11 +233,15 @@ class ClaudeSdkCanvasEditor:
                     if reply.add_ids and not _explicit_addition(message, reply.addition_quote):
                         raise ResearchWorkerError("canvas_addition_not_requested")
                     output = CanvasEditResult(suggestions=projected, add_ids=reply.add_ids, area=observer.area)
-                    await answer_stream.finish(reply.answer)
+                    bundles = travel.selected(reply.travel)
+                    answer = reply.answer
+                    await answer_stream.finish(answer)
+                    collect_travel_results(bundles)
                     logging.getLogger(__name__).info("canvas_editor_usage calls=1 cost_usd=%s maps_calls=%s", result.total_cost_usd, observer.calls)
-                    return {"status": "needs your input" if reply.needs_input else "in_progress",
-                            "assistant_text": reply.answer, "question": reply.answer if reply.needs_input else None,
-                            "canvas_edit_result": output.model_dump(), "state_changes": []}
+                    needs_input = reply.needs_input
+                    return {"status": "needs your input" if needs_input else "in_progress",
+                            "assistant_text": answer, "question": answer if needs_input else None,
+                            "canvas_edit_result": output.model_dump(exclude={"travel"}), "state_changes": []}
         except asyncio.CancelledError:
             raise
         except Exception as error:

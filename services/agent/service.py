@@ -180,6 +180,7 @@ class AgentTurnService:
                 "message": query,
                 "canvas_action": request.canvas_action,
                 "canvas_edit": edit_input,
+                "research_flights": False,
                 "canvas_draft": {"components": {"themes": request.canvas_themes.model_dump()}} if request.canvas_themes else None,
                 "reusable_evidence": self._evidence_cache.get((subject, plan_id), (0, []))[1] if self._evidence_cache.get((subject, plan_id), (0, []))[0] > time.monotonic() else [],
                 "generation_messages": context.get("messages", []) if request.canvas_action else [],
@@ -392,11 +393,12 @@ class AgentTurnService:
                         request, subject, authorization, "".join(emitted), "interrupted",
                         generation=response.generation,
                     )
-                await queue.put(("terminal", {"status": status, "sources": final.get("sources", []),
+                await queue.put(("terminal", {"status": status, "generation": response.generation, "sources": final.get("sources", []),
                                                "message": response.error if status == "error" else None,
                                                "trip_context": final.get("trip_context"),
                                                "canvas_draft": final.get("canvas_draft"),
                                                "canvas_edit_result": final.get("canvas_edit_result"),
+                                               "flight_preview": final.get("flight_preview"),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"
@@ -418,8 +420,7 @@ class AgentTurnService:
             yield self._sse({"type": "TEXT_MESSAGE_START", "messageId": message_id, "role": "assistant"})
             while True:
                 if await is_disconnected() and not task.done():
-                    state["reason"] = state["reason"] or "interrupted"
-                    task.cancel()
+                    self._cancel_stream(state, "interrupted")
                 try:
                     item = await asyncio.wait_for(queue.get(), timeout=0.05)
                 except TimeoutError:
@@ -435,7 +436,7 @@ class AgentTurnService:
                     public_snapshot.update({name: item for name, item in value.items() if item is not None})
                     yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
                 else:
-                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result") if value.get(name) is not None}
+                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result", "flight_preview") if value.get(name) is not None}
                     if snapshot:
                         public_snapshot.update(snapshot)
                         yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
@@ -446,24 +447,37 @@ class AgentTurnService:
                     yield self._sse({"type": "TERMINAL", **value})
                     yield self._sse({"type": "RUN_FINISHED", "threadId": str(request.plan_id), "runId": request.event_id})
         except asyncio.CancelledError:
-            if not task.done():
-                state["reason"] = state["reason"] or "interrupted"
-                task.cancel()
+            self._cancel_stream(state, "interrupted")
             raise
         finally:
-            if not task.done():
-                state["reason"] = state["reason"] or "interrupted"
-                task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-            self._active_streams.pop(key, None)
+            self._cancel_stream(state, "interrupted")
+            # An ASGI disconnect can cancel the streaming consumer too. It must
+            # not propagate another cancellation into SDK/context-lease cleanup.
+            try:
+                await asyncio.shield(task)
+            finally:
+                if task.done():
+                    self._active_streams.pop(key, None)
+                else:
+                    task.add_done_callback(lambda _: self._active_streams.pop(key, None))
+
+    @staticmethod
+    def _cancel_stream(state: dict[str, Any], reason: str) -> bool:
+        task = state.get("task")
+        if not task or task.done() or state.get("committing"):
+            return False
+        if reason == "stopped" or not state.get("reason"):
+            state["reason"] = reason
+        # Cancellation is a transition, not a polling operation. Repeated
+        # task.cancel() interrupts the cleanup which releases the durable lease.
+        if not state.get("cancel_requested"):
+            state["cancel_requested"] = True
+            task.cancel()
+        return True
 
     async def cancel(self, subject: str, plan_id: str, event_id: str) -> bool:
         state = self._active_streams.get((subject, plan_id, event_id))
-        if not state or not state.get("task") or state["task"].done() or state.get("committing"):
-            return False
-        state["reason"] = "stopped"
-        state["task"].cancel()
-        return True
+        return self._cancel_stream(state, "stopped") if state else False
 
     async def _persist_partial(
         self,
