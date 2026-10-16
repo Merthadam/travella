@@ -51,6 +51,16 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   const user=userEvent.setup();
   await user.click(await screen.findByRole('button',{name:'Edit details',exact:true}));
   await user.type(screen.getByRole('textbox',{name:'Date note'}),'Unfinished editor');
+  // Same-URL view history belongs to the mounted Canvas. Exercise the parent
+  // without relying on a child's stopImmediatePropagation/listener ordering.
+  history.pushState({},'',location.href);
+  await act(()=>new Promise(resolve=>{
+    window.addEventListener('popstate',resolve,{once:true});
+    history.back();
+  }));
+  expect(leavePrompt).not.toHaveBeenCalled();
+  expect(api.get).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('textbox',{name:'Date note'}).value).toBe('Unfinished editor');
   for (const [index,turn] of turns.entries()) {
     await user.type(screen.getByRole('textbox',{name:'Message Travella'}),turn.message);
     await user.click(screen.getByRole('button',{name:'Send message'}));
