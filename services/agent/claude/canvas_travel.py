@@ -564,7 +564,7 @@ def safe_stay(raw):
 class CanvasTravelObserver:
     names = {"travel_capabilities", "search_destinations", "search_stays", "search_airports", "search_flights"}
 
-    def __init__(self, client, context, authorization_token, draft, message, deadline=None, *, flight_only=False):
+    def __init__(self, client, context, authorization_token, draft, message, deadline=None, *, flight_only=False, parse_message=True):
         self.client, self.context, self.authorization_token = client, context, authorization_token
         self.draft, self.message = draft, message
         self.deadline = deadline or time.monotonic() + 120
@@ -574,6 +574,13 @@ class CanvasTravelObserver:
         self.cache, self.snapshots = {}, {}
         self.tool_bytes = 0
         self._tool_lock = asyncio.Lock()
+        self.question, self.failure = None, False
+        self.criteria_by_mode, self.evidence_by_mode, self.questions, self.failures = {}, {}, {}, set()
+        if not parse_message:
+            # Canvas tool calls supply structured model arguments. The legacy
+            # parser remains only for the separate Research flight flow.
+            self.active, self.modes, self.mode = True, ["stays", "flights"], "stays"
+            return
         self.active = travel_intent(message, context)
         history = search_history(message, context)
         intent = " ".join([text for _, text in history] + [message])
@@ -596,7 +603,7 @@ class CanvasTravelObserver:
                 self.question = next(iter(self.questions.values()))
 
     async def _call(self, action, criteria, category):
-        if not self.active or self.question or not self.criteria_by_mode:
+        if not self.active or self.question:
             raise ValueError("travel_input_required")
         key = json.dumps([action, criteria], sort_keys=True)
         if key in self.cache:

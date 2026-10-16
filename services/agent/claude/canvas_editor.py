@@ -18,7 +18,8 @@ from ..turn import TurnContext, load_prompt
 from .chat_stream import ChatAnswerStream
 from .research_result import StrictResult
 from .runtime import ClaudeSdkRuntime, ResearchWorkerError, _deny
-from .canvas_travel import CanvasTravelObserver, TravelSelection
+from .canvas_travel import TravelSelection
+from .canvas_travel_tools import CanvasTravelTools
 from ..request_context import collect_travel_results
 
 
@@ -179,20 +180,14 @@ class ClaudeSdkCanvasEditor:
         observer = _MapsObserver(self.maps_client or MapsClient(), bounded, authorization_token,
                                  draft, suggestions, area)
         from ..travel_client import TravelClient
-        travel = CanvasTravelObserver(TravelClient(), context, authorization_token, draft, message,
+        travel = CanvasTravelTools(TravelClient(), bounded, authorization_token, draft, message,
                                      time.monotonic() + min(120, self.config.timeout_seconds))
-        # Travel prose is host-authored after validated completion. Activity streaming stays unchanged.
-        answer_stream = ChatAnswerStream(None if travel.active else on_text_delta, observer)
-        if travel.active and travel.question:
-            if on_text_delta:
-                await on_text_delta(travel.question)
-            return {"status": "needs your input", "assistant_text": travel.question, "question": travel.question,
-                    "canvas_edit_result": CanvasEditResult().model_dump(exclude={"travel"}), "state_changes": []}
+        answer_stream = ChatAnswerStream(on_text_delta, observer)
 
         async def tool_guard(data, tool_use_id, hook_context):
             name = data.get("tool_name", "")
             if name in {f"mcp__travel__{value}" for value in travel.names}:
-                return {} if travel.active and not travel.question else _deny()
+                return {}
             if name == "Skill" and data.get("tool_input", {}).get("skill") == "canvas-travel":
                 return {}
             return await observer.before(data, tool_use_id, hook_context)
@@ -207,12 +202,6 @@ class ClaudeSdkCanvasEditor:
             "previous_suggestions_in_display_order": [item.model_dump() for item in suggestions],
             "explicit_map_area": area.model_dump() if area else None,
             "addition_allowed_this_turn": addition_allowed,
-            "travel_search_readiness": {
-                "active": travel.active,
-                "requested_modes": travel.modes if travel.active else [],
-                "ready_modes": list(travel.criteria_by_mode),
-                "missing_input_questions": travel.questions,
-            },
         }
         try:
             async with asyncio.timeout(min(120, self.config.timeout_seconds)):
@@ -246,15 +235,10 @@ class ClaudeSdkCanvasEditor:
                     output = CanvasEditResult(suggestions=projected, add_ids=reply.add_ids, area=observer.area)
                     bundles = travel.selected(reply.travel)
                     answer = reply.answer
-                    if travel.active:
-                        answer = travel.answer(bundles)
-                        if on_text_delta:
-                            await on_text_delta(answer)
-                    else:
-                        await answer_stream.finish(answer)
+                    await answer_stream.finish(answer)
                     collect_travel_results(bundles)
                     logging.getLogger(__name__).info("canvas_editor_usage calls=1 cost_usd=%s maps_calls=%s", result.total_cost_usd, observer.calls)
-                    needs_input = bool(reply.needs_input or travel.questions)
+                    needs_input = reply.needs_input
                     return {"status": "needs your input" if needs_input else "in_progress",
                             "assistant_text": answer, "question": answer if needs_input else None,
                             "canvas_edit_result": output.model_dump(exclude={"travel"}), "state_changes": []}

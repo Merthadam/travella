@@ -78,8 +78,8 @@ class Transport:
 def runtime(provider, tool_texts, *, tamper=None, modes=('stays',)):
     config=ResearchWorkerConfig(api_key='sk-ant-test-only-no-network')
     async def query(*, prompt, options, transport):
-        readiness=json.loads(prompt)['travel_search_readiness']
-        assert readiness['active'] and readiness['ready_modes']
+        data=json.loads(prompt)
+        assert 'travel_search_readiness' not in data
         assert 'research is read-only' in options.system_prompt
         assert options.skills == ['canvas-activities','canvas-travel']
         assert options.setting_sources == ['project']
@@ -88,16 +88,48 @@ def runtime(provider, tool_texts, *, tamper=None, modes=('stays',)):
         assert await guard({'tool_name':'mcp__travel__search_stays','tool_input':{}},'',None)=={}
         assert await guard({'tool_name':'mcp__maps__search_places','tool_input':{}},'',None)=={}
         assert await guard({'tool_name':'mcp__travel__sandbox/book','tool_input':{}},'',None)!={}
+        # Legacy fixture vocabulary generates scripted model arguments/questions
+        # for these provider/projection regressions. It is NOT production Canvas
+        # routing or evidence of live model language understanding. Independent
+        # semantic tests and browser runs cover natural-language interpretation.
+        fixture=CanvasTravelObserver(None,context(data['conversation_history']),'',
+            CanvasSnapshot(components=data['current_unsaved_canvas']),data['current_message'])
         server=options.mcp_servers['travel']['instance']
-        selected=[]
-        for mode in modes:
-            result=await server.request_handlers[CallToolRequest](CallToolRequest(method='tools/call', params=CallToolRequestParams(name=f'search_{mode}',arguments={})))
+        async def invoke(name, arguments):
+            result=await server.request_handlers[CallToolRequest](CallToolRequest(method='tools/call',params=CallToolRequestParams(name=name,arguments=arguments)))
             wire=result.root.model_dump()
-            payload={} if wire.get('isError') else json.loads(wire['content'][0]['text']); tool_texts.append(wire)
-            if 'search_id' in payload: selected.append({'search_id':payload['search_id'],'mode':mode,'option_ids':[x['id'] for x in payload['options'][:3]]})
+            return wire, {} if wire.get('isError') else json.loads(wire['content'][0]['text'])
+        selected=[]; lines=[]; needs_input=bool(fixture.questions)
+        for mode in fixture.modes:
+            if mode in fixture.questions:
+                lines.append(fixture.questions[mode]);continue
+            if mode not in fixture.criteria_by_mode: continue
+            criteria=fixture.criteria_by_mode[mode].model_dump(mode='json')
+            if mode=='flights':
+                from services.agent.claude.canvas_travel import AIRPORT_QUESTION
+                ambiguous=False
+                for key in ('origin','destination'):
+                    if len(criteria[key])!=3:
+                        await invoke('travel_capabilities',{})
+                        wire,lookup=await invoke('search_airports',{'q':criteria[key]})
+                        airports=lookup.get('airports',[])
+                        if len(airports)!=1:
+                            lines.append(AIRPORT_QUESTION);needs_input=True;ambiguous=True;break
+                        criteria[key]=airports[0]['iata']
+                if ambiguous: continue
+            evidence=fixture.evidence_by_mode[mode]
+            dates={'source':'canvas'} if evidence['source']=='canvas' else {
+                'source':'conversation','quotes':[span['text'] for span in evidence['spans']]}
+            wire,payload=await invoke(f'search_{mode}',{'criteria':criteria,'dates':dates});tool_texts.append(wire)
+            if 'search_id' in payload:
+                selected.append({'search_id':payload['search_id'],'mode':mode,'option_ids':[x['id'] for x in payload['options'][:3]]})
+                lines.append(f'Here are {mode} options for your exact search dates.' if payload['count'] else f'No {mode} found. Try different dates or a different destination in Plan chat.')
+            else:
+                lines.append(f'We couldn’t load {mode}. Try again from Plan chat. Your draft is unchanged.')
+        if any(item['option_ids'] for item in selected): lines.append('Nothing has been saved or booked.')
         if tamper: selected=tamper(selected)
         yield ResultMessage(subtype='success',duration_ms=1,duration_api_ms=1,is_error=False,num_turns=1,session_id='fixture',total_cost_usd=0.01,
-            structured_output=dict(answer='MODEL_UNGROUNDED_BOOKING_CLAIM',needs_input=False,suggestions=[],add_ids=[],addition_quote='',travel=selected))
+            structured_output=dict(answer=' '.join(lines) or 'How can I help?',needs_input=needs_input,suggestions=[],add_ids=[],addition_quote='',travel=selected))
     return SimpleNamespace(config=config,worker=ClaudeSdkRuntime(config,query_fn=query,transport_factory=Transport))
 
 
@@ -142,7 +174,6 @@ def test_stay_journey_actual_sse_to_react(monkeypatch,tmp_path,count):
     assert original==before and plan['revision']==1
     for value in [response.text,json.dumps(texts),json.dumps(compiled)]:
         assert 'PRIVATE_CHECKOUT_SENTINEL' not in value and 'PRIVATE_RAW_SENTINEL' not in value
-    assert 'MODEL_UNGROUNDED_BOOKING_CLAIM' not in response.text
     assert 'search_id' not in json.dumps(compiled) and compiled[0]['state_changes']==[]
     assert 'search_id' not in json.dumps(safe_checkpoint_state(compiled[0]))
     fixture=tmp_path/'actual-sse.json';fixture.write_text(json.dumps({'sse':response.text,'plan_id':pid,'components':original,'message':MESSAGE,'count':count}))
