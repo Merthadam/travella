@@ -207,6 +207,12 @@ class ClaudeSdkCanvasEditor:
             "previous_suggestions_in_display_order": [item.model_dump() for item in suggestions],
             "explicit_map_area": area.model_dump() if area else None,
             "addition_allowed_this_turn": addition_allowed,
+            "travel_search_readiness": {
+                "active": travel.active,
+                "requested_modes": travel.modes if travel.active else [],
+                "ready_modes": list(travel.criteria_by_mode),
+                "missing_input_questions": travel.questions,
+            },
         }
         try:
             async with asyncio.timeout(min(120, self.config.timeout_seconds)):

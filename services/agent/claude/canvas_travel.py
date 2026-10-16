@@ -190,22 +190,85 @@ INVALID_DATE_QUESTION = "Those dates don’t form a valid trip. What exact start
 STAY_INPUT_QUESTION = "Please check your dates, room allocation and guest nationality before searching again."
 CLARIFICATIONS = {DATE_QUESTION, ROOM_QUESTION, NATIONALITY_QUESTION, DESTINATION_QUESTION, CURRENCY_QUESTION, INVALID_DATE_QUESTION, STAY_INPUT_QUESTION}
 
+AFFIRMATIVE = re.compile(r"(?:yes|yes please|okay|ok|please do|go ahead|continue|(?:yes[ ,]+)?(?:look|search) for (?:those|these|the same) flights)[.!?]*", re.I)
+REPAIR = re.compile(r"(?:what are you doing|why are you asking again|i already told you)[.!?]*", re.I)
+CANCEL = re.compile(r"^\s*(?:please\s+)?(?:cancel|never mind|nevermind|forget (?:it|that|this)|stop)\b", re.I)
+RESET = re.compile(CANCEL.pattern + r"|\b(?:new search|start over|another trip)\b", re.I)
+
+
+def passenger_party(text):
+    """Recognize a complete traveler allocation, never fill missing child ages."""
+    if re.search(r'["“”`<>]|\b(?:not|don.t|maybe|either|or|example|quoted|assistant|provider|ignore)\b', text, re.I):
+        return None
+    clauses = [part.strip().rstrip('.!?') for part in re.split(r'[;\n]', text)]
+    candidates = [part for part in clauses if re.search(r'\b(?:passengers|adults?|children|child|infants?)\b', part, re.I)
+                  and not re.search(r'\brooms?\b', part, re.I)]
+    if len(candidates) != 1:
+        return None
+    value = re.sub(r'^(?:actually[, ]+)?(?:passengers:\s*|all\s+|we(?: are|’re|\'re)\s+|there are\s+|it(?: is|’s|\'s)\s+)?', '', candidates[0], flags=re.I)
+    numbers = dict(zip('one two three four five six seven eight nine'.split(), range(1, 10)))
+    value = re.sub(r'\b(?:one|two|three|four|five|six|seven|eight|nine)\b', lambda m: str(numbers[m[0].lower()]), value, flags=re.I)
+    p = re.fullmatch(r'(\d+) adults?(?: and children ages? (\d+(?:\s*,\s*\d+)*))?(?: and infants? ages? (\d+(?:\s*,\s*\d+)*))?', value, re.I)
+    return {"adults": int(p[1]), "children_ages": [int(x.strip()) for x in (p[2] or '').split(',') if x.strip()],
+            "infant_ages": [int(x.strip()) for x in (p[3] or '').split(',') if x.strip()]} if p else None
+
+
+def focused_followup(text):
+    if len(text) > 2000 or RESET.search(text) or re.search(r'["“”`<>]|\b(?:ignore|assistant|provider|quoted|example)\b', text, re.I):
+        return False
+    return bool(AFFIRMATIVE.fullmatch(text.strip()) or REPAIR.fullmatch(text.strip()) or passenger_party(text)
+                or country_code(text.strip().rstrip('.!?')) or re.fullmatch(r'[A-Z]{3}\s+(?:to|→)\s+[A-Z]{3}', text.strip())
+                or re.match(r'^(?:origin|destination airport|flight country|country of sale|currency|cabin|nationality|citizenship|destination|passengers):', text, re.I)
+                or explicit_rooms(text) or DATE_CUE.search(text))
+
+
+def starts_new_search(message):
+    return bool(RESET.search(message) or (re.search(r'\b(?:find|look for|search)\b', message, re.I)
+                and not re.search(r'\b(?:those|these|same|discussed|also)\b', message, re.I)))
+
+
+def search_history(message, context):
+    # Explicit new searches and unrelated replies cannot silently revive old inputs.
+    if starts_new_search(message):
+        return []
+    return clarification_history(context) if focused_followup(message) or re.search(r'\b(?:flights?|stays?|hotels?|accommodation)\b', message, re.I) else []
+
 
 def clarification_history(context):
-    """Reuse evidence only while answering our most recent focused clarification."""
+    """Retain traveler evidence across bounded replies to a host clarification.
+
+    Freeform assistant prose supplies no facts. It can only be crossed after a
+    recognized traveler reply/repair, with a fixed host question anchoring it.
+    """
     history = context.recent_messages[-12:]
-    if not history or history[-1].get("role") != "assistant" or clarification_completed_modes(history[-1].get("content")) is None:
+    if not history or history[-1].get("role") != "assistant":
         return []
     output = []
+    anchored = False
+    bridge_users = 0
     for index, item in reversed(list(enumerate(history))):
         if item.get("role") == "assistant":
             if clarification_completed_modes(item.get("content")) is None:
-                break
+                anchored = False
+                bridge_users = 0
+            else:
+                if not anchored and index != len(history)-1 and not bridge_users:
+                    return []
+                anchored = True
         elif item.get("role") == "user":
-            output.append((index, item.get("content", "")))
+            text = item.get("content", "")
+            if not anchored:
+                if not focused_followup(text):
+                    return []
+                bridge_users += 1
+            elif RESET.search(text):
+                break
+            output.append((index, text))
+            if anchored and (starts_new_search(text) or not focused_followup(text)):
+                break
         else:
-            break
-    return list(reversed(output))
+            return []
+    return list(reversed(output)) if anchored else []
 
 
 def explicit_dates(text, maximum=30):
@@ -253,7 +316,7 @@ def resolve_dates(message, context, draft, maximum=30):
     if current:
         pair, spans = current
         return *pair, {"source": "current", "role": "user", "spans": spans, "normalized": pair}
-    for index, text in reversed(clarification_history(context)):
+    for index, text in reversed(search_history(message, context)):
         previous = explicit_dates(text, maximum)  # A newer ambiguous correction blocks older dates.
         if previous:
             pair, spans = previous
@@ -304,7 +367,7 @@ def country_code(value):
 def stay_criteria(message, context, draft):
     start, end, evidence = resolve_dates(message, context, draft)
     # Only authenticated traveler turns are eligible. Current values take precedence.
-    texts = [text for _, text in clarification_history(context) if len(text) <= 2000] + [message]
+    texts = [text for _, text in search_history(message, context) if len(text) <= 2000] + [message]
     destination = draft.components.get("map", {}).get("destination", "")
     for text in texts:
         match = re.search(r"\bdestination:\s*([^;\n]+)", text, re.I)
@@ -347,8 +410,10 @@ def stay_criteria(message, context, draft):
 
 
 def travel_intent(message, context):
+    if CANCEL.search(message):
+        return False
     return bool(re.search(r"\b(?:stays?|hotels?|accommodation|flights?|nationality|check-in|check-out|rooms?)\b", message, re.I)
-                or clarification_history(context) and (DATE_CUE.search(message) or re.search(r"\b(?:adults?|children|nationality|citizenship|destination|currency|origin|passengers|cabin|country of sale)\b", message, re.I)))
+                or search_history(message, context))
 
 
 FLIGHT_PARTY_QUESTION = "How many adults, children and infants are flying? Reply passengers: 2 adults, and include every child’s and infant’s age."
@@ -389,14 +454,14 @@ def clarification_completed_modes(content):
 
 def completed_clarification_modes(context):
     completed = set()
-    for item in reversed(context.recent_messages[-12:]):
+    evidence = clarification_history(context)
+    if not evidence:
+        return completed
+    for item in context.recent_messages[-12:][evidence[0][0]:]:
         if item.get("role") == "assistant":
             modes = clarification_completed_modes(item.get("content"))
-            if modes is None:
-                break
-            completed.update(modes)
-        elif item.get("role") != "user":
-            break
+            if modes is not None:
+                completed.update(modes)
     return completed
 
 
@@ -408,7 +473,16 @@ class FlightInputs(FlightSearch):
 
 def flight_criteria(message, context, draft):
     start, end, evidence = resolve_dates(message, context, draft, 365)
-    texts = [text for _, text in clarification_history(context) if len(text) <= 2000] + [message]
+    history = context.recent_messages[-12:]
+    entries = search_history(message, context) + [(len(history), message)]
+    texts = []
+    for index, text in entries:
+        if len(text) > 2000:
+            continue
+        previous = history[index-1] if index else {}
+        if previous.get('role') == 'assistant' and previous.get('content') == FLIGHT_COUNTRY_QUESTION and country_code(text.strip().rstrip('.!?')):
+            text = 'flight country: ' + text.strip().rstrip('.!?')
+        texts.append(text)
     fields, party = {}, None
     for text in texts:
         for key, pattern in {"origin": r"\borigin:", "destination": r"\bdestination airport:",
@@ -420,12 +494,9 @@ def flight_criteria(message, context, draft):
         route = re.search(r"\b([A-Z]{3})\s+(?:to|→)\s+([A-Z]{3})\b", text)
         if route:
             fields.update(origin=route[1], destination=route[2])
-        match = re.search(r"\bpassengers:\s*([^;\n]+)", text, re.I)
-        if match:
-            # Explicit passenger allocation; child/infant ages are never inferred.
-            p = re.fullmatch(r"(\d+) adults?(?: and children ages? (\d+(?:\s*,\s*\d+)*))?(?: and infants? ages? (\d+(?:\s*,\s*\d+)*))?", match[1].strip(), re.I)
-            party = {"adults": int(p[1]), "children_ages": [int(x.strip()) for x in (p[2] or "").split(",") if x.strip()],
-                     "infant_ages": [int(x.strip()) for x in (p[3] or "").split(",") if x.strip()]} if p else None
+        passenger_text = re.sub(r'\b(?:1 room(?: for)?|room\s+\d+\s*:)\s*[^;\n]+', '', text, flags=re.I)
+        if re.search(r'\b(?:passengers|adults?|children|child|infants?)\b', passenger_text, re.I):
+            party = passenger_party(passenger_text)
     if not party:
         raise Clarification(FLIGHT_PARTY_QUESTION)
     fields["country_code"] = country_code(fields.get("country_code", ""))
@@ -496,8 +567,9 @@ class CanvasTravelObserver:
         self.tool_bytes = 0
         self._tool_lock = asyncio.Lock()
         self.active = travel_intent(message, context)
-        intent = " ".join([text for _, text in clarification_history(context)] + [message])
-        completed = completed_clarification_modes(context) if clarification_history(context) else set()
+        history = search_history(message, context)
+        intent = " ".join([text for _, text in history] + [message])
+        completed = completed_clarification_modes(context) if history else set()
         self.modes = [mode for mode, pattern in [("stays", r"\b(?:stays?|hotels?|accommodation)\b"), ("flights", r"\bflights?\b")]
                       if re.search(pattern, intent, re.I) and (mode not in completed or re.search(pattern, message, re.I))] or ["stays"]
         self.mode = self.modes[0]
