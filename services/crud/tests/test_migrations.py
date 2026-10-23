@@ -53,12 +53,17 @@ def migrated_database():
             "auth_recovery_codes",
             "auth_sessions",
             "traveler_profiles",
+            "research_draft_offers",
+            "research_contexts",
+            "planning_canvases",
             "planning_briefs",
+            "conversation_messages",
             "destination_pins",
             "plan_challenges",
             "plan_action_receipts",
             "conversations",
             "plans",
+            "alembic_version",
         ):
             connection.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))
     engine.dispose()
