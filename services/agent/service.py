@@ -173,8 +173,10 @@ class AgentTurnService:
             if request.canvas_action:
                 if not self.context_reader or not hasattr(self.context_reader, "generation_context"):
                     raise HTTPException(503, "Canvas context is unavailable.")
-                if (request.canvas_action == "generate_plan" and context_snapshot
-                        and context_snapshot.get("research_entry_required")
+                if (not isinstance(context_snapshot, dict)
+                        or type(context_snapshot.get("research_entry_required")) is not bool):
+                    raise HTTPException(503, "Draft authorization is unavailable. Please retry.")
+                if (context_snapshot["research_entry_required"]
                         and request.research_entry_receipt is None):
                     raise HTTPException(409, "Review and confirm your trip before creating the first draft.")
                 if request.context_revision is not None and context_snapshot and request.context_revision != context_snapshot["revision"]:

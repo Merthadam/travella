@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from fastapi import HTTPException
 
 from services.agent.crud_client import CrudContextReader, CrudPlanReader
 from services.agent.graph.builder import AgentGraph
@@ -92,6 +93,54 @@ def test_committed_offer_hydrates_and_confirmation_is_consumed_once(system, monk
     saved = system.client.get(base + "/research-offer").json()
     assert saved["offer"]["status"] == "consumed"
     assert saved["research_entry_required"] is False
+    # An unsaved draft still exists after explicit in-canvas flight edits. Its
+    # normal regeneration/group retry controls must not become initial entry.
+    changed = system.client.patch(base + "/research-context", headers=write_headers(system, revision),
+                                  json={"changes": [{"operation": "set", "field": "flights",
+                                                     "value": "needed", "source": "user_edit"}]})
+    assert changed.status_code == 200, changed.text
+    revision = changed.json()["revision"]
+    assert system.client.get(base + "/research-offer").json()["research_entry_required"] is False
+    async def retry_groups():
+        for action in ("generate_plan", "generate_themes", "generate_research"):
+            retry = AgentRequest(plan_id=plan_id, event_id=str(uuid4()), canvas_action=action,
+                                 context_revision=revision)
+            assert (await handler.handle(retry, "traveler-one", f"Bearer {system.token}")).status == "in_progress"
+    asyncio.run(retry_groups())
+    assert generation.calls == 4
+
+
+@pytest.mark.parametrize("action", ["generate_plan", "generate_themes", "generate_research"])
+def test_fresh_plan_cannot_bypass_confirmation_through_group_generation(system, monkeypatch, action):
+    plan = create(system)
+    base = f"/v1/plans/{plan['plan_id']}"
+    before = system.client.get(base + "/research-offer").json()
+    assert before["research_entry_required"] is True
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr("services.agent.crud_client.httpx.AsyncClient", lambda **kwargs:
+                        original_client(transport=httpx.ASGITransport(app=system.app), **kwargs))
+
+    class Generation:
+        calls = 0
+
+        async def invoke(self, state, **kwargs):
+            self.calls += 1
+            raise AssertionError("Unconfirmed initial generation must never invoke the graph")
+
+    generation = Generation()
+    handler = AgentTurnService(plan_reader=CrudPlanReader("http://crud"), context_reader=CrudContextReader("http://crud"),
+                               graph=generation, runs=PlanRunStore(), receipts=ProcessReceiptCache())
+    req = AgentRequest(plan_id=plan["plan_id"], event_id=str(uuid4()), canvas_action=action,
+                       context_revision=before["revision"])
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(handler.handle(req, "traveler-one", f"Bearer {system.token}"))
+    assert error.value.status_code == 409
+    assert generation.calls == 0
+    after = system.client.get(base + "/research-offer").json()
+    assert after["research_entry_required"] is True
+    assert after["locked"] is False
+    assert after["offer"] is None
+    assert after["revision"] == before["revision"]
 
 
 @pytest.mark.parametrize("deferred_message,intent", [("Keep researching for now", "defer"), ("yes", "request_review")])

@@ -3,11 +3,13 @@ import asyncio
 import json
 from uuid import uuid4
 
+import httpx
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
 from services.agent.claude.sdk_conversation import ChatResult, ClaudeSdkConversationClient
+from services.agent.crud_client import CrudContextReader
 from services.agent.graph.builder import AgentGraph
 from services.agent.http_contracts import AgentRequest
 from services.agent.service import AgentTurnService
@@ -268,10 +270,11 @@ def test_valid_confirmation_and_existing_canvas_generation_preserve_one_run(rece
     assert len([item for item in reader.calls if item["action"] == "consume"]) == (1 if receipt else 0)
 
 
-def test_first_draft_requires_canonical_confirmation_even_when_client_omits_receipt():
+@pytest.mark.parametrize("action", ["generate_plan", "generate_themes", "generate_research"])
+def test_first_draft_requires_canonical_confirmation_even_when_client_omits_receipt(action):
     reader, graph = Reader(entry_required=True), Graph()
     with pytest.raises(HTTPException) as error:
-        asyncio.run(service(reader, graph).handle(request(canvas_action="generate_plan", context_revision=2), "t", "Bearer token"))
+        asyncio.run(service(reader, graph).handle(request(canvas_action=action, context_revision=2), "t", "Bearer token"))
     assert error.value.status_code == 409
     assert graph.calls == 0
 
@@ -285,9 +288,38 @@ def test_first_draft_with_receipt_uses_existing_generation_flow():
 
 @pytest.mark.parametrize("action", ["generate_themes", "generate_research"])
 def test_existing_group_retry_is_not_gated_by_first_draft_policy(action):
-    reader, graph = Reader(entry_required=True), Graph()
+    reader, graph = Reader(entry_required=False), Graph()
     asyncio.run(service(reader, graph).handle(request(canvas_action=action, context_revision=2), "t", "Bearer token"))
     assert graph.calls == 1
+
+
+@pytest.mark.parametrize("action", ["generate_plan", "generate_themes", "generate_research"])
+@pytest.mark.parametrize("missing_snapshot", [False, True])
+def test_missing_generation_authority_fails_closed(action, missing_snapshot):
+    class OlderReader(Reader):
+        async def context_run(self, *args, **kwargs):
+            snapshot = await super().context_run(*args, **kwargs)
+            if missing_snapshot:
+                return None
+            snapshot.pop("research_entry_required")
+            return snapshot
+    graph = Graph()
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(service(OlderReader(), graph).handle(request(canvas_action=action, context_revision=2), "t", "Bearer token"))
+    assert error.value.status_code == 503
+    assert graph.calls == 0
+
+
+def test_older_crud_response_does_not_manufacture_generation_authorization(monkeypatch):
+    original_client = httpx.AsyncClient
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={
+        "revision": 1, "context": TripContext().model_dump(), "locked": True,
+    }))
+    monkeypatch.setattr("services.agent.crud_client.httpx.AsyncClient", lambda **kwargs:
+                        original_client(transport=transport, **kwargs))
+    snapshot = asyncio.run(CrudContextReader("http://crud").context_run(
+        PLAN, "test-token", event_id="older-backend", action="begin"))
+    assert "research_entry_required" not in snapshot
 
 
 def test_prompt_respects_review_first_flights_and_persistent_deferral():

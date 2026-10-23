@@ -82,7 +82,13 @@ class CrudContextReader:
             raise HTTPException(409, "Trip context changed or another reply is running. Please try again.")
         if response.status_code >= 400:
             raise HTTPException(503, "Trip context could not be saved. Please try again.")
-        return ContextSnapshot.model_validate(response.json()).model_dump()
+        data = response.json()
+        snapshot = ContextSnapshot.model_validate(data).model_dump()
+        # An older CRUD response has not established generation authority.
+        # Preserve absence so the service fails closed instead of trusting a default.
+        if "research_entry_required" not in data:
+            snapshot.pop("research_entry_required", None)
+        return snapshot
 
     async def edit_context(self, plan_id: UUID, token: str, *, event_id: str, revision: int, changes: list) -> dict:
         async with httpx.AsyncClient(timeout=10) as client:
