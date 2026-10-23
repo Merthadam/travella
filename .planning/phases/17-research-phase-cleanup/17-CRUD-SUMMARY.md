@@ -15,7 +15,7 @@ key-files:
   modified: [services/trip_context.py, services/crud/models.py, services/crud/api.py, services/crud/research_context.py, services/crud/repository.py, services/crud/tests/test_migrations.py]
 key-decisions:
   - First destination confirmation retains prior traveler priorities; actual replacement invalidates older evidence.
-  - Initial generation needs a canonical review receipt unless saved canvas or accepted generation at current context revision exists.
+  - Initial generation needs a canonical review receipt unless a saved canvas or prior accepted Research entry exists; existing draft regeneration survives later edits.
   - Manual review preserves durable proactive-offer suppression.
 plan_head_before: fce6d4126605f67c4ca5c8e95e2ef5ee361b0975
 commits: 7
@@ -44,7 +44,7 @@ Final command ran in the isolated local application container with TEST_DATABASE
 
 `uv run --locked pytest services/crud/tests/test_research_offers.py services/crud/tests/test_migrations.py services/crud/tests/test_flight_confirmation.py services/crud/tests/test_api.py -q`
 
-Observed: **46 passed, zero skipped**, 7.75 seconds. Existing LangGraph pending-deprecation warning only.
+Initial run observed46 passed. After review fixes, the final configured run observed **49 passed, zero skipped**, 6.66 seconds. Existing LangGraph pending-deprecation warning only. Final output is retained in `artifacts/testing/2026-10-23-research-cleanup/backend-policy-pytest.txt`.
 
 Coverage uses actual FastAPI handlers and SQL persistence, signed JWTs, and new test records:
 
@@ -66,6 +66,17 @@ New/shared-file Ruff checks passed. `git diff --check` passed. Earlier local run
 - a321e91 — feat(17-02): persist research offers and exact review receipts
 - 77cba11 — fix(17-04): retain canonical research gate in action snapshots
 - 9f175bd — test(17-02): clean isolated migration schema completely
+- 68b98ec — fix(17): ground research offers in explicit traveler intent
+
+## Review follow-up
+
+Three real-handler regressions first reproduced failures, then passed after fixes:
+
+- Generic museum questions, requests for information and source-reported endorsements cannot establish traveler priorities. Chat requires explicit personal preference language or a direct positive endorsement; an explicitly edited interests field already establishes traveler authority.
+- Full-message negative/defer intent wins over a model-selected positive source-quote substring. “Do not create a draft; keep researching” cannot reset deferral even if the proposal quotes “create a draft”.
+- Invitation identity uses normalized priority meanings, independently of provenance message IDs; repeated or reordered equivalent preferences preserve the invitation ID and one transcript card.
+
+Parent-authorized compatibility correction: a prior accepted Research entry establishes an existing draft even after flight/context edits. It no longer needs another first-entry receipt merely because its revision changed. Receipt consumption itself still rejects stale reviewed revisions/fingerprints, and a fresh Plan still requires explicit entry confirmation. Real-handler regression covers accepted entry, changed flights, preserved draft access, stale receipt rejection, and a fresh Plan remaining gated.
 
 ## Deviations and limitations
 

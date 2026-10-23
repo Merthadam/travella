@@ -1,14 +1,14 @@
 ---
 phase: 17
 slug: research-phase-cleanup
-status: draft
+status: executed_pending_uat
 nyquist_compliant: false
 wave_0_complete: false
 created: 2026-10-23
 ---
 # Validation strategy
 
-Planning contract only. Production checks below have NOT been run. Existing selected prototype evidence is under artifacts/testing/2026-10-23-floating-brief/. New inline-offer layout sketch evidence is under artifacts/testing/2026-10-23-research-cleanup/plan/.
+Execution evidence is in artifacts/testing/2026-10-23-research-cleanup/verification.md. Targeted tests and actual desktop/API checks ran; user UAT/live-model quality remain pending. Existing selected prototype evidence is under artifacts/testing/2026-10-23-floating-brief/. New inline-offer layout sketch evidence is under artifacts/testing/2026-10-23-research-cleanup/plan/.
 
 ## Test infrastructure and sampling
 
@@ -16,11 +16,11 @@ Existing Vitest/Testing Library and pytest/FastAPI/PostgreSQL. No new runner. Ru
 
 | Task | Requirements | Planned verification | Status |
 |---|---|---|---|
-| 17-01-01/02 | RC-17-01/02/03 | ResearchBriefOverlay + PlanConversation Vitest; actual Chrome real brief edit, drag, keyboard and rectangle invariance | Pending |
-| 17-02-01/02 | RC-17-04/06/08 | test_research_offers FastAPI with PostgreSQL/restart and useResearchOffer Vitest; live defer/readback | Pending |
-| 17-03-01/02 | RC-17-04/05/06/08 | Agent offer fixtures, completed/aborted stream, history/duplicate tests; ResearchDraftOffer + PlanConversation Vitest | Pending |
-| 17-04-01/02 | RC-17-07/08/09 | Stale flight fast path, revision conflicts, receipt replay/idempotent run, existing flight generation; review/PlansApp Vitest | Pending |
-| 17-05-01/02 | all | Authenticated real Chrome, API persistence matrix, inspected screenshots, build, scope diff | Pending |
+| 17-01-01/02 | RC-17-01/02/03 | ResearchBriefOverlay + PlanConversation Vitest; actual Chrome real brief edit, drag, keyboard and rectangle invariance | Executed; see evidence |
+| 17-02-01/02 | RC-17-04/06/08 | test_research_offers FastAPI with PostgreSQL/restart and useResearchOffer Vitest; live defer/readback | Executed; see evidence |
+| 17-03-01/02 | RC-17-04/05/06/08 | Agent offer fixtures, completed/aborted stream, history/duplicate tests; ResearchDraftOffer + PlanConversation Vitest | Executed; see evidence |
+| 17-04-01/02 | RC-17-07/08/09 | Stale flight fast path, revision conflicts, receipt replay/idempotent run, existing flight generation; review/PlansApp Vitest | Executed; see evidence |
+| 17-05-01/02 | all | Authenticated real Chrome, API persistence matrix, inspected screenshots, build, scope diff | Executed; see evidence |
 
 ## Tests to create in owning waves
 
@@ -43,4 +43,4 @@ Read endpoints never mutate. request_review, defer, confirm and internal success
 
 ## Evidence limits
 
-No production tests/model calls were run during planning. Prototype interaction checks are not proof of production offer timing, persistence or agent quality. Live-model eval remains separately reported/authorized. Phase 15 existing acceptance gaps are not waived. Mobile intentionally deferred. Validation remains draft until actual execution evidence exists.
+No production tests/model calls were run during planning. Prototype interaction checks are not proof of production offer timing, persistence or agent quality. Live-model eval remains separately reported/authorized. Phase 15 existing acceptance gaps are not waived. Mobile intentionally deferred. Native browser zoom was represented by an equivalent CSS viewport; user desktop UAT and authorized live-model quality remain pending.

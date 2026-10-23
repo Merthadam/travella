@@ -421,7 +421,7 @@ Plans:
 **Requirements:** RC-17-01, RC-17-02, RC-17-03, RC-17-04, RC-17-05, RC-17-06, RC-17-07, RC-17-08, RC-17-09, RC-17-10
 **Scope:** Desktop Research shell, brief overlay, canonical readiness, durable contextual agent offer/deferral and exact-confirmation handoff. Existing Draft plan canvas appearance, workers and saving unchanged.
 **UI hint:** yes
-**Status:** Planning complete; implementation not started.
+**Status:** Implemented; real desktop/API evidence and code review complete. User UAT/live-model quality pending.
 **Success Criteria:**
 1. Research has one quiet full-width state bar and movable progress circle; real brief editing works in an overlay without chat/composer movement.
 2. Destination confirmation explains a future draft; useful context prompts one inline review offer without requiring all brief fields.
@@ -432,18 +432,18 @@ Plans:
 **Plans:** 5 plans in 5 sequential waves.
 
 **Wave 1**
-- [ ] 17-01-PLAN.md — Desktop Research shell and real floating brief
+- [x] 17-01-PLAN.md — Desktop Research shell and real floating brief
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 17-02-PLAN.md — Canonical readiness and durable manual review/defer flow
+- [x] 17-02-PLAN.md — Canonical readiness and durable manual review/defer flow
 
 **Wave 3** *(blocked on Waves 1–2 completion)*
-- [ ] 17-03-PLAN.md — Agent-timed inline offer from committed conversation
+- [x] 17-03-PLAN.md — Agent-timed inline offer from committed conversation
 
 **Wave 4** *(blocked on Waves 1–3 completion)*
-- [ ] 17-04-PLAN.md — Exact confirmation and existing canvas handoff
+- [x] 17-04-PLAN.md — Exact confirmation and existing canvas handoff
 
 **Wave 5** *(blocked on Waves 1–4 completion)*
-- [ ] 17-05-PLAN.md — Desktop acceptance, durability and scope regression evidence
+- [ ] 17-05-PLAN.md — Desktop/API evidence executed; user acceptance and live-model quality pending
 
 **Cross-cutting constraints:** Desktop Research only; existing editable A2UI; no premature or automatic generation/save; token-derived ownership; current reviewed revisions; durable respectful deferral; allowlisted browser projection; no paid calls or implementation during planning; no auto-execution.

@@ -2,11 +2,11 @@
 gsd_state_version: "1.0"
 current_phase: 17
 current_phase_name: Research phase cleanup
-status: ready_to_execute
-stopped_at: Phase 17 planned; implementation not started
+status: verifying
+stopped_at: Phase 17 implemented; independent goal verification and user UAT pending
 last_updated: "2026-10-23T17:21:27.625Z"
 last_activity: 2026-10-23
-last_activity_desc: Phase 17 Research cleanup planned in five sequential waves
+last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
 state_head: 8f0a2f637e52c87aa3cafa004a29c5da7b189e65
 progress:
   total_phases: 17
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 17 — Research phase cleanup, planned; execution not started
+**Current focus:** Phase 17 — Research phase cleanup implemented; desktop UAT pending
 
 ## Current Position
 
 Phase: 17 — Research phase cleanup
-Plan: 17-01 through 17-05 ready; none executed.
-Status: Ready to execute. Desktop Research overlay, agent offer/defer and exact-confirmation handoff are planned. Draft plan canvas remains unchanged.
-Last activity: 2026-10-23 — Planning review passed; 10 requirements and 10 decisions covered, desktop offer sketch inspected.
+Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
+Status: Verifying. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
+Last activity: 2026-10-23 — Independent code review clean after five fixes; final local source hashes match. No merge/deploy.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 

@@ -1,6 +1,6 @@
 # Phase 17 — Research phase cleanup
 
-Status: planned; implementation not started. Desktop Research only, using selected prototype C. Existing Draft plan canvas remains unchanged.
+Status: implemented and tested; phase verification/user UAT pending. Desktop Research only, using selected prototype C. Existing Draft plan canvas remains unchanged.
 
 | Wave | Plan | Outcome |
 |---|---|---|
@@ -12,4 +12,4 @@ Status: planned; implementation not started. Desktop Research only, using select
 
 [Agreed decisions](17-CONTEXT.md) · [UI contract](17-UI-SPEC.md) · [Agent contract](17-AI-SPEC.md) · [Validation](17-VALIDATION.md) · [Planning review](17-PLAN-CHECK.md)
 
-Next command: `$gsd-execute-phase 17`. Do not auto-execute. Keep prototype branch as reference and apply production changes on an implementation branch/worktree, excluding throwaway variants/fixtures. Plan-phase did not change branches.
+Implementation branch: `feat/research-cleanup-17`. Prototype branch preserved. [Evidence](../../../artifacts/testing/2026-10-23-research-cleanup/verification.md) and [code review](17-REVIEW.md). Next: phase verification, then `$gsd-verify-work 17` for desktop acceptance. No deployment/merge.

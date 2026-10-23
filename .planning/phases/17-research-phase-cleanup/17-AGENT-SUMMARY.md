@@ -32,7 +32,7 @@ key-files:
     - services/agent/http_contracts.py
 key-decisions:
   - CRUD is the authority for current readiness, persistent deferral, message associations and confirmation receipts.
-  - Initial full generation requires confirmation according to canonical research_entry_required; existing saved or accepted current-revision drafts and group retries retain their controls.
+  - Initial full generation requires confirmation according to canonical research_entry_required; existing saved or previously accepted drafts and group retries retain their controls.
   - Duplicate chat events refresh offer authority before replaying cached prose.
 requirements-completed: []
 commits: 1
@@ -49,7 +49,7 @@ The existing Claude SDK turn now carries bounded Research invitations and explic
 - Supplied canonical readiness/deferral policy and bounded authorized message IDs to the same SDK loop. Prompt now acknowledges destination progress, requires useful trip context, permits flight resolution during review, and respects persistent deferral and separate Save plan.
 - Transferred proposals through graph state into successful context completion. Stripped graph-supplied public actions. Published `research_offer` and committed `assistant_message_id` only after CRUD completion, with matching message association. Older offers are not attached to unrelated replies.
 - Added allowlisted terminal/snapshot projection, with canonical offer refresh on duplicate chat-event replay so deferred, consumed or superseded cards do not return as available.
-- Added optional `research_entry_receipt` transport. Canonical first-draft gating rejects omission; valid receipts require full generation and reviewed revision. Durable receipt consumption prevents duplicate generation after process restart. Saved/accepted draft regeneration and existing group retries remain available.
+- Added optional `research_entry_receipt` transport. Canonical first-draft gating rejects omission; valid receipts require full generation and reviewed revision. Durable receipt consumption prevents duplicate generation after process restart. Saved/accepted draft regeneration and group retries require canonical existing-draft authority.
 
 ## Commit
 
@@ -70,7 +70,7 @@ The integration tests use the actual authenticated CRUD FastAPI handlers through
 
 Focused unit cases cover strict malformed proposals, one SDK call, policy/message-ID transport, graph projection exclusion, successful/ineligible completion, duplicate events, cancelled/failed/stale completion, current offer-status refresh, initial-generation omission, receipt replay, existing regeneration and group retries, and prompt policy.
 
-All ten changed Python files passed `ruff check`; `git diff --check -- services/agent` passed. No TODO/FIXME/placeholder implementations were introduced.
+All nine changed Python files passed `ruff check`; `git diff --check -- services/agent` passed. No TODO/FIXME/placeholder implementations were introduced.
 
 Earlier broad assessment:
 
@@ -95,3 +95,7 @@ This completes the delegated agent implementation slice, not Phase 17 acceptance
 ## Self-Check: PASSED
 
 Both added test files exist. Implementation commit `6846e43` exists and contains only the ten owned `services/agent/**` files. Agent working tree is clean after the commit; no deletion was included.
+
+## Final review fix
+
+370fcd2 enforces first-entry authority for all generation actions, fails closed when canonical authority is missing, and preserves retries after a previously accepted unsaved draft changes flights. Final focused suite72 passed; parent combined Agent/gateway89 passed. Canonical CRUD classification now uses any accepted entry, while receipt consumption remains exact-revision. No paid calls.

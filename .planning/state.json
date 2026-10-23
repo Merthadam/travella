@@ -66,13 +66,13 @@
     {
       "number": "17",
       "name": "Research phase cleanup",
-      "status": "planned"
+      "status": "in_progress"
     }
   ],
   "next": {
-    "command": "$gsd-execute-phase 17",
-    "label": "Execute Research phase cleanup",
-    "reason": "Five reviewed plans; desktop Research only. Implementation not started; prior Phase 15 acceptance remains pending."
+    "command": "$gsd-verify-work 17",
+    "label": "Review implemented desktop Research cleanup",
+    "reason": "Implementation and deterministic/browser checks complete; independent goal verification/user acceptance and live-model quality remain distinct."
   },
-  "updated_at": "2026-10-23T17:23:03.582585+00:00"
+  "updated_at": "2026-10-23T18:17:57.688009+00:00"
 }

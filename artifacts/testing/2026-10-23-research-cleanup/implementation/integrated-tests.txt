@@ -1,0 +1,25 @@
+........................................................................ [ 80%]
+.................                                                        [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/langgraph/cache/base/__init__.py:8
+  /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/sulfuric-advantage/.venv/lib/python3.14/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+
+services/agent/tests/test_research_offer_integration.py: 12 warnings
+services/agent/tests/test_research_offers.py: 4 warnings
+services/agent/tests/test_agent_turn.py: 4 warnings
+  /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/sulfuric-advantage/.venv/lib/python3.14/site-packages/langgraph/_internal/_runnable.py:485: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    asyncio.iscoroutinefunction(func)
+
+services/agent/tests/test_research_offer_integration.py: 12 warnings
+services/agent/tests/test_research_offers.py: 4 warnings
+services/agent/tests/test_agent_turn.py: 4 warnings
+  /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/sulfuric-advantage/.venv/lib/python3.14/site-packages/langgraph/_internal/_runnable.py:487: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    and asyncio.iscoroutinefunction(func.__call__)
+
+services/auth/tests/test_crud_client.py: 32 warnings
+  /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/sulfuric-advantage/.venv/lib/python3.14/site-packages/sqlalchemy/engine/default.py:952: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    cursor.execute(statement, parameters)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+89 passed, 73 warnings in 3.58s

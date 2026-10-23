@@ -1,0 +1,7 @@
+frontend/src/features/plans/components/PlanConversation.jsx MATCH
+frontend/src/features/plans/components/research-workspace.css MATCH
+frontend/src/features/plans/useResearchOffer.js MATCH
+services/crud/research_offers.py MATCH
+services/research_offers.py MATCH
+services/agent/service.py MATCH
+services/auth/crud_client.py MATCH
