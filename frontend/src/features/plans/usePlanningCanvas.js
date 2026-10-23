@@ -164,7 +164,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     } catch { setError('The mock booking could not be added to your canvas. Reopen the checkout and check its status.'); }
   }, []);
 
-  async function generate(group = 'all', reviewedRevision) {
+  async function generate(group = 'all', reviewedRevision, researchEntryReceipt) {
     if (active.current || savingRef.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;
     const currentEpoch = epoch.current;
     const id = requestId(); const controller = new AbortController();
@@ -183,7 +183,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       setMapDestinationHint(mapHint(currentContext.context));
       if ((staleContext || currentContext.revision !== base.current.context_revision) && group !== 'all') { setStaleContext(true); throw new Error('The conversation changed. Regenerate the full plan to review the updated trip details.'); }
       run.contextRevision = currentContext.revision;
-      const result = await api.generateCanvas(base.current, { group, context_revision: run.contextRevision, generation_id: id, ...(group === 'research' ? { themes: dataRef.current.themes } : {}) }, id, {
+      const result = await api.generateCanvas(base.current, { group, context_revision: run.contextRevision, generation_id: id, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(group === 'research' ? { themes: dataRef.current.themes } : {}) }, id, {
         signal: controller.signal,
         onEvent(event) {
           if (active.current !== run || epoch.current !== currentEpoch) return;

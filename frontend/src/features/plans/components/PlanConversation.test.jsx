@@ -6,7 +6,8 @@ import { PlanConversation } from './PlanConversation';
 import { emptyTripContext } from './TripBrief';
 
 const plan = { plan_id: 'plan-1', title: 'Japan trip' };
-const settledApi = () => ({
+const settledApi = () => {
+const api = {
   researchContext: vi.fn(async () => ({ revision: 0, context: emptyTripContext(), locked: false, a2ui_messages: [
     { version: 'v0.9', createSurface: { surfaceId: 'trip-brief', catalogId: 'urn:travella:catalog:trip-brief:v1' } },
     { version: 'v0.9', updateComponents: { surfaceId: 'trip-brief', components: [{ id: 'root', component: 'TripBrief', value: { path: '/tripContext/context' } }] } },
@@ -21,7 +22,11 @@ const settledApi = () => ({
     onEvent({ type: 'TERMINAL', status: 'complete', sources: [{ title: 'Official guide', url: 'https://example.org/guide' }, { title: 'Unsafe', url: 'javascript:alert(1)' }] });
     return { status: 'complete' };
   }),
-});
+};
+api.researchOffer = vi.fn(async () => ({ ...await api.researchContext(), readiness: { eligible: true, reasons: [] }, deferred: false, offer: { id: 'offer-1', status: 'available', revision: (await api.researchContext()).revision, message_id: 'two' } }));
+api.researchOfferAction = vi.fn(async (_plan, action) => ({ ...await api.researchOffer(), offer: { ...(await api.researchOffer()).offer, status: 'review' }, research_entry_receipt: action.action === 'confirm' ? 'receipt-1' : null }));
+return api;
+};
 
 afterEach(() => cleanup());
 
@@ -47,6 +52,7 @@ test('Stop preserves partial text and disables the composer only while active', 
   }));
   render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} />);
   const composer = await screen.findByRole('textbox', { name: 'Message Travella' });
+  await user.click(screen.getByRole('button', { name: /^Trip brief,/ }));
   const addCandidate = await screen.findByRole('button', { name: 'Add', exact: true });
   expect(addCandidate.disabled).toBe(true);
   await user.type(screen.getByRole('textbox', { name: 'Add a place' }), 'Sapporo');
@@ -130,7 +136,8 @@ test('reviews exact trip details and requires confirmation before canvas generat
   const base = await api.researchContext();
   api.researchContext.mockResolvedValue({ ...base, revision: 7, context: { ...base.context, finalDestination: 'Milan', dateNote: 'Three days in spring', travelers: 2, budget: '€900', flights: 'not-needed', provenance: { flights: { source: 'user_explicit', updated_at: '2026-10-16T10:00:00Z' } } } });
   render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={onCanvas}/>);
-  const trigger = await screen.findByRole('button', { name: 'Review & generate' });
+  await user.click(screen.getByRole('button', { name: /^Trip brief,/ }));
+  const trigger = await screen.findByRole('button', { name: 'Review & create draft' });
   await waitFor(() => expect(trigger.disabled).toBe(false));
   await user.click(trigger);
   expect(screen.getByRole('dialog').textContent).toContain('Milan');
@@ -144,14 +151,15 @@ test('reviews exact trip details and requires confirmation before canvas generat
   expect(onCanvas).not.toHaveBeenCalled();
   await user.click(trigger);
   await user.click(screen.getByRole('button', { name: 'Confirm & generate' }));
-  expect(onCanvas).toHaveBeenCalledExactlyOnceWith(true, 7);
+  expect(onCanvas).toHaveBeenCalledExactlyOnceWith(true, 7, 'receipt-1');
 });
 
 test('does not allow review while trip details are unavailable', async () => {
   const api = settledApi(); api.researchContext.mockRejectedValue(new Error('Offline'));
   render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={vi.fn()}/>);
   await screen.findByText('Trip details unavailable. Refresh to try again.');
-  expect(screen.getByRole('button', { name: 'Review & generate' }).disabled).toBe(true);
+  await userEvent.click(screen.getByRole('button', { name: /^Trip brief,/ }));
+  expect(screen.getByRole('button', { name: 'Review & create draft' }).disabled).toBe(true);
 });
 
 test('research confirms an undecided flight choice before opening generation at the returned revision', async () => {
@@ -163,7 +171,8 @@ test('research confirms an undecided flight choice before opening generation at 
   let resolve;
   api.updateResearchContext = vi.fn(() => new Promise(done => { resolve = done; }));
   render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={onCanvas}/>);
-  const trigger = screen.getByRole('button', { name: 'Review & generate' });
+  await user.click(screen.getByRole('button', { name: /^Trip brief,/ }));
+  const trigger = screen.getByRole('button', { name: 'Review & create draft' });
   await waitFor(() => expect(trigger.disabled).toBe(false));
   await user.click(trigger);
   expect(screen.getByRole('button', { name: 'Confirm & generate' }).disabled).toBe(true);
@@ -174,7 +183,47 @@ test('research confirms an undecided flight choice before opening generation at 
   await user.click(screen.getByRole('radio', { name: 'Yes, include flights' }));
   await user.click(screen.getByRole('button', { name: 'Confirm & generate' }));
   expect(onCanvas).not.toHaveBeenCalled();
-  await act(async () => resolve({ ...base, revision: 4, context: { ...base.context, flights: 'needed', provenance: { flights: { source: 'user_edit' } } } }));
-  expect(onCanvas).toHaveBeenCalledExactlyOnceWith(true, 4);
+  await waitFor(() => expect(resolve).toBeTypeOf('function'));
+  const changed = { ...base, revision: 4, context: { ...base.context, flights: 'needed', provenance: { flights: { source: 'user_edit' } } } };
+  api.researchContext.mockResolvedValue(changed);
+  await act(async () => resolve(changed));
+  expect(onCanvas).toHaveBeenCalledExactlyOnceWith(true, 4, 'receipt-1');
   expect(api.updateResearchContext.mock.calls[0][2]).toBe(3);
+});
+
+test('a committed live offer appears once and remains available on history reload without generating', async () => {
+  const api = settledApi(), user = userEvent.setup(), onCanvas = vi.fn();
+  const offer = { id: 'offer-live', status: 'available', revision: 0, message_id: 'server-assistant' };
+  api.researchOffer.mockResolvedValue({ revision: 0, context: emptyTripContext(), readiness: { eligible: true, reasons: [] }, deferred: false, offer });
+  api.agentTurnStream.mockImplementation(async (_plan, _message, _id, { onEvent }) => {
+    onEvent({ type: 'TEXT_MESSAGE_CONTENT', delta: 'There are lovely coastal walks.' });
+    onEvent({ type: 'STATE_SNAPSHOT', snapshot: { research_offer: offer, assistant_message_id: 'server-assistant' } });
+    onEvent({ type: 'TERMINAL', status: 'complete', research_offer: offer, assistant_message_id: 'server-assistant' });
+    return { status: 'complete' };
+  });
+  const first = render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={onCanvas}/>);
+  await screen.findByText('Japan');
+  await user.type(screen.getByRole('textbox', { name: 'Message Travella' }), 'Coastal walks{enter}');
+  expect(await screen.findByRole('button', { name: 'Keep researching' })).toBeTruthy();
+  expect(screen.getAllByRole('button', { name: 'Review & create draft' })).toHaveLength(1);
+  expect(onCanvas).not.toHaveBeenCalled();
+  first.unmount();
+  api.conversationMessages.mockResolvedValue([{ message_id: 'server-assistant', role: 'assistant', status: 'complete', content: 'There are lovely coastal walks.', research_offer: offer }]);
+  render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={onCanvas}/>);
+  expect(await screen.findByRole('button', { name: 'Keep researching' })).toBeTruthy();
+  expect(screen.getAllByRole('button', { name: 'Review & create draft' })).toHaveLength(1);
+  expect(onCanvas).not.toHaveBeenCalled();
+});
+
+test('interrupted streamed metadata never exposes an actionable invitation', async () => {
+  const api = settledApi(), user = userEvent.setup();
+  api.agentTurnStream.mockImplementation(async (_plan, _message, _id, { onEvent }) => {
+    onEvent({ type: 'STATE_SNAPSHOT', snapshot: { research_offer: { id: 'offer-1', status: 'available', revision: 0, message_id: 'two' } } });
+    throw new Error('Connection stopped.');
+  });
+  render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={vi.fn()}/>);
+  await screen.findByText('Japan');
+  await user.type(screen.getByRole('textbox', { name: 'Message Travella' }), 'Coastal walks{enter}');
+  await screen.findByText('Interrupted');
+  expect(screen.queryByRole('button', { name: 'Keep researching' })).toBeNull();
 });

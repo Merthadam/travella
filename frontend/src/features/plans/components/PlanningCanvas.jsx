@@ -89,7 +89,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
     started.current = true;
     if (Number.isInteger(autoGenerate.revision)) {
       if (canvas.saved) setConfirm({ kind: 'generate', group: 'all', revision: autoGenerate.revision });
-      else void canvas.generate('all', autoGenerate.revision);
+      else void canvas.generate('all', autoGenerate.revision, autoGenerate.researchEntryReceipt);
     } else void reviewGeneration();
   }, [autoGenerate, canvas.loading, canvas.data, canvas.saved]);
   useEffect(() => {

@@ -11,13 +11,20 @@ const path = id => `/v1/plans/${encodeURIComponent(id)}`;
 const canvasSaveAttempts = new Map();
 const agentPath = plan => `/v1/agent/plans/${encodeURIComponent(plan.plan_id)}/events`;
 
-async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit }) {
+export function researchOfferProjection(value) {
+  if (!value || typeof value.id !== 'string' || value.id.length > 100 || !Number.isInteger(value.revision)
+    || !['available', 'review', 'deferred', 'consumed', 'superseded'].includes(value.status)
+    || (value.message_id !== null && (typeof value.message_id !== 'string' || value.message_id.length > 100))) return null;
+  return { id: value.id, status: value.status, revision: value.revision, message_id: value.message_id };
+}
+
+async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit, researchEntryReceipt }) {
   let response;
   try {
     response = await fetch(`${agentPath(plan)}/stream`, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json', 'X-Travella-Request': '1', Accept: 'text/event-stream' },
-      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
+      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
@@ -44,14 +51,16 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwar
       onEvent({ type: event.type, messageId: String(event.messageId || '') });
     } else if (event.type === 'CUSTOM' && event.name === 'a2ui' && event.value && typeof event.value === 'object') {
       onEvent({ type: 'CUSTOM', name: 'a2ui', value: event.value });
-    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result)) {
-      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}) } });
+    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result || event.snapshot.research_offer)) {
+      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}), research_offer: researchOfferProjection(event.snapshot.research_offer), assistant_message_id: typeof event.snapshot.assistant_message_id === 'string' ? event.snapshot.assistant_message_id.slice(0, 100) : undefined } });
     } else if (event.type === 'TERMINAL') {
       terminal = {
         type: 'TERMINAL',
         status: ['complete', 'needs your input', 'shortlist_ready', 'stopped', 'interrupted', 'error'].includes(event.status) ? event.status : 'error',
         sources: Array.isArray(event.sources) ? event.sources.slice(0, 5).map(source => ({ title: String(source?.title || '').slice(0, 120), url: String(source?.url || '').slice(0, 320) })) : [],
         message: typeof event.message === 'string' ? event.message.slice(0, 240) : undefined,
+        research_offer: researchOfferProjection(event.research_offer),
+        assistant_message_id: typeof event.assistant_message_id === 'string' ? event.assistant_message_id.slice(0, 100) : undefined,
       };
       onEvent(terminal);
     }
@@ -84,6 +93,8 @@ export const plansApi = {
   destinations: plan => request(`${path(plan.plan_id)}/destinations`),
   conversationMessages: plan => request(`${path(plan.plan_id)}/conversation/messages`),
   researchContext: plan => request(`${path(plan.plan_id)}/research-context`),
+  researchOffer: plan => request(`${path(plan.plan_id)}/research-offer`),
+  researchOfferAction: (plan, action, revision, id) => request(`${path(plan.plan_id)}/research-offer/actions`, action, { headers: { 'Idempotency-Key': id, 'If-Match': String(revision) } }),
   updateResearchContext: async (plan, changes, revision, id, action) => {
     let snapshot;
     const messages = [];
@@ -106,6 +117,7 @@ export const plansApi = {
   canvas: plan => request(`${path(plan.plan_id)}/canvas`),
   generateCanvas: (plan, options, id, stream) => agentTurnStream(plan, '', id, {
     ...stream, canvasAction: { all: 'generate_plan', themes: 'generate_themes', research: 'generate_research' }[options.group || 'all'],
+    researchEntryReceipt: options.research_entry_receipt,
     contextRevision: options.context_revision, canvasThemes: options.themes ? { status: 'ready', items: options.themes.items.map(item => ({ ...item, source: ['Conversation', 'Trip context', 'Saved preference'].includes(item.source) ? item.source : 'Conversation' })) } : undefined,
   }),
   saveCanvas: async (plan, payload, id) => {
