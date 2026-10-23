@@ -120,6 +120,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261023-mt3 | Refine C: readiness and generation inside A2UI brief | 2026-10-23 | 6ab09f5 | Verified prototype; awaiting final selection | [Task](quick/261023-mt3-refine-prototype-c-with-readiness-and-ge/) |
 | 261023-mmu | Full-width research → draft state-bar prototypes with readiness | 2026-10-23 | 2f402a8 | Browser verified; awaiting design choice | [Task](quick/261023-mmu-prototype-full-width-research-to-draft-s/) |
 | 261016-rgd | Quiet Research/Canvas navigation and generation prototypes | 2026-10-16 | 5b5a31a | Preview verified; awaiting design choice | [Task](quick/261016-rgd-prototype-quieter-canvas-generation-and-/) |
 | 261016-h1a | Confirm flight needs during research; generate flights only for confirmed Yes | 2026-10-16 | e616d3b | Complete; two unrelated baseline test failures documented | [Task](quick/261016-h1a-confirm-flight-needs-during-research-and/) |
