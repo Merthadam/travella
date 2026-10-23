@@ -33,10 +33,10 @@ export function VariantA({ count, onCancel }) {
   </section>;
 }
 
-export function VariantB({ count, onCancel }) {
+export function VariantB({ count, onCancel, phase }) {
   return <section className="cg-loading cg-variant-b" aria-label="Building your Lisbon plan" aria-busy="true">
     <div className="cg-focus-meta"><span>YOUR NEXT CHAPTER</span><span>Lisbon, Portugal <i>↗</i></span></div>
-    <div className="cg-focus-content"><div className="cg-focus-globe"><Globe large /><span className="cg-coordinate">38.72° N &nbsp; 9.14° W</span></div><div className="cg-focus-copy"><p className="cg-eyebrow">FROM AN IDEA TO YOUR ITINERARY</p><h2>Lisbon is<br />taking shape.</h2><p className="cg-description">Building your Lisbon plan…</p><Counter count={count} prominent /><p className="cg-unlock-note">Everything opens together, when it’s ready.</p></div></div>
+    <div className="cg-focus-content"><div className="cg-focus-globe"><Globe large /><span className="cg-coordinate">38.72° N &nbsp; 9.14° W</span></div><div className="cg-focus-copy"><p className="cg-eyebrow">FROM AN IDEA TO YOUR ITINERARY</p><h2>Lisbon is<br />taking shape.</h2><p className="cg-description">{phase === 'research' ? 'Researching your Lisbon trip…' : phase === 'canvas' ? 'Creating your planning canvas…' : 'Building your Lisbon plan…'}</p><Counter count={count} prominent /><p className="cg-unlock-note">Everything opens together, when it’s ready.</p></div></div>
     <div className="cg-focus-footer"><span><i className="cg-live-dot" />Putting your plan together</span><Cancel onCancel={onCancel} /></div>
   </section>;
 }
@@ -95,12 +95,14 @@ export function CanvasGlobePrototype({ topbar = false }) {
   }, [playing, status]);
   const cancel = () => { setPlaying(false); setStatus('cancelled'); };
   const loading = status === 'generating';
+  // Demo-only phase transition; production must use actual stage events.
+  const phase = count < 6 ? 'research' : 'canvas';
   const layout = topbar ? 'B' : variant;
   const names = topbar ? topbarVariants : variants;
   const Variant = { A: VariantA, B: VariantB, C: VariantC }[layout];
   return <main id="plans-main" className={`cg-prototype cg-layout-${layout} ${topbar ? 'cg-topbar-demo' : ''} ${still ? 'cg-still' : ''}`}>
     <div className="cg-demo-tools" aria-label="Prototype simulation controls"><div className="cg-demo-caption"><b>DESIGN PREVIEW</b><span>Simulated progress · no Plan changes</span></div><div className="cg-demo-actions"><button onClick={() => setPlaying(value => !value)} disabled={!loading}>{playing ? 'Pause demo' : 'Run demo'}</button><button onClick={addItem} disabled={!loading}>+1 item</button><button onClick={finish} disabled={!loading}>Finish</button><button onClick={reset}>Replay</button><button onClick={() => { setStatus('error'); setPlaying(false); }} disabled={!loading}>Simulate error</button></div><div className="cg-demo-options"><label><input type="checkbox" checked={regenerate} onChange={e => setRegenerate(e.target.checked)} />Regeneration</label><label><input type="checkbox" checked={still} onChange={e => setStill(e.target.checked)} />Reduced motion</label></div></div>
-    {topbar && <GlobeTopbarPrototype variant={variant} status={status} count={count} />}
+    {topbar && <GlobeTopbarPrototype variant={variant} status={status} count={count} phase={phase} />}
     <div className="cg-trip-bar"><div><span className="cg-trip-icon">↗</span><span><b>Lisbon, at your pace</b><small>Lisbon, Portugal · Destination confirmed</small></span></div><span className="cg-trip-status">{loading ? 'Building your canvas' : status === 'complete' ? 'Canvas ready' : 'Generation paused'}</span></div>
     <div className="cg-workspace">
       <aside className="cg-chat" aria-label="Sample planning conversation"><div className="cg-chat-title"><span>Conversation</span><span aria-hidden="true">↙</span></div><div className="cg-chat-history"><p className="cg-chat-date">YOUR TRIP, TAKING SHAPE</p><div className="cg-chat-user">Lisbon it is. A few days of good food, neighbourhood walks, and time to slow down.</div><div className="cg-chat-answer"><span className="cg-agent-mark">✳</span><p>Lisbon is confirmed. I’ll bring your ideas together into a canvas you can explore and edit.</p></div><div className="cg-chat-confirm"><span>✓</span><div><b>Ready to build</b><small>Lisbon · food & culture · relaxed pace</small></div></div><p className="cg-chat-footnote">Your destination is set. Now the details can fall into place.</p></div><div className="cg-chat-composer"><span>{loading ? 'Your plan is being built…' : 'Keep shaping your trip…'}</span><span aria-hidden="true">↑</span></div><small className="cg-chat-preview-note">Sample conversation</small></aside>
@@ -108,11 +110,11 @@ export function CanvasGlobePrototype({ topbar = false }) {
         <div className="cg-canvas-top"><span>Planning canvas</span><span>{regenerate ? 'Updating your plan' : 'Your ideas, all in one place'}</span></div>
         <div className="cg-stage">
           {loading && regenerate && <SampleCanvas background />}
-          {loading ? <Variant count={count} onCancel={cancel} /> : status === 'complete' ? <SampleCanvas onOpen={setDetail} /> : <section className="cg-stopped"><Globe /><p className="cg-eyebrow">{status === 'error' ? 'A SMALL PAUSE' : 'YOU’RE IN CONTROL'}</p><h2>{status === 'error' ? 'Let’s try that again.' : 'Generation cancelled.'}</h2><p>{status === 'error' ? 'We couldn’t finish your canvas. Your destination is still Lisbon.' : 'Your destination is still Lisbon. Build your canvas whenever you’re ready.'}</p>{regenerate && <p>Your existing plan is unchanged.</p>}<button className="cg-retry" onClick={() => { reset(); setPlaying(true); }}>{status === 'error' ? 'Try again' : 'Build my plan'}</button></section>}
+          {loading ? <Variant count={count} onCancel={cancel} phase={topbar && variant === 'C' ? phase : undefined} /> : status === 'complete' ? <SampleCanvas onOpen={setDetail} /> : <section className="cg-stopped"><Globe /><p className="cg-eyebrow">{status === 'error' ? 'A SMALL PAUSE' : 'YOU’RE IN CONTROL'}</p><h2>{status === 'error' ? 'Let’s try that again.' : 'Generation cancelled.'}</h2><p>{status === 'error' ? 'We couldn’t finish your canvas. Your destination is still Lisbon.' : 'Your destination is still Lisbon. Build your canvas whenever you’re ready.'}</p>{regenerate && <p>Your existing plan is unchanged.</p>}<button className="cg-retry" onClick={() => { reset(); setPlaying(true); }}>{status === 'error' ? 'Try again' : 'Build my plan'}</button></section>}
         </div>
       </div>
     </div>
-    <div className="cg-state" role="status">Simulated · {topbar ? 'B globe + ' : ''}{names[variant]} · {status} · {count} items ready · {playing ? 'running' : 'paused'} · {regenerate ? 'regeneration' : 'first generation'} · {still ? 'reduced motion' : 'system motion'}</div>
+    <div className="cg-state" role="status">Simulated · {topbar ? 'B globe + ' : ''}{names[variant]}{topbar && variant === 'C' ? ` · ${phase}` : ''} · {status} · {count} items ready · {playing ? 'running' : 'paused'} · {regenerate ? 'regeneration' : 'first generation'} · {still ? 'reduced motion' : 'system motion'}</div>
     {detail && <div className="cg-detail-backdrop"><section role="dialog" aria-modal="true" aria-labelledby="cg-detail-title"><p className="cg-eyebrow">INTERACTION PREVIEW</p><h2 id="cg-detail-title">{detail}</h2><p>This card is now interactive. In the real canvas, this opens your plan’s details.</p><p>Prototype only. No data has been saved.</p><button autoFocus className="cg-retry" onClick={() => setDetail(null)}>Back to canvas</button></section></div>}
     {import.meta.env.DEV && <PrototypeSwitcher variant={variant} cycle={cycle} names={names} />}
   </main>;
