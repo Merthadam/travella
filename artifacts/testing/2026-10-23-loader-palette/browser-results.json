@@ -1,0 +1,63 @@
+{
+  "C": {
+    "appearance": {
+      "bar": "rgb(240, 243, 232)",
+      "globe": "rgb(240, 243, 232)",
+      "meta": "YOUR NEXT CHAPTER",
+      "cancel": "Cancel generation"
+    },
+    "width": {
+      "available": 1392,
+      "actual": 1392
+    },
+    "phases": {
+      "before": "1Research",
+      "after": "2Canvas",
+      "sameGlobe": true,
+      "animation": "cg-turn",
+      "afterAnimation": "cg-turn",
+      "steps": [
+        "\u2713Research",
+        "2Canvas"
+      ],
+      "cards": 0
+    },
+    "initial": {
+      "topbar": true,
+      "globeB": true,
+      "unknownTotal": true,
+      "count": "04",
+      "overflow": false,
+      "canvasCards": 0,
+      "chatVisible": false
+    },
+    "interactions": {
+      "increment": "05",
+      "cancel": "Generation cancelled.",
+      "topbarCancelled": true,
+      "retry": "00",
+      "error": "Let\u2019s try that again.",
+      "topbarError": true,
+      "topbarComplete": true,
+      "complete": {
+        "cards": 3,
+        "loader": false
+      },
+      "cardOpens": true,
+      "replay": "00",
+      "backgroundInert": true,
+      "reducedMotion": "none"
+    },
+    "mobile": {
+      "overflow": false,
+      "animation": "none",
+      "counter": "04\nitems ready"
+    },
+    "console": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=26 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Network requests\nShowing 1-3 of 3 (Page 1 of 1).\nreqid=670 GET http://localhost:5187/auth/session [200]\nreqid=671 GET http://localhost:5187/v1/traveler-profile [200]\nreqid=672 GET http://localhost:5187/v1/plans?view=active [200]"
+  },
+  "switcher": {
+    "wrap": "C to A",
+    "reload": "A"
+  }
+}
