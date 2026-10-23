@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-23T19:27:07.965Z"
+last_updated: "2026-10-23T19:28:27.805Z"
 last_activity: 2026-10-23
 last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
-state_head: b1c7baa53c3e671135186729c862183f662651bb
+state_head: d4e334bd8ef7a08d4c3465b00aef38087562553c
 progress:
   total_phases: 17
   completed_phases: 1
@@ -211,6 +211,7 @@ Resume file: None
 | 261023-to4 | Corrected scope to progress bar only; previous globe restored; build and desktop/mobile checks passed | 2026-10-23 | 21fd7b8 | — | [261023-to4-restore-previous-globe-prototype-and-ali](./quick/261023-to4-restore-previous-globe-prototype-and-ali/) |
 | 261023-tpz | Removed redundant destination strip from selected loader; build and desktop/mobile browser checks passed | 2026-10-23 | 1855a0f | — | [261023-tpz-remove-redundant-destination-header-from](./quick/261023-tpz-remove-redundant-destination-header-from/) |
 | 261023-trp | Matched globe and progress palette; removed redundant location and arrows; build and desktop/mobile checks passed | 2026-10-23 | b1c7baa | — | [261023-trp-match-loading-progress-bar-palette-and-r](./quick/261023-trp-match-loading-progress-bar-palette-and-r/) |
+| 261023-tt6 | Removed Cancel generation from selected preview for now; build and desktop/mobile checks passed | 2026-10-23 | d4e334b | — | [261023-tt6-remove-cancel-generation-action-from-sel](./quick/261023-tt6-remove-cancel-generation-action-from-sel/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -286,3 +287,5 @@ Resume file: None
 - Loader refinement 261023-tpz: removed redundant destination header strip from selected C, per user screenshot. Progress now leads directly into the globe. Build and authenticated desktop/mobile checks passed.
 
 - Loader refinement 261023-trp: progress bar now matches the globe palette; removed top-right destination label and decorative arrows from selected C. Plain Cancel action retained. Build and authenticated desktop/mobile checks passed; prototype only.
+
+- Loader refinement 261023-tt6: user explicitly requested removing Cancel generation for now. Removed from selected C prototype; desktop/mobile absence, retry/completion and build verified.
