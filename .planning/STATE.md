@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-23T19:20:13.333Z"
+last_updated: "2026-10-23T19:22:48.594Z"
 last_activity: 2026-10-23
 last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
-state_head: 854c6fe138c58c4eeb90c5bb44aec1672e0036a5
+state_head: 21fd7b836bf27575ddf0e919afe18d14220a2309
 progress:
   total_phases: 17
   completed_phases: 1
@@ -208,6 +208,7 @@ Resume file: None
 | 261023-ta4 | Refined selected C to Research then Canvas with continuous globe; build and desktop/mobile Chrome checks passed | 2026-10-23 | dae5c75 | — | [261023-ta4-refine-selected-c-loading-prototype-to-r](./quick/261023-ta4-refine-selected-c-loading-prototype-to-r/) |
 | 261023-tdw | Saved full-width Research Canvas loading prototype; build and desktop/mobile Chrome verification passed; stop here | 2026-10-23 | e489cf7 | — | [261023-tdw-make-selected-c-research-canvas-progress](./quick/261023-tdw-make-selected-c-research-canvas-progress/) |
 | 261023-tgv | Aligned selected globe loader with existing Plan chat and cards; added subtle sidebar reveal; build and desktop/mobile theme checks passed | 2026-10-23 | 854c6fe | — | [261023-tgv-align-selected-loading-prototype-with-ex](./quick/261023-tgv-align-selected-loading-prototype-with-ex/) |
+| 261023-to4 | Corrected scope to progress bar only; previous globe restored; build and desktop/mobile checks passed | 2026-10-23 | 21fd7b8 | — | [261023-to4-restore-previous-globe-prototype-and-ali](./quick/261023-to4-restore-previous-globe-prototype-and-ali/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -274,3 +275,8 @@ Resume file: None
 - Preserved B globe and full-width C Research → Canvas shape; selected preview now reuses actual Plan chat and canvas cards with shared themes, typography and controls.
 - Added 1.1-second sidebar opening during simulated generation, independent desktop scrolling, existing mobile tabs and reduced-motion support. Build and authenticated desktop/mobile light/dark verification passed.
 - Decision: `.planning/quick/261023-tgv-align-selected-loading-prototype-with-ex/DECISION.md`. Prototype only; production integration remains deferred.
+
+### Scope correction — progress bar only — 2026-10-23
+
+- User clarified alignment applies only to the progress bar. Broad sidebar/card replacement and reveal animation from quick 261023-tgv were removed. Original accepted globe prototype restored; only the selected full-width Research → Canvas bar adopts current frontend styling.
+- Build and authenticated desktop/mobile browser verification passed. Evidence: `artifacts/testing/2026-10-23-progressbar-only/verification.md`. Prototype only.
