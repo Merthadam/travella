@@ -27,17 +27,19 @@ export function ResearchBriefOverlay({ context, workspaceRef, composerRef, child
       setPosition(current => {
         if (moved.current && current) return { x: clamp(current.x, MARGIN, next.width - SIZE - MARGIN), y: clamp(current.y, MARGIN, next.height - SIZE - MARGIN) };
         const workspace = workspaceRef?.current?.getBoundingClientRect();
-        const composer = composerRef?.current?.getBoundingClientRect();
-        const x = clamp((workspace?.right || next.width) - SIZE - MARGIN, MARGIN, next.width - SIZE - MARGIN);
-        let y = next.height - SIZE - MARGIN;
-        // The untouched default always clears the composer, even as a short history grows.
-        if (composer && x + SIZE > composer.left && x < composer.right && y + SIZE > composer.top && y < composer.bottom) y = composer.top - SIZE - MARGIN;
-        return { x, y: clamp(y, MARGIN, next.height - SIZE - MARGIN) };
+        const anchor = workspaceRef?.current?.querySelector('.research-brief-anchor')?.getBoundingClientRect();
+        // Dock beside the stages until the traveler chooses a position.
+        return {
+          x: clamp(anchor?.left ?? (workspace?.right || next.width) - SIZE - MARGIN, MARGIN, next.width - SIZE - MARGIN),
+          y: clamp(anchor?.top ?? (workspace?.top || 0) + MARGIN, MARGIN, next.height - SIZE - MARGIN),
+        };
       });
     }
     place();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     if (workspaceRef?.current) observer?.observe(workspaceRef.current);
+    const anchor = workspaceRef?.current?.querySelector('.research-brief-anchor');
+    if (anchor) observer?.observe(anchor);
     if (composerRef?.current) observer?.observe(composerRef.current);
     const transcript = workspaceRef?.current?.querySelector('.chat-transcript');
     if (transcript) observer?.observe(transcript);

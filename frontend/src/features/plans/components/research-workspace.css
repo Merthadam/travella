@@ -1,6 +1,7 @@
 .chat-app .research-workspace { display: flex; flex-direction: column; width: 100%; max-width: none; min-height: 0; padding: 0; }
-.research-progress { flex-shrink: 0; width: 100%; padding: 16px 40px; box-sizing: border-box; }
-.research-progress ol { display: flex; align-items: center; width: 100%; gap: 0; margin: 0; padding: 0; list-style: none; color: var(--app-muted); font-size: 12px; }
+.research-progress { display: flex; align-items: center; gap: 24px; flex-shrink: 0; width: 100%; padding: 16px 40px; box-sizing: border-box; }
+.research-progress ol { display: flex; align-items: center; flex: 1; min-width: 0; gap: 0; margin: 0; padding: 0; list-style: none; color: var(--app-muted); font-size: 12px; }
+.research-brief-anchor { flex: 0 0 52px; height: 52px; }
 .research-progress li, .research-progress button { display: flex; align-items: center; gap: 8px; }
 .research-progress li + li { flex: 1; }
 .research-progress li + li::before { content: ''; flex: 1; min-width: 24px; height: 1px; margin: 0 32px; background: var(--app-line); }
@@ -10,7 +11,7 @@
 .research-progress [aria-current] span { color: var(--app-text); background: var(--app-soft); }
 :root[data-theme] .research-progress button { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; }
 .research-workspace .chat-page { width: 100%; max-width: 1040px; margin: 0 auto; padding: 0 36px; }
-.research-workspace .chat-transcript { flex: 0 1 auto; padding: 28px 0 12px; gap: 24px; }
+.research-workspace .chat-transcript { flex: 1 1 0; min-height: 0; padding: 28px 0 12px; gap: 24px; }
 .research-workspace .chat-empty { margin-block: 18px; }
 .research-workspace .research-composer { margin-top: 12px; }
 .research-brief-layer { position: fixed; inset: 0; z-index: 35; pointer-events: none; color: var(--app-text); }
