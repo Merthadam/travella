@@ -36,7 +36,7 @@ function SourceNote({ context, fields }) {
   return sources.length ? <p className="trip-brief-muted">{sources.join(' · ')}</p> : null;
 }
 
-export function TripBrief({ value, onChange, locked = false, saving = false, error = '', prototypePanel }) {
+export function TripBrief({ value, onChange, locked = false, saving = false, error = '' }) {
   const context = value || emptyTripContext();
   const [candidateDraft, setCandidateDraft] = useState('');
   const progress = useMemo(() => tripBriefProgress(context), [context]);
@@ -68,7 +68,6 @@ export function TripBrief({ value, onChange, locked = false, saving = false, err
       <p>{progress.count === 6 ? 'Your trip basics are clear' : `${6 - progress.count} details left to shape`}</p>
     </section>
 
-    {prototypePanel}
     <details className="trip-brief-group" open>
       <summary><span>Where to?</span><small>{context.candidates.length} candidates{context.finalDestination ? ' · final place set' : ' · not settled'}</small></summary>
       <section className="trip-brief-section" aria-labelledby="trip-destinations-heading">
