@@ -120,6 +120,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261023-nex | Foldable C brief and tighter collapsed spacing; desktop focus going forward | 2026-10-23 | 8361b7d | Verified prototype | [Task](quick/261023-nex-prototype-collapsible-trip-brief-in-c/) |
 | 261023-n37 | Remove outer divider seam from prototype C | 2026-10-23 | c668f1b | Verified visual prototype | [Task](quick/261023-n37-remove-outer-divider-seam-from-prototype/) |
 | 261023-mx5 | Unify C workspace surfaces, spacing and alignment | 2026-10-23 | 36aed51 | Verified visual prototype | [Task](quick/261023-mx5-unify-prototype-c-surfaces-spacing-and-a/) |
 | 261023-mt3 | Refine C: readiness and generation inside A2UI brief | 2026-10-23 | 6ab09f5 | Verified prototype; awaiting final selection | [Task](quick/261023-mt3-refine-prototype-c-with-readiness-and-ge/) |
