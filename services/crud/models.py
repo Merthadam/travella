@@ -96,6 +96,7 @@ class Plan(Base):
     canvas: Mapped["PlanningCanvas | None"] = relationship(
         back_populates="plan", uselist=False, cascade="all, delete-orphan"
     )
+    research_offers: Mapped[list["ResearchDraftOffer"]] = relationship(cascade="all, delete-orphan")
     receipts: Mapped[list["PlanActionReceipt"]] = relationship(
         back_populates="plan", cascade="all, delete-orphan"
     )
@@ -179,7 +180,28 @@ class ResearchContext(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     active_event: Mapped[str | None] = mapped_column(String(100), nullable=True)
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    priorities_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ResearchDraftOffer(Base):
+    """Plan-owned invitation history; latest row also carries durable suppression."""
+    __tablename__ = "research_draft_offers"
+    __table_args__ = (
+        UniqueConstraint("plan_id", "event_id", name="uq_research_offer_event"),
+        UniqueConstraint("plan_id", "sequence", name="uq_research_offer_sequence"),
+        CheckConstraint("status IN ('available','review','deferred','consumed','superseded')", name="ck_research_offer_status"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("plans.id", ondelete="CASCADE"), index=True)
+    event_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    message_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    deferred: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class PlanActionReceipt(Base):

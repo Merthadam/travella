@@ -9,7 +9,7 @@ import { emptyTripContext } from '../components/TripBrief';
 import { ResearchFlightPreview } from './ResearchFlightPreview';
 
 const fixture=process.env.TRAVELLA_RESEARCH_SSE_FIXTURE ? JSON.parse(readFileSync(process.env.TRAVELLA_RESEARCH_SSE_FIXTURE,'utf8')) : null;
-const api=()=>({...plansApi,conversationMessages:vi.fn(async()=>[]),researchContext:vi.fn(async()=>({revision:1,context:emptyTripContext(),locked:false,a2ui_messages:[]})),cancelAgentTurn:vi.fn(async()=>({cancelled:true}))});
+const api=()=>({...plansApi,conversationMessages:vi.fn(async()=>[]),researchOffer:vi.fn(async()=>({revision:1,readiness:{eligible:false,missing:["destination_required"]},offer:null,locked:false})),researchContext:vi.fn(async()=>({revision:1,context:emptyTripContext(),locked:false,a2ui_messages:[]})),cancelAgentTurn:vi.fn(async()=>({cancelled:true}))});
 afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.useRealTimers();});
 
 test.skipIf(!fixture)('real Research SSE renders three A2UI cards with details and no navigation',async()=>{

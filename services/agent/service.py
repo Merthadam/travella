@@ -14,11 +14,12 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
+from services.research_offers import DraftOfferProposal, ResearchOffer
 from services.shared.traveler_profile import PROFILE_FIELDS, profile_context
 from services.trip_context import ContextSnapshot, TurnResult, a2ui_messages
 
-from .http_contracts import AgentRequest, AgentResponse
 from .editing_contracts import CanvasEditResult
+from .http_contracts import AgentRequest, AgentResponse
 from .place_tickets import sign_place, verified_place
 from .state import PlanRunStore, ProcessReceiptCache
 
@@ -126,7 +127,18 @@ class AgentTurnService:
             raise HTTPException(409, "Another reply is running for this Plan.") from None
         if not reservation.owner:
             if reservation.future.done():
-                return AgentResponse.model_validate(reservation.future.result())
+                replay = AgentResponse.model_validate(reservation.future.result())
+                if replay.research_offer:
+                    current = (await self.context_reader.research_offer(request.plan_id, token)
+                               if self.context_reader and hasattr(self.context_reader, "research_offer") else None)
+                    # Cached prose is replayable; action authority must be current.
+                    if current and current["id"] == replay.research_offer.id:
+                        replay.research_offer = ResearchOffer.model_validate(current)
+                    else:
+                        replay.research_offer.status = "superseded"
+                    if replay.trip_context:
+                        replay.trip_context.research_offer = replay.research_offer
+                return replay
             return AgentResponse(
                 status="in_progress",
                 plan_id=request.plan_id,
@@ -161,9 +173,28 @@ class AgentTurnService:
             if request.canvas_action:
                 if not self.context_reader or not hasattr(self.context_reader, "generation_context"):
                     raise HTTPException(503, "Canvas context is unavailable.")
+                if (not isinstance(context_snapshot, dict)
+                        or type(context_snapshot.get("research_entry_required")) is not bool):
+                    raise HTTPException(503, "Draft authorization is unavailable. Please retry.")
+                if (context_snapshot["research_entry_required"]
+                        and request.research_entry_receipt is None):
+                    raise HTTPException(409, "Review and confirm your trip before creating the first draft.")
                 if request.context_revision is not None and context_snapshot and request.context_revision != context_snapshot["revision"]:
                     raise HTTPException(409, "Trip details changed. Reload the canvas before generating.")
                 context = await self.context_reader.generation_context(request.plan_id, token)
+                if request.research_entry_receipt is not None:
+                    if (not context_snapshot or not hasattr(self.context_reader, "consume_research_entry")
+                            or request.context_revision != context_snapshot["revision"]):
+                        raise HTTPException(409, "Review the latest trip details before creating a draft.")
+                    accepted = await self.context_reader.consume_research_entry(
+                        request.plan_id, token, receipt=request.research_entry_receipt,
+                        request_id=request.event_id, revision=request.context_revision,
+                    )
+                    if accepted.get("accepted") is not True or accepted.get("request_id") != request.event_id:
+                        raise HTTPException(409, "Draft confirmation could not be validated.")
+                    if accepted.get("replayed"):
+                        return await finish({"status": "in_progress", "plan_id": plan_id,
+                                             "event_id": request.event_id, "generation": generation})
             query = request.message.strip()
 
             graph_state = {
@@ -186,6 +217,9 @@ class AgentTurnService:
                 "generation_messages": context.get("messages", []) if request.canvas_action else [],
                 "generation_cutoff": context.get("cutoff_sequence", 0),
                 "context_revision": context_snapshot["revision"] if context_snapshot else 1,
+                "research_readiness": context_snapshot.get("research_readiness") if context_snapshot else None,
+                "research_deferred": context_snapshot.get("research_deferred", False) if context_snapshot else False,
+                "draft_offer": None,
             }
             def prepare_canvas(value):
                 from services.crud.canvas import issue_canvas_evidence
@@ -214,6 +248,9 @@ class AgentTurnService:
             projection = result.get("projection") if isinstance(result, dict) else None
             if not isinstance(projection, dict):
                 raise HTTPException(502, "Agent response was invalid.")
+            # A model/graph projection has no authority to create browser actions.
+            projection.pop("research_offer", None)
+            projection.pop("assistant_message_id", None)
             observed = result.get("_read_evidence") or result.get("_canvas_evidence")
             if isinstance(observed, list) and observed:
                 if len(self._evidence_cache) >= 100:
@@ -292,6 +329,8 @@ class AgentTurnService:
                         revision=context_snapshot["revision"], message=query,
                         assistant_text=assistant_content, generation=generation,
                         changes=[change.model_dump() for change in turn_result.state_changes],
+                        draft_offer=(DraftOfferProposal.model_validate(result["draft_offer"]).model_dump()
+                                     if result.get("draft_offer") and not request.canvas_edit else None),
                     ))
                     try:
                         saved_context = await asyncio.shield(commit)
@@ -299,6 +338,12 @@ class AgentTurnService:
                         saved_context = await commit
                     context_committed = True
                     projection["trip_context"] = saved_context
+                    if (saved_context.get("research_offer") and saved_context.get("assistant_message_id")
+                            and saved_context["research_offer"].get("message_id") == saved_context["assistant_message_id"]):
+                        projection["research_offer"] = ResearchOffer.model_validate(
+                            saved_context["research_offer"]).model_dump()
+                    if saved_context.get("assistant_message_id"):
+                        projection["assistant_message_id"] = saved_context["assistant_message_id"]
                 projection["result"] = turn_result.model_dump()
             return await finish(projection)
         except asyncio.CancelledError:
@@ -398,6 +443,8 @@ class AgentTurnService:
                                                "trip_context": final.get("trip_context"),
                                                "canvas_draft": final.get("canvas_draft"),
                                                "canvas_edit_result": final.get("canvas_edit_result"),
+                                               "research_offer": final.get("research_offer"),
+                                               "assistant_message_id": final.get("assistant_message_id"),
                                                "flight_preview": final.get("flight_preview"),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:
@@ -436,7 +483,7 @@ class AgentTurnService:
                     public_snapshot.update({name: item for name, item in value.items() if item is not None})
                     yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
                 else:
-                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result", "flight_preview") if value.get(name) is not None}
+                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result", "research_offer", "assistant_message_id", "flight_preview") if value.get(name) is not None}
                     if snapshot:
                         public_snapshot.update(snapshot)
                         yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})

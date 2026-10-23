@@ -1,0 +1,48 @@
+.chat-app .research-workspace { display: flex; flex-direction: column; width: 100%; max-width: none; min-height: 0; padding: 0; }
+.research-progress { display: flex; align-items: center; gap: 24px; flex-shrink: 0; width: 100%; padding: 16px 40px; box-sizing: border-box; }
+.research-progress ol { display: flex; align-items: center; flex: 1; min-width: 0; gap: 0; margin: 0; padding: 0; list-style: none; color: var(--app-muted); font-size: 12px; }
+.research-brief-anchor { flex: 0 0 52px; height: 52px; }
+.research-progress li, .research-progress button { display: flex; align-items: center; gap: 8px; }
+.research-progress li + li { flex: 1; }
+.research-progress li + li::before { content: ''; flex: 1; min-width: 24px; height: 1px; margin: 0 32px; background: var(--app-line); }
+.research-progress button { flex-shrink: 0; white-space: nowrap; }
+.research-progress [aria-current] { color: var(--app-text); font-weight: 650; }
+.research-progress span { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid var(--app-line); border-radius: 50%; font-size: 10px; }
+.research-progress [aria-current] span { color: var(--app-text); background: var(--app-soft); }
+:root[data-theme] .research-progress button { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; }
+.research-workspace .chat-page { width: 100%; max-width: 1040px; margin: 0 auto; padding: 0 36px; }
+.research-workspace .chat-transcript { flex: 1 1 0; min-height: 0; padding: 28px 0 12px; gap: 24px; }
+.research-workspace .chat-empty { margin-block: 18px; }
+.research-workspace .research-composer { margin-top: 12px; }
+.research-brief-layer { position: fixed; inset: 0; z-index: 35; pointer-events: none; color: var(--app-text); }
+:root[data-theme] .research-brief-trigger { position: absolute; display: grid; place-items: center; width: 52px; height: 52px; min-width: 52px; padding: 4px; border: 0; border-radius: 50%; background: conic-gradient(#409777 var(--brief-progress), var(--app-line) 0); color: var(--app-text); box-shadow: 0 4px 16px #0002; cursor: grab; touch-action: none; user-select: none; pointer-events: auto; }
+.research-brief-trigger:active { cursor: grabbing; }
+.research-brief-discovery { position: absolute; visibility: hidden; box-sizing: border-box; max-width: 220px; padding: 7px 10px; border: 1px solid var(--app-line); border-radius: 8px; color: var(--app-text); background: var(--app-panel); box-shadow: 0 2px 8px #0002; font-size: 11px; line-height: 1.4; }
+.research-brief-trigger:is(:hover, :focus-visible) + .research-brief-discovery { visibility: visible; }
+.research-brief-trigger span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--app-panel); font-size: 12px; font-weight: 650; }
+.research-brief-trigger:focus-visible, .research-brief-panel button:focus-visible { outline: 3px solid var(--app-focus); outline-offset: 3px; }
+.research-brief-panel { position: absolute; box-sizing: border-box; overflow: auto; overscroll-behavior: contain; padding: 16px; border: 1px solid var(--app-line); border-radius: 16px; background: var(--app-panel); box-shadow: 0 12px 44px #0003; pointer-events: auto; scrollbar-width: thin; }
+.research-brief-panel[hidden] { display: none; }
+.research-brief-heading { position: sticky; top: -16px; display: flex; justify-content: space-between; align-items: center; margin: -16px -16px 0; padding: 12px 16px; background: var(--app-panel); z-index: 1; }
+.research-brief-heading h2 { margin: 0; font-size: 15px; }
+:root[data-theme] .research-brief-heading button { width: 32px; height: 32px; padding: 0; border: 0; background: transparent; color: var(--app-muted); font-size: 22px; }
+.research-brief-readiness { margin: 0 0 10px; color: var(--app-muted); font-size: 12px; line-height: 1.5; }
+.research-brief-panel .trip-brief { padding: 0; border: 0; overflow: visible; }
+.research-brief-panel .trip-brief label { margin: 0; }
+.research-brief-panel .trip-brief-header, .research-brief-panel .trip-brief-progress { display: none; }
+.research-brief-actions { display: grid; gap: 8px; padding-top: 14px; }
+.research-brief-actions button { width: 100%; }
+:root[data-theme] .research-brief-panel .trip-brief input:not([type=checkbox]) { color: var(--app-text); background: var(--app-panel); border-color: var(--app-control); }
+:root[data-theme] .research-brief-actions > button { color: var(--app-text); background: var(--app-soft); border: 1px solid var(--app-line); }
+.research-draft-offer { margin-top: 14px; color: var(--app-muted); font-size: 13px; line-height: 1.5; }
+.research-draft-offer p { margin: 0 0 10px; }
+.research-draft-offer > div { display: flex; gap: 8px; flex-wrap: wrap; }
+:root[data-theme] .research-draft-offer button { padding: 8px 12px; border: 1px solid var(--app-line); border-radius: 9px; background: var(--app-soft); color: var(--app-text); font-size: 12px; }
+:root[data-theme] .research-draft-offer button + button { border-color: transparent; background: transparent; color: var(--app-muted); }
+.research-offer-note { margin-top: 12px; color: var(--app-muted); font-size: 12px; line-height: 1.5; }
+@media (max-width: 760px) {
+  .chat-app .research-workspace { min-height: 0; }
+  .research-workspace .chat-page { padding: 0 16px; }
+  .research-progress { padding: 12px 16px; }
+  .research-progress li + li::before { margin-inline: 12px; }
+}

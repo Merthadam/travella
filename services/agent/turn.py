@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from services.shared.traveler_profile import profile_context
 
@@ -24,12 +25,15 @@ class TurnContext:
     traveler_profile: dict[str, Any] = field(default_factory=dict)
     recent_messages: tuple[dict[str, str], ...] = ()
     generation: int = 0
+    research_readiness: dict[str, Any] | None = None
+    research_deferred: bool = False
 
     def bounded(self) -> "TurnContext":
         history = tuple(
             {
                 "role": str(item.get("role", "user")),
                 "content": str(item.get("content", ""))[:MAX_TEXT],
+                **({"id": message_id} if (message_id := _message_id(item.get("message_id", item.get("id")))) else {}),
             }
             for item in self.recent_messages[-MAX_HISTORY:]
             if isinstance(item, dict) and str(item.get("content", "")).strip()
@@ -49,7 +53,16 @@ class TurnContext:
             traveler_profile=profile_context(self.traveler_profile),
             recent_messages=history,
             generation=self.generation,
+            research_readiness=self.research_readiness,
+            research_deferred=self.research_deferred,
         )
+
+
+def _message_id(value: Any) -> str | None:
+    try:
+        return str(UUID(str(value)))
+    except (ValueError, TypeError):
+        return None
 
 
 def load_prompt(name: str) -> str:

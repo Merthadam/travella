@@ -53,12 +53,17 @@ def migrated_database():
             "auth_recovery_codes",
             "auth_sessions",
             "traveler_profiles",
+            "research_draft_offers",
+            "research_contexts",
+            "planning_canvases",
             "planning_briefs",
+            "conversation_messages",
             "destination_pins",
             "plan_challenges",
             "plan_action_receipts",
             "conversations",
             "plans",
+            "alembic_version",
         ):
             connection.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))
     engine.dispose()
@@ -89,7 +94,7 @@ def test_fresh_postgres_plan_http_round_trip(migrated_database):
 
 
 def test_migration_script_has_single_head():
-    assert migration_heads() == {"0008"}
+    assert migration_heads() == {"0011"}
 
 
 def test_unmigrated_database_is_rejected(tmp_path):

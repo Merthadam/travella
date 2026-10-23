@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from services.research_offers import DraftOfferProposal
+
 from ...request_context import current_text_delta_callback, current_traveler_profile
 from ...state import AgentState
 from ...turn import TurnContext
@@ -34,6 +36,8 @@ class ConversationNode:
             traveler_profile=current_traveler_profile(),
             recent_messages=tuple(state.get("recent_messages", [])),
             generation=int(state.get("generation", 0)),
+            research_readiness=state.get("research_readiness"),
+            research_deferred=state.get("research_deferred", False),
         )
         from ...research_flights import flight_preview_requested, preview_flights
         if flight_preview_requested(message, context):
@@ -65,6 +69,8 @@ class ConversationNode:
             "assistant_text": str(result.get("assistant_text", ""))[:2000],
             "state_changes": result.get("state_changes", []),
             "trip_context": result.get("trip_context", state.get("trip_context", {})),
+            "draft_offer": (DraftOfferProposal.model_validate(result["draft_offer"]).model_dump()
+                            if result.get("draft_offer") else None),
         }
         for field in ("research_evidence", "research_evidence_ids", "research_sources", "_read_evidence"):
             output[field] = result.get(field, [])

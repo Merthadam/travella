@@ -42,6 +42,9 @@ class AgentState(TypedDict, total=False):
     assistant_text: str
     turn_decision: str
     research_evidence: list[dict[str, Any]]
+    draft_offer: dict[str, Any] | None
+    research_readiness: dict[str, Any] | None
+    research_deferred: bool
 
 
 @dataclass(frozen=True)

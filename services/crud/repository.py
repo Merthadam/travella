@@ -379,7 +379,20 @@ class PlanRepository:
         if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
             raise LifecycleProblem("not_found")
         rows = self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == plan.conversation.id).order_by(ConversationMessage.sequence.desc()).limit(max(1, min(limit, 50)))).all()
-        return [self._message_projection(row) for row in reversed(rows)]
+        from .models import ResearchDraftOffer
+        from .research_offers import ResearchOfferRepository
+        offers = ResearchOfferRepository(self)
+        snapshot, _, fingerprint, _ = offers._state(subject, plan_id)
+        linked = {offer.message_id: offer for offer in self.session.scalars(
+            select(ResearchDraftOffer).where(ResearchDraftOffer.plan_id == plan_id,
+                ResearchDraftOffer.message_id.in_([str(row.id) for row in rows]))) }
+        result = []
+        for row in reversed(rows):
+            item = self._message_projection(row)
+            if str(row.id) in linked:
+                item["research_offer"] = offers.project(linked[str(row.id)], snapshot, fingerprint).model_dump()
+            result.append(item)
+        return result
 
     def agent_context(self, subject: str, plan_id: UUID, limit: int = 12) -> dict:
         plan = self.session.scalar(select(Plan).options(joinedload(Plan.conversation)).where(Plan.id == plan_id, Plan.traveler_subject == subject))

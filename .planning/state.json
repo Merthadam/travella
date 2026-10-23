@@ -47,12 +47,37 @@
       "number": "10",
       "name": "Evidence-grounded iterative agent research",
       "status": "in_progress"
+    },
+    {
+      "number": "13",
+      "name": "Account settings and travel preferences",
+      "status": "complete"
+    },
+    {
+      "number": "14",
+      "name": "Standalone A2UI Planning Components",
+      "status": "in_progress"
+    },
+    {
+      "number": "15",
+      "name": "Bounded agentic canvas generation",
+      "status": "in_progress"
+    },
+    {
+      "number": "16",
+      "name": "Date-gated travel previews and booking navigation",
+      "status": "complete"
+    },
+    {
+      "number": "17",
+      "name": "Research phase cleanup",
+      "status": "in_progress"
     }
   ],
   "next": {
-    "command": "/gsd:verify-work",
-    "label": "Re-verify work",
-    "reason": "Recent verification failed — re-verify or debug"
+    "command": "$gsd-verify-work 17",
+    "label": "Review implemented desktop Research cleanup",
+    "reason": "No implementation blockers; independent verification human_needed. Desktop acceptance/native zoom and authorized live-model quality remain pending; prior Phase15 untouched."
   },
-  "updated_at": "2026-10-16T12:25:28.596Z"
+  "updated_at": "2026-10-23T18:25:47.842462+00:00"
 }

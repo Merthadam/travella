@@ -1,0 +1,94 @@
+Script ran on page and returned:
+```json
+"Early generation blocked; bar spans brief"
+```
+
+Script ran on page and returned:
+```json
+"Review opens before generation"
+```
+
+Script ran on page and returned:
+```json
+"Review cancels"
+```
+
+Script ran on page and returned:
+```json
+"Mobile has no horizontal overflow"
+```
+
+Script ran on page and returned:
+```json
+"Early generation blocked; bar spans brief"
+```
+
+Script ran on page and returned:
+```json
+"Review opens before generation"
+```
+
+Script ran on page and returned:
+```json
+"Review cancels"
+```
+
+Script ran on page and returned:
+```json
+"Mobile has no horizontal overflow"
+```
+
+Script ran on page and returned:
+```json
+"Early generation blocked; bar spans brief"
+```
+
+Script ran on page and returned:
+```json
+"Review opens before generation"
+```
+
+Script ran on page and returned:
+```json
+"Review cancels"
+```
+
+Script ran on page and returned:
+```json
+"Mobile has no horizontal overflow"
+```
+
+Script ran on page and returned:
+```json
+"Flight choice required"
+```
+
+Script ran on page and returned:
+```json
+"Explicit confirmation opens draft"
+```
+
+Script ran on page and returned:
+```json
+"Can return to research"
+```
+
+Script ran on page and returned:
+```json
+"Input arrows preserved"
+```
+
+Script ran on page and returned:
+```json
+"Keyboard switches variants with URL"
+```
+
+Script ran on page and returned:
+```json
+"Failure keeps research and brief"
+```
+
+Emulating viewport: {"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"isLandscape":false,"width":1440,"height":1000}
+## Console messages
+Showing 1-1 of 1 (Page 1 of 1).
+msgid=128 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)

@@ -7,6 +7,7 @@ import httpx
 from fastapi import HTTPException
 
 from services.crud.profile_schemas import ProfileOutput
+from services.research_offers import ResearchOffer
 from services.trip_context import ContextSnapshot
 
 
@@ -81,7 +82,13 @@ class CrudContextReader:
             raise HTTPException(409, "Trip context changed or another reply is running. Please try again.")
         if response.status_code >= 400:
             raise HTTPException(503, "Trip context could not be saved. Please try again.")
-        return ContextSnapshot.model_validate(response.json()).model_dump()
+        data = response.json()
+        snapshot = ContextSnapshot.model_validate(data).model_dump()
+        # An older CRUD response has not established generation authority.
+        # Preserve absence so the service fails closed instead of trusting a default.
+        if "research_entry_required" not in data:
+            snapshot.pop("research_entry_required", None)
+        return snapshot
 
     async def edit_context(self, plan_id: UUID, token: str, *, event_id: str, revision: int, changes: list) -> dict:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -94,6 +101,30 @@ class CrudContextReader:
             raise HTTPException(response.status_code if response.status_code in {401, 404, 409, 422} else 503,
                                 "Trip details could not be saved. Refresh and try again.")
         return ContextSnapshot.model_validate(response.json()).model_dump()
+
+    async def consume_research_entry(self, plan_id: UUID, token: str, *, receipt: str,
+                                     request_id: str, revision: int) -> dict[str, Any]:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                f"{self.base_url}/v1/plans/{plan_id}/research-offer/consume",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"receipt": receipt, "request_id": request_id, "revision": revision},
+            )
+        if response.status_code >= 400:
+            raise HTTPException(response.status_code if response.status_code in {401, 404, 409, 422} else 503,
+                                "Draft confirmation expired or changed. Review your trip again.")
+        return response.json()
+
+    async def research_offer(self, plan_id: UUID, token: str) -> dict[str, Any] | None:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                f"{self.base_url}/v1/plans/{plan_id}/research-offer",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if response.status_code >= 400:
+            raise HTTPException(503, "Draft availability could not be checked. Please retry.")
+        offer = response.json().get("offer")
+        return ResearchOffer.model_validate(offer).model_dump() if offer else None
 
     async def profile(self, token: str) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=10) as client:

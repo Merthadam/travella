@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { requestId } from '../../../plansApi';
+import { requestId, researchOfferProjection } from '../../../plansApi';
 import { A2uiTripBrief } from './A2uiTripBrief';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useTripContext } from '../useTripContext';
-import { confirmFlightNeed } from '../flightNeeds';
+import { useResearchOffer } from '../useResearchOffer';
+import { ResearchProgress } from './ResearchProgress';
+import { ResearchBriefOverlay } from './ResearchBriefOverlay';
+import { ResearchDraftOffer } from './ResearchDraftOffer';
 import './research-conversation.css';
-import { CanvasGenerationReview, PlanStages } from './CanvasGenerationReview';
+import './research-workspace.css';
+import { CanvasGenerationReview } from './CanvasGenerationReview';
 import { ResearchFlightPreview, researchFlightSchema } from '../travel/ResearchFlightPreview';
 
 const safeSources = values => (Array.isArray(values) ? values : []).filter(item => {
@@ -14,6 +18,7 @@ const safeSources = values => (Array.isArray(values) ? values : []).filter(item 
 });
 
 function hydrateMessage(item) {
+  item = { ...item, research_offer: researchOfferProjection(item.research_offer) };
   const content = String(item.content || '');
   const marker = content.lastIndexOf('\n\nSources:\n');
   if (marker < 0) return item;
@@ -43,14 +48,20 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   const [error, setError] = useState('');
   const [slowReply, setSlowReply] = useState(false);
   const [review, setReview] = useState(null);
+  const [returningToDetails, setReturningToDetails] = useState(false);
+  const returnPending = useRef(false);
   const [flightPreview, setFlightPreview] = useState(null);
   const history = useRef(null);
   const composer = useRef(null);
+  const composerBox = useRef(null);
+  const workspace = useRef(null);
+  const selectedRef = useRef(selected?.plan_id); selectedRef.current = selected?.plan_id;
   const activeRef = useRef(null);
   const onExpiredRef = useRef(onExpired);
   const nearBottom = useRef(true);
   const planId = selected?.plan_id;
   const brief = useTripContext(api, planId, onExpired);
+  const offers = useResearchOffer(api, planId, brief.revision, onExpired);
   onExpiredRef.current = onExpired;
   const replyContent = active ? messages.find(item => item.client_id === active.assistantId)?.content : '';
   const replyStatus = active?.stopping ? 'Stopping reply…' : slowReply ? 'Still waiting for a response…' : replyContent ? 'Receiving reply…' : 'Waiting for Travella…';
@@ -71,7 +82,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
 
   useEffect(() => {
     let mounted = true;
-    setMessages([]); setError(''); setLoading(true); setActive(null); setFlightPreview(null);
+    setMessages([]); setError(''); setLoading(true); setActive(null); setReview(null); setReturningToDetails(false); returnPending.current = false; setFlightPreview(null);
     api.conversationMessages({ plan_id: planId }).then(result => {
       if (mounted) setMessages(Array.isArray(result) ? result.map(hydrateMessage) : []);
     }).catch(err => {
@@ -118,13 +129,15 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
           }
           if (event.type === 'CUSTOM' && event.name === 'a2ui') {
             surfaceMessages.push(event.value);
-          } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot?.trip_context) {
-            brief.accept({ ...event.snapshot.trip_context, a2ui_messages: surfaceMessages });
+          } else if (event.type === 'STATE_SNAPSHOT') {
+            if (event.snapshot?.trip_context) brief.accept({ ...event.snapshot.trip_context, a2ui_messages: surfaceMessages });
+            if (event.snapshot?.research_offer) updateMessage(assistantId, { research_offer: researchOfferProjection(event.snapshot.research_offer), ...(event.snapshot.assistant_message_id ? { message_id: event.snapshot.assistant_message_id } : {}) });
           } else if (event.type === 'TEXT_MESSAGE_CONTENT' && typeof event.delta === 'string') {
             setMessages(current => current.map(item => item.client_id === assistantId ? { ...item, content: item.content + event.delta } : item));
           } else if (event.type === 'TERMINAL' || event.type === 'RUN_FINISHED') {
             const status = event.status || event.outcome?.type || 'complete';
-            updateMessage(assistantId, { status: status === 'success' || ['needs your input', 'shortlist_ready'].includes(status) ? 'complete' : status === 'error' ? 'interrupted' : status, sources: safeSources(event.sources) });
+            updateMessage(assistantId, { status: status === 'success' || ['needs your input', 'shortlist_ready'].includes(status) ? 'complete' : status === 'error' ? 'interrupted' : status, sources: safeSources(event.sources), ...(event.research_offer ? { research_offer: researchOfferProjection(event.research_offer) } : {}), ...(event.assistant_message_id ? { message_id: event.assistant_message_id } : {}) });
+            void offers.refresh().catch(() => {});
             if (status === 'error') setError(event.message || 'The reply could not be completed. You can retry.');
           }
         },
@@ -191,12 +204,33 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
     runTurn(message);
   }
 
-  return <div className="chat-layout">
+  const unavailable = loading || Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error) || offers.pending;
+  async function openReview(offer) {
+    try {
+      const result = await offers.requestReview(offer);
+      if (result && selectedRef.current === planId) { brief.accept(result); setReview(result); }
+    } catch { /* The readiness error remains visible with a retry action. */ }
+  }
+
+  async function returnToDetails() {
+    if (returnPending.current) return;
+    returnPending.current = true; setReturningToDetails(true);
+    // The reviewed modal remains frozen while the editable A2UI surface reloads.
+    const refreshed = await brief.refresh();
+    if (selectedRef.current !== planId) return;
+    if (refreshed) await offers.retry();
+    if (selectedRef.current !== planId) return;
+    setReturningToDetails(false); returnPending.current = false; setReview(null);
+  }
+
+  return <div className="chat-layout research-workspace" ref={workspace}>
+    {onCanvas && <ResearchProgress onOpenDraft={() => onCanvas(false)} disabled={unavailable} hasDraft={offers.snapshot?.research_entry_required === false} />}
     <main className="chat-page" id="conversation-main">
-    {onCanvas && <div className="chat-canvas-entry"><PlanStages/><div className="research-canvas-actions"><button type="button" onClick={() => onCanvas(false)} disabled={Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Open canvas</button><button type="button" className="primary" onClick={() => setReview({ context: structuredClone(brief.context), revision: brief.revision })} disabled={loading || Boolean(active) || brief.loading || brief.saving || brief.locked || Boolean(brief.error)}>Review & generate</button></div></div>}
-    {review && <CanvasGenerationReview context={review.context} onCancel={() => setReview(null)} onConfirm={async flights => {
-      const confirmed = await confirmFlightNeed(api, selected, review, flights);
-      brief.accept(confirmed); setReview(null); onCanvas(true, confirmed.revision);
+    {review && <CanvasGenerationReview context={review.context} cancelLabel={returningToDetails ? 'Refreshing trip details…' : 'Edit trip details'} onCancel={returnToDetails} onConfirm={async flights => {
+      if (returnPending.current) return;
+      const confirmed = await offers.confirm(review, flights);
+      if (!confirmed || selectedRef.current !== planId) return;
+      brief.accept(confirmed); setReview(null); onCanvas(true, confirmed.revision, confirmed.research_entry_receipt);
     }}/>}
     <section className="chat-transcript" aria-label="Plan conversation" aria-busy={loading || Boolean(active)} ref={history} onScroll={event => {
       const node = event.currentTarget;
@@ -204,6 +238,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
     }}>
       {loading && <p className="chat-status" role="status">Loading conversation…</p>}
       {error && <p className="chat-error" role="alert">{error}</p>}
+      {offers.error && <p className="chat-error" role="alert">{offers.error} <button type="button" disabled={offers.pending || offers.loading} onClick={offers.retry}>Retry readiness</button></p>}
       {!loading && !messages.length && <div className="chat-empty"><p className="eyebrow">YOUR TRAVEL RESEARCHER</p><h2>Where would you like to go?</h2><p>Ask about a place, or tell me what kind of trip you’re imagining.</p></div>}
       {messages.map((item, index) => {
         const previous = messages[index - 1];
@@ -213,6 +248,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
             {item.role === 'assistant' ? <ChatMarkdown content={item.content} /> : <p className="chat-message-text">{item.content}</p>}
             {active?.assistantId === item.client_id && !item.content && <div className="research-reply-pending" aria-hidden="true"><span/><span/><span/></div>}
             <SourceLinks sources={item.sources} />
+            {item.role === 'assistant' && item.status === 'complete' && onCanvas && <ResearchDraftOffer offer={item.research_offer} current={offers.snapshot?.offer} revision={brief.revision} disabled={unavailable || !offers.eligible} onReview={openReview} onDefer={offer => { void offers.defer(offer).catch(() => {}); }} />}
             {item.hasFlightPreview && <ResearchFlightPreview snapshot={flightPreview?.assistantId === item.client_id && flightPreview.context === flightContext(brief.context) ? flightPreview.snapshot : null}/>}
             {['stopped', 'interrupted'].includes(item.status) && <p className="chat-message-status">{item.status === 'stopped' ? 'Stopped' : 'Interrupted'}</p>}
             {retryMessage && !active && <button className="chat-retry" onClick={() => retry(retryMessage)}>Retry</button>}
@@ -220,7 +256,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
         </article>;
       })}
     </section>
-    <form className="chat-composer research-composer" onSubmit={send}>
+    <form className="chat-composer research-composer" ref={composerBox} onSubmit={send}>
       <div className="research-composer-box">
       <label className="sr-only" htmlFor="conversation-message">Message Travella</label>
       <textarea ref={composer} id="conversation-message" aria-label="Message Travella" value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
@@ -232,6 +268,12 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
       <p className={`research-composer-status${active ? ' is-active' : ''}`} id="research-composer-status" role="status" aria-label="Reply status" aria-live="polite" aria-atomic="true">{active ? <><span className="research-status-dot" aria-hidden="true"/>{replyStatus}</> : loading || brief.loading ? 'Loading your conversation…' : brief.saving ? 'Saving trip details…' : brief.locked ? 'Another reply is in progress…' : brief.error ? 'Trip details unavailable. Refresh to try again.' : error ? 'Reply interrupted. You can retry above.' : ''}</p>
     </form>
     </main>
-    <A2uiTripBrief key={planId} messages={brief.messages} value={brief.context} onChange={brief.update} locked={Boolean(active) || brief.loading || brief.locked} saving={brief.saving} error={brief.error} />
+    <ResearchBriefOverlay key={planId} context={brief.context} workspaceRef={workspace} composerRef={composerBox} readiness={offers.readiness} actions={onCanvas && <>
+      {brief.error && <button type="button" disabled={brief.loading} onClick={returnToDetails}>Refresh trip details</button>}
+      {offers.missingDetails.length > 0 && <p className="research-brief-readiness">{offers.missingDetails.join(' ')}</p>}
+      <button type="button" disabled={unavailable || !offers.eligible} onClick={() => openReview()}>Review &amp; create draft</button>
+    </>}>
+      <A2uiTripBrief messages={brief.messages} value={brief.context} onChange={brief.update} locked={Boolean(active) || brief.loading || brief.locked || Boolean(review) || offers.pending} saving={brief.saving} error={brief.error} />
+    </ResearchBriefOverlay>
   </div>;
 }

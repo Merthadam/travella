@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 15
-current_phase_name: Bounded agentic canvas generation
-status: verifying
-stopped_at: Phase 15 implemented; live generation acceptance pending
-last_updated: "2026-10-16T10:35:31.996159+00:00"
-last_activity: 2026-10-16
-last_activity_desc: Flight need confirmation and conditional generation verified through live Yes/No save and reload
-state_head: 359b57f276f5322a6f20ad908d536ca34ee6b213
+current_phase: 17
+current_phase_name: Research phase cleanup
+status: human_needed
+stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
+last_updated: "2026-10-23T18:25:47.842462+00:00"
+last_activity: 2026-10-23
+last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
+state_head: 8f0a2f637e52c87aa3cafa004a29c5da7b189e65
 progress:
   total_phases: 17
   completed_phases: 1
-  total_plans: 54
-  completed_plans: 43
-  percent: 6
+  total_plans: 59
+  completed_plans: 50
+  percent: 85
 ---
 
 # Project State
@@ -23,14 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 16 — Date-gated travel previews and booking navigation
+**Current focus:** Phase 17 — User approved merge; integrating with Phase 16 travel previews
 
 ## Current Position
 
-Phase: 15 — Bounded agentic canvas generation
-Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
-Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-16 - Completed quick task 261016-h1a: flight confirmation and optional flight generation; 72 focused tests, build and authenticated desktop/mobile Yes/No save/reload passed.
+Phase: 17 — Research phase cleanup
+Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
+Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
+Last activity: 2026-10-23 — User approved main merge. Integrated phase 16 travel previews with research cleanup and verified combined frontend, Agent/gateway, PostgreSQL and Chrome paths. GitHub PR records final merge status; no deployment.
+
+Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -89,6 +91,7 @@ Account scrolling follow-up (2026-10-16): viewport scrolling and focus restorati
 
 ### Roadmap Evolution
 
+- Phase 17 added and planned: Research phase cleanup, desktop only, five sequential waves; no automatic execution.
 - Phase 16 added: Date-gated travel previews and booking navigation; full GSD discussion, research, planning, implementation and verification requested. Separate booking LangGraph flow deferred.
 
 - Phase 13 added: Account settings and travel preferences; user selected C and requested GSD implementation.
@@ -125,6 +128,15 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261023-ssj | Integrate Research cleanup with current main and prepare authorized merge | 2026-10-23 | See branch merge commit | Verified; user authorized merge | [Task](quick/261023-ssj-integrate-research-cleanup-with-main-and/) |
+| 261023-skp | Top-right research brief and bottom composer | 2026-10-23 | d6abf21 | Desktop browser verified; 30 tests passed | [Task](quick/261023-skp-anchor-research-brief-at-progress-bar-an/) |
+| 261023-njb | Draggable desktop brief overlay with no conversation movement | 2026-10-23 | 1c3e236 | Verified prototype | [Task](quick/261023-njb-prototype-draggable-overlay-trip-brief-o/) |
+| 261023-nex | Foldable C brief and tighter collapsed spacing; desktop focus going forward | 2026-10-23 | 8361b7d | Verified prototype | [Task](quick/261023-nex-prototype-collapsible-trip-brief-in-c/) |
+| 261023-n37 | Remove outer divider seam from prototype C | 2026-10-23 | c668f1b | Verified visual prototype | [Task](quick/261023-n37-remove-outer-divider-seam-from-prototype/) |
+| 261023-mx5 | Unify C workspace surfaces, spacing and alignment | 2026-10-23 | 36aed51 | Verified visual prototype | [Task](quick/261023-mx5-unify-prototype-c-surfaces-spacing-and-a/) |
+| 261023-mt3 | Refine C: readiness and generation inside A2UI brief | 2026-10-23 | 6ab09f5 | Verified prototype; awaiting final selection | [Task](quick/261023-mt3-refine-prototype-c-with-readiness-and-ge/) |
+| 261023-mmu | Full-width research → draft state-bar prototypes with readiness | 2026-10-23 | 2f402a8 | Browser verified; awaiting design choice | [Task](quick/261023-mmu-prototype-full-width-research-to-draft-s/) |
+| 261016-rgd | Quiet Research/Canvas navigation and generation prototypes | 2026-10-16 | 5b5a31a | Preview verified; awaiting design choice | [Task](quick/261016-rgd-prototype-quieter-canvas-generation-and-/) |
 | 261016-qyh | Separate Research preview stack on port 5175; health/auth/source hashes verified; original stack preserved | 2026-10-16 | 74df777 (app source) | Complete | [Task](quick/261016-qyh-start-separate-research-preview-docker-s/) |
 | 261016-l5g | Research flight A2UI previews with date/party gates and no navigation; authenticated desktop/mobile verified | 2026-10-16 | 1dce695, d2f1723 | Complete; known unrelated profile test failure | [Task](quick/261016-l5g-research-chat-flight-previews-without-na/) |
 | 261016-h1a | Confirm flight needs during research; generate flights only for confirmed Yes | 2026-10-16 | e616d3b | Complete; two unrelated baseline test failures documented | [Task](quick/261016-h1a-confirm-flight-needs-during-research-and/) |

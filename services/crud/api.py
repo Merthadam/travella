@@ -24,6 +24,8 @@ from .profile import TravelerProfileRepository
 from .profile_schemas import AccountSectionMutation, OnboardingMutation, ProfileInput, ProfileOutput
 from .repository import PlanRepository, as_utc, normalize_title, validate_request_id
 from .research_context import ResearchContextRepository
+from .research_offers import ResearchOfferRepository, ResearchOfferSnapshot
+from services.research_offers import ResearchOfferAction, ResearchEntryConsume
 from .schemas import (
     BriefInput,
     BriefMutationOutput,
@@ -127,6 +129,19 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
     @router.post("/{plan_id}/research-context/run", response_model=ContextSnapshot)
     def research_context_run(plan_id: UUID, data: ContextRun, repo: Repo, me=Depends(identity)):
         return ResearchContextRepository(repo).run(me.subject, plan_id, data)
+
+    @router.get("/{plan_id}/research-offer", response_model=ResearchOfferSnapshot)
+    def research_offer(plan_id: UUID, repo: Repo, me=Depends(identity)):
+        return ResearchOfferRepository(repo).snapshot(me.subject, plan_id)
+
+    @router.post("/{plan_id}/research-offer/actions", response_model=ResearchOfferSnapshot)
+    def research_offer_action(plan_id: UUID, data: ResearchOfferAction, request_id: WriteId,
+                              if_match: Revision, repo: Repo, me=Depends(identity)):
+        return ResearchOfferRepository(repo).action(me.subject, plan_id, request_id, if_match, data)
+
+    @router.post("/{plan_id}/research-offer/consume", response_model=dict)
+    def consume_research_entry(plan_id: UUID, data: ResearchEntryConsume, repo: Repo, me=Depends(identity)):
+        return ResearchOfferRepository(repo).consume(me.subject, plan_id, data)
 
     @router.get("/{plan_id}/brief", response_model=BriefOutput)
     def get_brief(plan_id: UUID, repo: Repo, me=Depends(identity)):
