@@ -273,3 +273,20 @@ Current-session scope; earlier product requirements remain historical and do not
 | GEN-15-10 | Explicit Save plan atomically persists the exact reviewed snapshot with revisions/idempotency. | 15-04 |
 | GEN-15-11 | Reopen saved canvas; retain unsaved edits on failures/conflicts and distinguish saved from draft. | 15-04 |
 | GEN-15-12 | Record real UI/CRUD evidence and requested model-quality/cost checks without claiming unrun checks passed. | 15-05 |
+
+## Phase 17 — Research phase cleanup
+
+Current user agreement, 2026-10-23. Desktop Research and its explicit draft handoff only; older requirements do not widen scope.
+
+| ID | Requirement | Plans |
+|---|---|---|
+| RC-17-01 | Research-only desktop scope preserves existing canvas, generation workers and save semantics. | 17-01, 17-04, 17-05 |
+| RC-17-02 | Full-width Research → Draft plan state bar; no duplicate or prominent top Generate toolbar. | 17-01, 17-05 |
+| RC-17-03 | Draggable green brief-count circle opens real editable A2UI as an overlay without moving chat; accessible close/move and viewport bounds. | 17-01, 17-05 |
+| RC-17-04 | Useful-context readiness differs from completion count; destination alone is insufficient; optional fields do not block a review offer. | 17-02, 17-03, 17-05 |
+| RC-17-05 | Agent answers first, explains future draft after destination confirmation, then offers typed inline Review & create draft / Keep researching only when appropriate. | 17-03, 17-05 |
+| RC-17-06 | Deferral and duplicate suppression survive reload/restart; manual brief review remains available and explicit later request can re-enable an eligible offer. | 17-02, 17-03, 17-05 |
+| RC-17-07 | Canonical reviewed details and explicit flight choice precede one confirmed research generation; no agent-triggered generation/save. | 17-04, 17-05 |
+| RC-17-08 | Typed offers, ownership, revisions, idempotency, successful-turn persistence and cancellation prevent stale/cross-Plan/replayed actions. | 17-02, 17-03, 17-04, 17-05 |
+| RC-17-09 | Existing canvas access, regenerate/retry, dirty-state handling and explicit Save plan remain unchanged. | 17-04, 17-05 |
+| RC-17-10 | Real example-account desktop Chrome and changed CRUD API evidence, scoped regressions and production mock exclusion gate delivery. | 17-05 |

@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 15
-current_phase_name: Bounded agentic canvas generation
-status: verifying
-stopped_at: Phase 15 implemented; live generation acceptance pending
-last_updated: "2026-10-16T10:35:31.996159+00:00"
-last_activity: 2026-10-16
-last_activity_desc: Flight need confirmation and conditional generation verified through live Yes/No save and reload
-state_head: 359b57f276f5322a6f20ad908d536ca34ee6b213
+current_phase: 17
+current_phase_name: Research phase cleanup
+status: ready_to_execute
+stopped_at: Phase 17 planned; implementation not started
+last_updated: "2026-10-23T17:21:27.625Z"
+last_activity: 2026-10-23
+last_activity_desc: Phase 17 Research cleanup planned in five sequential waves
+state_head: 8f0a2f637e52c87aa3cafa004a29c5da7b189e65
 progress:
-  total_phases: 11
+  total_phases: 17
   completed_phases: 1
-  total_plans: 50
+  total_plans: 55
   completed_plans: 39
-  percent: 9
+  percent: 0
 ---
 
 # Project State
@@ -23,14 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 15 — Connected implementation; acceptance pending
+**Current focus:** Phase 17 — Research phase cleanup, planned; execution not started
 
 ## Current Position
 
-Phase: 15 — Bounded agentic canvas generation
-Plan: 15-01 through 15-04 implemented; 15-05 partial manual verification.
-Status: Editable canvas, bounded SDK generation, explicit save and resume are connected. Local static and exercised browser/API checks passed. Live generation and remaining UAT are pending.
-Last activity: 2026-10-16 - Completed quick task 261016-h1a: flight confirmation and optional flight generation; 72 focused tests, build and authenticated desktop/mobile Yes/No save/reload passed.
+Phase: 17 — Research phase cleanup
+Plan: 17-01 through 17-05 ready; none executed.
+Status: Ready to execute. Desktop Research overlay, agent offer/defer and exact-confirmation handoff are planned. Draft plan canvas remains unchanged.
+Last activity: 2026-10-23 — Planning review passed; 10 requirements and 10 decisions covered, desktop offer sketch inspected.
+
+Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -85,6 +87,8 @@ Account settings: Phase 13 completed and merged in PR #3. DynamoDB profile stora
 - Missing security workflows above are implementation gaps, not merely missing credentials. Phase 1 remains incomplete.
 
 ### Roadmap Evolution
+
+- Phase 17 added and planned: Research phase cleanup, desktop only, five sequential waves; no automatic execution.
 
 - Phase 13 added: Account settings and travel preferences; user selected C and requested GSD implementation.
 - Phase 15 added and planned: Bounded agentic canvas generation; approved layouts, bounded SDK self-review and explicit Save plan.

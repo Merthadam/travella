@@ -16,6 +16,8 @@ Travella's full documented MVP moves a traveler from secure account access throu
 - [ ] **Phase 8: Verified Supplier Handoff** - Travelers safely open an eligible provider offer while Travella records only an unknown booking outcome.
 - [ ] **Phase 10: Evidence-grounded iterative agent research** - Travelers ask about any country or place and get source-grounded answers with useful explanations, citations, and honest uncertainty.
 
+- [ ] **Phase 17: Research phase cleanup** - Desktop Research overlay and timely, explicitly confirmed draft offer.
+
 ## Phase Details
 
 ### Phase 1: Account Access
@@ -394,6 +396,7 @@ Plans:
 **Status:** Implemented; manual UI/CRUD checks recorded, live generation and remaining UAT pending (2026-10-07).
 **Scope:** Two focused SDK worker groups, deterministic state mapping, destination-centered map, typed AG-UI/A2UI delivery, local draft editing and explicit atomic save/reopen. No RAG, LiteAPI search or booking integration.
 **Success Criteria:**
+
 1. Themes generation reads bounded complete context, respects corrections and saved-preference labels, and renders the approved editable component.
 2. Each model group performs one review and at most one revision within aggregate limits; mapped components require no model call.
 3. Essentials/travel cards map current state and map viewport follows the chosen destination without resetting manual navigation on unrelated changes.
@@ -410,3 +413,37 @@ Plans:
 - [ ] 15-05-PLAN.md — Manual UI/CRUD evidence recorded; live generation, measured limits and remaining UAT pending
 
 **Cross-cutting:** Keep approved appearance; current user decisions outrank older docs; Claude Agent SDK only for model work; no automatic durable mutation; one active generation per Plan; no tests or paid calls during planning; no automatic execution after planning.
+
+### Phase 17: Research phase cleanup
+
+**Goal:** A traveler can research comfortably on desktop, open a movable A2UI brief without shifting chat, and receive a timely agent offer to explicitly review and create a draft.
+**Depends on:** Existing Phase 4 Research/A2UI and Phase 15 generation/confirmation implementation; no dependency on an absent Phase 16. Phase 15's remaining acceptance stays independently pending.
+**Requirements:** RC-17-01, RC-17-02, RC-17-03, RC-17-04, RC-17-05, RC-17-06, RC-17-07, RC-17-08, RC-17-09, RC-17-10
+**Scope:** Desktop Research shell, brief overlay, canonical readiness, durable contextual agent offer/deferral and exact-confirmation handoff. Existing Draft plan canvas appearance, workers and saving unchanged.
+**UI hint:** yes
+**Status:** Planning complete; implementation not started.
+**Success Criteria:**
+1. Research has one quiet full-width state bar and movable progress circle; real brief editing works in an overlay without chat/composer movement.
+2. Destination confirmation explains a future draft; useful context prompts one inline review offer without requiring all brief fields.
+3. Keep researching survives reload/restart and prevents repeated invitations; manual review stays accessible.
+4. Only explicit confirmation of fresh details and flight needs launches one existing draft-generation flow; stale/duplicate/cross-Plan offers cannot launch.
+5. Real desktop/CRUD evidence establishes the flow and unchanged canvas behavior, without silently closing prior acceptance gaps.
+
+**Plans:** 5 plans in 5 sequential waves.
+
+**Wave 1**
+- [ ] 17-01-PLAN.md — Desktop Research shell and real floating brief
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 17-02-PLAN.md — Canonical readiness and durable manual review/defer flow
+
+**Wave 3** *(blocked on Waves 1–2 completion)*
+- [ ] 17-03-PLAN.md — Agent-timed inline offer from committed conversation
+
+**Wave 4** *(blocked on Waves 1–3 completion)*
+- [ ] 17-04-PLAN.md — Exact confirmation and existing canvas handoff
+
+**Wave 5** *(blocked on Waves 1–4 completion)*
+- [ ] 17-05-PLAN.md — Desktop acceptance, durability and scope regression evidence
+
+**Cross-cutting constraints:** Desktop Research only; existing editable A2UI; no premature or automatic generation/save; token-derived ownership; current reviewed revisions; durable respectful deferral; allowlisted browser projection; no paid calls or implementation during planning; no auto-execution.

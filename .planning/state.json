@@ -62,12 +62,17 @@
       "number": "15",
       "name": "Bounded agentic canvas generation",
       "status": "in_progress"
+    },
+    {
+      "number": "17",
+      "name": "Research phase cleanup",
+      "status": "planned"
     }
   ],
   "next": {
-    "command": "/gsd:discuss-phase",
-    "label": "Discuss flight and stay browsing",
-    "reason": "User outlined manual browsing with agent suggestions; not yet planned or implemented. DynamoDB profile storage remains queued separately."
+    "command": "$gsd-execute-phase 17",
+    "label": "Execute Research phase cleanup",
+    "reason": "Five reviewed plans; desktop Research only. Implementation not started; prior Phase 15 acceptance remains pending."
   },
-  "updated_at": "2026-10-08T22:35:24Z"
+  "updated_at": "2026-10-23T17:23:03.582585+00:00"
 }
