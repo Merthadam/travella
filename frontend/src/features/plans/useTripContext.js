@@ -115,5 +115,21 @@ export function useTripContext(api, planId, onExpired) {
     timer.current = setTimeout(flush, 450);
   }
 
-  return { context, revision, messages, update, accept, loading, saving, locked, error };
+  async function refresh() {
+    const currentEpoch = epoch.current;
+    setLoading(true); setError('');
+    try {
+      const snapshot = await api.researchContext({ plan_id: planId });
+      if (epoch.current !== currentEpoch) return null;
+      accept(snapshot);
+      return snapshot;
+    } catch (err) {
+      if (epoch.current !== currentEpoch) return null;
+      if (err.status === 401) expired.current?.();
+      setError('Could not refresh the Trip Brief. Try again.');
+      return null;
+    } finally { if (epoch.current === currentEpoch) setLoading(false); }
+  }
+
+  return { context, revision, messages, update, accept, refresh, loading, saving, locked, error };
 }

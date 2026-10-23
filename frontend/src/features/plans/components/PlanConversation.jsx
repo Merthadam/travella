@@ -46,6 +46,8 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   const [error, setError] = useState('');
   const [slowReply, setSlowReply] = useState(false);
   const [review, setReview] = useState(null);
+  const [returningToDetails, setReturningToDetails] = useState(false);
+  const returnPending = useRef(false);
   const history = useRef(null);
   const composer = useRef(null);
   const composerBox = useRef(null);
@@ -77,7 +79,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
 
   useEffect(() => {
     let mounted = true;
-    setMessages([]); setError(''); setLoading(true); setActive(null); setReview(null);
+    setMessages([]); setError(''); setLoading(true); setActive(null); setReview(null); setReturningToDetails(false); returnPending.current = false;
     api.conversationMessages({ plan_id: planId }).then(result => {
       if (mounted) setMessages(Array.isArray(result) ? result.map(hydrateMessage) : []);
     }).catch(err => {
@@ -188,10 +190,22 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
     } catch { /* The readiness error remains visible with a retry action. */ }
   }
 
+  async function returnToDetails() {
+    if (returnPending.current) return;
+    returnPending.current = true; setReturningToDetails(true);
+    // The reviewed modal remains frozen while the editable A2UI surface reloads.
+    const refreshed = await brief.refresh();
+    if (selectedRef.current !== planId) return;
+    if (refreshed) await offers.retry();
+    if (selectedRef.current !== planId) return;
+    setReturningToDetails(false); returnPending.current = false; setReview(null);
+  }
+
   return <div className="chat-layout research-workspace" ref={workspace}>
     {onCanvas && <ResearchProgress onOpenDraft={() => onCanvas(false)} disabled={unavailable} hasDraft={offers.snapshot?.research_entry_required === false} />}
     <main className="chat-page" id="conversation-main">
-    {review && <CanvasGenerationReview context={review.context} onCancel={() => setReview(null)} onConfirm={async flights => {
+    {review && <CanvasGenerationReview context={review.context} cancelLabel={returningToDetails ? 'Refreshing trip details…' : 'Edit trip details'} onCancel={returnToDetails} onConfirm={async flights => {
+      if (returnPending.current) return;
       const confirmed = await offers.confirm(review, flights);
       if (!confirmed || selectedRef.current !== planId) return;
       brief.accept(confirmed); setReview(null); onCanvas(true, confirmed.revision, confirmed.research_entry_receipt);
@@ -232,6 +246,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
     </form>
     </main>
     <ResearchBriefOverlay key={planId} context={brief.context} workspaceRef={workspace} composerRef={composerBox} readiness={offers.readiness} actions={onCanvas && <>
+      {brief.error && <button type="button" disabled={brief.loading} onClick={returnToDetails}>Refresh trip details</button>}
       {offers.missingDetails.length > 0 && <p className="research-brief-readiness">{offers.missingDetails.join(' ')}</p>}
       <button type="button" disabled={unavailable || !offers.eligible} onClick={() => openReview()}>Review &amp; create draft</button>
     </>}>
