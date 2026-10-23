@@ -30,7 +30,7 @@ const TripBriefComponent = createBinderlessComponentImplementation({
 // Only this catalog/component is registered. No generated code or remote catalogs.
 const catalog = new Catalog(catalogId, 'v0.9', [TripBriefComponent], []);
 
-export function A2uiTripBrief({ messages, value, onChange, locked, saving, error }) {
+export function A2uiTripBrief({ messages, value, onChange, locked, saving, error, prototypePanel }) {
   const processor = useRef(null);
   const edit = useRef(onChange);
   edit.current = onChange;
@@ -65,5 +65,5 @@ export function A2uiTripBrief({ messages, value, onChange, locked, saving, error
   useEffect(() => () => { processor.current?.dispose(); processor.current = null; }, []);
 
   if (!surface || renderError) return <aside className="trip-brief"><p role={renderError || error ? 'alert' : 'status'}>{renderError || error || 'Loading Trip Brief…'}</p></aside>;
-  return <Controls.Provider value={{ locked, saving, error }}><A2uiSurface surface={surface} /></Controls.Provider>;
+  return <Controls.Provider value={{ locked, saving, error, prototypePanel }}><A2uiSurface surface={surface} /></Controls.Provider>;
 }

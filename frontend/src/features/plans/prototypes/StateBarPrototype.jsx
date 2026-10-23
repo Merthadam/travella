@@ -11,7 +11,7 @@ import { ids } from '../../../design-system/schemas';
 import './plan-navigation-prototype.css';
 import './state-bar-prototype.css';
 
-const names = { A: 'Action at the edge', B: 'The next stage', C: 'Readiness drawer' };
+const names = { A: 'Action at the edge', B: 'The next stage', C: 'Draft from your brief' };
 const initialScene = () => new URLSearchParams(location.search).get('scene') === 'ready' ? 'ready' : 'early';
 const readySeed = () => ({ ...emptyTripContext(), candidates: ['Lisbon'], finalDestination: 'Lisbon', dateStart: '2027-05-12', dateEnd: '2027-05-19', travelers: 2, budget: '€1,500 total', accommodation: 'needed' });
 const seed = (scene = initialScene()) => scene === 'ready' ? readySeed() : ({ ...emptyTripContext(), candidates: ['Lisbon', 'Porto'], travelers: 2 });
@@ -35,7 +35,9 @@ function DraftAction({ ui }) { return <button className="sb-action" disabled={!u
 function Status({ ui }) { return <p className="sb-status" role="status">{ui.busy ? 'We’re turning your confirmed brief into a draft canvas.' : ui.error ? 'Your brief is safe. Review it to try preparing your draft again.' : ui.generated ? 'Your draft is ready. Keep researching or continue on your canvas.' : ui.ready ? 'Your trip has enough detail for a first draft. Review it when you’re ready.' : `We’ll turn your research into a draft plan. Next: ${ui.missing.join(', ')}.`}</p>; }
 export function VariantA({ ui }) { return <header className="sb-bar sb-bar-a"><div className="sb-a-main"><Steps ui={ui}/><DraftAction ui={ui}/></div><Status ui={ui}/></header>; }
 export function VariantB({ ui }) { return <header className="sb-bar sb-bar-b"><div className="sb-current"><button className="sb-stage-title" onClick={() => ui.setView('research')} aria-current={ui.view === 'research' ? 'step' : undefined}><span className="sb-number">1</span>Research</button><Status ui={ui}/></div><div className={`sb-next ${ui.ready ? 'is-ready' : ''}`}><span className="sb-number">2</span><div><span className="sb-next-label">{ui.generated ? 'YOUR CANVAS' : 'UP NEXT'}</span><strong>Draft plan</strong><p>{ui.ready ? 'Bring your details, places and ideas together.' : 'Available once the essentials are shaped.'}</p></div><DraftAction ui={ui}/></div></header>; }
-export function VariantC({ ui }) { return <header className="sb-bar sb-bar-c"><Steps ui={ui}/><details className="sb-readiness"><summary><Status ui={ui}/><span>{ui.generated ? 'View draft' : ui.ready ? 'Review readiness' : 'What’s needed?'} <span aria-hidden="true">⌄</span></span></summary><div className="sb-readiness-content"><ul>{ui.checks.map(([label, done]) => <li key={label}><span aria-hidden="true">{done ? '✓' : '○'}</span>{label}<small>{done ? 'Set' : 'To decide'}</small></li>)}</ul><div><p>Check the brief before creating anything. You can continue researching afterwards.</p><DraftAction ui={ui}/></div></div></details></header>; }
+export function VariantC({ ui }) { return <header className="sb-bar sb-bar-c"><Steps ui={ui}/></header>; }
+function BriefDraftPanel({ ui }) { return <section className="sb-brief-draft" aria-label="Draft readiness"><h2>{ui.generated ? 'Your draft is ready' : 'Next: your draft plan'}</h2><Status ui={ui}/><DraftAction ui={ui}/>{ui.ready && !ui.generated && !ui.busy && <p className="sb-brief-note">You’ll review your details and flight needs first.</p>}</section>; }
+
 
 export function PrototypeNavigationSwitcher({ variant, onChange }) {
   const cycle = step => onChange(Object.keys(names)[(Object.keys(names).indexOf(variant) + step + 3) % 3]);
@@ -108,7 +110,7 @@ export function StateBarPrototype() {
   return <section className={`pn-prototype sb-prototype pn-variant-${variant}`} id="plans-main">
     <div className="pn-preview-note"><span>DESIGN PREVIEW <span>· Sample trip · Nothing is saved</span></span><details className="pn-inspector"><summary>Preview controls</summary><div><button onClick={() => reset()}>Reset preview</button><label><input type="checkbox" checked={failure} onChange={event => setFailure(event.target.checked)}/> Simulate generation failure</label><pre>{JSON.stringify({ variant, scene, ready, checks, view, stage, review, context, lastAction }, null, 2)}</pre></div></details></div>
     <Header ui={ui}/>
-    <div className="pn-research" hidden={view !== 'research'}><PlanConversation key={resetKey} selected={{ plan_id: 'state-bar-sample' }} api={api} onExpired={() => {}}/></div>
+    <div className="pn-research" hidden={view !== 'research'}><PlanConversation prototypeBriefPanel={variant === 'C' ? <BriefDraftPanel ui={ui}/> : undefined} key={resetKey} selected={{ plan_id: 'state-bar-sample' }} api={api} onExpired={() => {}}/></div>
     {view === 'canvas' && stage === 'ready' && <main className="pn-canvas"><div className="pn-canvas-heading"><div><h1>{context.finalDestination || 'Your trip'}</h1><p>Illustrative draft · Not saved</p></div></div><CanvasSurface data={data} visible={ids} mapAdapter={MapFixtureAdapter} disabled preview onAction={() => {}}/></main>}
     {review && <CanvasGenerationReview context={context} cancelLabel="Keep researching" onCancel={() => setReview(false)} onConfirm={generate}/>}
     <div className="sb-preview-dock"><label>Sample stage<select aria-label="Sample stage" value={scene} onChange={event => changeScene(event.target.value)}><option value="early">Early research</option><option value="ready">Ready to draft</option></select></label><PrototypeNavigationSwitcher variant={variant} onChange={changeVariant}/></div>
