@@ -37,7 +37,7 @@ export function VariantB({ count, onCancel, phase, minimal = false }) {
   return <section className="cg-loading cg-variant-b" aria-label="Building your Lisbon plan" aria-busy="true">
     <div className="cg-focus-meta"><span>YOUR NEXT CHAPTER</span>{!minimal && <span>Lisbon, Portugal <i>↗</i></span>}</div>
     <div className="cg-focus-content"><div className="cg-focus-globe"><Globe large /><span className="cg-coordinate">38.72° N &nbsp; 9.14° W</span></div><div className="cg-focus-copy"><p className="cg-eyebrow">FROM AN IDEA TO YOUR ITINERARY</p><h2>Lisbon is<br />taking shape.</h2><p className="cg-description">{phase === 'research' ? 'Researching your Lisbon trip…' : phase === 'canvas' ? 'Creating your planning canvas…' : 'Building your Lisbon plan…'}</p><Counter count={count} prominent /><p className="cg-unlock-note">Everything opens together, when it’s ready.</p></div></div>
-    <div className="cg-focus-footer"><span><i className="cg-live-dot" />Putting your plan together</span><Cancel onCancel={onCancel} plain={minimal} /></div>
+    <div className="cg-focus-footer"><span><i className="cg-live-dot" />Putting your plan together</span>{!minimal && <Cancel onCancel={onCancel} />}</div>
   </section>;
 }
 
