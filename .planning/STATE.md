@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-23T19:22:48.594Z"
+last_updated: "2026-10-23T19:24:49.859Z"
 last_activity: 2026-10-23
 last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
-state_head: 21fd7b836bf27575ddf0e919afe18d14220a2309
+state_head: 1855a0f1cc52ee12905060216c07872209cb439c
 progress:
   total_phases: 17
   completed_phases: 1
@@ -209,6 +209,7 @@ Resume file: None
 | 261023-tdw | Saved full-width Research Canvas loading prototype; build and desktop/mobile Chrome verification passed; stop here | 2026-10-23 | e489cf7 | — | [261023-tdw-make-selected-c-research-canvas-progress](./quick/261023-tdw-make-selected-c-research-canvas-progress/) |
 | 261023-tgv | Aligned selected globe loader with existing Plan chat and cards; added subtle sidebar reveal; build and desktop/mobile theme checks passed | 2026-10-23 | 854c6fe | — | [261023-tgv-align-selected-loading-prototype-with-ex](./quick/261023-tgv-align-selected-loading-prototype-with-ex/) |
 | 261023-to4 | Corrected scope to progress bar only; previous globe restored; build and desktop/mobile checks passed | 2026-10-23 | 21fd7b8 | — | [261023-to4-restore-previous-globe-prototype-and-ali](./quick/261023-to4-restore-previous-globe-prototype-and-ali/) |
+| 261023-tpz | Removed redundant destination strip from selected loader; build and desktop/mobile browser checks passed | 2026-10-23 | 1855a0f | — | [261023-tpz-remove-redundant-destination-header-from](./quick/261023-tpz-remove-redundant-destination-header-from/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -280,3 +281,5 @@ Resume file: None
 
 - User clarified alignment applies only to the progress bar. Broad sidebar/card replacement and reveal animation from quick 261023-tgv were removed. Original accepted globe prototype restored; only the selected full-width Research → Canvas bar adopts current frontend styling.
 - Build and authenticated desktop/mobile browser verification passed. Evidence: `artifacts/testing/2026-10-23-progressbar-only/verification.md`. Prototype only.
+
+- Loader refinement 261023-tpz: removed redundant destination header strip from selected C, per user screenshot. Progress now leads directly into the globe. Build and authenticated desktop/mobile checks passed.
