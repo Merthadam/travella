@@ -76,14 +76,14 @@
 .plans-app:has(.sb-prototype.pn-variant-C) > .app-header > div { max-width: 1560px; box-sizing: border-box; padding: 14px 40px; }
 :root[data-theme] .plans-app:has(.sb-prototype.pn-variant-C) > .app-header :is(.brand,.nav-button) { color: var(--app-text); }
 .sb-prototype.pn-variant-C > .pn-preview-note { padding: 6px 40px; border: 0; opacity: .75; }
-.sb-prototype.pn-variant-C .sb-bar-c { background: transparent; border-color: var(--sb-divider); margin: 0 40px; padding: 12px 0 18px; }
+.sb-prototype.pn-variant-C .sb-bar-c { background: transparent; border: 0; margin: 0 40px; padding: 12px 0 18px; }
 .sb-prototype.pn-variant-C .sb-connector { background: var(--sb-divider); }
 .sb-prototype.pn-variant-C .sb-number { width: 25px; height: 25px; flex-basis: 25px; font-size: 11px; }
 .sb-prototype.pn-variant-C .sb-steps button { font-size: 12px; }
 .sb-prototype.pn-variant-C .chat-layout { padding: 0 40px; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; }
 .sb-prototype.pn-variant-C .chat-page { padding: 0; }
 .sb-prototype.pn-variant-C .chat-transcript { padding: 30px 0 28px; gap: 24px; }
-:root[data-theme] .sb-prototype.pn-variant-C .trip-brief { padding: 30px 0 24px 28px; border-color: var(--sb-divider); }
+:root[data-theme] .sb-prototype.pn-variant-C .trip-brief { padding: 30px 0 24px 28px; border: 0; }
 :root[data-theme] .sb-prototype.pn-variant-C :is(.trip-brief-header,.trip-brief-group,.trip-brief-section,.trip-brief-candidates li,.sb-brief-draft) { border-color: var(--sb-divider); }
 .sb-prototype.pn-variant-C .trip-brief-header { padding-bottom: 14px; }
 .sb-prototype.pn-variant-C .trip-brief-header h1 { font-size: 19px; font-weight: 600; }
@@ -107,7 +107,7 @@
  .sb-prototype.pn-variant-C > .pn-preview-note { padding: 4px 20px; }
  .sb-prototype.pn-variant-C .sb-bar-c { margin: 0 20px; padding: 12px 0; }
  .sb-prototype.pn-variant-C .chat-layout { padding: 0 20px; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 340px) minmax(0, 1fr); gap: 0; }
- :root[data-theme] .sb-prototype.pn-variant-C .trip-brief { padding: 20px 0; border-left: 0; border-bottom: 1px solid var(--sb-divider); }
+ :root[data-theme] .sb-prototype.pn-variant-C .trip-brief { padding: 20px 0; }
  .sb-prototype.pn-variant-C .chat-transcript { padding-top: 24px; }
 }
 :root[data-theme] .sb-prototype.pn-variant-C .research-composer textarea { background: transparent; }
