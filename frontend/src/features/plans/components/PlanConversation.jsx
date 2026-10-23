@@ -189,7 +189,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   }
 
   return <div className="chat-layout research-workspace" ref={workspace}>
-    {onCanvas && <ResearchProgress onOpenDraft={() => onCanvas(false)} disabled={unavailable} />}
+    {onCanvas && <ResearchProgress onOpenDraft={() => onCanvas(false)} disabled={unavailable} hasDraft={offers.snapshot?.research_entry_required === false} />}
     <main className="chat-page" id="conversation-main">
     {review && <CanvasGenerationReview context={review.context} onCancel={() => setReview(null)} onConfirm={async flights => {
       const confirmed = await offers.confirm(review, flights);

@@ -86,6 +86,7 @@ export function ResearchBriefOverlay({ context, workspaceRef, composerRef, child
         const step = event.shiftKey ? 40 : 12;
         setPosition({ x: clamp(point.x + delta[0] * step, MARGIN, bounds.width - SIZE - MARGIN), y: clamp(point.y + delta[1] * step, MARGIN, bounds.height - SIZE - MARGIN) });
       }}><span>{progress.count}/{progress.total}</span></button>
+    {!open && <span className="research-brief-discovery" aria-hidden="true" style={{ left: clamp(point.x + SIZE - 220, MARGIN, bounds.width - 220 - MARGIN), top: point.y > 72 ? point.y - 46 : point.y + SIZE + 10 }}>Trip brief · Drag or use arrow keys to move</span>}
     <span className="sr-only" id={`${id}-help`}>{readiness} Press Enter or Space to open. Use arrow keys to move the brief; Shift moves farther. Escape closes it.</span>
     <section ref={panel} id={`${id}-panel`} hidden={!open} className="research-brief-panel" aria-label="Trip brief details" style={{ left: clamp(point.x + SIZE - panelWidth, MARGIN, bounds.width - panelWidth - MARGIN), width: panelWidth, maxHeight: Math.max(120, panelHeight), ...(above ? { bottom: bounds.height - point.y + 10 } : { top: point.y + SIZE + 10 }) }}>
       <header className="research-brief-heading"><h2>Trip brief</h2><button type="button" onClick={close} aria-label="Close trip brief">×</button></header>

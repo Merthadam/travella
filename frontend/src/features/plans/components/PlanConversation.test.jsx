@@ -227,3 +227,16 @@ test('interrupted streamed metadata never exposes an actionable invitation', asy
   await screen.findByText('Interrupted');
   expect(screen.queryByRole('button', { name: 'Keep researching' })).toBeNull();
 });
+
+test.each([true, false])('Draft plan stage only navigates to an existing draft (entry required: %s)', async required => {
+  const api = settledApi(), user = userEvent.setup(), onCanvas = vi.fn();
+  api.researchOffer.mockResolvedValue({ revision: 0, context: emptyTripContext(), research_entry_required: required, readiness: { eligible: true, reasons: [] }, offer: null, deferred: false });
+  render(<PlanConversation selected={plan} api={api} onExpired={vi.fn()} onCanvas={onCanvas}/>);
+  await screen.findByText('Japan');
+  const stage = screen.getByRole('button', { name: 'Draft plan' });
+  expect(stage.disabled).toBe(required);
+  await user.click(stage);
+  if (required) expect(onCanvas).not.toHaveBeenCalled();
+  else expect(onCanvas).toHaveBeenCalledExactlyOnceWith(false);
+  expect(api.researchOfferAction).not.toHaveBeenCalled();
+});
