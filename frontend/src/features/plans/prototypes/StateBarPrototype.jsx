@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PlanConversation } from '../components/PlanConversation';
 import { CanvasGenerationReview } from '../components/CanvasGenerationReview';
-import { emptyTripContext } from '../components/TripBrief';
+import { emptyTripContext, tripBriefProgress } from '../components/TripBrief';
 import { CanvasSurface } from '../../../design-system/a2ui/CanvasSurface';
 import { fixtures } from '../../../design-system/preview/fixtures';
 import { MapFixtureAdapter } from '../../../design-system/preview/MapFixtureAdapter';
@@ -37,6 +37,19 @@ export function VariantA({ ui }) { return <header className="sb-bar sb-bar-a"><d
 export function VariantB({ ui }) { return <header className="sb-bar sb-bar-b"><div className="sb-current"><button className="sb-stage-title" onClick={() => ui.setView('research')} aria-current={ui.view === 'research' ? 'step' : undefined}><span className="sb-number">1</span>Research</button><Status ui={ui}/></div><div className={`sb-next ${ui.ready ? 'is-ready' : ''}`}><span className="sb-number">2</span><div><span className="sb-next-label">{ui.generated ? 'YOUR CANVAS' : 'UP NEXT'}</span><strong>Draft plan</strong><p>{ui.ready ? 'Bring your details, places and ideas together.' : 'Available once the essentials are shaped.'}</p></div><DraftAction ui={ui}/></div></header>; }
 export function VariantC({ ui }) { return <header className="sb-bar sb-bar-c"><Steps ui={ui}/></header>; }
 function BriefDraftPanel({ ui }) { return <section className="sb-brief-draft" aria-label="Draft readiness"><h2>{ui.generated ? 'Your draft is ready' : 'Next: your draft plan'}</h2><Status ui={ui}/><DraftAction ui={ui}/>{ui.ready && !ui.generated && !ui.busy && <p className="sb-brief-note">You’ll review your details and flight needs first.</p>}</section>; }
+
+function FoldableBrief({ context, ui, children }) {
+  const progress = tripBriefProgress(context);
+  const hint = ui.busy ? 'Preparing draft…' : ui.error ? 'Draft needs another try' : ui.generated ? 'Draft ready to open' : ui.ready ? 'Ready to review a draft' : 'Taking shape · draft comes next';
+  return <details className="sb-foldable-brief">
+    <summary aria-label={`Trip brief, ${progress.count} of ${progress.total} details complete. ${hint}`}>
+      <span className="sb-brief-ring" style={{ '--brief-progress': `${progress.percentage}%` }} aria-hidden="true"><span>{progress.count}<small>/{progress.total}</small></span></span>
+      <span className="sb-brief-label"><strong>Trip brief</strong><small>{hint}</small></span>
+      <span className="sb-brief-chevron" aria-hidden="true">⌄</span>
+    </summary>
+    <div className="sb-foldable-content">{children}</div>
+  </details>;
+}
 
 
 export function PrototypeNavigationSwitcher({ variant, onChange }) {
@@ -110,7 +123,7 @@ export function StateBarPrototype() {
   return <section className={`pn-prototype sb-prototype pn-variant-${variant}`} id="plans-main">
     <div className="pn-preview-note"><span>DESIGN PREVIEW <span>· Sample trip · Nothing is saved</span></span><details className="pn-inspector"><summary>Preview controls</summary><div><button onClick={() => reset()}>Reset preview</button><label><input type="checkbox" checked={failure} onChange={event => setFailure(event.target.checked)}/> Simulate generation failure</label><pre>{JSON.stringify({ variant, scene, ready, checks, view, stage, review, context, lastAction }, null, 2)}</pre></div></details></div>
     <Header ui={ui}/>
-    <div className="pn-research" hidden={view !== 'research'}><PlanConversation prototypeBriefPanel={variant === 'C' ? <BriefDraftPanel ui={ui}/> : undefined} key={resetKey} selected={{ plan_id: 'state-bar-sample' }} api={api} onExpired={() => {}}/></div>
+    <div className="pn-research" hidden={view !== 'research'}><PlanConversation prototypeBriefWrapper={variant === 'C' ? children => <FoldableBrief context={context} ui={ui}>{children}</FoldableBrief> : undefined} prototypeBriefPanel={variant === 'C' ? <BriefDraftPanel ui={ui}/> : undefined} key={resetKey} selected={{ plan_id: 'state-bar-sample' }} api={api} onExpired={() => {}}/></div>
     {view === 'canvas' && stage === 'ready' && <main className="pn-canvas"><div className="pn-canvas-heading"><div><h1>{context.finalDestination || 'Your trip'}</h1><p>Illustrative draft · Not saved</p></div></div><CanvasSurface data={data} visible={ids} mapAdapter={MapFixtureAdapter} disabled preview onAction={() => {}}/></main>}
     {review && <CanvasGenerationReview context={context} cancelLabel="Keep researching" onCancel={() => setReview(false)} onConfirm={generate}/>}
     <div className="sb-preview-dock"><label>Sample stage<select aria-label="Sample stage" value={scene} onChange={event => changeScene(event.target.value)}><option value="early">Early research</option><option value="ready">Ready to draft</option></select></label><PrototypeNavigationSwitcher variant={variant} onChange={changeVariant}/></div>

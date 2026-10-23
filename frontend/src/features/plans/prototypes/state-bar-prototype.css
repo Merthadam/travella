@@ -115,3 +115,36 @@
 .sb-prototype.pn-variant-C > .pn-preview-note { width: 100%; max-width: 1560px; box-sizing: border-box; align-self: center; }
 .sb-prototype.pn-variant-C .sb-steps [aria-current] .sb-number { border-color: var(--app-link); color: var(--app-link); }
 @media(max-width: 760px) { .sb-prototype.pn-variant-C .sb-bar-c { width: calc(100% - 40px); } }
+/* C exploration: a compact disclosure keeps the brief available without a permanent sidebar. */
+.sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 0; }
+.sb-prototype.pn-variant-C .sb-foldable-brief { grid-row: 1; grid-column: 1; justify-self: end; width: 280px; padding-top: 14px; min-height: 0; }
+.sb-prototype.pn-variant-C .sb-foldable-brief > summary { display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer; list-style: none; border-radius: 8px; }
+.sb-foldable-brief > summary::-webkit-details-marker { display: none; }
+.sb-foldable-brief > summary:focus-visible { outline: 2px solid var(--app-link); outline-offset: 6px; }
+.sb-brief-ring { --brief-green: #279b78; display: grid; place-items: center; flex: 0 0 44px; height: 44px; border-radius: 50%; background: conic-gradient(var(--brief-green) var(--brief-progress), var(--sb-divider) 0); }
+.sb-brief-ring > span { display: grid; grid-auto-flow: column; align-items: baseline; justify-content: center; width: 38px; height: 38px; align-content: center; background: var(--app-bg); border-radius: 50%; font-size: 13px; color: var(--app-text); }
+.sb-brief-ring small { font-size: 10px; color: var(--app-muted); }
+.sb-brief-label { display: grid; gap: 5px; flex: 1; }
+.sb-brief-label strong { font-size: 12px; font-weight: 600; }
+.sb-brief-label small { font-size: 10px; color: var(--app-muted); line-height: 1.5; }
+.sb-brief-chevron { color: var(--app-muted); font-size: 18px; margin-right: 4px; }
+.sb-foldable-brief[open] .sb-brief-chevron { transform: rotate(180deg); }
+.sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief) > .chat-page { grid-column: 1; grid-row: 2; width: 100%; max-width: 1040px; justify-self: center; min-height: 0; }
+.sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief[open]) { grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr); gap: 32px; }
+.sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief[open]) > .chat-page { grid-row: 1; }
+.sb-prototype.pn-variant-C .sb-foldable-brief[open] { grid-column: 2; grid-row: 1; width: 100%; display: flex; flex-direction: column; }
+.sb-foldable-content { min-height: 0; overflow: auto; }
+:root[data-theme] .sb-prototype.pn-variant-C .sb-foldable-brief .trip-brief { padding: 6px 0 24px; height: auto; overflow: visible; }
+.sb-foldable-brief .trip-brief-header, .sb-foldable-brief .trip-brief-progress { display: none; }
+@media(max-width: 760px) {
+ .sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief), .sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief[open]) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 0; }
+ .sb-prototype.pn-variant-C .sb-foldable-brief, .sb-prototype.pn-variant-C .sb-foldable-brief[open] { grid-column: 1; grid-row: 1; width: 100%; }
+ .sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief[open]) > .chat-page { grid-row: 2; }
+ .sb-foldable-content { max-height: 420px; }
+}
+/* Collapsed view follows its content instead of reserving an empty sidebar/page. */
+.sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief:not([open])) { height: auto; min-height: 0; grid-template-rows: auto auto; }
+.sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief:not([open])) > .chat-page { max-width: none; }
+.sb-prototype.pn-variant-C .sb-foldable-brief:not([open]) { padding-top: 0; }
+.sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief:not([open])) .chat-transcript { min-height: 0; flex: 0 1 auto; padding: 12px 0; gap: 18px; }
+.sb-prototype.pn-variant-C .chat-layout:has(.sb-foldable-brief:not([open])) { align-self: flex-start; }

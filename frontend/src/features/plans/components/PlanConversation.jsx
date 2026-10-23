@@ -33,7 +33,7 @@ function SourceLinks({ sources }) {
 
 function messageKey(message) { return message.message_id || `${message.role}-${message.event_id || message.sequence || message.created_at}`; }
 
-export function PlanConversation({ selected, api, onExpired, onBack, onCanvas, prototypeNavigation, prototypeInvitation, prototypeBriefPanel }) {
+export function PlanConversation({ selected, api, onExpired, onBack, onCanvas, prototypeNavigation, prototypeInvitation, prototypeBriefPanel, prototypeBriefWrapper }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -169,6 +169,8 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas, p
     runTurn(message);
   }
 
+  const briefElement = <A2uiTripBrief prototypePanel={prototypeBriefPanel} key={planId} messages={brief.messages} value={brief.context} onChange={brief.update} locked={Boolean(active) || brief.loading || brief.locked} saving={brief.saving} error={brief.error} />;
+
   return <div className="chat-layout">
     <main className="chat-page" id="conversation-main">
     {prototypeNavigation}
@@ -211,6 +213,6 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas, p
       <p className={`research-composer-status${active ? ' is-active' : ''}`} id="research-composer-status" role="status" aria-label="Reply status" aria-live="polite" aria-atomic="true">{active ? <><span className="research-status-dot" aria-hidden="true"/>{replyStatus}</> : loading || brief.loading ? 'Loading your conversation…' : brief.saving ? 'Saving trip details…' : brief.locked ? 'Another reply is in progress…' : brief.error ? 'Trip details unavailable. Refresh to try again.' : error ? 'Reply interrupted. You can retry above.' : ''}</p>
     </form>
     </main>
-    <A2uiTripBrief prototypePanel={prototypeBriefPanel} key={planId} messages={brief.messages} value={brief.context} onChange={brief.update} locked={Boolean(active) || brief.loading || brief.locked} saving={brief.saving} error={brief.error} />
+    {prototypeBriefWrapper ? prototypeBriefWrapper(briefElement) : briefElement}
   </div>;
 }
