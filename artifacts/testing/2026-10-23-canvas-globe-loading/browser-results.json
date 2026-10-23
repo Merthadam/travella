@@ -1,0 +1,93 @@
+{
+  "A": {
+    "initial": {
+      "count": "04",
+      "overflow": false,
+      "canvasCards": 0,
+      "chatVisible": true
+    },
+    "interactions": {
+      "increment": "05",
+      "cancel": "Generation cancelled.",
+      "retry": "00",
+      "error": "Let\u2019s try that again.",
+      "complete": {
+        "cards": 3,
+        "loader": false
+      },
+      "cardOpens": true,
+      "replay": "00",
+      "backgroundInert": true,
+      "reducedMotion": "none"
+    },
+    "mobile": {
+      "overflow": false,
+      "animation": "none",
+      "counter": "04\nitems ready"
+    },
+    "console": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=22 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Network requests\nShowing 1-3 of 3 (Page 1 of 1).\nreqid=513 GET http://localhost:5187/auth/session [200]\nreqid=514 GET http://localhost:5187/v1/traveler-profile [200]\nreqid=515 GET http://localhost:5187/v1/plans?view=active [200]"
+  },
+  "B": {
+    "initial": {
+      "count": "04",
+      "overflow": false,
+      "canvasCards": 0,
+      "chatVisible": false
+    },
+    "interactions": {
+      "increment": "05",
+      "cancel": "Generation cancelled.",
+      "retry": "00",
+      "error": "Let\u2019s try that again.",
+      "complete": {
+        "cards": 3,
+        "loader": false
+      },
+      "cardOpens": true,
+      "replay": "00",
+      "backgroundInert": true,
+      "reducedMotion": "none"
+    },
+    "mobile": {
+      "overflow": false,
+      "animation": "none",
+      "counter": "04\nitems ready"
+    },
+    "console": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=38 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Network requests\nShowing 1-3 of 3 (Page 1 of 1).\nreqid=925 GET http://localhost:5187/auth/session [200]\nreqid=926 GET http://localhost:5187/v1/traveler-profile [200]\nreqid=927 GET http://localhost:5187/v1/plans?view=active [200]"
+  },
+  "C": {
+    "initial": {
+      "count": "04",
+      "overflow": false,
+      "canvasCards": 0,
+      "chatVisible": true
+    },
+    "interactions": {
+      "increment": "05",
+      "cancel": "Generation cancelled.",
+      "retry": "00",
+      "error": "Let\u2019s try that again.",
+      "complete": {
+        "cards": 3,
+        "loader": false
+      },
+      "cardOpens": true,
+      "replay": "00",
+      "backgroundInert": true,
+      "reducedMotion": "none"
+    },
+    "mobile": {
+      "overflow": false,
+      "animation": "none",
+      "counter": "04\nitems ready"
+    },
+    "console": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=54 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Network requests\nShowing 1-3 of 3 (Page 1 of 1).\nreqid=1337 GET http://localhost:5187/auth/session [200]\nreqid=1338 GET http://localhost:5187/v1/traveler-profile [200]\nreqid=1339 GET http://localhost:5187/v1/plans?view=active [200]"
+  },
+  "switcher": {
+    "wrap": "C to A",
+    "reload": "A"
+  }
+}
