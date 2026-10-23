@@ -19,4 +19,4 @@ Verification: authenticated Chrome DevTools interaction checks for every variant
 
 Evidence: `artifacts/testing/2026-10-23-canvas-globe-loading/verification.md`.
 
-Decision pending. The user has requested prototypes, not selected a production layout. Preserve this branch as the source of the comparison and record the selected variant or combination before a separate implementation.
+Decision recorded on 2026-10-23: the user selected B — Full focus as the preferred option. See DECISION.md. Implementation is deferred; the user explicitly requested no further work for now.

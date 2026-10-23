@@ -9,7 +9,7 @@ Status: passed for the interactive prototype scope. Production integration and l
 - Preview: `http://localhost:5187/plans?prototype=canvas-globe&variant=A` (also B and C).
 - Main remains at `http://localhost:5174`.
 - Existing authenticated /plans host and application header retained; loading layouts use a fictional confirmed Lisbon journey, in-memory completion events and stubbed canvas interactions. No Plan writes or model calls.
-- Choice pending: A Quiet canvas, B Full focus, C Visible progress. No design has been selected for production.
+- Choice recorded on 2026-10-23: B Full focus is the user’s preferred option. Implementation is explicitly deferred.
 
 ## Executed checks
 
@@ -44,4 +44,4 @@ Unit tests were intentionally not added for throwaway presentation code, per the
 - [Completed sample canvas](plan/completed-canvas-desktop.png)
 - [Sanitized browser results](browser-results.json)
 
-These are planning/mockup screenshots. Production implementation screenshots await the user's selection and a separate implementation task. No test Plans were created, so no Plan cleanup was necessary. The successful isolated verification session was signed out; the user's browser remains open on the prototype.
+These are planning/mockup screenshots. Production implementation screenshots await a separately requested implementation task; B has been selected. No test Plans were created, so no Plan cleanup was necessary. The successful isolated verification session was signed out; the user's browser remains open on the prototype.

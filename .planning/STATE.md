@@ -202,6 +202,7 @@ Resume file: None
 | 261016-rxj | Searchable travel country/airline selectors and ten-result pages; 40 frontend + 8 SSE journeys, build and live desktop/mobile browser checks passed | 2026-10-16 | 4b47e53 | Verified | [261016-rxj](./quick/261016-rxj-searchable-travel-selectors-and-paginati/) |
 | 261023-ma6 | Started remote main afb065d locally; health, authentication and container source hashes passed | 2026-10-23 | afb065d | — | [261023-ma6-start-main-locally-with-travella-local-a](./quick/261023-ma6-start-main-locally-with-travella-local-a/) |
 | 261023-mtp | Built and browser-verified three minimalist globe loading prototypes; design selection pending | 2026-10-23 | 34199b0 | — | [261023-mtp-prototype-three-minimalist-globe-loading](./quick/261023-mtp-prototype-three-minimalist-globe-loading/) |
+| 261023-nfh | Saved B Full focus as preferred globe loading design; implementation deferred | 2026-10-23 | bc73f17 | — | [261023-nfh-record-globe-loading-prototype-b-full-fo](./quick/261023-nfh-record-globe-loading-prototype-b-full-fo/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -249,3 +250,9 @@ Resume file: None
 - Integrated main a99d35f; retained flight-need confirmation and conditional cards while allowing explicit read-only preview navigation. Source 8ce1419 passed 306 backend tests, 61 frontend tests, production build and authenticated Chrome verification. Twelve standalone fixture-dependent tests skipped; actual SSE→React journeys passed in the backend suite.
 - Live merged-source check returned 95 flight options, preloaded manual search correctly and preserved the saved Plan without a flight component. Test Plan cleanup verified. Evidence: artifacts/testing/2026-10-16-phase16-ship/verification.md. Phase verification fingerprint and security ship gate passed.
 - Merge through GitHub; preserve separate local main, other worktrees, unrelated caches and running Docker volumes. Phase 15 acceptance status remains unchanged.
+
+### Globe loading preference — 2026-10-23
+
+- User selected **B — Full focus** as the go-to canvas generation loading design.
+- Decision: `.planning/quick/261023-mtp-prototype-three-minimalist-globe-loading/DECISION.md`.
+- Implementation is deferred. User requested no further work for now.
