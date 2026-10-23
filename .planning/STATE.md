@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-23T19:28:27.805Z"
+last_updated: "2026-10-23T19:51:02.116Z"
 last_activity: 2026-10-23
 last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
-state_head: d4e334bd8ef7a08d4c3465b00aef38087562553c
+state_head: e6a04e4544e2d33b783fe6eb65200a4570a21c6a
 progress:
   total_phases: 17
   completed_phases: 1
@@ -212,6 +212,7 @@ Resume file: None
 | 261023-tpz | Removed redundant destination strip from selected loader; build and desktop/mobile browser checks passed | 2026-10-23 | 1855a0f | — | [261023-tpz-remove-redundant-destination-header-from](./quick/261023-tpz-remove-redundant-destination-header-from/) |
 | 261023-trp | Matched globe and progress palette; removed redundant location and arrows; build and desktop/mobile checks passed | 2026-10-23 | b1c7baa | — | [261023-trp-match-loading-progress-bar-palette-and-r](./quick/261023-trp-match-loading-progress-bar-palette-and-r/) |
 | 261023-tt6 | Removed Cancel generation from selected preview for now; build and desktop/mobile checks passed | 2026-10-23 | d4e334b | — | [261023-tt6-remove-cancel-generation-action-from-sel](./quick/261023-tt6-remove-cancel-generation-action-from-sel/) |
+| 261023-ty6 | Implemented approved globe loading screen in actual canvas generation; verified desktop/mobile and real progress | 2026-10-23 | e6a04e4 | — | [261023-ty6-implement-approved-globe-loading-screen-](./quick/261023-ty6-implement-approved-globe-loading-screen-/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -289,3 +290,9 @@ Resume file: None
 - Loader refinement 261023-trp: progress bar now matches the globe palette; removed top-right destination label and decorative arrows from selected C. Plain Cancel action retained. Build and authenticated desktop/mobile checks passed; prototype only.
 
 - Loader refinement 261023-tt6: user explicitly requested removing Cancel generation for now. Removed from selected C prototype; desktop/mobile absence, retry/completion and build verified.
+
+### Production loader — 2026-10-23
+
+- User authorized implementation. Approved B globe / full-width C Research → Canvas now integrated in real full-plan generation and initial handoff, with validated current-run counts and hidden/inert workspace until terminal completion. This supersedes the earlier implementation deferral.
+- Source e6a04e4. 41 tests passed, one existing fixture skip; build, authenticated Chrome desktop/mobile, actual generation/save/reopen and error recovery verified. Live retry returned partial research and retained the saved plan; existing source-link key warning documented.
+- Local stack rebuilt from this checkout at http://localhost:5174; source hashes match. Evidence: artifacts/testing/2026-10-23-canvas-loader/verification.md. No push/merge.
