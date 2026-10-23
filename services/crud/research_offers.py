@@ -11,6 +11,8 @@ from services.research_offers import (
     ResearchOffer,
     ResearchReadiness,
     assess_research_readiness,
+    explicit_draft_request,
+    normalized_priorities,
     priority_conflict,
     priority_evidence,
 )
@@ -54,31 +56,36 @@ class ResearchOfferRepository:
         research = self.session.get(ResearchContext, plan_id)
         cutoff = as_utc(research.priorities_since) if research and research.priorities_since else None
         evidence = []
+        meanings = set()
         conflict_at = None
         for message in messages:
             # Context from a superseded destination must not establish readiness.
             if cutoff and as_utc(message.created_at) < cutoff:
                 continue
-            if priority_evidence(message.content):
+            priorities = normalized_priorities(message.content)
+            if priorities:
                 evidence.append(str(message.id))
+                meanings.update(priorities)
             elif priority_conflict(message.content):
                 # A later contradiction invalidates older conversational preferences.
                 conflict_at = as_utc(message.created_at)
                 break
         brief = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
         if brief and (not cutoff or as_utc(brief.updated_at) >= cutoff) and (not conflict_at or as_utc(brief.updated_at) > conflict_at) and "interests" not in (brief.inactive or {}) and brief.provenance.get("interests") in {"traveler_stated", "user_edit", "user_explicit"}:
-            if priority_evidence(str(brief.payload.get("interests", ""))):
+            priorities = normalized_priorities(str(brief.payload.get("interests", "")), stated_field=True)
+            if priorities:
                 evidence.append("brief:" + hashlib.sha256(str(brief.payload["interests"]).encode()).hexdigest())
-        return evidence
+                meanings.update(priorities)
+        return evidence, sorted(meanings)
 
     def _state(self, subject, plan_id):
         snapshot = ResearchContextRepository(self.plans).snapshot(subject, plan_id)
-        snapshot.research_entry_required = self._entry_required(subject, plan_id, snapshot.revision)
-        priorities = self._priorities(subject, plan_id, snapshot.context)
+        snapshot.research_entry_required = self._entry_required(subject, plan_id)
+        priorities, meanings = self._priorities(subject, plan_id, snapshot.context)
         readiness = assess_research_readiness(snapshot.context, has_priorities=bool(priorities), locked=snapshot.locked)
         # Optional budget/flight edits stale review via revision, not invitation identity.
         ctx = snapshot.context
-        identity = [ctx.finalDestination, ctx.dateStart, ctx.dateEnd, ctx.flexibleDates, ctx.travelers, priorities]
+        identity = [ctx.finalDestination, ctx.dateStart, ctx.dateEnd, ctx.flexibleDates, ctx.travelers, meanings]
         fingerprint = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         return snapshot, readiness, fingerprint, priorities
 
@@ -106,14 +113,16 @@ class ResearchOfferRepository:
         snapshot.research_entry_required = public.research_entry_required
         return snapshot
 
-    def _entry_required(self, subject, plan_id, revision):
+    def _entry_required(self, subject, plan_id):
         if self.session.get(PlanningCanvas, plan_id) is not None:
             return False
         receipts = self.session.scalars(select(PlanActionReceipt).where(
             PlanActionReceipt.plan_id == plan_id, PlanActionReceipt.traveler_subject == subject,
             PlanActionReceipt.operation == "research_offer_action"))
-        return not any(receipt.result_json.get("accepted_request_id") and
-            receipt.result_json.get("snapshot", {}).get("revision") == revision for receipt in receipts)
+        # Once the traveler has entered a draft, existing explicit regeneration
+        # controls remain available across edits (including changed flight needs).
+        # This classification is separate from a receipt's exact-revision check.
+        return not any(receipt.result_json.get("accepted_request_id") for receipt in receipts)
 
     def _new(self, plan_id, snapshot, fingerprint, *, status, deferred, event_id=None, message_id=None):
         previous = self._latest(plan_id)
@@ -217,7 +226,7 @@ class ResearchOfferRepository:
                           event_id=data.event_id, message_id=assistant_message_id)
             return
         requested = proposal.intent == "request_review"
-        if requested and not (explicit and re.search(r"\b(draft|itinerary)\b", quote) and
+        if requested and not (explicit and explicit_draft_request(data.message) and re.search(r"\b(draft|itinerary)\b", quote) and
                 re.search(r"\b(create|make|generate|review|ready|let's|lets)\b", quote) and
                 not re.search(r"\b(not|don't|later)\b", quote)):
             return

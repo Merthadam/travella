@@ -198,6 +198,45 @@ def test_contradicted_priorities_and_changed_destination_remove_readiness(system
     assert not system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
 
 
+def test_generic_activity_question_cannot_establish_traveler_priorities(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}"
+    assert edit(system, path, 1, finalDestination="Rome", flexibleDates=True, travelers=2).status_code == 200
+    for message in ("What museums are there in Rome?", "We want to know what museums exist.",
+                    "The website says museums sound great."):
+        response, _ = complete(system, path, 2, message=message, proposal={
+            "intent": "offer", "priority_message_ids": ["current"]})
+        assert response.status_code == 200
+        assert response.json()["research_offer"] is None
+        assert system.client.get(path + "/research-offer").json()["readiness"]["reasons"] == ["priorities_required"]
+    assert action(system, path, 2, "request_review").status_code == 409
+
+
+def test_negated_full_request_cannot_be_reenabled_by_positive_substring(system):
+    _, path, revision, _ = ready(system)
+    assert action(system, path, revision, "defer").status_code == 200
+    response, _ = complete(system, path, revision, message="Do not create a draft; keep researching.", proposal={
+        "intent": "request_review", "source_quote": "create a draft"})
+    assert response.status_code == 200
+    assert response.json()["research_deferred"]
+    assert system.client.get(path + "/research-offer").json()["offer"]["status"] == "deferred"
+
+
+def test_repeated_equivalent_preferences_do_not_create_new_invitation(system):
+    _, path, revision, priority_id = ready(system)
+    first, _ = complete(system, path, revision, proposal={"intent": "offer", "priority_message_ids": [priority_id]})
+    offer_id = first.json()["research_offer"]["id"]
+    for message in ("We want local food and museums.", "We enjoy museums and local cuisine."):
+        repeated, _ = complete(system, path, revision, message=message, proposal={
+            "intent": "offer", "priority_message_ids": ["current"]})
+        assert repeated.status_code == 200
+        assert repeated.json()["research_offer"]["id"] == offer_id
+    with system.factory() as db:
+        assert db.scalar(select(func.count()).select_from(ResearchDraftOffer)) == 1
+    history = system.client.get(path + "/conversation/messages").json()
+    assert sum("research_offer" in message for message in history) == 1
+
+
 def test_current_priority_contradiction_overrides_older_explicit_brief(system):
     plan, path, revision, _ = ready(system)
     brief = system.client.patch(path + "/brief", headers=write_headers(system, plan["revision"]),
@@ -240,8 +279,11 @@ def test_begin_policy_and_cancelled_launch_require_live_owned_lease(system):
     assert system.client.post(path + "/research-offer/consume", json=consume).status_code == 200
     assert not system.client.get(path + "/research-offer").json()["research_entry_required"]
     system.client.post(path + "/research-context/run", json={"event_id": request, "action": "cancel"})
-    edit(system, path, revision, travelers=3)
-    assert system.client.get(path + "/research-offer").json()["research_entry_required"]
+    assert edit(system, path, revision, flights="needed").status_code == 200
+    assert not system.client.get(path + "/research-offer").json()["research_entry_required"]
+    assert system.client.post(path + "/research-offer/consume", json=consume).status_code == 409
+    new_plan = create(system)
+    assert system.client.get(f"/v1/plans/{new_plan['plan_id']}/research-offer").json()["research_entry_required"]
 
 
 def test_postgres_offer_http_persistence_and_additive_migration(postgres_engine, system):
