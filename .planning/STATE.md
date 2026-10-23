@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-23 — Independent code review clean after five fixes; final local source hashes match. No merge/deploy.
+Last activity: 2026-10-23 — Completed quick task 261023-skp: top-right research brief and bottom composer; desktop browser checks and 30 focused tests passed. No merge/deploy.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -124,6 +124,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261023-skp | Top-right research brief and bottom composer | 2026-10-23 | d6abf21 | Desktop browser verified; 30 tests passed | [Task](quick/261023-skp-anchor-research-brief-at-progress-bar-an/) |
 | 261023-njb | Draggable desktop brief overlay with no conversation movement | 2026-10-23 | 1c3e236 | Verified prototype | [Task](quick/261023-njb-prototype-draggable-overlay-trip-brief-o/) |
 | 261023-nex | Foldable C brief and tighter collapsed spacing; desktop focus going forward | 2026-10-23 | 8361b7d | Verified prototype | [Task](quick/261023-nex-prototype-collapsible-trip-brief-in-c/) |
 | 261023-n37 | Remove outer divider seam from prototype C | 2026-10-23 | c668f1b | Verified visual prototype | [Task](quick/261023-n37-remove-outer-divider-seam-from-prototype/) |
