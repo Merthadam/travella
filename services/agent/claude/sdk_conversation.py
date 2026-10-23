@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from pydantic import Field
 
+from services.research_offers import DraftOfferProposal
 from services.trip_context import TripContext, TurnResult, apply_changes
 
 from ..config import ResearchWorkerConfig
@@ -21,6 +22,7 @@ from .runtime import ClaudeSdkRuntime, ResearchWorkerError, _EvidenceObserver
 class ChatResult(TurnResult):
     needs_input: bool
     evidence_ids: list[str] = Field(default_factory=list, max_length=9)
+    draft_offer: DraftOfferProposal | None = None
 
 
 class ClaudeSdkConversationClient:
@@ -46,6 +48,11 @@ class ClaudeSdkConversationClient:
             "plan_brief": bounded.brief,
             "trip_context": bounded.trip_context,
             "traveler_preferences": bounded.traveler_profile,
+            "research_policy": {
+                "readiness": bounded.research_readiness,
+                "deferred": bounded.research_deferred,
+                "current_message_reference": "current",
+            },
             "read_evidence": [item.model_dump() for item in observer.evidence.values()],
         }
         try:
@@ -78,6 +85,7 @@ class ClaudeSdkConversationClient:
                         "assistant_text": reply.answer,
                         "question": reply.answer if reply.needs_input else None,
                         "state_changes": [item.model_dump() for item in reply.state_changes],
+                        "draft_offer": reply.draft_offer.model_dump() if reply.draft_offer else None,
                         "trip_context": updated.model_dump(),
                         "research_evidence": [item.model_dump() for item in evidence],
                         "research_evidence_ids": reply.evidence_ids,

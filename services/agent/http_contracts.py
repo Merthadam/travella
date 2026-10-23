@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from services.crud.profile_schemas import HomeCity
+from services.research_offers import ResearchOffer
 from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
 
 from .canvas_contracts import CanvasDraft, ThemesComponent
@@ -20,11 +21,16 @@ class AgentRequest(BaseModel):
     forwardedProps: ForwardedProps | None = None
     canvas_action: Literal["generate_themes", "generate_research", "generate_plan"] | None = None
     context_revision: int | None = Field(default=None, ge=1)
+    research_entry_receipt: str | None = Field(default=None, min_length=1, max_length=100)
     canvas_themes: ThemesComponent | None = None
     canvas_edit: CanvasEditRequest | None = None
 
     @model_validator(mode="after")
     def separate_canvas_action(self):
+        if self.research_entry_receipt is not None and (
+            self.canvas_action != "generate_plan" or self.context_revision is None
+        ):
+            raise ValueError("Research confirmation requires a full draft action and reviewed revision.")
         if self.canvas_edit and (self.canvas_action or self.forwardedProps or self.canvas_themes or self.context_revision):
             raise ValueError("Send canvas editing separately from other actions.")
         if self.canvas_edit and not self.message.strip():
@@ -55,6 +61,8 @@ class AgentResponse(BaseModel):
     trip_context: ContextSnapshot | None = None
     canvas_draft: CanvasDraft | None = None
     canvas_edit_result: PublicCanvasEditResult | None = None
+    research_offer: ResearchOffer | None = None
+    assistant_message_id: str | None = None
 
 
 class TravelerProfileMemoryRequest(BaseModel):
