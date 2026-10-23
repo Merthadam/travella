@@ -15,15 +15,15 @@
 @media(prefers-reduced-motion:reduce){.gt-generating .gt-step-active .gt-step-number{animation:none}}
 @media(max-width:760px){.gt-steps ol{max-width:none;margin-inline:auto}.gt-steps li:not(.gt-step-link){flex-basis:65px}}
 
-/* Scope correction: only the selected progress bar adopts current frontend styling. */
-.cg-topbar-demo .gt-steps{background:var(--app-bg);color:var(--app-text);border-color:var(--app-line);padding:16px 24px}
+/* Existing stage sizing, with colours matched to the accepted globe prototype. */
+.cg-topbar-demo .gt-steps{background:#f0f3e8;color:var(--cg-ink);border-color:var(--cg-line);padding:16px 24px}
 .cg-topbar-demo .gt-steps ol{gap:16px}
-.cg-topbar-demo .gt-steps li:not(.gt-step-link){font-size:12px;gap:8px;color:var(--app-muted)}
-.cg-topbar-demo .gt-steps .gt-step-number{width:24px;height:24px;font-size:11px;border-color:var(--app-line)}
-.cg-topbar-demo .gt-steps .gt-step-active{color:var(--app-text);font-weight:600}
-.cg-topbar-demo .gt-steps .gt-step-active .gt-step-number{background:var(--app-soft);color:var(--app-text);border-color:var(--app-accent)}
-.cg-topbar-demo .gt-steps .gt-step-done{color:var(--app-link)}
-.cg-topbar-demo .gt-steps .gt-step-done .gt-step-number{background:var(--app-active);color:var(--app-active-text);border-color:var(--app-accent)}
-.cg-topbar-demo .gt-steps .gt-step-link{background:var(--app-line)}
-.cg-topbar-demo .gt-steps .gt-step-link>span{background:var(--app-accent)}
+.cg-topbar-demo .gt-steps li:not(.gt-step-link){font-size:12px;gap:8px;color:var(--cg-muted)}
+.cg-topbar-demo .gt-steps .gt-step-number{width:24px;height:24px;font-size:11px;border-color:var(--cg-line)}
+.cg-topbar-demo .gt-steps .gt-step-active{color:var(--cg-ink);font-weight:600}
+.cg-topbar-demo .gt-steps .gt-step-active .gt-step-number{background:var(--cg-paper);color:var(--cg-ink);border-color:var(--cg-green)}
+.cg-topbar-demo .gt-steps .gt-step-done{color:var(--cg-green)}
+.cg-topbar-demo .gt-steps .gt-step-done .gt-step-number{background:var(--cg-paper);color:var(--cg-green);border-color:var(--cg-green)}
+.cg-topbar-demo .gt-steps .gt-step-link{background:var(--cg-line)}
+.cg-topbar-demo .gt-steps .gt-step-link>span{background:var(--cg-green)}
 @media(max-width:760px){.cg-topbar-demo .gt-steps{padding:12px 16px}.cg-topbar-demo .gt-steps ol{gap:10px;align-items:center}.cg-topbar-demo .gt-steps li:not(.gt-step-link){flex-direction:row;flex-basis:auto;white-space:nowrap;font-size:11px;gap:6px}.cg-topbar-demo .gt-steps .gt-step-link{margin-top:0}}

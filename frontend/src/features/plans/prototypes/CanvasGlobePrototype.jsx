@@ -25,7 +25,7 @@ function Counter({ count, prominent = false }) {
   return <div className={`cg-counter ${prominent ? 'cg-counter-prominent' : ''}`} aria-live="polite" aria-atomic="true"><span key={count} className="cg-count">{count.toString().padStart(2, '0')}</span><span>items ready</span></div>;
 }
 
-function Cancel({ onCancel }) { return <button className="cg-cancel" onClick={onCancel}>Cancel generation <span aria-hidden="true">↗</span></button>; }
+function Cancel({ onCancel, plain = false }) { return <button className="cg-cancel" onClick={onCancel}>Cancel generation{!plain && <> <span aria-hidden="true">↗</span></>}</button>; }
 
 export function VariantA({ count, onCancel }) {
   return <section className="cg-loading cg-variant-a" aria-label="Building your Lisbon plan" aria-busy="true">
@@ -33,11 +33,11 @@ export function VariantA({ count, onCancel }) {
   </section>;
 }
 
-export function VariantB({ count, onCancel, phase }) {
+export function VariantB({ count, onCancel, phase, minimal = false }) {
   return <section className="cg-loading cg-variant-b" aria-label="Building your Lisbon plan" aria-busy="true">
-    <div className="cg-focus-meta"><span>YOUR NEXT CHAPTER</span><span>Lisbon, Portugal <i>↗</i></span></div>
+    <div className="cg-focus-meta"><span>YOUR NEXT CHAPTER</span>{!minimal && <span>Lisbon, Portugal <i>↗</i></span>}</div>
     <div className="cg-focus-content"><div className="cg-focus-globe"><Globe large /><span className="cg-coordinate">38.72° N &nbsp; 9.14° W</span></div><div className="cg-focus-copy"><p className="cg-eyebrow">FROM AN IDEA TO YOUR ITINERARY</p><h2>Lisbon is<br />taking shape.</h2><p className="cg-description">{phase === 'research' ? 'Researching your Lisbon trip…' : phase === 'canvas' ? 'Creating your planning canvas…' : 'Building your Lisbon plan…'}</p><Counter count={count} prominent /><p className="cg-unlock-note">Everything opens together, when it’s ready.</p></div></div>
-    <div className="cg-focus-footer"><span><i className="cg-live-dot" />Putting your plan together</span><Cancel onCancel={onCancel} /></div>
+    <div className="cg-focus-footer"><span><i className="cg-live-dot" />Putting your plan together</span><Cancel onCancel={onCancel} plain={minimal} /></div>
   </section>;
 }
 
@@ -110,7 +110,7 @@ export function CanvasGlobePrototype({ topbar = false }) {
         <div className="cg-canvas-top"><span>Planning canvas</span><span>{regenerate ? 'Updating your plan' : 'Your ideas, all in one place'}</span></div>
         <div className="cg-stage">
           {loading && regenerate && <SampleCanvas background />}
-          {loading ? <Variant count={count} onCancel={cancel} phase={topbar && variant === 'C' ? phase : undefined} /> : status === 'complete' ? <SampleCanvas onOpen={setDetail} /> : <section className="cg-stopped"><Globe /><p className="cg-eyebrow">{status === 'error' ? 'A SMALL PAUSE' : 'YOU’RE IN CONTROL'}</p><h2>{status === 'error' ? 'Let’s try that again.' : 'Generation cancelled.'}</h2><p>{status === 'error' ? 'We couldn’t finish your canvas. Your destination is still Lisbon.' : 'Your destination is still Lisbon. Build your canvas whenever you’re ready.'}</p>{regenerate && <p>Your existing plan is unchanged.</p>}<button className="cg-retry" onClick={() => { reset(); setPlaying(true); }}>{status === 'error' ? 'Try again' : 'Build my plan'}</button></section>}
+          {loading ? <Variant count={count} onCancel={cancel} minimal={topbar && variant === 'C'} phase={topbar && variant === 'C' ? phase : undefined} /> : status === 'complete' ? <SampleCanvas onOpen={setDetail} /> : <section className="cg-stopped"><Globe /><p className="cg-eyebrow">{status === 'error' ? 'A SMALL PAUSE' : 'YOU’RE IN CONTROL'}</p><h2>{status === 'error' ? 'Let’s try that again.' : 'Generation cancelled.'}</h2><p>{status === 'error' ? 'We couldn’t finish your canvas. Your destination is still Lisbon.' : 'Your destination is still Lisbon. Build your canvas whenever you’re ready.'}</p>{regenerate && <p>Your existing plan is unchanged.</p>}<button className="cg-retry" onClick={() => { reset(); setPlaying(true); }}>{status === 'error' ? 'Try again' : 'Build my plan'}</button></section>}
         </div>
       </div>
     </div>
