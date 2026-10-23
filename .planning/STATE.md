@@ -2,9 +2,9 @@
 gsd_state_version: "1.0"
 current_phase: 17
 current_phase_name: Research phase cleanup
-status: verifying
-stopped_at: Phase 17 implemented; independent goal verification and user UAT pending
-last_updated: "2026-10-23T17:21:27.625Z"
+status: human_needed
+stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
+last_updated: "2026-10-23T18:25:47.842462+00:00"
 last_activity: 2026-10-23
 last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
 state_head: 8f0a2f637e52c87aa3cafa004a29c5da7b189e65
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
-Status: Verifying. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
+Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
 Last activity: 2026-10-23 — Independent code review clean after five fixes; final local source hashes match. No merge/deploy.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
