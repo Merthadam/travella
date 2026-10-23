@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-23T19:01:40.503Z"
+last_updated: "2026-10-23T19:06:32.312Z"
 last_activity: 2026-10-23
 last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
-state_head: d827677f0065b9a27c8ec57f84ccc99903374b25
+state_head: dae5c7555ee025a7a7af1816debec09894695266
 progress:
   total_phases: 17
   completed_phases: 1
@@ -205,6 +205,7 @@ Resume file: None
 | 261023-nfh | Saved B Full focus as preferred globe loading design; implementation deferred | 2026-10-23 | bc73f17 | — | [261023-nfh-record-globe-loading-prototype-b-full-fo](./quick/261023-nfh-record-globe-loading-prototype-b-full-fo/) |
 | 261023-syu | Rebased globe prototypes onto origin/main 0456368; B preserved; build and 11 tests passed | 2026-10-23 | 23d0ba0 | — | [261023-syu-rebase-globe-loading-prototype-branch-on](./quick/261023-syu-rebase-globe-loading-prototype-branch-on/) |
 | 261023-t2f | Built three top loading bar prototypes alongside selected B globe; desktop/mobile browser checks and build passed; top-bar choice pending | 2026-10-23 | d827677 | — | [261023-t2f-prototype-top-loading-bars-alongside-sel](./quick/261023-t2f-prototype-top-loading-bars-alongside-sel/) |
+| 261023-ta4 | Refined selected C to Research then Canvas with continuous globe; build and desktop/mobile Chrome checks passed | 2026-10-23 | dae5c75 | — | [261023-ta4-refine-selected-c-loading-prototype-to-r](./quick/261023-ta4-refine-selected-c-loading-prototype-to-r/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -258,3 +259,8 @@ Resume file: None
 - User selected **B — Full focus** as the go-to canvas generation loading design.
 - Decision: `.planning/quick/261023-mtp-prototype-three-minimalist-globe-loading/DECISION.md`.
 - Implementation is deferred. User requested no further work for now.
+
+### Loading phase refinement — 2026-10-23
+
+- User selected top-bar **C**, refined to **Research → Canvas**, above the previously selected **B Full focus globe**. Globe and top rail animate through both loading phases; reduced motion is respected.
+- Updated interactive prototype verified on desktop/mobile. Production integration remains deferred. Decision: `.planning/quick/261023-ta4-refine-selected-c-loading-prototype-to-r/DECISION.md`.
