@@ -7,6 +7,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from services.research_offers import DraftOfferProposal, ResearchOffer, ResearchReadiness
+
 ContextField = Literal[
     "candidates", "finalDestination", "dateStart", "dateEnd", "dateNote",
     "flexibleDates", "travelers", "budget", "noFixedBudget", "flights", "accommodation",
@@ -94,6 +96,11 @@ class ContextSnapshot(StrictModel):
     revision: int = Field(ge=1)
     context: TripContext
     locked: bool = False
+    research_offer: ResearchOffer | None = None
+    research_readiness: ResearchReadiness | None = None
+    research_deferred: bool = False
+    assistant_message_id: str | None = None
+    research_entry_required: bool = False
 
 
 def a2ui_messages(snapshot: ContextSnapshot) -> list[dict]:
@@ -145,6 +152,7 @@ class ContextRun(StrictModel):
     message: str = Field(default="", max_length=2000)
     assistant_text: str = Field(default="", max_length=2000)
     generation: int = Field(default=0, ge=0)
+    draft_offer: DraftOfferProposal | None = None
 
 
 def apply_changes(context: TripContext, changes: list[StateChange], *, now: str,

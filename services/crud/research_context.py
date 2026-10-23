@@ -53,7 +53,11 @@ class ResearchContextRepository:
         if row.revision != revision:
             raise LifecycleProblem("revision_conflict")
         try:
-            row.payload = apply_changes(TripContext.model_validate(row.payload), changes, now=now.isoformat(), user_edit=True).model_dump()
+            previous = TripContext.model_validate(row.payload)
+            updated = apply_changes(previous, changes, now=now.isoformat(), user_edit=True)
+            row.payload = updated.model_dump()
+            if previous.finalDestination and previous.finalDestination != updated.finalDestination:
+                row.priorities_since = now
         except ValueError:
             raise LifecycleProblem("invalid_request") from None
         row.revision += 1
@@ -63,8 +67,10 @@ class ResearchContextRepository:
         return self._snapshot(row)
 
     def run(self, subject, plan_id, data):
+        from .research_offers import ResearchOfferRepository
         row = self._row(subject, plan_id)
         now = self.plans.clock()
+        assistant_message_id = None
         if data.action == "begin":
             # A durable receipt prevents a retried HTTP event from applying state twice.
             from .models import PlanActionReceipt
@@ -87,11 +93,14 @@ class ResearchContextRepository:
             if not self._locked(row) or row.active_event != data.event_id or row.revision != data.revision:
                 raise LifecycleProblem("revision_conflict")
             try:
-                updated = apply_changes(TripContext.model_validate(row.payload), data.changes,
+                previous = TripContext.model_validate(row.payload)
+                updated = apply_changes(previous, data.changes,
                                         now=now.isoformat(), message=data.message)
             except ValueError:
                 raise LifecycleProblem("invalid_request") from None
             row.payload = updated.model_dump()
+            if previous.finalDestination and previous.finalDestination != updated.finalDestination:
+                row.priorities_since = now
             if data.changes:
                 row.revision += 1
             row.updated_at = now
@@ -101,8 +110,17 @@ class ResearchContextRepository:
             self.session.add(self.plans._success_receipt(subject, data.event_id, "research_run", payload, plan_id, now))
             for role, content in (("user", data.message), ("assistant", data.assistant_text)):
                 if content:
-                    self.plans.append_conversation_message(subject, plan_id, f"{data.event_id}:{role}",
+                    message = self.plans.append_conversation_message(subject, plan_id, f"{data.event_id}:{role}",
                                                            role, content, generation=data.generation,
                                                            commit=False)
+                    if role == "assistant":
+                        assistant_message_id = message["message_id"]
+            ResearchOfferRepository(self.plans).complete(subject, plan_id, data, assistant_message_id)
         self.session.commit()
-        return self._snapshot(row)
+        snapshot = ResearchOfferRepository(self.plans).decorate(subject, plan_id, self._snapshot(row))
+        if data.action == "begin" and snapshot.research_readiness:
+            reasons = [reason for reason in snapshot.research_readiness.reasons if reason != "context_locked"]
+            snapshot.research_readiness.reasons = reasons
+            snapshot.research_readiness.eligible = not reasons
+        snapshot.assistant_message_id = assistant_message_id
+        return snapshot
