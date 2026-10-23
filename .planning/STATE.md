@@ -200,6 +200,7 @@ Resume file: None
 | 261011-01k | Approved quiet Plans drawer; 18 focused tests, build and authenticated desktop/mobile persistence checks passed; baseline suite debt documented | 2026-10-11 | See quick summary | Verified | [261011-01k](./quick/261011-01k-implement-selected-recent-first-plans-dr/) |
 
 | 261016-rxj | Searchable travel country/airline selectors and ten-result pages; 40 frontend + 8 SSE journeys, build and live desktop/mobile browser checks passed | 2026-10-16 | 4b47e53 | Verified | [261016-rxj](./quick/261016-rxj-searchable-travel-selectors-and-paginati/) |
+| 261023-ma6 | Started remote main afb065d locally; health, authentication and container source hashes passed | 2026-10-23 | afb065d | — | [261023-ma6-start-main-locally-with-travella-local-a](./quick/261023-ma6-start-main-locally-with-travella-local-a/) |
 
 ### Roadmap Evolution — 2026-10-06
 
