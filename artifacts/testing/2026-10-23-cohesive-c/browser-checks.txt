@@ -1,0 +1,39 @@
+Script ran on page and returned:
+```json
+"Stage-only header; early draft action disabled inside A2UI"
+```
+
+Script ran on page and returned:
+```json
+"Brief action opens review"
+```
+
+Script ran on page and returned:
+```json
+"Cancel returns to brief"
+```
+
+Script ran on page and returned:
+```json
+"Confirmed generation opens draft"
+```
+
+Script ran on page and returned:
+```json
+"Returning to research offers existing draft in brief"
+```
+
+Script ran on page and returned:
+```json
+"Mobile action visible within brief; no horizontal overflow"
+```
+
+Script ran on page and returned:
+```json
+"Failure remains in brief"
+```
+
+Emulating viewport: {"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"isLandscape":false,"width":1440,"height":1000}
+## Console messages
+Showing 1-1 of 1 (Page 1 of 1).
+msgid=232 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)
