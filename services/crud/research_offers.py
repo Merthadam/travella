@@ -54,6 +54,7 @@ class ResearchOfferRepository:
         research = self.session.get(ResearchContext, plan_id)
         cutoff = as_utc(research.priorities_since) if research and research.priorities_since else None
         evidence = []
+        conflict_at = None
         for message in messages:
             # Context from a superseded destination must not establish readiness.
             if cutoff and as_utc(message.created_at) < cutoff:
@@ -62,15 +63,17 @@ class ResearchOfferRepository:
                 evidence.append(str(message.id))
             elif priority_conflict(message.content):
                 # A later contradiction invalidates older conversational preferences.
+                conflict_at = as_utc(message.created_at)
                 break
         brief = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))
-        if brief and (not cutoff or as_utc(brief.updated_at) >= cutoff) and "interests" not in (brief.inactive or {}) and brief.provenance.get("interests") in {"traveler_stated", "user_edit", "user_explicit"}:
+        if brief and (not cutoff or as_utc(brief.updated_at) >= cutoff) and (not conflict_at or as_utc(brief.updated_at) > conflict_at) and "interests" not in (brief.inactive or {}) and brief.provenance.get("interests") in {"traveler_stated", "user_edit", "user_explicit"}:
             if priority_evidence(str(brief.payload.get("interests", ""))):
                 evidence.append("brief:" + hashlib.sha256(str(brief.payload["interests"]).encode()).hexdigest())
         return evidence
 
     def _state(self, subject, plan_id):
         snapshot = ResearchContextRepository(self.plans).snapshot(subject, plan_id)
+        snapshot.research_entry_required = self._entry_required(subject, plan_id, snapshot.revision)
         priorities = self._priorities(subject, plan_id, snapshot.context)
         readiness = assess_research_readiness(snapshot.context, has_priorities=bool(priorities), locked=snapshot.locked)
         # Optional budget/flight edits stale review via revision, not invitation identity.
@@ -91,7 +94,6 @@ class ResearchOfferRepository:
 
     def snapshot(self, subject, plan_id):
         snapshot, readiness, fingerprint, _ = self._state(subject, plan_id)
-        snapshot.research_entry_required = self._entry_required(subject, plan_id, snapshot.revision)
         latest = self._latest(plan_id)
         return ResearchOfferSnapshot(**snapshot.model_dump(), readiness=readiness,
             deferred=bool(latest and latest.deferred), offer=self.project(latest, snapshot, fingerprint))

@@ -72,11 +72,13 @@ def test_ready_without_optional_fields_and_persistent_defer_manual_review(system
     assert snapshot["readiness"]["eligible"] and snapshot["context"]["budget"] == ""
     review = action(system, path, revision, "request_review")
     assert review.status_code == 200, review.text
+    assert review.json()["research_entry_required"]
     offer = review.json()["offer"]
     assert offer["status"] == "review"
     assert action(system, path, revision, "confirm", offer["id"]).status_code == 409  # flights unresolved
     deferred = action(system, path, revision, "defer", offer["id"])
     assert deferred.status_code == 200 and deferred.json()["deferred"]
+    assert deferred.json()["research_entry_required"]
     assert edit(system, path, revision, budget="moderate").status_code == 200
     # A fresh application/session reads the same durable suppression.
     app = create_app(system.verifier, system.factory, clock=lambda: system.current[0])
@@ -194,6 +196,17 @@ def test_contradicted_priorities_and_changed_destination_remove_readiness(system
     assert system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
     complete(system, path, revision, message="We are unsure about our priorities.")
     assert not system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
+
+
+def test_current_priority_contradiction_overrides_older_explicit_brief(system):
+    plan, path, revision, _ = ready(system)
+    brief = system.client.patch(path + "/brief", headers=write_headers(system, plan["revision"]),
+                               json={"interests": "Museums and architecture"})
+    assert brief.status_code == 200
+    assert system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
+    system.current[0] += timedelta(seconds=1)
+    complete(system, path, revision, message="No museums or architecture; our interests are undecided.")
+    assert system.client.get(path + "/research-offer").json()["readiness"]["reasons"] == ["priorities_required"]
 
 
 def test_initial_preferences_survive_first_destination_confirmation(system):
