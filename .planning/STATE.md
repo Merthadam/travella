@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-23T19:10:22.873Z"
+last_updated: "2026-10-23T19:20:13.333Z"
 last_activity: 2026-10-23
 last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
-state_head: e489cf7bf33ef8cdce232124822317c190a25b6e
+state_head: 854c6fe138c58c4eeb90c5bb44aec1672e0036a5
 progress:
   total_phases: 17
   completed_phases: 1
@@ -207,6 +207,7 @@ Resume file: None
 | 261023-t2f | Built three top loading bar prototypes alongside selected B globe; desktop/mobile browser checks and build passed; top-bar choice pending | 2026-10-23 | d827677 | — | [261023-t2f-prototype-top-loading-bars-alongside-sel](./quick/261023-t2f-prototype-top-loading-bars-alongside-sel/) |
 | 261023-ta4 | Refined selected C to Research then Canvas with continuous globe; build and desktop/mobile Chrome checks passed | 2026-10-23 | dae5c75 | — | [261023-ta4-refine-selected-c-loading-prototype-to-r](./quick/261023-ta4-refine-selected-c-loading-prototype-to-r/) |
 | 261023-tdw | Saved full-width Research Canvas loading prototype; build and desktop/mobile Chrome verification passed; stop here | 2026-10-23 | e489cf7 | — | [261023-tdw-make-selected-c-research-canvas-progress](./quick/261023-tdw-make-selected-c-research-canvas-progress/) |
+| 261023-tgv | Aligned selected globe loader with existing Plan chat and cards; added subtle sidebar reveal; build and desktop/mobile theme checks passed | 2026-10-23 | 854c6fe | — | [261023-tgv-align-selected-loading-prototype-with-ex](./quick/261023-tgv-align-selected-loading-prototype-with-ex/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -267,3 +268,9 @@ Resume file: None
 - Updated interactive prototype verified on desktop/mobile. Production integration remains deferred. Decision: `.planning/quick/261023-ta4-refine-selected-c-loading-prototype-to-r/DECISION.md`.
 
 - Final loader refinement: Research → Canvas rail now spans the full available width on desktop/mobile. Preference saved; user requested stopping here. Prototype only.
+
+### Existing-component loader alignment — 2026-10-23
+
+- Preserved B globe and full-width C Research → Canvas shape; selected preview now reuses actual Plan chat and canvas cards with shared themes, typography and controls.
+- Added 1.1-second sidebar opening during simulated generation, independent desktop scrolling, existing mobile tabs and reduced-motion support. Build and authenticated desktop/mobile light/dark verification passed.
+- Decision: `.planning/quick/261023-tgv-align-selected-loading-prototype-with-ex/DECISION.md`. Prototype only; production integration remains deferred.
