@@ -40,15 +40,56 @@ function BriefDraftPanel({ ui }) { return <section className="sb-brief-draft" ar
 
 function FoldableBrief({ context, ui, children }) {
   const progress = tripBriefProgress(context);
+  const [open, setOpen] = useState(false);
+  const [viewport, setViewport] = useState({ width: innerWidth, height: innerHeight });
+  const [position, setPosition] = useState({ x: innerWidth - 104, y: innerHeight - 180 });
+  const drag = useRef(null);
+  const trigger = useRef(null);
+  const clamp = (value, max) => Math.max(16, Math.min(value, max - 68));
+  useEffect(() => {
+    const resize = () => {
+      setViewport({ width: innerWidth, height: innerHeight });
+      setPosition(p => ({ x: clamp(p.x, innerWidth), y: clamp(p.y, innerHeight) }));
+    };
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
   const hint = ui.busy ? 'Preparing draft…' : ui.error ? 'Draft needs another try' : ui.generated ? 'Draft ready to open' : ui.ready ? 'Ready to review a draft' : 'Taking shape · draft comes next';
-  return <details className="sb-foldable-brief">
-    <summary aria-label={`Trip brief, ${progress.count} of ${progress.total} details complete. ${hint}`}>
+  const panelHeight = Math.min(560, Math.max(position.y - 28, viewport.height - position.y - 80));
+  const panelLeft = Math.max(16, Math.min(position.x - 288, viewport.width - 356));
+  const panelTop = position.y + 64 + panelHeight <= viewport.height - 16 ? position.y + 64 : Math.max(16, position.y - panelHeight - 12);
+  function close() { setOpen(false); trigger.current?.focus(); }
+  return <div className="sb-floating-brief" style={{ left: position.x, top: position.y }} onKeyDown={event => {
+    if (event.key === 'Escape' && !document.querySelector('dialog[open]')) { event.stopPropagation(); close(); }
+  }}>
+    <button ref={trigger} className="sb-brief-trigger" aria-expanded={open} aria-controls="floating-trip-brief" aria-label={`Trip brief, ${progress.count} of ${progress.total} details complete. ${hint}`} title={`Trip brief · ${hint}. Click to open, drag to move. Arrow keys move when focused.`}
+      onPointerDown={event => {
+        if (event.button !== 0) return;
+        drag.current = { x: event.clientX, y: event.clientY, start: position, moved: false };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={event => {
+        const d = drag.current;
+        if (!d || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+        const dx = event.clientX - d.x, dy = event.clientY - d.y;
+        if (Math.hypot(dx, dy) > 5) d.moved = true;
+        if (d.moved) setPosition({ x: clamp(d.start.x + dx, viewport.width), y: clamp(d.start.y + dy, viewport.height) });
+      }}
+      onPointerUp={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
+      onPointerCancel={() => { drag.current = null; }}
+      onClick={event => { if (event.detail === 0 || !drag.current?.moved) setOpen(value => !value); drag.current = null; }}
+      onKeyDown={event => {
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault(); event.stopPropagation();
+        setPosition(p => ({ x: clamp(p.x + (event.key === 'ArrowRight' ? 24 : event.key === 'ArrowLeft' ? -24 : 0), viewport.width), y: clamp(p.y + (event.key === 'ArrowDown' ? 24 : event.key === 'ArrowUp' ? -24 : 0), viewport.height) }));
+      }}>
       <span className="sb-brief-ring" style={{ '--brief-progress': `${progress.percentage}%` }} aria-hidden="true"><span>{progress.count}<small>/{progress.total}</small></span></span>
-      <span className="sb-brief-label"><strong>Trip brief</strong><small>{hint}</small></span>
-      <span className="sb-brief-chevron" aria-hidden="true">⌄</span>
-    </summary>
-    <div className="sb-foldable-content">{children}</div>
-  </details>;
+    </button>
+    <section id="floating-trip-brief" className="sb-floating-panel" hidden={!open} aria-label="Trip brief" style={{ left: panelLeft, top: panelTop, maxHeight: panelHeight }}>
+      <header><div><strong>Trip brief</strong><small>{hint}</small></div><button type="button" aria-label="Close trip brief" onClick={close}>×</button></header>
+      <div className="sb-floating-content">{children}</div>
+    </section>
+  </div>;
 }
 
 
