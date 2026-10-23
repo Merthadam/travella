@@ -226,3 +226,33 @@ def test_upstream_failures_do_not_leak_secrets(gateway, failure):
     assert response.status_code == (
         200 if failure == "private_success" else 500 if failure == "private_error" else 503
     )
+
+
+def test_research_offer_gateway_roundtrip_and_internal_routes_stay_private(gateway):
+    from services.crud.tests.test_research_offers import ready
+
+    login(gateway)
+    _, path, revision, _ = ready(gateway.system)
+    client = gateway.client
+    snapshot = client.get(path + '/research-offer')
+    assert snapshot.status_code == 200 and snapshot.json()['readiness']['eligible']
+    review = client.post(path + '/research-offer/actions', json={'action': 'request_review'},
+                         headers=write_headers(gateway.system, revision))
+    assert review.status_code == 200, review.text
+    offer = review.json()['offer']
+    assert client.get(path + '/research-offer').json()['offer'] == offer
+    confirmed = client.post(path + '/research-offer/actions',
+        json={'action': 'confirm', 'offer_id': offer['id']},
+        headers=write_headers(gateway.system, revision))
+    assert confirmed.status_code == 200 and confirmed.json()['research_entry_receipt']
+    deferred = client.post(path + '/research-offer/actions',
+        json={'action': 'defer', 'offer_id': offer['id']},
+        headers=write_headers(gateway.system, revision))
+    assert deferred.status_code == 200
+    assert client.get(path + '/research-offer').json()['deferred']
+    before = len(gateway.captured)
+    assert client.post(path + '/research-offer/consume', json={}).status_code == 404
+    assert client.post(path + '/research-context/run', json={}).status_code == 404
+    assert client.post(path + '/research-offer', json={}).status_code == 405
+    assert client.get(path + '/research-offer/actions').status_code == 405
+    assert len(gateway.captured) == before
