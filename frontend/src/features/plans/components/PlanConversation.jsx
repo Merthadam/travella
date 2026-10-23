@@ -10,6 +10,7 @@ import { ResearchDraftOffer } from './ResearchDraftOffer';
 import './research-conversation.css';
 import './research-workspace.css';
 import { CanvasGenerationReview } from './CanvasGenerationReview';
+import { ResearchFlightPreview, researchFlightSchema } from '../travel/ResearchFlightPreview';
 
 const safeSources = values => (Array.isArray(values) ? values : []).filter(item => {
   if (!item?.url || !item?.title) return false;
@@ -37,6 +38,7 @@ function SourceLinks({ sources }) {
 }
 
 function messageKey(message) { return message.message_id || `${message.role}-${message.event_id || message.sequence || message.created_at}`; }
+const flightContext = value => JSON.stringify(['dateStart', 'dateEnd', 'flexibleDates', 'travelers', 'finalDestination'].map(key => value?.[key]));
 
 export function PlanConversation({ selected, api, onExpired, onBack, onCanvas }) {
   const [messages, setMessages] = useState([]);
@@ -48,6 +50,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   const [review, setReview] = useState(null);
   const [returningToDetails, setReturningToDetails] = useState(false);
   const returnPending = useRef(false);
+  const [flightPreview, setFlightPreview] = useState(null);
   const history = useRef(null);
   const composer = useRef(null);
   const composerBox = useRef(null);
@@ -79,7 +82,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
 
   useEffect(() => {
     let mounted = true;
-    setMessages([]); setError(''); setLoading(true); setActive(null); setReview(null); setReturningToDetails(false); returnPending.current = false;
+    setMessages([]); setError(''); setLoading(true); setActive(null); setReview(null); setReturningToDetails(false); returnPending.current = false; setFlightPreview(null);
     api.conversationMessages({ plan_id: planId }).then(result => {
       if (mounted) setMessages(Array.isArray(result) ? result.map(hydrateMessage) : []);
     }).catch(err => {
@@ -87,7 +90,11 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
       if (err.status === 401) onExpiredRef.current();
       else setError(err.message || 'Could not load this conversation.');
     }).finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; activeRef.current?.controller.abort(); activeRef.current = null; };
+    return () => {
+      mounted = false;
+      const turn = activeRef.current; activeRef.current = null;
+      if (turn) { turn.controller.abort(); api.cancelAgentTurn?.({ plan_id: planId }, turn.eventId).catch(() => {}); }
+    };
   }, [api, planId]);
 
   useEffect(() => {
@@ -104,8 +111,9 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
     const timestamp = new Date().toISOString();
     const controller = new AbortController();
     const surfaceMessages = [];
+    let pendingFlight = null;
     activeRef.current = { eventId, assistantId, controller, stopped: false };
-    setActive({ eventId, assistantId }); setError('');
+    setActive({ eventId, assistantId }); setError(''); setFlightPreview(null);
     setMessages(current => [...current, { client_id: `user-${eventId}`, message_id: `user-${eventId}`, event_id: `${eventId}:user`, role: 'user', content: message, status: 'complete', created_at: timestamp }]);
     setMessages(current => [...current, { client_id: assistantId, message_id: assistantId, event_id: `${eventId}:assistant`, role: 'assistant', content: '', status: 'streaming', sources: [], created_at: timestamp }]);
     try {
@@ -113,7 +121,12 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
       const result = await api.agentTurnStream(selected, message, eventId, {
         signal: controller.signal,
         onEvent(event) {
-          if (activeRef.current?.eventId !== eventId) return;
+          if (activeRef.current?.eventId !== eventId || activeRef.current.stopped) return;
+          if (event.type === 'STATE_SNAPSHOT' && event.snapshot?.flight_preview) {
+            const parsed = researchFlightSchema.safeParse(event.snapshot.flight_preview);
+            if (!parsed.success) throw new Error('Flight previews could not be displayed. Please search again in Research chat.');
+            pendingFlight = parsed.data;
+          }
           if (event.type === 'CUSTOM' && event.name === 'a2ui') {
             surfaceMessages.push(event.value);
           } else if (event.type === 'STATE_SNAPSHOT') {
@@ -130,12 +143,18 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
         },
       });
       if (activeRef.current?.eventId !== eventId) return;
+      if (activeRef.current.stopped) { updateMessage(assistantId, { status: 'stopped' }); return; }
+      if (pendingFlight && !activeRef.current.stopRequested && ['complete', 'needs your input'].includes(result?.status)) {
+        if (pendingFlight.plan_id !== planId || pendingFlight.generation !== result.generation) throw new Error('These flight results are no longer current. Search again in Research chat.');
+        setFlightPreview({ assistantId, snapshot: pendingFlight, context: flightContext(brief.context) });
+        updateMessage(assistantId, { hasFlightPreview: true });
+      }
       if (result?.sources?.length) updateMessage(assistantId, { sources: safeSources(result.sources) });
       if (result?.status) updateMessage(assistantId, { status: ['needs your input', 'shortlist_ready'].includes(result.status) ? 'complete' : result.status === 'error' ? 'interrupted' : result.status });
     } catch (err) {
       if (activeRef.current?.eventId !== eventId) return;
       const stopped = activeRef.current?.eventId === eventId && activeRef.current.stopped;
-      if (err.status === 401) onExpiredRef.current();
+      if (err.status === 401) { setFlightPreview(null); onExpiredRef.current(); }
       if (stopped || err.name === 'AbortError') updateMessage(assistantId, { status: 'stopped' });
       else {
         updateMessage(assistantId, { status: 'interrupted' });
@@ -161,11 +180,14 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
   async function stop() {
     const turn = activeRef.current;
     if (!turn) return;
+    turn.stopRequested = true;
+    setFlightPreview(null);
     setActive(current => current ? { ...current, stopping: true } : current);
     try {
       if (api.cancelAgentTurn) {
         const result = await api.cancelAgentTurn(selected, turn.eventId);
         if (result?.cancelled === false) {
+          turn.stopRequested = false;
           setActive(current => current ? { ...current, stopping: false } : current);
           return;
         }
@@ -227,6 +249,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
             {active?.assistantId === item.client_id && !item.content && <div className="research-reply-pending" aria-hidden="true"><span/><span/><span/></div>}
             <SourceLinks sources={item.sources} />
             {item.role === 'assistant' && item.status === 'complete' && onCanvas && <ResearchDraftOffer offer={item.research_offer} current={offers.snapshot?.offer} revision={brief.revision} disabled={unavailable || !offers.eligible} onReview={openReview} onDefer={offer => { void offers.defer(offer).catch(() => {}); }} />}
+            {item.hasFlightPreview && <ResearchFlightPreview snapshot={flightPreview?.assistantId === item.client_id && flightPreview.context === flightContext(brief.context) ? flightPreview.snapshot : null}/>}
             {['stopped', 'interrupted'].includes(item.status) && <p className="chat-message-status">{item.status === 'stopped' ? 'Stopped' : 'Interrupted'}</p>}
             {retryMessage && !active && <button className="chat-retry" onClick={() => retry(retryMessage)}>Retry</button>}
           </div>

@@ -26,10 +26,6 @@ class ConversationNode:
                 "turn_decision": "respond",
             }
 
-        complete = getattr(self.model, "complete_conversation", None)
-        if complete is None:
-            raise ValueError("Chat client is not configured")
-
         context = TurnContext(
             traveler_scope=str(state["traveler_scope"]),
             plan_id=str(state["plan_id"]),
@@ -43,6 +39,13 @@ class ConversationNode:
             research_readiness=state.get("research_readiness"),
             research_deferred=state.get("research_deferred", False),
         )
+        from ...research_flights import flight_preview_requested, preview_flights
+        if flight_preview_requested(message, context):
+            return await preview_flights(message, context)
+
+        complete = getattr(self.model, "complete_conversation", None)
+        if complete is None:
+            raise ValueError("Chat client is not configured")
         result = await complete(
             message=message,
             context=context,

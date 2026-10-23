@@ -18,6 +18,19 @@ _TRAVELER_PROFILE: ContextVar[dict[str, Any] | None] = ContextVar(
     "travella_agent_traveler_profile", default=None
 )
 
+_TRAVEL_RESULTS: ContextVar[list | None] = ContextVar("travella_travel_results", default=None)
+
+def bind_travel_results(value):
+    return _TRAVEL_RESULTS.set(value)
+
+def reset_travel_results(token):
+    _TRAVEL_RESULTS.reset(token)
+
+def collect_travel_results(value):
+    collector = _TRAVEL_RESULTS.get()
+    if collector is not None:
+        collector.extend(value)
+
 
 def current_traveler_profile() -> dict[str, Any]:
     """Return ephemeral verified profile context without checkpointing it."""

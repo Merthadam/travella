@@ -20,6 +20,7 @@ class AgentState(TypedDict, total=False):
     canvas_draft: dict[str, Any] | None
     canvas_edit: dict[str, Any] | None
     canvas_edit_result: dict[str, Any] | None
+    research_flights: bool
     generation_messages: list[dict[str, Any]]
     generation_cutoff: int
     context_revision: int

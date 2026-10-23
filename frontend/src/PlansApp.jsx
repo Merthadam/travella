@@ -56,6 +56,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const inactiveView = useRef(inactive);
   inactiveView.current = inactive;
   const initialized = useRef(false);
+  const mountedRoute = useRef(window.location.pathname);
   const [view, setView] = useState('active'), [plans, setPlans] = useState([]), [selected, setSelected] = useState(null);
   const [cursor, setCursor] = useState(null), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [notice, setNotice] = useState(''), [dialog, setDialog] = useState(null);
@@ -142,7 +143,11 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     if (err.status === 401) { generation.current++; onExpired(); return; }
     setError({ message: err.message || 'We couldn’t load your plans. Try again.', retry });
   }
-  function url(path) { if (!inactiveView.current && window.location.pathname !== path) window.history.pushState({ accountPosition: (window.history.state?.accountPosition || 0) + 1 }, '', path); }
+  function url(path) {
+    if (inactiveView.current) return;
+    if (window.location.pathname !== path) window.history.pushState({ accountPosition: (window.history.state?.accountPosition || 0) + 1 }, '', path);
+    mountedRoute.current = path;
+  }
   async function load(nextView = 'active', nextCursor = null) {
     if (!leaveCanvas()) return;
     const ticket = ++generation.current;
@@ -254,7 +259,14 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     return () => window.removeEventListener('keydown', handleDrawerKeys);
   }, [planDrawerOpen]);
   useEffect(() => {
-    function navigate() { if (inactiveView.current || location.pathname === '/account') return; initialized.current = true; const current = route(); if (current.id) open(current.id, false); else load(current.view); }
+    function navigate(event) {
+      if (inactiveView.current || location.pathname === '/account') return;
+      // Canvas owns same-route view history. Do not depend on child listener
+      // ordering to prevent a Plan reload and its unsaved-changes guard.
+      if (event && location.pathname === mountedRoute.current) return;
+      initialized.current = true;
+      const current = route(); if (current.id) open(current.id, false); else load(current.view);
+    }
     navigate(); window.addEventListener('popstate', navigate);
     return () => { generation.current++; window.removeEventListener('popstate', navigate); };
   }, []);

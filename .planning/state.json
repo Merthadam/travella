@@ -64,6 +64,11 @@
       "status": "in_progress"
     },
     {
+      "number": "16",
+      "name": "Date-gated travel previews and booking navigation",
+      "status": "complete"
+    },
+    {
       "number": "17",
       "name": "Research phase cleanup",
       "status": "in_progress"

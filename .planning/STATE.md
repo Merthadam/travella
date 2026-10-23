@@ -11,9 +11,9 @@ state_head: 8f0a2f637e52c87aa3cafa004a29c5da7b189e65
 progress:
   total_phases: 17
   completed_phases: 1
-  total_plans: 55
-  completed_plans: 39
-  percent: 0
+  total_plans: 59
+  completed_plans: 50
+  percent: 85
 ---
 
 # Project State
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 17 — Research phase cleanup implemented; desktop UAT pending
+**Current focus:** Phase 17 — User approved merge; integrating with Phase 16 travel previews
 
 ## Current Position
 
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-23 — Completed quick task 261023-skp: top-right research brief and bottom composer; desktop browser checks and 30 focused tests passed. No merge/deploy.
+Last activity: 2026-10-23 — User approved main merge. Integrated phase 16 travel previews with research cleanup and verified combined frontend, Agent/gateway, PostgreSQL and Chrome paths. GitHub PR records final merge status; no deployment.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -38,11 +38,13 @@ Phase 14 studio appearance including booking states approved by user on 2026-10-
 
 Account settings: Phase 13 completed and merged in PR #3. DynamoDB profile storage remains a queued follow-up.
 
+Account scrolling follow-up (2026-10-16): viewport scrolling and focus restoration verified with 27 focused tests, build, desktop/mobile browser checks, and scoped security review; user approved merge via PR #10. Five broader AccountApp failures reproduce on unchanged HEAD. See `.planning/debug/account-settings-scroll.md` and `artifacts/testing/2026-10-16-account-scroll/verification.md`.
+
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
+- Total plans completed: 9
 - Average duration: —
 - Total execution time: 0.0 hours
 
@@ -52,6 +54,7 @@ Account settings: Phase 13 completed and merged in PR #3. DynamoDB profile stora
 |-------|-------|-------|----------|
 | 1–8 | 0 | TBD | — |
 | 13 | 5 | - | - |
+| 16 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -89,6 +92,7 @@ Account settings: Phase 13 completed and merged in PR #3. DynamoDB profile stora
 ### Roadmap Evolution
 
 - Phase 17 added and planned: Research phase cleanup, desktop only, five sequential waves; no automatic execution.
+- Phase 16 added: Date-gated travel previews and booking navigation; full GSD discussion, research, planning, implementation and verification requested. Separate booking LangGraph flow deferred.
 
 - Phase 13 added: Account settings and travel preferences; user selected C and requested GSD implementation.
 - Phase 15 added and planned: Bounded agentic canvas generation; approved layouts, bounded SDK self-review and explicit Save plan.
@@ -110,9 +114,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09
-Stopped at: Phase 15 implementation committed; live generation acceptance pending
-Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATION.md
+Last session: 2026-10-16T11:10:34.934Z
+Stopped at: Phase 16 complete, ready to plan Phase 1
+Resume file: None
 
 ### Frontend structure decision (2026-09-28)
 
@@ -124,6 +128,7 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261023-ssj | Integrate Research cleanup with current main and prepare authorized merge | 2026-10-23 | See branch merge commit | Verified; user authorized merge | [Task](quick/261023-ssj-integrate-research-cleanup-with-main-and/) |
 | 261023-skp | Top-right research brief and bottom composer | 2026-10-23 | d6abf21 | Desktop browser verified; 30 tests passed | [Task](quick/261023-skp-anchor-research-brief-at-progress-bar-an/) |
 | 261023-njb | Draggable desktop brief overlay with no conversation movement | 2026-10-23 | 1c3e236 | Verified prototype | [Task](quick/261023-njb-prototype-draggable-overlay-trip-brief-o/) |
 | 261023-nex | Foldable C brief and tighter collapsed spacing; desktop focus going forward | 2026-10-23 | 8361b7d | Verified prototype | [Task](quick/261023-nex-prototype-collapsible-trip-brief-in-c/) |
@@ -132,6 +137,8 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 | 261023-mt3 | Refine C: readiness and generation inside A2UI brief | 2026-10-23 | 6ab09f5 | Verified prototype; awaiting final selection | [Task](quick/261023-mt3-refine-prototype-c-with-readiness-and-ge/) |
 | 261023-mmu | Full-width research → draft state-bar prototypes with readiness | 2026-10-23 | 2f402a8 | Browser verified; awaiting design choice | [Task](quick/261023-mmu-prototype-full-width-research-to-draft-s/) |
 | 261016-rgd | Quiet Research/Canvas navigation and generation prototypes | 2026-10-16 | 5b5a31a | Preview verified; awaiting design choice | [Task](quick/261016-rgd-prototype-quieter-canvas-generation-and-/) |
+| 261016-qyh | Separate Research preview stack on port 5175; health/auth/source hashes verified; original stack preserved | 2026-10-16 | 74df777 (app source) | Complete | [Task](quick/261016-qyh-start-separate-research-preview-docker-s/) |
+| 261016-l5g | Research flight A2UI previews with date/party gates and no navigation; authenticated desktop/mobile verified | 2026-10-16 | 1dce695, d2f1723 | Complete; known unrelated profile test failure | [Task](quick/261016-l5g-research-chat-flight-previews-without-na/) |
 | 261016-h1a | Confirm flight needs during research; generate flights only for confirmed Yes | 2026-10-16 | e616d3b | Complete; two unrelated baseline test failures documented | [Task](quick/261016-h1a-confirm-flight-needs-during-research-and/) |
 | 261011-06a | Refined foldable Plan chat; 13 tests and browser checks passed; final fresh-login smoke returned 401 | 2026-10-11 | 8ada633 | UI verified; auth readiness unresolved | [Task](quick/261011-06a-refine-plan-side-chat-and-foldable-panel/) |
 | 261011-01s | Started local container; health, authentication, HTTP and source hashes passed | 2026-10-11 | f30a986 (app source) | Complete | [Task](quick/261011-01s-start-local-container-and-verify-authent/) |
@@ -192,6 +199,8 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 
 | 261011-01k | Approved quiet Plans drawer; 18 focused tests, build and authenticated desktop/mobile persistence checks passed; baseline suite debt documented | 2026-10-11 | See quick summary | Verified | [261011-01k](./quick/261011-01k-implement-selected-recent-first-plans-dr/) |
 
+| 261016-rxj | Searchable travel country/airline selectors and ten-result pages; 40 frontend + 8 SSE journeys, build and live desktop/mobile browser checks passed | 2026-10-16 | 4b47e53 | Verified | [261016-rxj](./quick/261016-rxj-searchable-travel-selectors-and-paginati/) |
+
 ### Roadmap Evolution — 2026-10-06
 
 - Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.
@@ -231,3 +240,10 @@ Resume file: .planning/phases/15-bounded-agentic-canvas-generation/15-VERIFICATI
 - PR #9: https://github.com/Merthadam/travella/pull/9 — approved recent-first drawer, inline title editing and trailing hover/focus trash with touch access. User explicitly requested merge into main.
 - Current main (2a47115) integrated; production auto-merged, both planning workstreams retained. 38 focused tests, production build, authenticated desktop/mobile rename/reload/delete checks and scoped security gate passed. Sequential full suite: 125 passed, six known AccountApp/TripBrief failures reproduced on main. Parallel runs additionally expose an unchanged canvas chat-fold timing failure; documented in quick verification.
 - Merge through GitHub after final PR state check; preserve other worktrees, Docker volumes and the running preview. Phase 15 acceptance status is unchanged. Evidence: `.planning/quick/261011-01k-implement-selected-recent-first-plans-dr/261011-01k-VERIFICATION.md`.
+
+### Travel previews and manual search shipment — 2026-10-16
+
+- PR #11: https://github.com/Merthadam/travella/pull/11 — Phase 16 travel tools/A2UI/manual handoff plus natural follow-ups, Research flight previews, searchable ten-result pagination and London flight recovery. User explicitly authorized merge into main.
+- Integrated main a99d35f; retained flight-need confirmation and conditional cards while allowing explicit read-only preview navigation. Source 8ce1419 passed 306 backend tests, 61 frontend tests, production build and authenticated Chrome verification. Twelve standalone fixture-dependent tests skipped; actual SSE→React journeys passed in the backend suite.
+- Live merged-source check returned 95 flight options, preloaded manual search correctly and preserved the saved Plan without a flight component. Test Plan cleanup verified. Evidence: artifacts/testing/2026-10-16-phase16-ship/verification.md. Phase verification fingerprint and security ship gate passed.
+- Merge through GitHub; preserve separate local main, other worktrees, unrelated caches and running Docker volumes. Phase 15 acceptance status remains unchanged.

@@ -51,11 +51,12 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwar
       onEvent({ type: event.type, messageId: String(event.messageId || '') });
     } else if (event.type === 'CUSTOM' && event.name === 'a2ui' && event.value && typeof event.value === 'object') {
       onEvent({ type: 'CUSTOM', name: 'a2ui', value: event.value });
-    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result || event.snapshot.research_offer)) {
-      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}), research_offer: researchOfferProjection(event.snapshot.research_offer), assistant_message_id: typeof event.snapshot.assistant_message_id === 'string' ? event.snapshot.assistant_message_id.slice(0, 100) : undefined } });
+    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result || event.snapshot.research_offer || event.snapshot.flight_preview)) {
+      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}), ...(event.snapshot.flight_preview ? { flight_preview: event.snapshot.flight_preview } : {}), research_offer: researchOfferProjection(event.snapshot.research_offer), assistant_message_id: typeof event.snapshot.assistant_message_id === 'string' ? event.snapshot.assistant_message_id.slice(0, 100) : undefined } });
     } else if (event.type === 'TERMINAL') {
       terminal = {
         type: 'TERMINAL',
+        generation: Number.isInteger(event.generation) ? event.generation : undefined,
         status: ['complete', 'needs your input', 'shortlist_ready', 'stopped', 'interrupted', 'error'].includes(event.status) ? event.status : 'error',
         sources: Array.isArray(event.sources) ? event.sources.slice(0, 5).map(source => ({ title: String(source?.title || '').slice(0, 120), url: String(source?.url || '').slice(0, 320) })) : [],
         message: typeof event.message === 'string' ? event.message.slice(0, 240) : undefined,
