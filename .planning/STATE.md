@@ -298,3 +298,9 @@ Resume file: None
 - User authorized implementation. Approved B globe / full-width C Research → Canvas now integrated in real full-plan generation and initial handoff, with validated current-run counts and hidden/inert workspace until terminal completion. This supersedes the earlier implementation deferral.
 - Source e6a04e4. 41 tests passed, one existing fixture skip; build, authenticated Chrome desktop/mobile, actual generation/save/reopen and error recovery verified. Live retry returned partial research and retained the saved plan; existing source-link key warning documented.
 - Local stack rebuilt from this checkout at http://localhost:5174; source hashes match. Evidence: artifacts/testing/2026-10-23-canvas-loader/verification.md. No push/merge.
+
+### Canvas loader shipment — 2026-10-24
+
+- User explicitly authorized merging prototype/canvas-globe-loading-20261023 despite remaining unspecified polish issues. Scope includes the approved themed globe loader, destination-only readiness with explicit flight confirmation, closed-chat plan scrolling and animated sidebar reveal.
+- Source 74d4567 is verified by the production loader, destination-only, loader-themes and canvas-scroll-chat reports under artifacts/testing. Scoped shipping security review: .planning/quick/261024-canvas-loader-ship/SECURITY.md, threats_open: 0. No source edits during shipping.
+- Ship through a GitHub PR into main and retain remaining polish for follow-up. Preserve the dirty separate main worktree and running local stack. This shipment does not assert completion of Phase 17 acceptance.
