@@ -226,6 +226,14 @@ Resume file: None
 | 261024-kvh | Selected A with Google destination photos and Research to Canvas; browser and build verified; prototype only | 2026-10-24 | bce9c01 | — | [261024-kvh-refine-selected-journal-with-generated-p](./quick/261024-kvh-refine-selected-journal-with-generated-p/) |
 | 261024-l9g | Implement approved plans journal: inline Enter rename, small trash, automatic titles, Google photos; browser/API/build verified | 2026-10-24 | b388db6 | — | [261024-l9g-implement-approved-plans-journal-with-in](./quick/261024-l9g-implement-approved-plans-journal-with-in/) |
 
+| 261024-hw3 | Three account menu prototypes; Chrome desktop/mobile verified; user selection pending | 2026-10-24 | 8133377 | — | [261024-hw3-prototype-three-account-menu-header-opti](./quick/261024-hw3-prototype-three-account-menu-header-opti/) |
+| 261024-i0v | User selected account menu B; decision recorded | 2026-10-24 | de8bb21 | — | [261024-i0v-record-selected-account-menu-prototype-b](./quick/261024-i0v-record-selected-account-menu-prototype-b/) |
+| 261024-ip3 | Implemented account menu B; 36 focused tests and browser checks passed; baseline AccountApp failures documented | 2026-10-24 | c8c2ca0 | — | [261024-ip3-implement-selected-avatar-account-dropdo](./quick/261024-ip3-implement-selected-avatar-account-dropdo/) |
+| 261024-jr6 | Three login redesign prototypes browser verified; production selection pending | 2026-10-24 | e29ed97 | — | [261024-jr6-redesign-account-access-screens-preservi](./quick/261024-jr6-redesign-account-access-screens-preservi/) |
+| 261024-kbs | Refine selected login A: night mode, natural recovery and inline errors; browser verified prototype | 2026-10-24 | 4befe42 | — | [261024-kbs-refine-login-prototype-a-with-night-mode](./quick/261024-kbs-refine-login-prototype-a-with-night-mode/) |
+| 261024-ko9 | Simplify login globe and remove prototype viewport cutoff; browser verified | 2026-10-24 | 8d4111f | — | [261024-ko9-simplify-selected-login-a-globe-illustra](./quick/261024-ko9-simplify-selected-login-a-globe-illustra/) |
+| 261024-lb5 | Implement approved full-screen login A; 52 tests and real authentication browser checks passed | 2026-10-24 | 63bec5d | — | [261024-lb5-implement-approved-full-screen-login-a-d](./quick/261024-lb5-implement-approved-full-screen-login-a-d/) |
+
 ### Roadmap Evolution — 2026-10-06
 
 - Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.
@@ -351,3 +359,20 @@ Resume file: None
 - User requested smoother inline renaming. Source `12dba91` preserves title typography, card position, keyboard focus and search visibility; Enter saves, Escape/click-away cancel, unchanged names avoid writes.
 - 24 focused tests, build, authenticated real rename/readback/reload, zero-shift desktop/mobile measurements, light/dark visual checks and generated-photo stability passed. Task-owned records cleaned up. Rebuilt runtime hashes match.
 - Resolved debug: `.planning/debug/resolved/journal-rename-smoothness.md`. Evidence: `artifacts/testing/2026-10-24-rename-smoothness/verification.md`. Canonical http://localhost:5174/plans ready; no push/merge.
+
+### Account menu design selection — 2026-10-24
+
+- User selected **B — Avatar & account card** (“b is perfect”). Compact upper-right avatar opens the account card with Account settings and Sign out.
+- Decision: `.planning/quick/261024-hw3-prototype-three-account-menu-header-opti/DECISION.md`. Source: `prototype/account-menu-20261024`. Existing desktop/mobile browser evidence remains applicable. Production integration pending.
+
+### Account menu implementation — 2026-10-24
+
+- User requested implementation of selected B. Shared avatar/account card now uses real account and guarded logout handlers across Plans and Account. Prototype source retained on prototype/account-menu-20261024; runtime prototype wiring removed.
+- Keyboard/focus, busy/error recovery, draft preservation, real logout/login, desktop/mobile/themes and research-brief layering verified. 36 focused tests and build passed; five existing AccountApp failures reproduced on baseline, seven AccountApp tests passed.
+- Evidence: `artifacts/testing/2026-10-24-account-menu-implementation/verification.md`. Local preview: http://localhost:5188/plans. No push/merge/deployment. Supersedes earlier production-integration pending status.
+
+### Login redesign exploration — 2026-10-24
+
+- User requested a redesigned login with existing functionality. Built A split welcome, B quiet centered form and C workspace navigation rail on dev-only account-access prototype query. Original auth handlers unchanged.
+- Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
+- Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.

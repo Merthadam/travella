@@ -63,11 +63,13 @@ test('account suspension preserves the selected Plan and its unsent composer', a
   const getCount = api.get.mock.calls.length;
   history.pushState({}, '', '/account');
   view.rerender(<PlansApp {...props} inactive />);
+  expect(screen.queryByRole('button', { name: /^Trip brief,/ })).toBeNull();
   window.dispatchEvent(new PopStateEvent('popstate'));
   expect(api.get).toHaveBeenCalledTimes(getCount);
   history.pushState({}, '', `/plans/${id}`);
   view.rerender(<PlansApp {...props} inactive={false} />);
   expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Unsent question');
+  expect(screen.getByRole('button', { name: /^Trip brief,/ })).toBeTruthy();
   expect(api.get).toHaveBeenCalledTimes(getCount);
 });
 
