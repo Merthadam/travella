@@ -359,6 +359,7 @@ test('folding chat preserves its draft and restores keyboard focus without savin
   await user.type(message, 'Keep this question for later');
   await user.click(screen.getByRole('button', { name: 'Collapse plan chat' }));
   expect(screen.queryByRole('textbox', { name: 'Message Travella' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'Plan content' }).tabIndex).toBe(0);
   const expand = screen.getByRole('button', { name: 'Expand plan chat' });
   await waitFor(() => expect(document.activeElement).toBe(expand));
   expect(expand.getAttribute('aria-expanded')).toBe('false');
@@ -419,6 +420,7 @@ test('full generation hides the mounted workspace until the terminal result and 
   await act(async () => stream.finish({ status: 'complete' }));
   expect(screen.queryByRole('region', { name: 'Generating your plan' })).toBeNull();
   expect(workspace.hidden).toBe(false);
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Plan content' })));
   expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Keep this unsent question');
   expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(false);
   expect(stream.api.saveCanvas).not.toHaveBeenCalled();
