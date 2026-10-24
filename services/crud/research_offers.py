@@ -82,7 +82,7 @@ class ResearchOfferRepository:
         snapshot = ResearchContextRepository(self.plans).snapshot(subject, plan_id)
         snapshot.research_entry_required = self._entry_required(subject, plan_id)
         priorities, meanings = self._priorities(subject, plan_id, snapshot.context)
-        readiness = assess_research_readiness(snapshot.context, has_priorities=bool(priorities), locked=snapshot.locked)
+        readiness = assess_research_readiness(snapshot.context, locked=snapshot.locked)
         # Optional budget/flight edits stale review via revision, not invitation identity.
         ctx = snapshot.context
         identity = [ctx.finalDestination, ctx.dateStart, ctx.dateEnd, ctx.flexibleDates, ctx.travelers, meanings]

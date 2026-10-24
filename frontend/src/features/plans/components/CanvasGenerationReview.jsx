@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { flightNeedConfirmed } from '../flightNeeds';
+import { destinationConfirmed } from '../generationRequirements';
 import './canvas-generation-review.css';
 
 export function PlanStages({ canvas = false }) {
@@ -10,6 +11,7 @@ export function CanvasGenerationReview({ context, replacing = false, cancelLabel
   const dialog = useRef(null);
   const submitted = useRef(false);
   const [flights, setFlights] = useState(flightNeedConfirmed(context) ? context.flights : '');
+  const destinationReady = destinationConfirmed(context);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const returnFocus = useRef(document.activeElement);
@@ -28,7 +30,7 @@ export function CanvasGenerationReview({ context, replacing = false, cancelLabel
     ['Accommodation', need(context.accommodation)],
   ];
   async function confirm() {
-    if (submitted.current || !flights) return;
+    if (submitted.current || !flights || !destinationReady) return;
     submitted.current = true; setPending(true); setError('');
     try { await onConfirm(flights); }
     catch (error) { setError(error.message || 'Your flight choice could not be confirmed. Try again.'); }
@@ -37,7 +39,7 @@ export function CanvasGenerationReview({ context, replacing = false, cancelLabel
   return <dialog ref={dialog} className="canvas-generation-review" aria-labelledby="generation-review-title" aria-describedby="generation-review-description" onCancel={event => { event.preventDefault(); if (!pending) onCancel(); }}>
     <p className="generation-review-kicker">RESEARCH → PLANNING CANVAS</p>
     <h2 id="generation-review-title">Ready to generate your plan?</h2>
-    <p id="generation-review-description">Check your trip details and confirm whether you need flights.</p>
+    <p id="generation-review-description">Your destination is set. Confirm whether you need flights; other details can stay undecided.</p>
     <dl>{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     <fieldset className="generation-flight-choice" disabled={pending} aria-describedby="flight-choice-help">
       <legend>Do you need flights for this trip?</legend>
@@ -45,9 +47,10 @@ export function CanvasGenerationReview({ context, replacing = false, cancelLabel
       <label><input type="radio" name="generation-flights" value="not-needed" checked={flights === 'not-needed'} onChange={() => setFlights('not-needed')}/> No, leave flights out</label>
       <p id="flight-choice-help">{!flights ? 'Choose one to continue. ' : ''}Other undecided details can stay open.</p>
     </fieldset>
+    {!destinationReady && <p role="alert">Confirm a destination in your trip details before generating.</p>}
     {replacing && <p className="generation-review-warning">New results replace generated sections and edits in those sections. Your essentials and saved map places stay in the draft.</p>}
     <p className="generation-review-note">This creates a draft canvas. You’ll review it before choosing Save plan.</p>
     {error && <p role="alert">{error} You can return to trip details to review the latest version.</p>}
-    <div className="generation-review-actions"><button type="button" autoFocus disabled={pending} onClick={onCancel}>{cancelLabel}</button><button type="button" className="primary" disabled={!flights || pending} onClick={confirm}>{pending ? 'Confirming flights…' : 'Confirm & generate'}</button></div>
+    <div className="generation-review-actions"><button type="button" autoFocus disabled={pending} onClick={onCancel}>{cancelLabel}</button><button type="button" className="primary" disabled={!destinationReady || !flights || pending} onClick={confirm}>{pending ? 'Confirming flights…' : 'Confirm & generate'}</button></div>
   </dialog>;
 }

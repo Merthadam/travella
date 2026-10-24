@@ -54,16 +54,16 @@ def test_read_is_side_effect_free_and_missing_fields_fail_closed(system):
     empty = system.client.get(path + "/research-offer")
     assert empty.status_code == 200
     assert empty.json()["readiness"] == {"eligible": False, "reasons": [
-        "destination_required", "timing_required", "travelers_required", "priorities_required"]}
+        "destination_required"]}
     assert system.client.get(path + "/research-offer").json() == empty.json()
     with system.factory() as db:
         assert db.scalar(select(func.count()).select_from(ResearchDraftOffer)) == 0
         assert db.get(ResearchContext, UUID(plan["plan_id"])) is None
     assert edit(system, path, 1, finalDestination="Rome").status_code == 200
-    assert not system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
+    assert system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
     assert edit(system, path, 2, flexibleDates=True, travelers=2).status_code == 200
-    assert system.client.get(path + "/research-offer").json()["readiness"]["reasons"] == ["priorities_required"]
-    assert action(system, path, 3, "request_review").status_code == 409
+    assert system.client.get(path + "/research-offer").json()["readiness"]["reasons"] == []
+    assert action(system, path, 3, "request_review").status_code == 200
 
 
 def test_ready_without_optional_fields_and_persistent_defer_manual_review(system):
@@ -190,12 +190,12 @@ def test_wrong_owner_invalid_missing_and_lifecycle(system):
         assert db.scalar(select(func.count()).select_from(ResearchDraftOffer)) == 0
 
 
-def test_contradicted_priorities_and_changed_destination_remove_readiness(system):
+def test_contradicted_priorities_do_not_block_destination_readiness(system):
     _, path, revision, _ = ready(system)
     complete(system, path, revision, message="No flights, please.")
     assert system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
     complete(system, path, revision, message="We are unsure about our priorities.")
-    assert not system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
+    assert system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
 
 
 def test_generic_activity_question_cannot_establish_traveler_priorities(system):
@@ -208,8 +208,8 @@ def test_generic_activity_question_cannot_establish_traveler_priorities(system):
             "intent": "offer", "priority_message_ids": ["current"]})
         assert response.status_code == 200
         assert response.json()["research_offer"] is None
-        assert system.client.get(path + "/research-offer").json()["readiness"]["reasons"] == ["priorities_required"]
-    assert action(system, path, 2, "request_review").status_code == 409
+        assert system.client.get(path + "/research-offer").json()["readiness"]["reasons"] == []
+    assert action(system, path, 2, "request_review").status_code == 200
 
 
 def test_negated_full_request_cannot_be_reenabled_by_positive_substring(system):
@@ -245,7 +245,7 @@ def test_current_priority_contradiction_overrides_older_explicit_brief(system):
     assert system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
     system.current[0] += timedelta(seconds=1)
     complete(system, path, revision, message="No museums or architecture; our interests are undecided.")
-    assert system.client.get(path + "/research-offer").json()["readiness"]["reasons"] == ["priorities_required"]
+    assert system.client.get(path + "/research-offer").json()["readiness"]["reasons"] == []
 
 
 def test_initial_preferences_survive_first_destination_confirmation(system):
@@ -258,7 +258,7 @@ def test_initial_preferences_survive_first_destination_confirmation(system):
     assert system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
     system.current[0] += timedelta(seconds=1)
     assert edit(system, path, 2, finalDestination="Paris").status_code == 200
-    assert not system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
+    assert system.client.get(path + "/research-offer").json()["readiness"]["eligible"]
 
 
 def test_begin_policy_and_cancelled_launch_require_live_owned_lease(system):
@@ -316,3 +316,37 @@ def test_postgres_offer_http_persistence_and_additive_migration(postgres_engine,
         assert result.status_code == 200 and result.json()["offer"] is None
         assert result.json()["context"]["finalDestination"] == "Rome"
         assert restarted.get(path).json()["plan_id"] == plan["plan_id"]
+
+
+def test_destination_only_review_asks_for_flights_then_issues_exact_receipt(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}"
+    destination = edit(system, path, 1, finalDestination="Lisbon")
+    assert destination.status_code == 200
+    snapshot = system.client.get(path + "/research-offer").json()
+    assert snapshot["readiness"] == {"eligible": True, "reasons": []}
+    original = snapshot["context"]
+    assert original["travelers"] is None and original["dateStart"] == ""
+    assert not original["flexibleDates"] and original["flights"] == "undecided"
+    review = action(system, path, 2, "request_review").json()
+    assert action(system, path, 2, "confirm", review["offer"]["id"]).status_code == 409
+    chosen = edit(system, path, 2, flights="not-needed")
+    assert chosen.status_code == 200
+    review = action(system, path, 3, "request_review").json()
+    confirmed = action(system, path, 3, "confirm", review["offer"]["id"])
+    assert confirmed.status_code == 200
+    request = str(uuid4())
+    begin = system.client.post(path + "/research-context/run", json={"event_id": request, "action": "begin"})
+    assert begin.status_code == 200
+    consumed = system.client.post(path + "/research-offer/consume", json={
+        "receipt": confirmed.json()["research_entry_receipt"], "request_id": request, "revision": 3})
+    assert consumed.status_code == 200 and consumed.json()["accepted"] is True
+    assert system.client.post(path + "/research-context/run", json={"event_id": request, "action": "cancel"}).status_code == 200
+    # Re-read persisted context: confirmation changed only the explicit flight choice.
+    current = system.client.get(path + "/research-context").json()["context"]
+    for field in original:
+        if field not in {"flights", "provenance"}:
+            assert current[field] == original[field]
+    assert current["flights"] == "not-needed"
+    assert current["provenance"]["flights"]["source"] == "user_edit"
+    assert system.client.get(path + "/canvas").json()["snapshot"] is None

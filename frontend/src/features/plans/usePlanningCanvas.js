@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
 import { definitions, ids } from '../../design-system/schemas';
 import { flightNeedConfirmed } from './flightNeeds';
+import { destinationConfirmed } from './generationRequirements';
 
 const groupIds = { themes: ['themes'], research: ['findings', 'links'], all: ids };
 const clone = value => structuredClone(value);
@@ -182,6 +183,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       if (active.current !== run || epoch.current !== currentEpoch) return;
       if (currentContext.locked) throw new Error('Trip details are being updated. Wait for the reply to finish, then review again.');
       if (reviewedRevision !== undefined && currentContext.revision !== reviewedRevision) throw new Error('Trip details changed after your review. Review them again before generating.');
+      if (!destinationConfirmed(currentContext.context)) throw new Error('Confirm a destination before generating your plan.');
       if (!flightNeedConfirmed(currentContext.context)) throw new Error('Confirm whether you need flights using Generate plan before generating sections.');
       setMapDestinationHint(mapHint(currentContext.context));
       if ((staleContext || currentContext.revision !== base.current.context_revision) && group !== 'all') { setStaleContext(true); throw new Error('The conversation changed. Regenerate the full plan to review the updated trip details.'); }

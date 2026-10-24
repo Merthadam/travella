@@ -3,7 +3,7 @@ import { requestId } from '../../plansApi';
 import { confirmFlightNeed } from './flightNeeds';
 
 const staleMessage = 'Your trip details changed. Review the latest version.';
-const missingDetail = { destination_required: 'Choose a destination.', timing_required: 'Add dates or choose flexible dates.', travelers_required: 'Add the number of travelers.', priorities_required: 'Tell Travella what matters most for this trip.', context_locked: 'Wait for the current reply to finish.' };
+const missingDetail = { destination_required: 'Confirm a destination.', context_locked: 'Wait for the current reply to finish.' };
 const stale = () => new Error(staleMessage);
 const withoutFlights = context => ({ ...context, flights: undefined, provenance: { ...context.provenance, flights: undefined } });
 const comparable = value => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
@@ -71,7 +71,7 @@ export function useResearchOffer(api, planId, revision, onExpired) {
       const latest = await refresh();
       if (!latest) return null;
       if (offer && (offer.id !== latest.offer?.id || offer.revision !== latest.revision)) throw stale();
-      if (!latest.readiness?.eligible || latest.locked) throw new Error('Keep shaping your trip essentials before reviewing a draft.');
+      if (!latest.readiness?.eligible || latest.locked) throw new Error('Confirm a destination before reviewing a draft.');
       const result = await action('request_review', latest.revision, offer?.id);
       return structuredClone(result);
     });
@@ -106,7 +106,7 @@ export function useResearchOffer(api, planId, revision, onExpired) {
   }
 
   const isStale = snapshot && snapshot.revision !== revision;
-  const readiness = error || (loading ? 'Checking draft readiness…' : isStale ? staleMessage : snapshot?.deferred ? 'We’ll keep researching. You can review a draft from your Trip brief when you’re ready.' : snapshot?.readiness?.eligible ? 'Ready to review a draft.' : 'Your draft comes next. Let’s shape the essentials first.');
+  const readiness = error || (loading ? 'Checking draft readiness…' : isStale ? staleMessage : snapshot?.deferred ? 'We’ll keep researching. You can review a draft from your Trip brief when you’re ready.' : snapshot?.readiness?.eligible ? 'Ready to review a draft.' : 'Confirm a destination to create your draft. Other trip details can stay undecided.');
   async function retry() {
     const generation = epoch.current;
     setLoading(true);

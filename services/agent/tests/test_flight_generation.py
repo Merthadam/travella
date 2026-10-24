@@ -9,9 +9,9 @@ from services.agent.graph.nodes.canvas_generation import CanvasGenerationNode
 
 
 def context(need, source=None):
-    return {"flights": need, "provenance": {"flights": {
+    return {"finalDestination": "Lisbon", "candidates": ["Lisbon"], "flights": need, "provenance": {"finalDestination": {"source": "user_edit", "updated_at": "2026-10-24T06:00:00Z"}, **({"flights": {
         "source": source, "updated_at": "2026-10-16T10:00:00Z",
-    }} if source else {}}
+    }} if source else {})}}
 
 
 @pytest.mark.parametrize("need,source,included", [
@@ -54,3 +54,18 @@ def test_confirmed_generation_emits_expected_components(need, included):
     assert result["canvas_draft"]["group_status"] == {"themes": "ready", "research": "ready"}
     assert ("flights" in result["canvas_draft"]["components"]) is included
 
+
+
+@pytest.mark.parametrize("destination,source", [("", None), ("Lisbon", None), ("Lisbon", "agent_inferred"), ("Lisbon", "memory")])
+def test_generation_requires_a_traveler_confirmed_destination(destination, source):
+    trip = context("not-needed", "user_edit")
+    trip["finalDestination"] = destination
+    trip["provenance"].pop("finalDestination")
+    if source:
+        trip["provenance"]["finalDestination"] = {"source": source, "updated_at": "2026-10-24T06:00:00Z"}
+    worker, research = AsyncMock(), AsyncMock()
+    result = asyncio.run(CanvasGenerationNode(worker, research)({"canvas_action": "generate_plan", "trip_context": trip}))
+    assert result["status"] == "unable to continue"
+    assert "Confirm a destination" in result["error"]
+    worker.run.assert_not_called()
+    research.run.assert_not_called()

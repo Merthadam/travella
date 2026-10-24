@@ -22,7 +22,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-const confirmedFlights = { flights: 'needed', provenance: { flights: { source: 'user_edit', updated_at: '2026-10-16T10:00:00Z' } } };
+const confirmedFlights = { finalDestination: 'Milan', flights: 'needed', provenance: { finalDestination: { source: 'user_edit' }, flights: { source: 'user_edit', updated_at: '2026-10-16T10:00:00Z' } } };
 function setup() {
   const api = {
     canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, snapshot: null })),
