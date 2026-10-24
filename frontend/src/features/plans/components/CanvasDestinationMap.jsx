@@ -27,7 +27,7 @@ async function geocode(request) {
 }
 
 export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect, fitRequest = 0, onShowAll, active = true, editing = false }) {
-  const { preview, destinationHint, onClearPreview, onSearchArea, onAddPreview, disabled, viewStateKey } = useContext(CanvasMapContext);
+  const { preview, destinationHint, onClearPreview, onAddPreview, disabled, viewStateKey } = useContext(CanvasMapContext);
   const { theme } = useAppearance();
   const canvas = useRef(null);
   const usableDestination = destination || destinationHint || '';
@@ -48,7 +48,6 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   const [candidates, setCandidates] = useState([]);
   const [resolved, setResolved] = useState(null);
   const [mapError, setMapError] = useState(false);
-  const [bounds, setBounds] = useState(null);
   // A single stated candidate may frame the map without choosing it for the Plan.
 
   useEffect(() => {
@@ -116,7 +115,6 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   useEffect(() => {
     if (!runtime) return;
     const listener = runtime.map.addListener('idle', () => {
-      setBounds(runtime.map.getBounds()?.toJSON() || null);
       const viewport = { center: runtime.map.getCenter()?.toJSON(), zoom: runtime.map.getZoom(), signature: currentView.current.signature };
       if (validViewport(viewport)) { mapView.current = viewport; writeCanvasView(currentView.current.viewStateKey, { viewport }); }
     });
@@ -185,6 +183,6 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
       {(error || mapError) && <button type="button" className="ds-button small" onClick={() => setAttempt(value => value + 1)}>Retry map</button>}
     </div>}
     {preview && <div className="canvas-map-preview"><div><strong>{preview.name}</strong><small>{places.some(place => place.id === preview.id) ? 'In your draft' : 'Preview only · not added to your draft'}</small>{preview.editorial_summary && <div className="places-provider-description"><small>Description from Google Maps</small><p lang={preview.editorial_summary_language || undefined}>{preview.editorial_summary}</p></div>}</div><div className="places-actions">{preview.website && <a className="ds-button small" href={preview.website} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${preview.name} website`}>Website ↗</a>}{onAddPreview && !places.some(place => place.id === preview.id) && <button type="button" className="ds-button small" disabled={disabled} onClick={() => onAddPreview(preview)}>Add to plan</button>}<button type="button" className="ds-text-button" onClick={onClearPreview}>Close preview</button></div></div>}
-    <div className="canvas-map-tools"><button type="button" className="ds-text-button" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}>Show all places</button>{onSearchArea && <button type="button" className="ds-button small" disabled={!bounds || disabled} onClick={() => onSearchArea(bounds)}>Search this map area</button>}</div>
+    <div className="canvas-map-tools"><button type="button" className="ds-text-button" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}>Show all places</button></div>
   </div>;
 }
