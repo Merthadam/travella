@@ -186,7 +186,7 @@ test('transient session failure preserves editor and expiry rejects late save', 
   fetch.mockImplementation(path => path.endsWith('/sections') ? new Promise(resolve => { finish = resolve; }) : Promise.resolve(response(401, {})));
   await user.click(screen.getByRole('button', { name: 'Save changes' }));
   act(() => window.dispatchEvent(new Event('focus')));
-  await screen.findByRole('heading', { name: 'Welcome back' });
+  await screen.findByRole('heading', { name: 'Welcome back.' });
   await act(async () => finish(response(200, { ...profile, accessibility_needs: 'Private draft', revision: 4 })));
   expect(screen.queryByText('Private draft')).toBeNull();
   expect(screen.queryByText('Your food and accessibility preferences were saved.')).toBeNull();
