@@ -327,4 +327,4 @@ Resume file: None
 
 - User authorized merging the full approved canvas branch, including focused trip-detail editors and food classification. Source 8a46617; current main cde314b is its ancestor.
 - Combined final regressions: 73 passed, one existing optional Python SSE fixture skip. Prior authenticated browser evidence remains applicable; no runtime edits during shipping. Scoped security review: threats_open 0.
-- Shipment record: .planning/quick/261024-single-canvas-ship/VERIFICATION.md. Merge through GitHub; retain unrelated dirty main worktree and local preview.
+- Shipment record: .planning/quick/261024-single-canvas-ship/VERIFICATION.md. PR #14: https://github.com/Merthadam/travella/pull/14. User-authorized merge to main; retain unrelated dirty main worktree and local preview.
