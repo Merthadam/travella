@@ -11,6 +11,7 @@ const mapsUrl = z.string().max(2048).refine(value => {
   try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.port && ['google.com', 'www.google.com', 'maps.google.com'].includes(url.hostname) && (url.hostname === 'maps.google.com' || url.pathname.startsWith('/maps')); } catch { return false; }
 }, 'Invalid Google Maps link.');
 export const activitySuggestionSchema = z.object({
+  editorial_summary: z.string().max(10000).nullish(), editorial_summary_language: z.string().max(80).nullish(),
   website: websiteUrl.nullish(), id: placeId, place_id: z.string().min(1).max(300), name: z.string().min(1).max(120), address: z.string().max(240),
   position: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).strict(),
   rating: z.number().min(0).max(5).nullable(), rating_count: z.number().int().nonnegative().nullable(),
@@ -59,7 +60,7 @@ function ActivityExplorer({ data, onAction, disabled }) {
     <article className="activity-focused-place">
       <PlacePhoto place={place}/>
       <div className="activity-place-body"><h3>{place.name}</h3><p className="activity-address">{place.address}</p><Rating place={place}/>
-        {place.reason && <p className="activity-reason"><strong>Why it fits:</strong> {place.reason}</p>}
+        {place.editorial_summary && <div className="activity-reason"><small>Description from Google Maps</small><p lang={place.editorial_summary_language || undefined}>{place.editorial_summary}</p></div>}
         <div className="activity-place-actions">{place.website && <a className="ds-button small" href={place.website} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${place.name} website`}>Website ↗</a>}<button type="button" className="ds-button small" onClick={() => onAction('preview_activity', { id: place.id })}><Icon name="pin" size={14}/> Show on map</button><button type="button" className={`ds-button small ${added ? 'activity-added' : 'primary'}`} disabled={disabled || added || data.added.length >= 50} onClick={() => onAction('add_activity', { id: place.id })}>{added ? 'Added ✓' : '+ Add to plan'}</button></div>
         <div className="activity-provider"><span>Place data: Google Maps</span><a href={place.maps_url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${place.name} in Google Maps`}>Google Maps ↗</a></div>
       </div>

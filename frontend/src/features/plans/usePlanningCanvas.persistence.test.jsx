@@ -177,3 +177,27 @@ test('unsafe place website rejects the entire addition without a partial draft',
   await act(settle);
   expect(api.saveCanvas).not.toHaveBeenCalled();
 });
+
+test('enriching an existing pin saves its website and link atomically without changing its other fields', async () => {
+  const { api, stored } = fixture();
+  const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  const pin = { id: 'old', name: 'Old place', category: 'food', position: { lat: 45.4, lng: 9.2 }, description: 'Legacy text' };
+  act(() => result.current.action('map', 'add_pin', pin));
+  await waitFor(() => expect(result.current.dirty).toBe(false));
+  act(() => result.current.action('map', 'set_place_website', { id: pin.id, website: 'https://example.org/' }));
+  await waitFor(() => expect(result.current.dirty).toBe(false));
+  expect(stored().components.map.pins).toEqual([{ ...pin, website: 'https://example.org/' }]);
+  expect(stored().components.links.items).toHaveLength(1);
+  expect(stored().components.links.items[0]).toMatchObject({ placeId: pin.id, url: 'https://example.org/' });
+  const writes = api.saveCanvas.mock.calls.length;
+  act(() => {
+    result.current.action('map', 'set_place_website', { id: pin.id, website: 'https://different.example.org' });
+    result.current.action('map', 'set_place_website', { id: 'removed', website: 'https://example.org' });
+  });
+  await act(settle);
+  expect(api.saveCanvas).toHaveBeenCalledTimes(writes);
+  act(() => result.current.reload());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.data.map.pins[0].website).toBe('https://example.org/');
+});

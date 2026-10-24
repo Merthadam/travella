@@ -120,6 +120,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (!previous?.[id]) return;
     const next = clone(previous);
     const item = next[id];
+    let websiteLinkFits = true;
     if (name === 'edit_essentials' && id === 'essentials') {
       next[id] = payload;
       // Keep visible travel dates/party aligned with the locally edited essentials.
@@ -128,6 +129,13 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
         next[mode].subtitle = payload.travelers ? `${payload.travelers} travelers` : 'Travelers not set';
         next[mode].detail = payload.dates.flexible ? 'Flexible dates' : [payload.dates.start, payload.dates.end].filter(Boolean).join(' → ') || 'Dates not set';
       }
+    } else if (id === 'map' && name === 'set_place_website') {
+      const pin = item.pins.find(pin => pin.id === payload.id);
+      if (!pin || pin.website) return;
+      try {
+        pin.website = payload.website;
+        websiteLinkFits = appendPlaceWebsite(next.links, pin);
+      } catch { return; }
     } else if (id === 'map' && name === 'restore_pin') {
       if (item.pins.some(pin => pin.id === payload.pin?.id) || !Number.isInteger(payload.index) || payload.index < 0 || payload.index > item.pins.length) return;
       item.pins.splice(payload.index, 0, payload.pin);
@@ -148,9 +156,10 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     try {
       const parsed = validateCanvasComponents(next, true);
       dataRef.current = parsed; setData(parsed); editedComponents.current.add(id);
+      if (name === 'set_place_website') editedComponents.current.add('links');
       if (id === 'essentials') { editedComponents.current.add('flights'); editedComponents.current.add('accommodation'); }
       if (id === 'findings') setEvidence(current => { const result = { ...current }; delete result[payload.id]; return result; });
-      setNotice('Your changes will be saved automatically.'); setError('');
+      setNotice(websiteLinkFits ? 'Your changes will be saved automatically.' : 'Website saved with the place. Useful websites is full.'); setError('');
     } catch { setError('That change could not be applied. Check the details and try again.'); }
   }, []);
 
@@ -351,7 +360,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       let websitesFit = true;
       for (const place of places) {
         if (next.map.pins.some(pin => pin.id === place.id || (pin.name === place.name && pin.position.lat === place.position.lat && pin.position.lng === place.position.lng))) continue;
-        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: place.reason.slice(0, 240), ...(place.website ? { website: place.website } : {}) });
+        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: '', ...(place.website ? { website: place.website } : {}) });
         if (!appendPlaceWebsite(next.links, place)) websitesFit = false;
       }
       next.map.status = 'ready'; delete next.map.error;

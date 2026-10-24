@@ -44,3 +44,22 @@ def test_search_and_details_request_websites(monkeypatch):
     assert details['place']['website'] == 'https://example.org'
     assert 'places.websiteUri' in calls[0].split(',')
     assert 'websiteUri' in calls[1].split(',')
+
+
+def test_editorial_description_is_verbatim_signed_and_never_ai_fallback(monkeypatch):
+    monkeypatch.setenv('CANVAS_EVIDENCE_SIGNING_KEY', 'test-key-' * 8)
+    text = '  A garden — with original punctuation.\nSecond paragraph.  '
+    value = raw('https://example.org') | {'editorialSummary': {'text': text, 'languageCode': 'en'}, 'generativeSummary': {'overview': {'text': 'AI filler'}}}
+    place = map_server._place(value)
+    assert place['editorial_summary'] == text
+    assert place['editorial_summary_language'] == 'en'
+    signed = sign_place('user', 'plan', place)
+    assert verified_place('user', 'plan', SignedActivityPlace.model_validate(signed))['editorial_summary'] == text
+    signed['editorial_summary'] = 'Altered text'
+    with pytest.raises(ValueError):
+        verified_place('user', 'plan', SignedActivityPlace.model_validate(signed))
+    del value['editorialSummary']
+    assert map_server._place(value)['editorial_summary'] is None
+    value['editorialSummary'] = {'text': 'x' * 10001}
+    assert map_server._place(value)['editorial_summary'] is None
+    assert 'editorialSummary' in map_server.PLACE_FIELDS.split(',')

@@ -35,10 +35,24 @@ test('saved place website appears when selecting its map pin or list row', () =>
 
 test('temporary map previews expose the website without adding a pin', async () => {
   const add = vi.fn();
-  render(<AppearanceProvider><CanvasMapContext.Provider value={{ preview: place, onAddPreview: add }}><CanvasDestinationMap destination="" places={[]} onSelect={() => {}}/></CanvasMapContext.Provider></AppearanceProvider>);
+  const preview = { ...place, editorial_summary: 'Original map description.' };
+  render(<AppearanceProvider><CanvasMapContext.Provider value={{ preview, onAddPreview: add }}><CanvasDestinationMap destination="" places={[]} onSelect={() => {}}/></CanvasMapContext.Provider></AppearanceProvider>);
   expect(screen.getByRole('link', { name: 'Visit Garden website' }).getAttribute('href')).toBe(place.website);
   expect(add).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Add to plan' }));
-  expect(add).toHaveBeenCalledWith(place);
+  expect(add).toHaveBeenCalledWith(preview);
+  expect(screen.getByText('Original map description.')).toBeTruthy();
   await screen.findByText('The map is unavailable. Your places are available in List view.');
+});
+
+test('suggestions display only the original Google editorial description, never the generated reason', async () => {
+  const editorial = 'Original Google description — unchanged.';
+  const { rerender } = render(<ActivitySuggestions surfaceId="editorial-test" suggestions={[{ ...place, editorial_summary: editorial, editorial_summary_language: 'en' }]} added={[]} onAction={() => {}}/>);
+  expect(await screen.findByText(editorial)).toBeTruthy();
+  expect(screen.queryByText(/Why it fits/)).toBeNull();
+  expect(screen.queryByText('Walk')).toBeNull();
+  rerender(<ActivitySuggestions surfaceId="editorial-test" suggestions={[place]} added={[]} onAction={() => {}}/>);
+  await screen.findByRole('link', { name: 'Visit Garden website' });
+  expect(screen.queryByText(editorial)).toBeNull();
+  expect(screen.queryByText('Walk')).toBeNull();
 });

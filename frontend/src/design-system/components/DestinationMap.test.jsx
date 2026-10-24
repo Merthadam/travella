@@ -32,7 +32,7 @@ test('list and map share category filters without changing the plan', async () =
   expect(action.mock.calls.filter(([name]) => name !== 'editor_state')).toEqual([]);
 });
 
-test('note edits preserve place identity and require explicit confirmation before removal, with undo', async () => {
+test('generated notes are hidden; removal still requires confirmation and supports undo', async () => {
   const user = userEvent.setup(); const action = vi.fn();
   function Live() {
     const [value, setValue] = useState(data);
@@ -45,11 +45,8 @@ test('note edits preserve place identity and require explicit confirmation befor
   }
   render(<Live/>);
   await user.click(screen.getByRole('button', { name: /Sforzesco Castle/ }));
-  await user.click(screen.getByRole('button', { name: 'Edit note' }));
-  await user.clear(screen.getByRole('textbox', { name: 'Note' }));
-  await user.type(screen.getByRole('textbox', { name: 'Note' }), 'Go in the morning');
-  await user.click(screen.getByRole('button', { name: 'Update note' }));
-  expect(action).toHaveBeenCalledWith('edit_pin', { ...pins[0], description: 'Go in the morning' });
+  expect(screen.queryByText('Visit the courtyard')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Edit note' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Remove', exact: true }));
   expect(screen.getByRole('dialog').open).toBe(true);
   expect(action.mock.calls.some(([name]) => name === 'remove_pin')).toBe(false);
@@ -59,18 +56,15 @@ test('note edits preserve place identity and require explicit confirmation befor
   expect(screen.queryByRole('button', { name: /Sforzesco Castle/ })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Undo' }));
   expect(screen.getByRole('button', { name: /Sforzesco Castle/ })).toBeTruthy();
-  expect(action).toHaveBeenCalledWith('restore_pin', { pin: { ...pins[0], description: 'Go in the morning' }, index: 0 });
+  expect(action).toHaveBeenCalledWith('restore_pin', { pin: pins[0], index: 0 });
   expect(screen.getAllByRole('button', { name: /Sforzesco Castle|Test cafe/ })[0].textContent).toContain('Sforzesco Castle');
 });
 
-test('conversation preview opens the map without adding and waits for an unfinished note', async () => {
+test('conversation preview opens the map without adding', async () => {
   const user = userEvent.setup(); const action = vi.fn();
   const { rerender } = render(<DestinationMap data={data} onAction={action} mapAdapter={Map}/>);
   await user.click(screen.getByRole('button', { name: /Sforzesco Castle/ }));
-  await user.click(screen.getByRole('button', { name: 'Edit note' }));
   rerender(<DestinationMap data={data} onAction={action} mapAdapter={Map} placePreview={{ id: 'preview' }}/>);
-  expect(screen.getByRole('textbox', { name: 'Note' })).toBeTruthy();
-  await user.click(screen.getByRole('button', { name: 'Cancel' }));
   await waitFor(() => expect(screen.getByRole('region', { name: 'Test map' })).toBeTruthy());
   expect(action.mock.calls.some(([name]) => name === 'add_pin')).toBe(false);
 });
@@ -83,7 +77,8 @@ test('reopening a plan restores its filter and selected place without changing s
   await user.click(screen.getByRole('button',{name:/Test cafe Food/}));
   first.unmount();render(<DestinationMap {...props}/>);
   expect(screen.getByRole('button',{name:'Food 1'}).getAttribute('aria-pressed')).toBe('true');
-  expect(screen.getByText('Breakfast')).toBeTruthy();
+  expect(screen.getByRole('button', { name: /Test cafe Food/ }).getAttribute('aria-expanded')).toBe('true');
+  expect(screen.queryByText('Breakfast')).toBeNull();
   expect(action.mock.calls.filter(([name])=>name!=='editor_state')).toEqual([]);
 });
 
