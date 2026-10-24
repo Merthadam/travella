@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — User-authorized journal shipment: integrated current main; 87 frontend and 73 CRUD tests passed; authenticated browser verified.
+Last activity: 2026-10-24 — Plans journal shipping through PR #16; user-authorized merge to main after integrated tests and browser verification.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -361,6 +361,14 @@ Resume file: None
 - Resolved debug: `.planning/debug/resolved/journal-rename-smoothness.md`. Evidence: `artifacts/testing/2026-10-24-rename-smoothness/verification.md`. Canonical http://localhost:5174/plans ready; no push/merge.
 
 ### Account menu design selection — 2026-10-24
+
+### Plans journal shipment — 2026-10-24
+
+- PR #16: https://github.com/Merthadam/travella/pull/16. User authorized merging the complete approved journal plus inline rename and whole-card navigation refinements.
+- Integrated source e656d9f preserves current main's account-menu/login work. 87 frontend and 73 CRUD tests passed; 7 optional PostgreSQL tests skipped. Build, real authenticated integrated browser flow and runtime hashes verified. Scoped security review has zero open threats.
+- Shipping evidence: `.planning/quick/261024-plans-journal-ship/VERIFICATION.md`. Preserve the separate dirty local main checkout. The running local preview includes the integrated source.
+
+### Account menu design selection (continued) — 2026-10-24
 
 - User selected **B — Avatar & account card** (“b is perfect”). Compact upper-right avatar opens the account card with Account settings and Sign out.
 - Decision: `.planning/quick/261024-hw3-prototype-three-account-menu-header-opti/DECISION.md`. Source: `prototype/account-menu-20261024`. Existing desktop/mobile browser evidence remains applicable. Production integration pending.

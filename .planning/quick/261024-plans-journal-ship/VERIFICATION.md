@@ -6,6 +6,8 @@ base: 08007cc
 
 # Plans journal shipment
 
+PR #16: https://github.com/Merthadam/travella/pull/16. User-authorized merge to main; GitHub reports mergeable/CLEAN with no configured status checks on the PR.
+
 User explicitly authorized merging the complete approved journal and follow-up rename/card-navigation work to main. Integrated current main's account-menu/login work in `e656d9f` without replacing it. Conflicts in planning history and the PlansApp rendering expression were resolved by preserving both features, including `PlanConversation inactive`. The decorative title period is now hidden from the accessible heading name, fixing integrated account-test expectations without changing the appearance.
 
 - Integrated frontend: 87 passed across PlansApp, AccountApp, AccountMenu, AccountSettingsPage, PlanningCanvas, PlanDrawers and DestinationPhoto suites.
