@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-jr6: three login redesign prototypes browser verified; awaiting design selection.
+Last activity: 2026-10-24 — Quick task 261024-kbs: selected login A refined with night mode, contextual verification and inline errors; prototype browser verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -225,6 +225,7 @@ Resume file: None
 | 261024-i0v | User selected account menu B; decision recorded | 2026-10-24 | de8bb21 | — | [261024-i0v-record-selected-account-menu-prototype-b](./quick/261024-i0v-record-selected-account-menu-prototype-b/) |
 | 261024-ip3 | Implemented account menu B; 36 focused tests and browser checks passed; baseline AccountApp failures documented | 2026-10-24 | c8c2ca0 | — | [261024-ip3-implement-selected-avatar-account-dropdo](./quick/261024-ip3-implement-selected-avatar-account-dropdo/) |
 | 261024-jr6 | Three login redesign prototypes browser verified; production selection pending | 2026-10-24 | e29ed97 | — | [261024-jr6-redesign-account-access-screens-preservi](./quick/261024-jr6-redesign-account-access-screens-preservi/) |
+| 261024-kbs | Refine selected login A: night mode, natural recovery and inline errors; browser verified prototype | 2026-10-24 | 4befe42 | — | [261024-kbs-refine-login-prototype-a-with-night-mode](./quick/261024-kbs-refine-login-prototype-a-with-night-mode/) |
 
 ### Roadmap Evolution — 2026-10-06
 
