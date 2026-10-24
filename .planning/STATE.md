@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T10:57:23.613Z"
+last_updated: "2026-10-24T11:04:05.016Z"
 last_activity: 2026-10-24
 last_activity_desc: Focused dates travelers and budget editors implemented and browser verified
-state_head: 81333770333ad678414ab6d3737666d96a96dc4e
+state_head: de8bb21a4da822d9dbfd735370f6a7c84170d84c
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-hw3: three account menu prototypes browser verified; user selection pending.
+Last activity: 2026-10-24 — Quick task 261024-i0v: user selected account menu B; decision saved.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -222,6 +222,7 @@ Resume file: None
 | 261024-c05 | Confirmed destination unlocks canvas review; retain flight confirmation | 2026-10-24 | b97896d | — | [261024-c05-require-only-a-confirmed-destination-for](./quick/261024-c05-require-only-a-confirmed-destination-for/) |
 | 261024-cc7 | Generation loader follows app day/night palettes; desktop/mobile themes verified | 2026-10-24 | dc9de95 | — | [261024-cc7-match-canvas-generation-loader-to-app-da](./quick/261024-cc7-match-canvas-generation-loader-to-app-da/) |
 | 261024-hw3 | Three account menu prototypes; Chrome desktop/mobile verified; user selection pending | 2026-10-24 | 8133377 | — | [261024-hw3-prototype-three-account-menu-header-opti](./quick/261024-hw3-prototype-three-account-menu-header-opti/) |
+| 261024-i0v | User selected account menu B; decision recorded | 2026-10-24 | de8bb21 | — | [261024-i0v-record-selected-account-menu-prototype-b](./quick/261024-i0v-record-selected-account-menu-prototype-b/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -329,3 +330,8 @@ Resume file: None
 - User authorized merging the full approved canvas branch, including focused trip-detail editors and food classification. Source 8a46617; current main cde314b is its ancestor.
 - Combined final regressions: 73 passed, one existing optional Python SSE fixture skip. Prior authenticated browser evidence remains applicable; no runtime edits during shipping. Scoped security review: threats_open 0.
 - Shipment record: .planning/quick/261024-single-canvas-ship/VERIFICATION.md. PR #14: https://github.com/Merthadam/travella/pull/14. User-authorized merge to main; retain unrelated dirty main worktree and local preview.
+
+### Account menu design selection — 2026-10-24
+
+- User selected **B — Avatar & account card** (“b is perfect”). Compact upper-right avatar opens the account card with Account settings and Sign out.
+- Decision: `.planning/quick/261024-hw3-prototype-three-account-menu-header-opti/DECISION.md`. Source: `prototype/account-menu-20261024`. Existing desktop/mobile browser evidence remains applicable. Production integration pending.
