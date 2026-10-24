@@ -6,8 +6,8 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T13:35:29.762Z"
 last_activity: 2026-10-24
-last_activity_desc: Journal rename layout and focus stabilized and browser verified
-state_head: 12dba9144f03038153711f8ee3c326d115b6d65b
+last_activity_desc: Whole plan cards open plans with independent rename and trash controls
+state_head: 9b2563f8bd4e1da7eee731a7dc9d0e7f032830bc
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Debug journal rename smoothness: shared title/editor geometry, stable card order and focus; browser/API/build verified.
+Last activity: 2026-10-24 — Completed quick task 261024-m18: whole-card plan links and removed CTA sections; authenticated browser/build verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261024-m18 | Whole-card plan links with independent rename/trash and no CTA sections | 2026-10-24 | 9b2563f | Verified | [Task](quick/261024-m18-make-plan-cards-clickable-and-remove-sep/) |
 | 261024-f50 | Focused dates, travelers and budget editors without header expansion | 2026-10-24 | 5262676 | Verified | [Task](quick/261024-f50-make-canvas-dates-travelers-and-budget-c/) |
 | 261024-ee3 | Implement approved single canvas, dedicated travel screens and view recovery | 2026-10-24 | d85919e | Verified | [Task](quick/261024-ee3-implement-approved-single-canvas-with-co/) |
 | 261024-eat | Blend progress, trip header and canvas surfaces in A/B/C | 2026-10-24 | e56a972 | Browser verified; awaiting design choice | [Task](quick/261024-eat-blend-canvas-progress-and-trip-header-in/) |
