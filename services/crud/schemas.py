@@ -39,6 +39,11 @@ class PlanOutput(BaseModel):
     recovery_deadline: datetime | None
     conversation: ConversationOutput
     resume_target: Literal["conversation", "workspace"]
+    planning_stage: Literal["research", "canvas"] = "research"
+    date_start: str = ""
+    date_end: str = ""
+    flexible_dates: bool = False
+    saved_places_count: int = 0
 
     @classmethod
     def from_ref(cls, ref: PlanRef):
@@ -55,6 +60,9 @@ class PlanOutput(BaseModel):
                 conversation_id=ref.conversation.conversation_id, plan_id=ref.plan_id
             ),
             resume_target=ref.last_working_view.value,
+            planning_stage=ref.planning_stage,
+            date_start=ref.date_start, date_end=ref.date_end,
+            flexible_dates=ref.flexible_dates, saved_places_count=ref.saved_places_count,
         )
 
 

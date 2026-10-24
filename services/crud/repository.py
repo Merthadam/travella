@@ -16,8 +16,9 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
+from .plan_summary import summarize_plan
 from .contracts import BriefRef, ConversationRef, DestinationRef, LifecycleProblem, PlanRef
 from .models import (
     Conversation,
@@ -85,18 +86,20 @@ def payload_digest(payload: object) -> str:
 def _ref(plan: Plan) -> PlanRef:
     if plan.conversation is None:
         raise LifecycleProblem("inconsistent_plan", "Plan is temporarily unavailable.")
+    summary = summarize_plan(plan)
     return PlanRef(
         plan.id,
         plan.traveler_subject,
         plan.lifecycle,
         plan.revision,
-        plan.title,
+        summary["title"],
         plan.title_source,
-        plan.destination_summary,
+        summary["destination_summary"],
         plan.last_working_view,
         plan.last_activity_at,
         plan.recovery_deadline,
         ConversationRef(plan.conversation.id, plan.id),
+        **{key: value for key, value in summary.items() if key not in {"title", "destination_summary"}},
     )
 
 
@@ -143,7 +146,7 @@ class PlanRepository:
         if existing and existing.plan_id:
             plan = self.session.scalar(
                 select(Plan)
-                .options(joinedload(Plan.conversation))
+                .options(joinedload(Plan.conversation), selectinload(Plan.canvas), selectinload(Plan.research_context))
                 .where(Plan.id == existing.plan_id)
             )
             if plan and plan.traveler_subject == subject and plan.lifecycle is PlanLifecycle.ACTIVE:
@@ -185,7 +188,7 @@ class PlanRepository:
     def get(self, subject: str, plan_id: UUID, *, include_deleted: bool = False) -> PlanRef:
         plan = self.session.scalar(
             select(Plan)
-            .options(joinedload(Plan.conversation))
+            .options(joinedload(Plan.conversation), selectinload(Plan.canvas), selectinload(Plan.research_context))
             .where(Plan.id == plan_id, Plan.traveler_subject == subject)
         )
         if not plan or (plan.lifecycle is PlanLifecycle.DELETED and not include_deleted):
@@ -207,7 +210,7 @@ class PlanRepository:
         lifecycle = PlanLifecycle.DELETED if deleted else PlanLifecycle.ACTIVE
         query = (
             select(Plan)
-            .options(joinedload(Plan.conversation))
+            .options(joinedload(Plan.conversation), selectinload(Plan.canvas), selectinload(Plan.research_context))
             .where(Plan.traveler_subject == subject, Plan.lifecycle == lifecycle)
         )
         if deleted:
@@ -236,7 +239,7 @@ class PlanRepository:
             return self.get(subject, plan_id)
         plan = self.session.scalar(
             select(Plan)
-            .options(joinedload(Plan.conversation))
+            .options(joinedload(Plan.conversation), selectinload(Plan.canvas), selectinload(Plan.research_context))
             .where(Plan.id == plan_id, Plan.traveler_subject == subject)
             .with_for_update(of=Plan)
         )
@@ -337,7 +340,7 @@ class PlanRepository:
     def _locked_plan(self, subject: str, plan_id: UUID) -> Plan:
         plan = self.session.scalar(
             select(Plan)
-            .options(joinedload(Plan.conversation))
+            .options(joinedload(Plan.conversation), selectinload(Plan.canvas), selectinload(Plan.research_context))
             .where(Plan.id == plan_id, Plan.traveler_subject == subject)
             .with_for_update(of=Plan)
         )
@@ -395,7 +398,7 @@ class PlanRepository:
         return result
 
     def agent_context(self, subject: str, plan_id: UUID, limit: int = 12) -> dict:
-        plan = self.session.scalar(select(Plan).options(joinedload(Plan.conversation)).where(Plan.id == plan_id, Plan.traveler_subject == subject))
+        plan = self.session.scalar(select(Plan).options(joinedload(Plan.conversation), selectinload(Plan.canvas), selectinload(Plan.research_context)).where(Plan.id == plan_id, Plan.traveler_subject == subject))
         if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
             raise LifecycleProblem("not_found")
         brief = self.session.scalar(select(PlanningBrief).where(PlanningBrief.plan_id == plan_id))

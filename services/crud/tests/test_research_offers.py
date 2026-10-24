@@ -86,7 +86,11 @@ def test_ready_without_optional_fields_and_persistent_defer_manual_review(system
         assert restarted.get(path + "/research-offer").json()["deferred"]
     manual = action(system, path, revision + 1, "request_review")
     assert manual.status_code == 200 and manual.json()["deferred"]
-    assert system.client.get(path).json() == plan  # metadata does not mutate the Plan
+    latest = system.client.get(path).json()
+    # Research may change the derived journal label, never durable lifecycle metadata.
+    for key in ("revision", "last_activity_at", "lifecycle", "title_source", "resume_target"):
+        assert latest[key] == plan[key]
+    assert latest["title"] == "Rome escape" and latest["planning_stage"] == "research"
     with system.factory() as db:
         assert db.get(PlanningCanvas, UUID(plan["plan_id"])) is None
 

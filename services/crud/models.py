@@ -96,6 +96,7 @@ class Plan(Base):
     canvas: Mapped["PlanningCanvas | None"] = relationship(
         back_populates="plan", uselist=False, cascade="all, delete-orphan"
     )
+    research_context: Mapped["ResearchContext | None"] = relationship(uselist=False, viewonly=True)
     research_offers: Mapped[list["ResearchDraftOffer"]] = relationship(cascade="all, delete-orphan")
     receipts: Mapped[list["PlanActionReceipt"]] = relationship(
         back_populates="plan", cascade="all, delete-orphan"
