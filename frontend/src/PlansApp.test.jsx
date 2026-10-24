@@ -45,7 +45,7 @@ test('renders backend order and the empty active state', async () => {
   const api = makeApi([plan('a', 'Later activity'), plan('b', 'Earlier activity')]);
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   await screen.findByRole('link', { name: 'Later activity' });
-  expect(screen.getAllByRole('link').map(link => link.textContent)).toContain('Later activity');
+  expect(screen.getAllByRole('article')[0].textContent).toContain('Later activity');
   expect(screen.queryByText('No plans yet')).toBeNull();
   const emptyApi = makeApi();
   cleanup(); render(<PlansApp api={emptyApi} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
@@ -63,11 +63,13 @@ test('account suspension preserves the selected Plan and its unsent composer', a
   const getCount = api.get.mock.calls.length;
   history.pushState({}, '', '/account');
   view.rerender(<PlansApp {...props} inactive />);
+  expect(screen.queryByRole('button', { name: /^Trip brief,/ })).toBeNull();
   window.dispatchEvent(new PopStateEvent('popstate'));
   expect(api.get).toHaveBeenCalledTimes(getCount);
   history.pushState({}, '', `/plans/${id}`);
   view.rerender(<PlansApp {...props} inactive={false} />);
   expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Unsent question');
+  expect(screen.getByRole('button', { name: /^Trip brief,/ })).toBeTruthy();
   expect(api.get).toHaveBeenCalledTimes(getCount);
 });
 
@@ -90,10 +92,10 @@ test('rename validates exact title and keeps the normalized value', async () => 
   await screen.findByRole('button', { name: /Rename Untitled plan/ });
   await user.click(screen.getByRole('button', { name: /Rename Untitled plan/ }));
   const input = screen.getByLabelText('Plan name'); await user.clear(input); await user.type(input, '  Cafe\u0301  ');
-  await user.click(screen.getByRole('button', { name: 'Apply name' }));
+  await user.keyboard('{Enter}');
   await waitFor(() => expect(api.commit).toHaveBeenCalled());
   expect(api.commit.mock.calls[0][0].title).toBe('Café');
-  expect(await screen.findByText('Plan name updated.')).toBeTruthy();
+  expect(await screen.findByText('Plan name updated to Café.')).toBeTruthy();
 });
 
 test('delete and restore preserve the authoritative lifecycle', async () => {
@@ -101,7 +103,6 @@ test('delete and restore preserve the authoritative lifecycle', async () => {
   render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
   await screen.findByRole('button', { name: /Delete Recoverable plan/ });
   await user.click(screen.getByRole('button', { name: /Delete Recoverable plan/ }));
-  await user.click(screen.getByRole('button', { name: 'Delete plan' }));
   await screen.findByText('No plans yet');
   await user.click(screen.getByRole('link', { name: /View recently deleted/ }));
   await screen.findByRole('button', { name: /Restore plan Recoverable plan/ });
@@ -202,4 +203,88 @@ test('renaming and deleting another plan in the drawer keeps the current convers
   await waitFor(() => expect(within(drawer).queryByText('Renamed other')).toBeNull());
   expect(location.pathname).toBe('/plans/a');
   expect(within(drawer).getByRole('link', { name: /Current plan/ }).getAttribute('aria-current')).toBe('page');
+});
+
+
+test('inline rename cancels without writing and rejects an empty name', async () => {
+  const api = makeApi([plan('a', 'Island break')]); const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('button', { name: 'Rename Island break' }));
+  const input = screen.getByLabelText('Plan name');
+  await user.clear(input); await user.keyboard('{Enter}');
+  expect(api.prepare).not.toHaveBeenCalled();
+  expect(screen.getByRole('alert').textContent).toMatch(/name|title/i);
+  await user.type(input, 'Changed'); await user.keyboard('{Escape}');
+  expect(screen.queryByLabelText('Plan name')).toBeNull();
+  expect(api.commit).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Island break' })).toBe(document.activeElement));
+});
+
+test('inline name retries an uncertain commit with the same request and title', async () => {
+  const api = makeApi([plan('a', 'Island break')]); const commit = api.commit;
+  api.commit = vi.fn().mockRejectedValueOnce(new Error('Lost response')).mockImplementation(commit);
+  const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('button', { name: 'Rename Island break' }));
+  await user.clear(screen.getByLabelText('Plan name')); await user.type(screen.getByLabelText('Plan name'), 'Our trip{Enter}');
+  await screen.findByRole('button', { name: 'Retry saving' });
+  expect(screen.getByLabelText('Plan name').readOnly).toBe(true);
+  await user.click(screen.getByRole('button', { name: 'Retry saving' }));
+  await screen.findByRole('button', { name: 'Rename Our trip' });
+  expect(api.prepare).toHaveBeenCalledTimes(1);
+  expect(api.commit.mock.calls[0][0]).toEqual(api.commit.mock.calls[1][0]);
+});
+
+test('journal filters authoritative stages and searches loaded titles', async () => {
+  const api = makeApi([plan('a', 'Forest idea'), { ...plan('b', 'Lisbon days'), planning_stage: 'canvas', destination_summary: 'Lisbon', saved_places_count: 3 }]);
+  const user = userEvent.setup(); render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await screen.findByRole('button', { name: 'Rename Forest idea' });
+  await user.click(screen.getByRole('button', { name: 'Canvas' }));
+  expect(screen.queryByRole('button', { name: 'Rename Forest idea' })).toBeNull();
+  expect(screen.getByText('3 places saved')).toBeTruthy();
+  await user.type(screen.getByLabelText('Find a trip'), 'missing');
+  expect(screen.getByText('No trips here just yet.')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Show all plans' }));
+  expect(screen.getAllByRole('article')).toHaveLength(2);
+});
+
+
+test('renaming an ordinary card keeps its position and restores focus to its title', async () => {
+  const api = makeApi([plan('a', 'Featured trip'), plan('b', 'Second trip')]); const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('button', { name: 'Rename Second trip' }));
+  await user.clear(screen.getByLabelText('Plan name')); await user.type(screen.getByLabelText('Plan name'), 'Renamed trip{Enter}');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Renamed trip' })).toBe(document.activeElement));
+  const cards = screen.getAllByRole('article');
+  expect(cards[0].textContent).toContain('Featured trip');
+  expect(cards[1].textContent).toContain('Renamed trip');
+  expect(screen.getByText('Plan name updated to Renamed trip.').className).toContain('sr-only');
+});
+
+test('unchanged Enter and clicking away cancel without writes or stealing focus', async () => {
+  const api = makeApi([plan('a', 'Island break')]); const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('button', { name: 'Rename Island break' }));
+  await user.keyboard('{Enter}');
+  expect(screen.queryByLabelText('Plan name')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Rename Island break' }));
+  await user.clear(screen.getByLabelText('Plan name')); await user.type(screen.getByLabelText('Plan name'), 'Unsubmitted');
+  const search = screen.getByLabelText('Find a trip'); await user.click(search);
+  expect(screen.queryByLabelText('Plan name')).toBeNull(); expect(document.activeElement).toBe(search);
+  expect(api.prepare).not.toHaveBeenCalled(); expect(api.commit).not.toHaveBeenCalled();
+});
+
+test('saving retains field focus and a filtered renamed card stays visible until search changes', async () => {
+  const api = makeApi([plan('a', 'Island break')]); let finish;
+  api.prepare.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const user = userEvent.setup(); render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await screen.findByRole('button', { name: 'Rename Island break' });
+  await user.type(screen.getByLabelText('Find a trip'), 'Island');
+  await user.click(screen.getByRole('button', { name: 'Rename Island break' }));
+  const field = screen.getByLabelText('Plan name'); await user.clear(field); await user.type(field, 'Forest holiday{Enter}');
+  expect(field.readOnly).toBe(true); expect(document.activeElement).toBe(field); expect(field.disabled).toBe(false);
+  finish({ challenge: 'challenge', title: 'Forest holiday' });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Forest holiday' })).toBe(document.activeElement));
+  await user.type(screen.getByLabelText('Find a trip'), 'x');
+  expect(screen.queryByRole('button', { name: 'Rename Forest holiday' })).toBeNull();
 });

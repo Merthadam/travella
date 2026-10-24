@@ -40,7 +40,7 @@ function SourceLinks({ sources }) {
 function messageKey(message) { return message.message_id || `${message.role}-${message.event_id || message.sequence || message.created_at}`; }
 const flightContext = value => JSON.stringify(['dateStart', 'dateEnd', 'flexibleDates', 'travelers', 'finalDestination'].map(key => value?.[key]));
 
-export function PlanConversation({ selected, api, onExpired, onBack, onCanvas }) {
+export function PlanConversation({ selected, api, onExpired, onBack, onCanvas, inactive = false }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -268,7 +268,7 @@ export function PlanConversation({ selected, api, onExpired, onBack, onCanvas })
       <p className={`research-composer-status${active ? ' is-active' : ''}`} id="research-composer-status" role="status" aria-label="Reply status" aria-live="polite" aria-atomic="true">{active ? <><span className="research-status-dot" aria-hidden="true"/>{replyStatus}</> : loading || brief.loading ? 'Loading your conversation…' : brief.saving ? 'Saving trip details…' : brief.locked ? 'Another reply is in progress…' : brief.error ? 'Trip details unavailable. Refresh to try again.' : error ? 'Reply interrupted. You can retry above.' : ''}</p>
     </form>
     </main>
-    <ResearchBriefOverlay key={planId} context={brief.context} workspaceRef={workspace} composerRef={composerBox} readiness={offers.readiness} actions={onCanvas && <>
+    <ResearchBriefOverlay hidden={inactive} key={planId} context={brief.context} workspaceRef={workspace} composerRef={composerBox} readiness={offers.readiness} actions={onCanvas && <>
       {brief.error && <button type="button" disabled={brief.loading} onClick={returnToDetails}>Refresh trip details</button>}
       {offers.missingDetails.length > 0 && <p className="research-brief-readiness">{offers.missingDetails.join(' ')}</p>}
       <button type="button" disabled={unavailable || !offers.eligible} onClick={() => openReview()}>Review &amp; create draft</button>

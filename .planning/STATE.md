@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-m71: Google descriptions persisted; 65 tests/build passed; browser verified reload without details fetch.
+Last activity: 2026-10-24 — Shipping complete draft persistence and compact place cards, integrated with main account and plans journal changes.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -136,6 +136,7 @@ Resume file: None
 | 261024-kci | Google editorial descriptions and existing place website enrichment; verify Yakushima search | 2026-10-24 | bdec68a | Verified; historical search interruption not reproduced | [Task](quick/261024-kci-show-google-place-descriptions-and-websi/) |
 | 261024-jp7 | Place websites in chat, map previews/details and automatic useful links | 2026-10-24 | 4a5db39 | Feature verified; baseline failures and extra screenshot limitation documented | [Task](quick/261024-jp7-add-place-websites-to-chat-map-and-usefu/) |
 | 261024-hd3 | Complete draft autosave; finalization deferred; stored research key-rotation fix | 2026-10-24 | e0ab187 / da7370e | Functional checks passed; screenshot gate incomplete | [Task](quick/261024-hd3-persist-planning-canvas-drafts-automatic/) |
+| 261024-m18 | Whole-card plan links with independent rename/trash and no CTA sections | 2026-10-24 | 9b2563f | Verified | [Task](quick/261024-m18-make-plan-cards-clickable-and-remove-sep/) |
 | 261024-f50 | Focused dates, travelers and budget editors without header expansion | 2026-10-24 | 5262676 | Verified | [Task](quick/261024-f50-make-canvas-dates-travelers-and-budget-c/) |
 | 261024-ee3 | Implement approved single canvas, dedicated travel screens and view recovery | 2026-10-24 | d85919e | Verified | [Task](quick/261024-ee3-implement-approved-single-canvas-with-co/) |
 | 261024-eat | Blend progress, trip header and canvas surfaces in A/B/C | 2026-10-24 | e56a972 | Browser verified; awaiting design choice | [Task](quick/261024-eat-blend-canvas-progress-and-trip-header-in/) |
@@ -229,6 +230,17 @@ Resume file: None
 | 261023-ty6 | Implemented approved globe loading screen in actual canvas generation; verified desktop/mobile and real progress | 2026-10-23 | e6a04e4 | — | [261023-ty6-implement-approved-globe-loading-screen-](./quick/261023-ty6-implement-approved-globe-loading-screen-/) |
 | 261024-c05 | Confirmed destination unlocks canvas review; retain flight confirmation | 2026-10-24 | b97896d | — | [261024-c05-require-only-a-confirmed-destination-for](./quick/261024-c05-require-only-a-confirmed-destination-for/) |
 | 261024-cc7 | Generation loader follows app day/night palettes; desktop/mobile themes verified | 2026-10-24 | dc9de95 | — | [261024-cc7-match-canvas-generation-loader-to-app-da](./quick/261024-cc7-match-canvas-generation-loader-to-app-da/) |
+| 261024-k3m | Three plans journal prototypes; authenticated browser, naming, desktop/mobile and theme checks passed; selection pending | 2026-10-24 | 4165481 | — | [261024-k3m-prototype-three-travel-journal-plans-pag](./quick/261024-k3m-prototype-three-travel-journal-plans-pag/) |
+| 261024-kvh | Selected A with Google destination photos and Research to Canvas; browser and build verified; prototype only | 2026-10-24 | bce9c01 | — | [261024-kvh-refine-selected-journal-with-generated-p](./quick/261024-kvh-refine-selected-journal-with-generated-p/) |
+| 261024-l9g | Implement approved plans journal: inline Enter rename, small trash, automatic titles, Google photos; browser/API/build verified | 2026-10-24 | b388db6 | — | [261024-l9g-implement-approved-plans-journal-with-in](./quick/261024-l9g-implement-approved-plans-journal-with-in/) |
+
+| 261024-hw3 | Three account menu prototypes; Chrome desktop/mobile verified; user selection pending | 2026-10-24 | 8133377 | — | [261024-hw3-prototype-three-account-menu-header-opti](./quick/261024-hw3-prototype-three-account-menu-header-opti/) |
+| 261024-i0v | User selected account menu B; decision recorded | 2026-10-24 | de8bb21 | — | [261024-i0v-record-selected-account-menu-prototype-b](./quick/261024-i0v-record-selected-account-menu-prototype-b/) |
+| 261024-ip3 | Implemented account menu B; 36 focused tests and browser checks passed; baseline AccountApp failures documented | 2026-10-24 | c8c2ca0 | — | [261024-ip3-implement-selected-avatar-account-dropdo](./quick/261024-ip3-implement-selected-avatar-account-dropdo/) |
+| 261024-jr6 | Three login redesign prototypes browser verified; production selection pending | 2026-10-24 | e29ed97 | — | [261024-jr6-redesign-account-access-screens-preservi](./quick/261024-jr6-redesign-account-access-screens-preservi/) |
+| 261024-kbs | Refine selected login A: night mode, natural recovery and inline errors; browser verified prototype | 2026-10-24 | 4befe42 | — | [261024-kbs-refine-login-prototype-a-with-night-mode](./quick/261024-kbs-refine-login-prototype-a-with-night-mode/) |
+| 261024-ko9 | Simplify login globe and remove prototype viewport cutoff; browser verified | 2026-10-24 | 8d4111f | — | [261024-ko9-simplify-selected-login-a-globe-illustra](./quick/261024-ko9-simplify-selected-login-a-globe-illustra/) |
+| 261024-lb5 | Implement approved full-screen login A; 52 tests and real authentication browser checks passed | 2026-10-24 | 63bec5d | — | [261024-lb5-implement-approved-full-screen-login-a-d](./quick/261024-lb5-implement-approved-full-screen-login-a-d/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -336,3 +348,45 @@ Resume file: None
 - User authorized merging the full approved canvas branch, including focused trip-detail editors and food classification. Source 8a46617; current main cde314b is its ancestor.
 - Combined final regressions: 73 passed, one existing optional Python SSE fixture skip. Prior authenticated browser evidence remains applicable; no runtime edits during shipping. Scoped security review: threats_open 0.
 - Shipment record: .planning/quick/261024-single-canvas-ship/VERIFICATION.md. PR #14: https://github.com/Merthadam/travella/pull/14. User-authorized merge to main; retain unrelated dirty main worktree and local preview.
+
+### Selected plans journal A — 2026-10-24
+
+- User selected A and clarified Google Maps destination photography, with a placeholder until generation. Selected phase labels follow Research → Canvas; automatic milestone naming retains custom names.
+- Prototype source bce9c01; live destination photos with contributor credit, shared photo treatment in generated dialog, fallback and authenticated desktop/mobile light/dark checks passed. Build passed.
+- Evidence: artifacts/testing/2026-10-24-plans-photo-refinement/verification.md. Actual Plans/Canvas production integration remains pending. Earlier design-selection deferral is superseded.
+
+### Production plans journal — 2026-10-24
+
+- User approved A and specified inline title editing with Enter plus a small trash icon. Source b388db6 implements those controls with existing lifecycle contracts, real recent-first cards, Research/Canvas stages, quiet dates and saved-place counts.
+- Automatic labels derive from existing trip facts; manual names always win. Reads never silently mutate Plan data. Generated/saved destination photos shared with the actual Canvas; attribution and honest placeholders retained.
+- 46 frontend and 73 CRUD tests passed, seven environment-dependent tests skipped; build, real authenticated rename/reload/delete/restore, mobile/themes and rebuilt runtime hashes verified. Test-owned records cleaned through soft deletion.
+- Evidence: artifacts/testing/2026-10-24-plans-journal-implementation/verification.md. Canonical http://localhost:5174 ready. Prior production deferral superseded; prototype files removed with history retained. No push/merge.
+
+### Journal rename smoothness — 2026-10-24
+
+- User requested smoother inline renaming. Source `12dba91` preserves title typography, card position, keyboard focus and search visibility; Enter saves, Escape/click-away cancel, unchanged names avoid writes.
+- 24 focused tests, build, authenticated real rename/readback/reload, zero-shift desktop/mobile measurements, light/dark visual checks and generated-photo stability passed. Task-owned records cleaned up. Rebuilt runtime hashes match.
+- Resolved debug: `.planning/debug/resolved/journal-rename-smoothness.md`. Evidence: `artifacts/testing/2026-10-24-rename-smoothness/verification.md`. Canonical http://localhost:5174/plans ready; no push/merge.
+
+### Plans journal shipment — 2026-10-24
+
+- PR #16: https://github.com/Merthadam/travella/pull/16. User authorized merging the complete approved journal plus inline rename and whole-card navigation refinements.
+- Integrated source e656d9f preserves current main's account-menu/login work. 87 frontend and 73 CRUD tests passed; 7 optional PostgreSQL tests skipped. Build, real authenticated integrated browser flow and runtime hashes verified. Scoped security review has zero open threats.
+- Shipping evidence: `.planning/quick/261024-plans-journal-ship/VERIFICATION.md`. Preserve the separate dirty local main checkout. The running local preview includes the integrated source.
+
+### Account menu design selection — 2026-10-24
+
+- User selected **B — Avatar & account card** (“b is perfect”). Compact upper-right avatar opens the account card with Account settings and Sign out.
+- Decision: `.planning/quick/261024-hw3-prototype-three-account-menu-header-opti/DECISION.md`. Source: `prototype/account-menu-20261024`. Existing desktop/mobile browser evidence remains applicable. Production integration pending.
+
+### Account menu implementation — 2026-10-24
+
+- User requested implementation of selected B. Shared avatar/account card now uses real account and guarded logout handlers across Plans and Account. Prototype source retained on prototype/account-menu-20261024; runtime prototype wiring removed.
+- Keyboard/focus, busy/error recovery, draft preservation, real logout/login, desktop/mobile/themes and research-brief layering verified. 36 focused tests and build passed; five existing AccountApp failures reproduced on baseline, seven AccountApp tests passed.
+- Evidence: `artifacts/testing/2026-10-24-account-menu-implementation/verification.md`. Local preview: http://localhost:5188/plans. No push/merge/deployment. Supersedes earlier production-integration pending status.
+
+### Login redesign exploration — 2026-10-24
+
+- User requested a redesigned login with existing functionality. Built A split welcome, B quiet centered form and C workspace navigation rail on dev-only account-access prototype query. Original auth handlers unchanged.
+- Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
+- Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.
