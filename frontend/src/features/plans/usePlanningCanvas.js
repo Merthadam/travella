@@ -4,6 +4,7 @@ import { definitions, ids } from '../../design-system/schemas';
 import { flightNeedConfirmed } from './flightNeeds';
 import { destinationConfirmed } from './generationRequirements';
 import { suggestedPlaceCategory } from './placeCategory';
+import { appendPlaceWebsite, preservePlaceWebsites } from './placeWebsites';
 
 const groupIds = { themes: ['themes'], research: ['findings', 'links'], all: ids };
 const clone = value => structuredClone(value);
@@ -220,6 +221,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
             for (const mode of ['accommodation', 'flights']) {
               if (replacement[mode] && dataRef.current[mode]?.mockBooking) replacement[mode] = { ...replacement[mode], bookingStatus: 'mock-booked', mockBooking: dataRef.current[mode].mockBooking };
             }
+            if (replacement.links) replacement.links = preservePlaceWebsites(dataRef.current.links, replacement.links);
             const combined = { ...dataRef.current, ...replacement };
             if (group === 'all' && currentContext.context.flights === 'not-needed') delete combined.flights;
             const next = validateCanvasComponents(combined, true);
@@ -346,14 +348,16 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (expectedDraft && fingerprint(dataRef.current) !== expectedDraft) return false;
     try {
       const next = clone(dataRef.current);
+      let websitesFit = true;
       for (const place of places) {
         if (next.map.pins.some(pin => pin.id === place.id || (pin.name === place.name && pin.position.lat === place.position.lat && pin.position.lng === place.position.lng))) continue;
-        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: place.reason.slice(0, 240) });
+        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: place.reason.slice(0, 240), ...(place.website ? { website: place.website } : {}) });
+        if (!appendPlaceWebsite(next.links, place)) websitesFit = false;
       }
       next.map.status = 'ready'; delete next.map.error;
       const parsed = validateCanvasComponents(next, true);
-      dataRef.current = parsed; setData(parsed); editedComponents.current.add('map');
-      setNotice('Places added. Your draft saves automatically.'); setError('');
+      dataRef.current = parsed; setData(parsed); editedComponents.current.add('map'); editedComponents.current.add('links');
+      setNotice(websitesFit ? 'Places and available websites added. Your draft saves automatically.' : 'Places added. Useful websites is full; their websites are still available in place details.'); setError('');
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }

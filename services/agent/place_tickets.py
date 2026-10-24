@@ -29,12 +29,16 @@ def _signature(subject: str, plan_id: str, expires: int, place: dict) -> str:
 
 def sign_place(subject: str, plan_id: str, value: dict) -> dict:
     place = ActivityPlace.model_validate(value).model_dump(mode="json")
+    if place.get("website") is None:
+        place.pop("website", None)
     expires = int(time.time()) + 3600
     return {**place, "ticket": f"{expires}.{_signature(subject, plan_id, expires, place)}"}
 
 
 def verified_place(subject: str, plan_id: str, value: SignedActivityPlace) -> dict:
     place = ActivityPlace.model_validate(value.model_dump(exclude={"ticket"})).model_dump(mode="json")
+    if place.get("website") is None:
+        place.pop("website", None)
     try:
         expiry, signature = value.ticket.split(".", 1)
         expires = int(expiry)

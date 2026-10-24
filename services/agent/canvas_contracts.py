@@ -2,6 +2,8 @@
 
 from typing import Any, Literal
 
+from services.place_websites import WebsiteUrl, public_website
+
 from pydantic import Field, model_validator
 from services.mock_booking import MockStaySummary, MockFlightSummary
 
@@ -135,6 +137,7 @@ class PinPosition(StrictResult):
 
 
 class CanvasPin(StrictResult):
+    website: WebsiteUrl | None = None
     id: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
     name: str = Field(min_length=1, max_length=120)
     category: Literal["stay", "airport", "food", "activity", "other"]
@@ -183,13 +186,20 @@ class FindingsComponent(ReadyState):
 
 
 class LinkComponentItem(PublicSource):
+    placeId: str | None = Field(default=None, min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
+
+    @model_validator(mode="after")
+    def valid_url(self):
+        public_website(self.url)
+        return self
+
     id: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
     purpose: str = Field(max_length=240)
     category: Literal["official", "transport", "attraction", "practical", "other"]
 
 
 class LinksComponent(ReadyState):
-    items: list[LinkComponentItem] = Field(max_length=20)
+    items: list[LinkComponentItem] = Field(max_length=70)
 
 
 COMPONENT_MODELS = {

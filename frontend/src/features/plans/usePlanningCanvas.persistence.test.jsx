@@ -137,3 +137,43 @@ test('revision conflicts retain local edits and never overwrite or retry automat
   expect(result.current.data.essentials.travelers).toBe(4);
   expect(result.current.dirty).toBe(true);
 });
+
+test('adding any place saves its website and useful link together, deduplicates, and survives reload and research', async () => {
+  const { api, stored } = fixture();
+  const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  act(() => {
+    result.current.action('links', 'add_link', { id: 'manual', title: 'My custom title', url: 'https://EXAMPLE.org', purpose: 'Keep my note', category: 'practical' });
+    result.current.addActivities([
+      { id: 'garden', name: 'Garden', types: ['park'], position: { lat: 45.47, lng: 9.18 }, reason: 'Walk', website: 'https://example.org/' },
+      { id: 'cafe', name: 'Cafe', types: ['restaurant'], position: { lat: 45.48, lng: 9.18 }, reason: 'Lunch', website: 'http://cafe.example.org/' },
+      { id: 'hill', name: 'Hill', position: { lat: 45.49, lng: 9.18 }, reason: 'View' },
+    ]);
+  });
+  await waitFor(() => expect(result.current.dirty).toBe(false));
+  expect(stored().components.map.pins[1]).toMatchObject({ category: 'food', website: 'http://cafe.example.org/' });
+  expect(stored().components.links.items).toHaveLength(2);
+  expect(stored().components.links.items[0]).toMatchObject({ id: 'manual', title: 'My custom title', purpose: 'Keep my note', placeId: 'garden' });
+  act(() => result.current.reload());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.data.map.pins[0].website).toBe('https://example.org/');
+  api.generateCanvas = vi.fn(async (_plan, body, _id, { onEvent }) => {
+    onEvent({ type: 'STATE_SNAPSHOT', snapshot: { canvas_draft: { generation_id: body.generation_id, context_revision: 1,
+      components: { links: { status: 'ready', items: [{ id: 'duplicate', title: 'New label', url: 'https://example.org/', purpose: '', category: 'official' }] } }, group_status: { research: 'ready' } } } });
+    return { status: 'complete' };
+  });
+  await act(() => result.current.generate('research'));
+  await waitFor(() => expect(result.current.dirty).toBe(false));
+  expect(result.current.data.links.items).toHaveLength(2);
+  expect(result.current.data.links.items[0].title).toBe('My custom title');
+});
+
+test('unsafe place website rejects the entire addition without a partial draft', async () => {
+  const { api } = fixture();
+  const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  act(() => expect(result.current.addActivities([{ id: 'bad', name: 'Bad', position: { lat: 0, lng: 0 }, reason: '', website: 'javascript:alert(1)' }])).toBe(false));
+  expect(result.current.data.map.pins).toEqual([]);
+  await act(settle);
+  expect(api.saveCanvas).not.toHaveBeenCalled();
+});

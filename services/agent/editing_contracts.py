@@ -2,6 +2,8 @@
 from typing import Annotated
 from urllib.parse import urlsplit
 
+from services.place_websites import WebsiteUrl
+
 from pydantic import Field, field_validator, model_validator
 
 from services.crud.canvas import CanvasSnapshot
@@ -29,6 +31,7 @@ class MapArea(StrictResult):
 
 
 class ActivityPlace(StrictResult):
+    website: WebsiteUrl | None = None
     id: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
     place_id: str = Field(min_length=1, max_length=300)
     name: str = Field(min_length=1, max_length=120)

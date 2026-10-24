@@ -12,6 +12,8 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
+from services.place_websites import public_website
+
 from .config import McpSettings, required_secret
 from .transport import authenticated_mcp_app, require_tool_context
 
@@ -106,7 +108,7 @@ async def get_candidate_map_projection(candidate_names: list[str], plan_id: str)
 
 
 PLACES_URL = "https://places.googleapis.com/v1/places"
-PLACE_FIELDS = "id,displayName,formattedAddress,location,rating,userRatingCount,types,googleMapsUri"
+PLACE_FIELDS = "id,displayName,formattedAddress,location,rating,userRatingCount,types,googleMapsUri,websiteUri"
 CATEGORIES = {"stay", "airport", "food", "activity", "other"}
 # Geocoding viewports around POIs are display hints, often only 200–300 m wide.
 # Only tiny automatic areas get a vicinity fallback; selected map bounds never do.
@@ -206,6 +208,11 @@ def _place(raw: object) -> dict | None:
         maps_url = "https://www.google.com/maps/search/?" + urlencode(
             {"api": "1", "query": name["text"][:120], "query_place_id": place_id}
         )
+    website = raw.get("websiteUri")
+    try:
+        website = public_website(website) if isinstance(website, str) else None
+    except ValueError:
+        website = None
     types = raw.get("types", [])
     return {
         "id": "google_" + hashlib.sha256(place_id.encode()).hexdigest()[:32],
@@ -218,6 +225,7 @@ def _place(raw: object) -> dict | None:
         "types": [item[:80] for item in types if isinstance(item, str)][:10]
         if isinstance(types, list) else [],
         "maps_url": maps_url,
+        "website": website,
         "reason": "",
     }
 

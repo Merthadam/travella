@@ -15,6 +15,8 @@ from typing import Annotated, Literal
 from urllib.parse import urlsplit
 from uuid import UUID
 
+from services.place_websites import WebsiteUrl, public_website
+
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from services.trip_context import TripContext
@@ -89,6 +91,7 @@ class Position(Strict):
 
 
 class Pin(Strict):
+    website: WebsiteUrl | None = None
     id: ItemId
     name: str = Field(min_length=1, max_length=120)
     category: Literal["stay", "airport", "food", "activity", "other"]
@@ -163,6 +166,13 @@ class Findings(Component):
 
 
 class Link(Source):
+    placeId: ItemId | None = None
+
+    @model_validator(mode="after")
+    def safe_url(self):
+        public_website(self.url)
+        return self
+
     id: ItemId
     title: str = Field(min_length=1, max_length=120)
     purpose: str = Field(max_length=240)
@@ -170,7 +180,7 @@ class Link(Source):
 
 
 class Links(Component):
-    items: list[Link] = Field(max_length=20)
+    items: list[Link] = Field(max_length=70)
 
 
 COMPONENT_MODELS = {"essentials": Essentials, "map": MapComponent, "themes": Themes,
