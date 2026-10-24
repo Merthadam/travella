@@ -28,12 +28,10 @@
 .places-combined .places-content{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,1.6fr);gap:20px;align-items:start}
 .places-combined .places-list-pane{max-height:460px;overflow:auto;scrollbar-width:thin}
 .places-combined .places-map-pane{min-width:0}
-.places-combined .places-list-row{gap:6px}
-.places-combined .places-photo{flex:0 0 48px;width:48px}.places-combined .places-photo img,.places-combined .places-photo-loading{width:48px;height:42px}
 .places-combined .places-row{padding:14px 0}
-.places-combined .places-row strong{font-size:13px}
+.places-combined .places-row strong{font-size:15px}
 .places-combined .places-row small{font-size:11px}
-.places-combined .places-detail{padding:14px;border-radius:8px}
+.places-combined .places-detail{padding:0 0 18px;border-radius:0}
 .places-combined .places-detail p{font-size:13px}
 .places-combined .canvas-google-map{height:390px;border-radius:14px}
 .places-combined .places-footer{margin-top:10px}

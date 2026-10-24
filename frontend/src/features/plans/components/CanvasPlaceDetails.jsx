@@ -21,14 +21,14 @@ export async function loadSavedPlaceDetails(place, destination) {
     if (id !== place.id) continue;
     await candidate.fetchFields({ fields: ['websiteURI', 'editorialSummary', 'editorialSummaryLanguageCode'] });
     const website = websiteUrl.safeParse(candidate.websiteURI);
-    return { website: website.success ? website.data : null,
+    return { website: website.success ? website.data : null, placeId: candidate.id,
       summary: typeof candidate.editorialSummary === 'string' ? candidate.editorialSummary : null,
       language: candidate.editorialSummaryLanguageCode || undefined };
   }
   return null;
 }
 
-export function CanvasPlaceDetails({ place, destination, disabled, onAction }) {
+export function CanvasPlaceDetails({ place, destination, disabled, onAction, actions }) {
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState(null);
   const pending = useRef(null);
@@ -43,14 +43,15 @@ export function CanvasPlaceDetails({ place, destination, disabled, onAction }) {
   }, [key, eligible]);
   const current = result?.key === key ? result : null;
   const website = place.website || current?.details?.website;
+  const mapsUrl = `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query: `${place.position.lat},${place.position.lng}`, ...(current?.details?.placeId ? { query_place_id: current.details.placeId } : {}) })}`;
   useEffect(() => {
     if (!disabled && !place.website && current?.details?.website) onAction('set_place_website', { id: place.id, website: current.details.website });
   }, [disabled, place.id, place.website, current, onAction]);
   return <>
-    {website && <p><a href={website} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${place.name} website`}>Website ↗</a></p>}
     {eligible && !current && <p role="status">Loading Google Maps details…</p>}
     {current?.error && <p role="status">Couldn’t load Google Maps details. <button className="ds-text-button" onClick={() => setAttempt(value => value + 1)}>Retry details</button></p>}
-    {current?.details?.summary && <div className="places-provider-description"><span className="places-note-label">Description from Google Maps</span><p lang={current.details.language}>{current.details.summary}</p></div>}
+    {current?.details?.summary && <div className="places-provider-description"><p lang={current.details.language}>{current.details.summary}</p><span className="places-note-label">Description from Google Maps</span></div>}
     {current && !current.error && !website && <p className="places-note-label">{current.details ? 'No website listed on Google Maps.' : 'Google Maps details unavailable for this place.'}</p>}
+    <div className="places-actions places-detail-actions">{website && <a href={website} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${place.name} website`}>Website ↗</a>}<a href={mapsUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${place.name} in Google Maps`}>Google Maps ↗</a>{actions}</div>
   </>;
 }

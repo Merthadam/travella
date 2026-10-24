@@ -47,11 +47,14 @@ test('generated notes are hidden; removal still requires confirmation and suppor
   await user.click(screen.getByRole('button', { name: /Sforzesco Castle/ }));
   expect(screen.queryByText('Visit the courtyard')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Edit note' })).toBeNull();
-  await user.click(screen.getByRole('button', { name: 'Remove', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'More options for Sforzesco Castle' }));
+  await user.click(screen.getByRole('button', { name: 'Remove from plan', exact: true }));
   expect(screen.getByRole('dialog').open).toBe(true);
   expect(action.mock.calls.some(([name]) => name === 'remove_pin')).toBe(false);
   await user.click(screen.getByRole('button', { name: 'Keep place' }));
-  await user.click(screen.getByRole('button', { name: 'Remove', exact: true }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'More options for Sforzesco Castle' }));
+  await user.click(screen.getByRole('button', { name: 'More options for Sforzesco Castle' }));
+  await user.click(screen.getByRole('button', { name: 'Remove from plan', exact: true }));
   await user.click(screen.getByRole('button', { name: 'Remove place', exact: true }));
   expect(screen.queryByRole('button', { name: /Sforzesco Castle/ })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Undo' }));
@@ -89,8 +92,28 @@ test('combined places keeps the list and map visible with shared selection and f
   expect(screen.queryByRole('button',{name:'List',exact:true})).toBeNull();
   await user.click(screen.getByRole('button',{name:'Sforzesco Castle pin'}));
   expect(screen.getByRole('button',{name:/Sforzesco Castle Activities/}).getAttribute('aria-expanded')).toBe('true');
+  expect(screen.queryByRole('heading', { name: 'Sforzesco Castle' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Close place details' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Open Sforzesco Castle in Google Maps' }).href).toContain('query=45.47%2C9.18');
   await user.click(screen.getByRole('button',{name:'Food 1'}));
   expect(screen.queryByRole('button',{name:'Sforzesco Castle pin'})).toBeNull();
   expect(screen.getByRole('button',{name:'Test cafe pin'})).toBeTruthy();
   expect(action.mock.calls.filter(([name])=>name!=='editor_state')).toEqual([]);
+});
+
+test('place options dismiss on Escape and outside click without removing anything', async () => {
+  const user = userEvent.setup(); const action = vi.fn();
+  render(<DestinationMap data={data} onAction={action} combined/>);
+  await user.click(screen.getByRole('button', { name: /Sforzesco Castle Activities/ }));
+  const more = screen.getByRole('button', { name: 'More options for Sforzesco Castle' });
+  await user.click(more);
+  await user.tab();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove from plan' }));
+  await user.keyboard('{Escape}');
+  expect(document.activeElement).toBe(more);
+  expect(screen.queryByRole('button', { name: 'Remove from plan' })).toBeNull();
+  await user.click(more);
+  await user.click(screen.getByRole('heading', { name: 'Your places' }));
+  expect(screen.queryByRole('button', { name: 'Remove from plan' })).toBeNull();
+  expect(action).not.toHaveBeenCalled();
 });

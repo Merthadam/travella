@@ -20,7 +20,7 @@ const detail = () => ({ id: 'right-id', websiteURI: 'https://example.org/garden'
 test('fetches only the exact saved identity and rejects unsafe URLs without discarding its description', async () => {
   const wrong = { ...detail(), id: 'wrong-id' }; const right = detail();
   search.mockResolvedValue({ places: [wrong, right] });
-  expect(await loadSavedPlaceDetails(place, 'Milan')).toEqual({ website: right.websiteURI, summary: right.editorialSummary, language: 'en' });
+  expect(await loadSavedPlaceDetails(place, 'Milan')).toEqual({ website: right.websiteURI, placeId: 'right-id', summary: right.editorialSummary, language: 'en' });
   expect(wrong.fetchFields).not.toHaveBeenCalled();
   right.websiteURI = 'javascript:alert(1)';
   expect((await loadSavedPlaceDetails(place, 'Milan')).website).toBeNull();
@@ -35,11 +35,12 @@ test('shows verbatim provider text and defers website enrichment until the draft
   expect(screen.getByRole('status').textContent).toContain('Loading');
   expect(await screen.findByText('Original description — unchanged.')).toBeTruthy();
   expect(onAction).not.toHaveBeenCalled();
+  expect(new URL(screen.getByRole('link', { name: 'Open Garden in Google Maps' }).href).searchParams.get('query_place_id')).toBe('right-id');
   rerender(<CanvasPlaceDetails place={place} destination="Milan" onAction={onAction}/>);
   await waitFor(() => expect(onAction).toHaveBeenCalledWith('set_place_website', { id: place.id, website: 'https://example.org/garden' }));
   onAction.mockClear();
   rerender(<CanvasPlaceDetails place={{ ...place, website: 'https://existing.example.org' }} destination="Milan" onAction={onAction}/>);
-  expect(screen.getByRole('link').getAttribute('href')).toBe('https://existing.example.org');
+  expect(screen.getByRole('link', { name: 'Visit Garden website' }).getAttribute('href')).toBe('https://existing.example.org');
   expect(onAction).not.toHaveBeenCalled();
 });
 
@@ -62,5 +63,6 @@ test('late responses from a previous place cannot enrich the selected place', as
   resolve({ places: [detail()] });
   await screen.findByText('Google Maps details unavailable for this place.');
   expect(onAction).not.toHaveBeenCalled();
-  expect(screen.queryByRole('link')).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Visit Garden website' })).toBeNull();
+  expect(new URL(screen.getByRole('link', { name: 'Open Garden in Google Maps' }).href).searchParams.has('query_place_id')).toBe(false);
 });

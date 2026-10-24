@@ -16,12 +16,12 @@
 .places-list { list-style:none; padding:0; margin:0; border-top:1px solid var(--ds-line); }
 .places-list > li { border-bottom:1px solid var(--ds-line); }
 .places-row { display:flex; gap:12px; width:100%; align-items:center; padding:16px 4px; border:0; background:transparent; text-align:left; color:var(--ds-ink); cursor:pointer; font:inherit; }
-.places-row:hover,.places-row[aria-expanded=true] { background:var(--ds-soft); }
-.places-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-left:8px; }
+.places-row:hover { background:var(--ds-soft); }
+.places-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
 .places-row strong { display:block; font-size:14px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }
-.places-row small { display:block; margin-top:3px; color:var(--ds-muted); font-size:12px; }
+.places-row small { display:flex; align-items:center; gap:7px; margin-top:3px; color:var(--ds-muted); font-size:12px; }
 .places-chevron { margin-left:auto; margin-right:8px; color:var(--ds-muted); }
-.places-detail { padding:18px 12px 20px 31px; background:var(--ds-soft); }
+.places-detail { padding:0 0 18px; background:transparent; }
 .places-detail-heading { justify-content:space-between; }
 .places-detail h3 { font:600 16px/1.5 var(--ds-font); margin:0 0 12px; }
 .places-detail p { color:var(--ds-ink); font-size:14px; line-height:1.6; margin:6px 0 18px; overflow-wrap:anywhere; }
@@ -37,7 +37,7 @@
 .ds-places [hidden] { display:none !important; }
 .ds-places button:focus-visible,.ds-places input:focus-visible,.ds-places textarea:focus-visible { outline:2px solid var(--ds-focus); outline-offset:3px; }
 .ds-places button:disabled { cursor:default; opacity:.5; }
-@media(max-width:600px) { .ds-places { padding:18px 16px; } .places-heading { gap:8px; } .places-heading h2 { font-size:20px; } .places-toolbar { gap:12px; } .places-detail { padding-left:16px; } .places-actions .ds-button { min-height:40px; } }
+@media(max-width:600px) { .ds-places { padding:18px 16px; } .places-heading { gap:8px; } .places-heading h2 { font-size:20px; } .places-toolbar { gap:12px; }  .places-actions .ds-button { min-height:40px; } }
 .ds-places .canvas-google-map { height:360px; border-radius:8px; }
 .ds-places .canvas-map-pin { display:block; width:28px; height:36px; padding:0; border:0; border-radius:0; background:none; box-shadow:none; filter:drop-shadow(0 1px 2px #0005); }
 .ds-places .canvas-map-pin svg { width:28px; height:36px; }
@@ -56,12 +56,30 @@
 .ds-places .places-detail label { display:block; margin:0; font-weight:400; }
 .ds-places .places-detail textarea { font-size:16px; font-weight:400; }
 
-.places-list-row { display:flex; align-items:center; gap:12px; }
-.ds-places .places-list-row .places-row { flex:1; min-width:0; }
-.ds-places .places-photo { flex:0 0 80px; width:80px; margin:12px 0; }
-.places-photo img { display:block; width:80px; height:64px; object-fit:cover; border-radius:6px; }
-.places-photo figcaption { margin-top:4px; font:10px/1.35 var(--ds-font); color:var(--ds-muted); overflow-wrap:anywhere; }
-.places-photo figcaption a { color:inherit; }
-.places-photo-credit { display:block; }
-.places-photo-loading { width:80px; height:64px; border-radius:6px; background:var(--ds-soft); }
-@media(max-width:600px) { .places-list-row { gap:8px; } .ds-places .places-photo { flex-basis:64px; width:64px; } .places-photo img,.places-photo-loading { width:64px; height:56px; } }
+/* The image and title share a row; attribution can use the entire width. */
+.places-list-row { display:grid; grid-template-columns:minmax(0,1fr); align-items:center; column-gap:14px; row-gap:6px; padding:16px 0; }
+.places-list-row:has(.places-photo) { grid-template-columns:72px minmax(0,1fr); }
+.ds-places .places-list-row .places-row { grid-column:1 / -1; grid-row:1; min-width:0; padding:8px 0; min-height:56px; }
+.ds-places .places-list-row:has(.places-photo) .places-row { grid-column:2; }
+.ds-places .places-photo { display:contents; margin:0; }
+.places-photo img,.places-photo-loading { grid-column:1; grid-row:1; display:block; width:72px; height:72px; object-fit:cover; border-radius:10px; }
+.places-photo-loading { background:var(--ds-soft); }
+.places-photo figcaption { grid-column:1 / -1; grid-row:2; display:flex; gap:4px 8px; flex-wrap:wrap; margin:0; font:10px/1.5 var(--ds-font); color:var(--ds-muted); overflow-wrap:anywhere; }
+.places-photo figcaption a { color:inherit; text-underline-offset:2px; }
+.places-photo-credit { display:inline; }
+.places-photo-credit::before { content:'·'; margin-right:8px; }
+.places-row-title { min-width:0; }
+.places-chevron { display:flex; flex-shrink:0; }
+.places-row[aria-expanded=true] .places-chevron { transform:rotate(180deg); }
+.places-detail .places-provider-description p { margin:0 0 5px; }
+.places-detail .places-note-label { font-size:11px; color:var(--ds-muted); }
+.places-detail-actions { margin-top:14px; gap:10px 16px; font-size:13px; }
+.places-detail-actions > a { color:var(--ds-green); text-underline-offset:4px; padding:8px 0; }
+.places-options { margin-left:auto; position:relative; }
+.places-options-trigger { display:grid; place-items:center; min-width:40px; min-height:40px; padding:8px; border:0; border-radius:6px; background:transparent; color:var(--ds-muted); font:inherit; cursor:pointer; }
+.places-options-trigger:hover,.places-options-trigger[aria-expanded=true] { background:var(--ds-soft); }
+.ds-places .places-options-trigger:focus-visible,.ds-places .places-row:focus-visible { outline-offset:-3px; }
+.places-options-panel { position:absolute; right:0; bottom:calc(100% + 4px); z-index:2; width:max-content; max-width:240px; padding:4px; background:var(--ds-surface); border:1px solid var(--ds-line); border-radius:8px; box-shadow:0 4px 18px #0002; }
+.places-options-panel button { display:block; min-height:40px; padding:8px 12px; border:0; border-radius:5px; background:transparent; color:var(--ds-danger); font:inherit; cursor:pointer; }
+.places-options-panel button:hover { background:var(--ds-soft); }
+@media(max-width:600px) { .places-list-row { column-gap:12px; } }
