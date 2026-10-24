@@ -6,8 +6,8 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T13:35:29.762Z"
 last_activity: 2026-10-24
-last_activity_desc: Focused dates travelers and budget editors implemented and browser verified
-state_head: b388db692806d7f58949412873909e1f543376c4
+last_activity_desc: Journal rename layout and focus stabilized and browser verified
+state_head: 12dba9144f03038153711f8ee3c326d115b6d65b
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-l9g: approved plans journal implemented with inline Enter rename, small trash, automatic names and Google photos; browser/API/build verified.
+Last activity: 2026-10-24 — Debug journal rename smoothness: shared title/editor geometry, stable card order and focus; browser/API/build verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -344,3 +344,9 @@ Resume file: None
 - Automatic labels derive from existing trip facts; manual names always win. Reads never silently mutate Plan data. Generated/saved destination photos shared with the actual Canvas; attribution and honest placeholders retained.
 - 46 frontend and 73 CRUD tests passed, seven environment-dependent tests skipped; build, real authenticated rename/reload/delete/restore, mobile/themes and rebuilt runtime hashes verified. Test-owned records cleaned through soft deletion.
 - Evidence: artifacts/testing/2026-10-24-plans-journal-implementation/verification.md. Canonical http://localhost:5174 ready. Prior production deferral superseded; prototype files removed with history retained. No push/merge.
+
+### Journal rename smoothness — 2026-10-24
+
+- User requested smoother inline renaming. Source `12dba91` preserves title typography, card position, keyboard focus and search visibility; Enter saves, Escape/click-away cancel, unchanged names avoid writes.
+- 24 focused tests, build, authenticated real rename/readback/reload, zero-shift desktop/mobile measurements, light/dark visual checks and generated-photo stability passed. Task-owned records cleaned up. Rebuilt runtime hashes match.
+- Resolved debug: `.planning/debug/resolved/journal-rename-smoothness.md`. Evidence: `artifacts/testing/2026-10-24-rename-smoothness/verification.md`. Canonical http://localhost:5174/plans ready; no push/merge.
