@@ -3,6 +3,7 @@ import { requestId } from '../../plansApi';
 import { definitions, ids } from '../../design-system/schemas';
 import { flightNeedConfirmed } from './flightNeeds';
 import { destinationConfirmed } from './generationRequirements';
+import { suggestedPlaceCategory } from './placeCategory';
 
 const groupIds = { themes: ['themes'], research: ['findings', 'links'], all: ids };
 const clone = value => structuredClone(value);
@@ -333,7 +334,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       const next = clone(dataRef.current);
       for (const place of places) {
         if (next.map.pins.some(pin => pin.id === place.id || (pin.name === place.name && pin.position.lat === place.position.lat && pin.position.lng === place.position.lng))) continue;
-        next.map.pins.push({ id: place.id, name: place.name, category: 'activity', position: place.position, description: place.reason.slice(0, 240) });
+        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: place.reason.slice(0, 240) });
       }
       next.map.status = 'ready'; delete next.map.error;
       const parsed = validateCanvasComponents(next, true);

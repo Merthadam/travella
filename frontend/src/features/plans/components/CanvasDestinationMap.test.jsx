@@ -126,3 +126,34 @@ test('saved pins fit together once, selecting a pin does not refit, and show all
   rerender(view(null, 1));
   expect(fitBounds).toHaveBeenCalledTimes(2);
 });
+
+test('reopening restores the explored viewport instead of automatically framing the city again', async () => {
+  sessionStorage.clear();const maps=[];
+  loadGoogleMaps.mockResolvedValue({maps:{},libraries:{
+    maps:{Map:class {
+      constructor(_,options){this.options=options;this.fitBounds=vi.fn();maps.push(this);}
+      addListener(){return {remove(){}};}
+      getCenter(){return {toJSON:()=>({lat:45.48,lng:9.20})};}
+      getZoom(){return 16;}
+    }},marker:{AdvancedMarkerElement:class{}},
+    geocoding:{Geocoder:class{async geocode(){return {results:[{geometry:{viewport:{},location:{}}}]};}}}
+  }});
+  const view=()=> <AppearanceProvider><CanvasMapContext.Provider value={{viewStateKey:'milan-reopen'}}><CanvasDestinationMap destination="Milan" final places={[]} onSelect={()=>{}}/></CanvasMapContext.Provider></AppearanceProvider>;
+  const first=render(view());await waitFor(()=>expect(maps[0]?.fitBounds).toHaveBeenCalledOnce());
+  first.unmount();render(view());await waitFor(()=>expect(maps).toHaveLength(2));
+  expect(maps[1].options).toMatchObject({center:{lat:45.48,lng:9.20},zoom:16});
+  expect(maps[1].fitBounds).not.toHaveBeenCalled();
+});
+
+test('food previews use the same category color as saved food pins', async () => {
+  const markers = [];
+  const preview = { id: 'cafe', name: 'Cafe', types: ['cafe', 'food'], position: { lat: 45.47, lng: 9.18 } };
+  loadGoogleMaps.mockResolvedValue({ maps: {}, libraries: {
+    maps: { Map: class { panTo() {} setZoom() {} addListener() { return { remove() {} }; } getCenter() { return { toJSON: () => preview.position }; } getZoom() { return 15; } } },
+    marker: { AdvancedMarkerElement: class { constructor(options) { Object.assign(this, options); markers.push(this); } addListener() { return { remove() {} }; } } },
+  } });
+  const { categories } = await import('../../../design-system/schemas');
+  render(<AppearanceProvider><CanvasMapContext.Provider value={{ preview }}><CanvasDestinationMap destination="" final={false} places={[]} onSelect={() => {}} /></CanvasMapContext.Provider></AppearanceProvider>);
+  await waitFor(() => expect(markers).toHaveLength(1));
+  expect(markers[0].content.style.getPropertyValue('--category')).toBe(categories.food.color);
+});

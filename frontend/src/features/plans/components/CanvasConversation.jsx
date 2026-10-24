@@ -11,8 +11,8 @@ export function CanvasConversation({ chat, data, disabled, generating, onClose, 
   useEffect(() => {
     const element = composer.current;
     if (!visible || !element) return;
-    element.style.height = 'auto';
-    element.style.height = `${Math.min(160, Math.max(48, element.scrollHeight))}px`;
+    element.style.height = '0px';
+    element.style.height = `${Math.min(160, Math.max(48, input ? element.scrollHeight : 48))}px`;
   }, [input, visible]);
   const blocked = disabled || chat.loading || Boolean(chat.historyError) || chat.active;
   async function send(event) { event.preventDefault(); const text = input.trim(); if (!text || blocked) return; setInput(''); await chat.send(text, area); requestAnimationFrame(() => composer.current?.focus()); }

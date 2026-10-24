@@ -74,3 +74,28 @@ test('conversation preview opens the map without adding and waits for an unfinis
   await waitFor(() => expect(screen.getByRole('region', { name: 'Test map' })).toBeTruthy());
   expect(action.mock.calls.some(([name]) => name === 'add_pin')).toBe(false);
 });
+
+test('reopening a plan restores its filter and selected place without changing saved pins', async () => {
+  sessionStorage.clear();const user=userEvent.setup();const action=vi.fn();
+  const props={data,onAction:action,mapAdapter:Map,viewStateKey:'reopen-map-test'};
+  const first=render(<DestinationMap {...props}/>);
+  await user.click(screen.getByRole('button',{name:'Food 1'}));
+  await user.click(screen.getByRole('button',{name:/Test cafe Food/}));
+  first.unmount();render(<DestinationMap {...props}/>);
+  expect(screen.getByRole('button',{name:'Food 1'}).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByText('Breakfast')).toBeTruthy();
+  expect(action.mock.calls.filter(([name])=>name!=='editor_state')).toEqual([]);
+});
+
+test('combined places keeps the list and map visible with shared selection and filters', async () => {
+  const user=userEvent.setup(); const action=vi.fn();
+  render(<DestinationMap data={data} onAction={action} mapAdapter={Map} combined/>);
+  expect(screen.getByRole('region',{name:'Test map'})).toBeTruthy();
+  expect(screen.queryByRole('button',{name:'List',exact:true})).toBeNull();
+  await user.click(screen.getByRole('button',{name:'Sforzesco Castle pin'}));
+  expect(screen.getByRole('button',{name:/Sforzesco Castle Activities/}).getAttribute('aria-expanded')).toBe('true');
+  await user.click(screen.getByRole('button',{name:'Food 1'}));
+  expect(screen.queryByRole('button',{name:'Sforzesco Castle pin'})).toBeNull();
+  expect(screen.getByRole('button',{name:'Test cafe pin'})).toBeTruthy();
+  expect(action.mock.calls.filter(([name])=>name!=='editor_state')).toEqual([]);
+});

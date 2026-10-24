@@ -1,0 +1,3 @@
+Approved 2026-10-24: implement blended progress/title/map introduction, all in one canvas, with list/map combined and current capabilities only. User additionally requested reopening in Canvas and retaining map UI state. Reference: artifacts/testing/2026-10-24-canvas-blend/plan/c-dark.jpg. Static/sample prototype data is excluded from production.
+
+User refinement during implementation: put the combined places list/map inside a shared card matching the existing container pattern. Flights and Stays retain their own full screens for future work; returning restores the mounted canvas and its edits/view.

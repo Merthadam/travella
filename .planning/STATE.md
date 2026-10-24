@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T06:57:43.970Z"
-last_activity: 2026-10-23
-last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
-state_head: dc9de9568200ac3ff713df4b7d38a39d296ae3c0
+last_updated: "2026-10-24T09:07:12.759847+00:00"
+last_activity: 2026-10-24
+last_activity_desc: Focused dates travelers and budget editors implemented and browser verified
+state_head: 5262676
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-23 — User approved main merge. Integrated phase 16 travel previews with research cleanup and verified combined frontend, Agent/gateway, PostgreSQL and Chrome paths. GitHub PR records final merge status; no deployment.
+Last activity: 2026-10-24 — Quick task 261024-eat: continuous canvas introduction; desktop/mobile and light/dark browser verified; user design choice pending. Prior: User approved main merge. Integrated phase 16 travel previews with research cleanup and verified combined frontend, Agent/gateway, PostgreSQL and Chrome paths. GitHub PR records final merge status; no deployment.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,12 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261024-f50 | Focused dates, travelers and budget editors without header expansion | 2026-10-24 | 5262676 | Verified | [Task](quick/261024-f50-make-canvas-dates-travelers-and-budget-c/) |
+| 261024-ee3 | Implement approved single canvas, dedicated travel screens and view recovery | 2026-10-24 | d85919e | Verified | [Task](quick/261024-ee3-implement-approved-single-canvas-with-co/) |
+| 261024-eat | Blend progress, trip header and canvas surfaces in A/B/C | 2026-10-24 | e56a972 | Browser verified; awaiting design choice | [Task](quick/261024-eat-blend-canvas-progress-and-trip-header-in/) |
+| 261024-e5l | Scroll Canvas progress and trip header together in A/B/C | 2026-10-24 | 9ca98a1 | Browser verified; awaiting design choice | [Task](quick/261024-e5l-scroll-trip-header-with-canvas-below-act/) |
+| 261024-dwo | Restore visible Flights, Accommodation and all canvas content in A/B/C | 2026-10-24 | c596857 | Browser verified; awaiting design choice | [Task](quick/261024-dwo-restore-full-canvas-content-in-single-ca/) |
+| 261024-dgt | Single-canvas A/B/C layout prototypes | 2026-10-24 | 39f0f95 | Browser verified; awaiting design choice | [Task](quick/261024-dgt-prototype-three-single-canvas-planning-l/) |
 | 261023-ssj | Integrate Research cleanup with current main and prepare authorized merge | 2026-10-23 | See branch merge commit | Verified; user authorized merge | [Task](quick/261023-ssj-integrate-research-cleanup-with-main-and/) |
 | 261023-skp | Top-right research brief and bottom composer | 2026-10-23 | d6abf21 | Desktop browser verified; 30 tests passed | [Task](quick/261023-skp-anchor-research-brief-at-progress-bar-an/) |
 | 261023-njb | Draggable desktop brief overlay with no conversation movement | 2026-10-23 | 1c3e236 | Verified prototype | [Task](quick/261023-njb-prototype-draggable-overlay-trip-brief-o/) |
@@ -304,3 +310,21 @@ Resume file: None
 - User explicitly authorized merging prototype/canvas-globe-loading-20261023 despite remaining unspecified polish issues. Scope includes the approved themed globe loader, destination-only readiness with explicit flight confirmation, closed-chat plan scrolling and animated sidebar reveal.
 - Source 74d4567 is verified by the production loader, destination-only, loader-themes and canvas-scroll-chat reports under artifacts/testing. Scoped shipping security review: .planning/quick/261024-canvas-loader-ship/SECURITY.md, threats_open: 0. No source edits during shipping.
 - Ship through a GitHub PR into main and retain remaining polish for follow-up. Preserve the dirty separate main worktree and running local stack. This shipment does not assert completion of Phase 17 acceptance.
+
+### Approved single canvas — 2026-10-24
+
+- User selected the blended prototype and refined the implementation to one shared places card and dedicated Flights/Stays screens. Production implementation completed in d85919e.
+- Canvas resume and per-plan map/filter/selection/chat/scroll recovery verified within the browser tab; explicit Save plan still owns durable content. 54 tests passed, one existing SSE fixture skip; build and authenticated desktop/mobile browser checks passed. Test-created plan cleaned up.
+- Evidence: artifacts/testing/2026-10-24-single-canvas-implementation/verification.md. Prototype retained on its source branch; removed from production route. No push/merge. Earlier single-canvas prototype design-choice deferral is superseded.
+
+### Food category correction — 2026-10-24
+
+- Quick 261024-fn4: actual place additions and previews use provider food types instead of hardcoded Activity. Signed suggestions and existing saved pins unchanged.
+- 46 focused tests, build, real authenticated café/museum search, save/readback/reload, category filters, and mobile check passed. Test-owned plan cleaned up; runtime source hashes match.
+- Evidence: artifacts/testing/2026-10-24-food-categories/verification.md. No push/merge.
+
+### Single canvas shipment — 2026-10-24
+
+- User authorized merging the full approved canvas branch, including focused trip-detail editors and food classification. Source 8a46617; current main cde314b is its ancestor.
+- Combined final regressions: 73 passed, one existing optional Python SSE fixture skip. Prior authenticated browser evidence remains applicable; no runtime edits during shipping. Scoped security review: threats_open 0.
+- Shipment record: .planning/quick/261024-single-canvas-ship/VERIFICATION.md. PR #14: https://github.com/Merthadam/travella/pull/14. User-authorized merge to main; retain unrelated dirty main worktree and local preview.

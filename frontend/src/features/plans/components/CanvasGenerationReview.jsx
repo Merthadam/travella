@@ -4,6 +4,7 @@ import { destinationConfirmed } from '../generationRequirements';
 import './canvas-generation-review.css';
 
 export function PlanStages({ canvas = false }) {
+  if (canvas) return <nav className="generation-stages canvas-stage-progress" aria-label="Plan stages"><ol><li className="complete"><span className="generation-step" aria-hidden="true">✓</span>Research<span className="sr-only"> complete</span></li><li className="generation-rail" aria-hidden="true"><span/></li><li className="active" aria-current="step"><span className="generation-step" aria-hidden="true">2</span>Canvas</li></ol></nav>;
   return <nav className="plan-stages" aria-label="Plan stages"><ol><li aria-current={!canvas ? 'step' : undefined}><span aria-hidden="true">1</span>Research</li><li aria-current={canvas ? 'step' : undefined}><span aria-hidden="true">2</span>Planning canvas</li></ol></nav>;
 }
 

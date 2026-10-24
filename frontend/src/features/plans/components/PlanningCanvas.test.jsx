@@ -19,6 +19,7 @@ vi.mock('../travel/TravelSearch', () => ({
 beforeEach(() => {
   sessionStorage.clear(); vi.mocked(travelRequest).mockReset();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -49,9 +50,9 @@ test('confirmed no flights omits the card and travel navigation while keeping ac
   render(<PlanningCanvas selected={{ plan_id: 'no-flights', title: 'Train trip' }} api={api}/>);
   await screen.findByRole('button', { name: 'Explore accommodation' });
   expect(screen.queryByRole('button', { name: 'Explore flights' })).toBeNull();
-  await user.click(screen.getByRole('button', { name: 'Edit details', exact: true }));
-  await user.type(screen.getByRole('textbox', { name: 'Date note' }), 'By train');
-  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  await user.click(screen.getByRole('button', { name: 'Edit dates', exact: true }));
+  await user.type(screen.getByRole('textbox', { name: /Date note/ }), 'By train');
+  await user.click(screen.getByRole('button', { name: 'Update dates' }));
   await user.click(screen.getByRole('button', { name: 'Explore accommodation' }));
   expect(screen.queryByRole('button', { name: 'Flights', exact: true })).toBeNull();
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
@@ -112,24 +113,27 @@ test('confirming Yes adds flights even when essentials were edited while flights
 
 test('open card edits and unsent chat survive flight and stay navigation', async () => {
   const user = userEvent.setup(); const api = setup();
-  await user.click(await screen.findByRole('button', { name: 'Edit details', exact: true }));
-  await user.type(screen.getByRole('textbox', { name: 'Date note' }), 'Unfinished date note');
+  await user.click(await screen.findByRole('button', { name: 'Add preference', exact: true }));
+  await user.type(screen.getByRole('textbox', { name: 'Preference' }), 'Unfinished preference');
   const message = screen.getByRole('textbox', { name: 'Message Travella' });
   expect(message.disabled).toBe(false);
   await user.type(message, 'Which airport is easiest?');
   expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(true);
   await user.click(screen.getByRole('button', { name: 'Explore flights' }));
   expect(screen.getByRole('region', { name: 'flights search' })).toBeTruthy();
-  expect(screen.queryByRole('textbox', { name: 'Date note' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'Explore flights' })).toBeTruthy();
+  expect(screen.queryByRole('region', { name: 'Plan content' })).toBeNull();
+  expect(screen.queryByRole('dialog', { name: 'Explore travel' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Stays', exact: true }));
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
-  expect(screen.getByRole('textbox', { name: 'Date note' }).value).toBe('Unfinished date note');
+  expect(screen.getByRole('textbox', { name: 'Preference' }).value).toBe('Unfinished preference');
   expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Which airport is easiest?');
   await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(api.editCanvas).toHaveBeenCalledOnce());
   expect(await screen.findByText('You can compare airports for Milan.')).toBeTruthy();
-  expect(screen.getByRole('textbox', { name: 'Date note' }).value).toBe('Unfinished date note');
+  expect(screen.getByRole('textbox', { name: 'Preference' }).value).toBe('Unfinished preference');
   expect(api.saveCanvas).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Use dark mode' })).toBeNull();
 });
@@ -143,14 +147,14 @@ test('cancelling an editor during a reply releases the save lock after the reply
       resolve({ status: 'complete' });
     };
   }));
-  await user.click(await screen.findByRole('button', { name: 'Edit details', exact: true }));
+  await user.click(await screen.findByRole('button', { name: 'Add preference', exact: true }));
   await user.type(screen.getByRole('textbox', { name: 'Message Travella' }), 'Help with this trip');
   await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
   finish();
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(false));
-  expect(screen.queryByRole('textbox', { name: 'Date note' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();
   expect(api.saveCanvas).not.toHaveBeenCalled();
 });
 
@@ -356,7 +360,10 @@ test('folding chat preserves its draft and restores keyboard focus without savin
   const user = userEvent.setup(); const api = setup();
   const message = await screen.findByRole('textbox', { name: 'Message Travella' });
   await waitFor(() => expect(message.disabled).toBe(false));
+  // A2UI mounts its cards asynchronously; wait for the complete workspace.
+  await screen.findByRole('region', { name: 'Your places' });
   await user.type(message, 'Keep this question for later');
+  expect(message.value).toBe('Keep this question for later');
   await user.click(screen.getByRole('button', { name: 'Collapse plan chat' }));
   expect(screen.queryByRole('textbox', { name: 'Message Travella' })).toBeNull();
   expect(screen.getByRole('region', { name: 'Plan content' }).tabIndex).toBe(0);
@@ -394,7 +401,9 @@ test('full generation hides the mounted workspace until the terminal result and 
   const trigger = await screen.findByRole('button', { name: 'Generate plan', exact: true });
   await waitFor(() => expect(trigger.disabled).toBe(false));
   const input = screen.getByRole('textbox', { name: 'Message Travella' });
+  await waitFor(() => expect(input.disabled).toBe(false));
   await user.type(input, 'Keep this unsent question');
+  expect(input.value).toBe('Keep this unsent question');
   await user.click(trigger);
   await user.click(await screen.findByRole('button', { name: 'Confirm & generate' }));
   await waitFor(() => expect(stream.api.generateCanvas).toHaveBeenCalledOnce());
@@ -459,4 +468,25 @@ test('the research handoff covers initial snapshot loading and releases the load
   await act(async () => fail(new Error('Offline')));
   expect(screen.queryByRole('region', { name: 'Generating your plan' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Retry loading' })).toBeTruthy();
+});
+
+test('adding a food suggestion preserves its category in the saved canvas', async () => {
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: { finalDestination: 'Milan' } }),
+    saveCanvas: vi.fn(async (_plan, body) => ({ ...body, revision: 2 })),
+  };
+  const { result, unmount } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'food-plan' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  act(() => result.current.addActivities([{ id: 'cafe', name: 'Cafe', types: ['cafe', 'food', 'point_of_interest', 'establishment'], position: { lat: 45.47, lng: 9.18 }, reason: 'Coffee stop' }]));
+  expect(result.current.data.map.pins[0].category).toBe('food');
+  expect(api.saveCanvas).not.toHaveBeenCalled();
+  await act(() => result.current.save());
+  const saved = api.saveCanvas.mock.calls[0][1];
+  expect(saved.snapshot.components.map.pins[0].category).toBe('food');
+  unmount();
+  api.canvas = async () => ({ ...saved, revision: 2, saved_context_revision: saved.context_revision });
+  const restored = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'food-plan' }, api }));
+  await waitFor(() => expect(restored.result.current.loading).toBe(false));
+  expect(restored.result.current.data.map.pins[0].category).toBe('food');
 });

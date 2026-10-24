@@ -1,3 +1,4 @@
+import { clearCanvasViews } from './features/plans/canvasViewState';
 import React, { useEffect, useRef, useState } from 'react';
 import { readSession, readTravelerProfile, request } from './api';
 import { PlansApp } from './PlansApp';
@@ -146,6 +147,7 @@ function AccountContent() {
   }, [step]);
 
   function go(next) {
+    if (next === 'sign_in') clearCanvasViews();
     generation.current++;
     setStep(next); setError(null); setNotice('');
     if (next !== 'mfa_enrollment') setSecretCode('');
