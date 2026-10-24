@@ -83,3 +83,28 @@
 @media(min-width:1600px){.aap-split-main{padding-right:10vw;padding-left:10vw}.aap-story{padding-left:8vw}}
 @media(max-width:1100px){.aap-workspace-content>aside{display:none}.aap-workspace-content{justify-content:center}.aap-workspace{grid-template-columns:220px 1fr}.aap-story{padding:36px}.aap-split-main{padding:48px 32px}}
 @media(max-width:700px){.aap-split{display:flex;flex-direction:column}.aap-story{padding:24px}.aap-story-copy{padding:32px 0 0;margin:0}.aap-story-copy>.aap-kicker,.aap-story-copy>p,.aap-story-footer,.aap-journey-art{display:none}.aap-story h2{font-size:34px;line-height:1.12;letter-spacing:-1.5px;margin:0}.aap-story h2 br{display:none}.aap-split-main{padding:36px 24px 48px;align-items:start;flex:1}.aap-form-section h1{font-size:29px}.aap-brand{font-size:24px}.aap-centered{padding:26px 24px 160px}.aap-centered>header>span:last-child{display:none}.aap-centered>main{padding:48px 0 28px;align-items:start}.aap-centered-form{border:0;padding:0;background:transparent;box-shadow:none}.aap-centered>footer{margin-top:20px}.aap-workspace{display:block}.aap-workspace-nav{padding:24px;border-right:0;border-bottom:1px solid var(--aap-line)}.aap-workspace-nav>div{margin-top:26px}.aap-workspace-nav .aap-kicker,.aap-workspace-nav>p{display:none}.aap-workspace-nav nav{display:flex;gap:4px;flex-wrap:wrap;margin:0}.aap-workspace-nav nav button{padding:8px 10px;font-size:11px;min-height:36px}.aap-workspace-nav nav button>span{display:none}.aap-workspace>main{padding:28px 24px}.aap-workspace>main>header{display:none}.aap-workspace-content{padding:10px 0 32px}.aap-workspace-content>.aap-form-section{min-width:0}.aap-controls{padding:10px}.aap-controls-bottom{gap:5px}.aap-controls-bottom label{font-size:0}.aap-controls select{width:145px}.aap-controls-bottom button{font-size:10px;padding:6px}.aap-name-row{gap:10px}}
+/* Selected A refinement: quiet form feedback and a complete day/night surface. */
+.aap-root { --aap-muted:#5e7068; }
+.aap-root[data-aap-theme=dark] { color-scheme:dark;--aap-bg:#0c1725;--aap-panel:#101c2b;--aap-story:#122d30;--aap-input:#142334;--aap-line:#354657;--aap-text:#edf3f5;--aap-muted:#adbec5;--aap-accent:#8bd8bf; }
+.aap-root[data-aap-theme=light] { color-scheme:light; }
+.aap-split { position:relative; }
+.aap-split,.aap-workspace { padding-bottom:192px; }
+.aap-centered { padding-bottom:212px; }
+.aap-root .aap-theme-toggle { position:absolute;top:32px;right:36px;display:grid;place-items:center;width:42px;height:42px;padding:10px;border:0;border-radius:50%;color:var(--aap-muted);background:transparent; }
+.aap-theme-toggle:hover { background:var(--aap-soft); }
+.aap-theme-toggle svg { width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round; }
+.aap-form-section h1 { margin-top:0; }
+.aap-back { margin:0 0 28px;color:var(--aap-muted);font-weight:500; }
+.aap-inline-error { font-size:12px;line-height:1.6;color:var(--aap-alert);margin:9px 0 0; }
+.aap-field input[aria-invalid=true] { border-color:var(--aap-alert); }
+.aap-inline-notice { font-size:12px;line-height:1.7;color:var(--aap-accent);margin:-12px 0 24px; }
+.aap-secondary-line { display:block;margin-top:12px; }
+.aap-secondary-line button { color:var(--aap-muted);font-weight:400; }
+.aap-root :is(.aap-back,.aap-create button,.aap-label-row button):hover { text-decoration:underline;text-underline-offset:3px; }
+.aap-root button:disabled { cursor:wait;opacity:.6; }
+.aap-controls-bottom:last-of-type label { font-size:10px; }
+.aap-controls-bottom:last-of-type select { width:170px; }
+@media(max-width:700px){.aap-root .aap-theme-toggle{position:absolute;z-index:2;top:17px;right:16px;background:var(--aap-story)}.aap-split-main{padding-top:32px}.aap-story-copy{padding-top:24px}.aap-back{margin-bottom:22px}.aap-description{margin-bottom:26px}}
+
+.aap-error-help { display:block;margin-top:6px;color:var(--aap-muted); }
+.aap-error-help button { padding:0;border:0;background:none;color:var(--aap-accent);font-size:inherit;font-weight:500;text-decoration:underline;text-underline-offset:3px; }
