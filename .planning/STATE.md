@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T06:57:43.970Z"
+last_updated: "2026-10-24T08:50:48.707349+00:00"
 last_activity: 2026-10-24
-last_activity_desc: Canvas progress and trip header visually blended; user design selection pending
-state_head: dc9de9568200ac3ff713df4b7d38a39d296ae3c0
+last_activity_desc: Approved single canvas implemented; shared places card, dedicated travel screens and tab-local view recovery verified
+state_head: d85919e
 progress:
   total_phases: 17
   completed_phases: 1
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261024-ee3 | Implement approved single canvas, dedicated travel screens and view recovery | 2026-10-24 | d85919e | Verified | [Task](quick/261024-ee3-implement-approved-single-canvas-with-co/) |
 | 261024-eat | Blend progress, trip header and canvas surfaces in A/B/C | 2026-10-24 | e56a972 | Browser verified; awaiting design choice | [Task](quick/261024-eat-blend-canvas-progress-and-trip-header-in/) |
 | 261024-e5l | Scroll Canvas progress and trip header together in A/B/C | 2026-10-24 | 9ca98a1 | Browser verified; awaiting design choice | [Task](quick/261024-e5l-scroll-trip-header-with-canvas-below-act/) |
 | 261024-dwo | Restore visible Flights, Accommodation and all canvas content in A/B/C | 2026-10-24 | c596857 | Browser verified; awaiting design choice | [Task](quick/261024-dwo-restore-full-canvas-content-in-single-ca/) |
@@ -308,3 +309,9 @@ Resume file: None
 - User explicitly authorized merging prototype/canvas-globe-loading-20261023 despite remaining unspecified polish issues. Scope includes the approved themed globe loader, destination-only readiness with explicit flight confirmation, closed-chat plan scrolling and animated sidebar reveal.
 - Source 74d4567 is verified by the production loader, destination-only, loader-themes and canvas-scroll-chat reports under artifacts/testing. Scoped shipping security review: .planning/quick/261024-canvas-loader-ship/SECURITY.md, threats_open: 0. No source edits during shipping.
 - Ship through a GitHub PR into main and retain remaining polish for follow-up. Preserve the dirty separate main worktree and running local stack. This shipment does not assert completion of Phase 17 acceptance.
+
+### Approved single canvas — 2026-10-24
+
+- User selected the blended prototype and refined the implementation to one shared places card and dedicated Flights/Stays screens. Production implementation completed in d85919e.
+- Canvas resume and per-plan map/filter/selection/chat/scroll recovery verified within the browser tab; explicit Save plan still owns durable content. 54 tests passed, one existing SSE fixture skip; build and authenticated desktop/mobile browser checks passed. Test-created plan cleaned up.
+- Evidence: artifacts/testing/2026-10-24-single-canvas-implementation/verification.md. Prototype retained on its source branch; removed from production route. No push/merge. Earlier single-canvas prototype design-choice deferral is superseded.
