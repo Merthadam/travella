@@ -118,7 +118,7 @@ test('open card edits and unsent chat survive flight and stay navigation', async
   const message = screen.getByRole('textbox', { name: 'Message Travella' });
   expect(message.disabled).toBe(false);
   await user.type(message, 'Which airport is easiest?');
-  expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(true);
+  expect(screen.queryByRole('button', { name: 'Save plan', exact: true })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Explore flights' }));
   expect(screen.getByRole('region', { name: 'flights search' })).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Explore flights' })).toBeTruthy();
@@ -153,7 +153,7 @@ test('cancelling an editor during a reply releases the save lock after the reply
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
   finish();
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(false));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send message' }).disabled).toBe(true));
   expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();
   expect(api.saveCanvas).not.toHaveBeenCalled();
 });
@@ -431,7 +431,7 @@ test('full generation hides the mounted workspace until the terminal result and 
   expect(workspace.hidden).toBe(false);
   await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Plan content' })));
   expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Keep this unsent question');
-  expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(false);
+  expect(screen.queryByRole('button', { name: 'Save plan', exact: true })).toBeNull();
   expect(stream.api.saveCanvas).not.toHaveBeenCalled();
 });
 

@@ -78,7 +78,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const [generateCanvas, setGenerateCanvas] = useState(false);
   const canvasDirty = useRef(false), canvasBusy = useRef(false);
   function leaveCanvas() {
-    if ((canvasDirty.current || canvasBusy.current) && !window.confirm('Leave this canvas? Unsaved changes will be discarded and generation will stop.')) return false;
+    if ((canvasDirty.current || canvasBusy.current) && !window.confirm('Leave this canvas? Changes still waiting to save and unfinished edits may be lost. Generation will stop.')) return false;
     canvasDirty.current = false; canvasBusy.current = false; setCanvasPage(false); return true;
   }
   function showCanvas(generate, revision, researchEntryReceipt) { writeCanvasView(selected?.plan_id, { canvas: true }); setGenerateCanvas(generate ? { revision, researchEntryReceipt } : false); setCanvasPage(true); }

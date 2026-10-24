@@ -66,7 +66,7 @@ export function FlightSandboxCheckout({ planId, offerToken, recoveryToken, onClo
   const confirmed = status === "confirmed";
   return <section className="mock-checkout" aria-busy={busy}>
     <h3>{confirmed ? "Mock flight booking confirmed" : "Sandbox flight checkout"}</h3>
-    <p className="travel-note">Test only — no real ticket or charge. Fictional passengers and test documents are supplied automatically. Confirmed bookings update your canvas draft; choose Save plan to keep them.</p>
+    <p className="travel-note">Test only — no real ticket or charge. Fictional passengers and test documents are supplied automatically. Confirmed mock bookings are saved automatically to your canvas draft.</p>
     {busy && <p role="status">{attempted ? "Checking the provider’s test reservation…" : "Verifying the flight and current fare…"}</p>}
     {error && <p role="alert">{error}</p>}
     {flight && <>

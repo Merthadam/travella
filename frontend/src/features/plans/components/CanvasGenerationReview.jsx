@@ -50,7 +50,7 @@ export function CanvasGenerationReview({ context, replacing = false, cancelLabel
     </fieldset>
     {!destinationReady && <p role="alert">Confirm a destination in your trip details before generating.</p>}
     {replacing && <p className="generation-review-warning">New results replace generated sections and edits in those sections. Your essentials and saved map places stay in the draft.</p>}
-    <p className="generation-review-note">This creates a draft canvas. You’ll review it before choosing Save plan.</p>
+    <p className="generation-review-note">This creates a draft canvas that saves automatically. You can keep editing it here.</p>
     {error && <p role="alert">{error} You can return to trip details to review the latest version.</p>}
     <div className="generation-review-actions"><button type="button" autoFocus disabled={pending} onClick={onCancel}>{cancelLabel}</button><button type="button" className="primary" disabled={!destinationReady || !flights || pending} onClick={confirm}>{pending ? 'Confirming flights…' : 'Confirm & generate'}</button></div>
   </dialog>;

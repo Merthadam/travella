@@ -63,7 +63,7 @@ function ActivityExplorer({ data, onAction, disabled }) {
         <div className="activity-provider"><span>Place data: Google Maps</span><a href={place.maps_url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${place.name} in Google Maps`}>Google Maps ↗</a></div>
       </div>
     </article>
-    <p className="activity-save-hint">Added places stay in your draft until you choose Save plan.</p>
+    <p className="activity-save-hint">Added places are saved automatically to your draft.</p>
   </div>;
 }
 
