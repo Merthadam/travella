@@ -15,6 +15,9 @@ from typing import Annotated, Literal
 from urllib.parse import urlsplit
 from uuid import UUID
 
+from services.place_details import GooglePlaceDetails
+from services.place_websites import WebsiteUrl, public_website
+
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from services.trip_context import TripContext
@@ -89,6 +92,8 @@ class Position(Strict):
 
 
 class Pin(Strict):
+    googleDetails: GooglePlaceDetails | None = None
+    website: WebsiteUrl | None = None
     id: ItemId
     name: str = Field(min_length=1, max_length=120)
     category: Literal["stay", "airport", "food", "activity", "other"]
@@ -163,6 +168,13 @@ class Findings(Component):
 
 
 class Link(Source):
+    placeId: ItemId | None = None
+
+    @model_validator(mode="after")
+    def safe_url(self):
+        public_website(self.url)
+        return self
+
     id: ItemId
     title: str = Field(min_length=1, max_length=120)
     purpose: str = Field(max_length=240)
@@ -170,7 +182,7 @@ class Link(Source):
 
 
 class Links(Component):
-    items: list[Link] = Field(max_length=20)
+    items: list[Link] = Field(max_length=70)
 
 
 COMPONENT_MODELS = {"essentials": Essentials, "map": MapComponent, "themes": Themes,
@@ -290,13 +302,27 @@ class CanvasRepository:
     def _validate_evidence(self, subject, plan_id, snapshot):
         if snapshot is None:
             return
+        stored = self.session.get(PlanningCanvas, plan_id)
+        persisted = stored.payload if stored else {}
+        known_findings = {item["id"]: item for item in persisted.get("components", {}).get("findings", {}).get("items", [])}
         for finding in snapshot.components.get("findings", {}).get("items", []):
             if finding["certainty"] not in {"supported", "conflicting"}:
                 continue
             expected = _evidence_token(subject, plan_id, finding)
             supplied = snapshot.evidence.get(finding["id"], "")
-            if not expected or not hmac.compare_digest(expected, supplied):
-                raise LifecycleProblem("canvas_evidence_invalid")
+            if expected and hmac.compare_digest(expected, supplied):
+                continue
+            # A previously validated, durable claim remains valid after signing-key
+            # rotation. Reuse only this exact Plan's stored claim AND stored proof;
+            # edits, added claims, copied proofs and different Plans still need a signature.
+            known = known_findings.get(finding["id"])
+            proof = persisted.get("evidence", {}).get(finding["id"], "")
+            if (known is not None and supplied and proof
+                    and hmac.compare_digest(proof, supplied)
+                    and Finding.model_validate(known).model_dump(exclude_none=True)
+                    == Finding.model_validate(finding).model_dump(exclude_none=True)):
+                continue
+            raise LifecycleProblem("canvas_evidence_invalid")
 
     def _validate_consistency(self, snapshot, context_row):
         """Reject stale duplicated display facts without rewriting the reviewed draft."""

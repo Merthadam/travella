@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T13:35:29.762Z"
+last_updated: "2026-10-24T13:24:25.756742+00:00"
 last_activity: 2026-10-24
-last_activity_desc: Verified journal integrated with main and authorized for shipment
-state_head: e656d9f
+last_activity_desc: Canvas improvements shipping through PR 17 after integrated verification
+state_head: a11bf00
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Plans journal shipping through PR #16; user-authorized merge to main after integrated tests and browser verification.
+Last activity: 2026-10-24 — Canvas improvements shipping through PR #17; user-authorized merge after integrated verification. Main account and journal work preserved.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,14 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261024-m71 | Persist Google place descriptions | 2026-10-24 | a11bf00 | 65 tests/build passed; reload uses saved descriptions with zero detail requests | [Task](quick/261024-m71-persist-google-place-descriptions-in-sav/) |
+| 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; running at localhost:5175 | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
+| 261024-liv | Sketch cleaner place cards (design only) | 2026-10-24 | — | Browser sketch checked; implementation pending user direction | [Task](quick/261024-liv-sketch-cleaner-place-cards/) |
+| 261024-lap | Remove map location chooser | 2026-10-24 | 6dd02e1 | Verified in browser; 28 tests and build passed | [Task](quick/261024-lap-remove-map-location-chooser/) |
+| 261024-l6e | Remove Search this map area; keep Show all places | 2026-10-24 | 5239c66 | Verified in browser; 27 tests and build passed | [Task](quick/261024-l6e-remove-search-this-map-area-button/) |
+| 261024-kci | Google editorial descriptions and existing place website enrichment; verify Yakushima search | 2026-10-24 | bdec68a | Verified; historical search interruption not reproduced | [Task](quick/261024-kci-show-google-place-descriptions-and-websi/) |
+| 261024-jp7 | Place websites in chat, map previews/details and automatic useful links | 2026-10-24 | 4a5db39 | Feature verified; baseline failures and extra screenshot limitation documented | [Task](quick/261024-jp7-add-place-websites-to-chat-map-and-usefu/) |
+| 261024-hd3 | Complete draft autosave; finalization deferred; stored research key-rotation fix | 2026-10-24 | e0ab187 / da7370e | Functional checks passed; screenshot gate incomplete | [Task](quick/261024-hd3-persist-planning-canvas-drafts-automatic/) |
 | 261024-m18 | Whole-card plan links with independent rename/trash and no CTA sections | 2026-10-24 | 9b2563f | Verified | [Task](quick/261024-m18-make-plan-cards-clickable-and-remove-sep/) |
 | 261024-f50 | Focused dates, travelers and budget editors without header expansion | 2026-10-24 | 5262676 | Verified | [Task](quick/261024-f50-make-canvas-dates-travelers-and-budget-c/) |
 | 261024-ee3 | Implement approved single canvas, dedicated travel screens and view recovery | 2026-10-24 | d85919e | Verified | [Task](quick/261024-ee3-implement-approved-single-canvas-with-co/) |

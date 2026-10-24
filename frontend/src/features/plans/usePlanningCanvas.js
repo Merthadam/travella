@@ -4,6 +4,7 @@ import { definitions, ids } from '../../design-system/schemas';
 import { flightNeedConfirmed } from './flightNeeds';
 import { destinationConfirmed } from './generationRequirements';
 import { suggestedPlaceCategory } from './placeCategory';
+import { appendPlaceWebsite, preservePlaceWebsites } from './placeWebsites';
 
 const groupIds = { themes: ['themes'], research: ['findings', 'links'], all: ids };
 const clone = value => structuredClone(value);
@@ -46,6 +47,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   const [saved, setSaved] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [activeGroup, setActiveGroup] = useState(null);
   const [generationProgress, setGenerationProgress] = useState(null);
   const [groups, setGroups] = useState(initialGroups);
@@ -59,6 +61,9 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   const active = useRef(null);
   const savingRef = useRef(false);
   const base = useRef(null);
+  const initialSnapshot = useRef(null);
+  const saveLatest = useRef(null);
+  const evidenceRef = useRef(evidence); evidenceRef.current = evidence;
   const pendingSave = useRef(null);
   const editedComponents = useRef(new Set());
   const dataRef = useRef(null); dataRef.current = data;
@@ -70,7 +75,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     setMapDestinationHint('');
     setGenerationProgress(null);
     setData(null); setEvidence({}); setSaved(null); setLoading(true); setError(''); setConflict(false); setStaleContext(false); setEditors([]); setNotice(''); setGroups(initialGroups); setActiveGroup(null); setSaving(false);
-    base.current = null; pendingSave.current = null; editedComponents.current = new Set(); savingRef.current = false;
+    base.current = null; initialSnapshot.current = null; setSaveError(''); pendingSave.current = null; editedComponents.current = new Set(); savingRef.current = false;
     Promise.all([api.canvas(selected), api.researchContext(selected)]).then(([canvas, context]) => {
       if (epoch.current !== generation) return;
       if (!Number.isInteger(canvas.revision) || !Number.isInteger(canvas.context_revision)) throw new Error('The saved Plan could not be read.');
@@ -84,8 +89,9 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       setStaleContext(Boolean(canvas.snapshot && context.revision !== reviewedRevision));
       setMapDestinationHint(mapHint(context.context));
 
+      initialSnapshot.current = { version: 1, components, evidence: sourceEvidence };
       setData(components); setEvidence(sourceEvidence); setSaved(canvas.snapshot ? { version: 1, components, evidence: sourceEvidence } : null);
-      setNotice(canvas.snapshot ? 'Saved plan loaded.' : 'Your confirmed trip details are here. Generate your plan to add preferences and research.');
+      setNotice(canvas.snapshot ? 'Draft loaded. Changes are saved automatically.' : 'Your confirmed trip details are here. Generate your plan to add preferences and research.');
     }).catch(err => {
       if (epoch.current !== generation) return;
       if (err.status === 401) callbacks.current.onExpired?.();
@@ -99,7 +105,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   }, [api, planId, reloadVersion]);
 
   const snapshot = useMemo(() => data ? { version: 1, components: data, evidence } : null, [data, evidence]);
-  const dirty = Boolean(snapshot && (!saved || fingerprint(snapshot) !== fingerprint(saved)));
+  const dirty = Boolean(snapshot && (pendingSave.current || fingerprint(snapshot) !== fingerprint(saved || initialSnapshot.current)));
   const valid = useMemo(() => { try { if (!data) return false; validateCanvasComponents(data, true); return true; } catch { return false; } }, [data]);
 
   const action = useCallback((id, name, payload) => {
@@ -114,6 +120,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (!previous?.[id]) return;
     const next = clone(previous);
     const item = next[id];
+    let websiteLinkFits = true;
     if (name === 'edit_essentials' && id === 'essentials') {
       next[id] = payload;
       // Keep visible travel dates/party aligned with the locally edited essentials.
@@ -122,6 +129,21 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
         next[mode].subtitle = payload.travelers ? `${payload.travelers} travelers` : 'Travelers not set';
         next[mode].detail = payload.dates.flexible ? 'Flexible dates' : [payload.dates.start, payload.dates.end].filter(Boolean).join(' → ') || 'Dates not set';
       }
+    } else if (id === 'map' && name === 'set_place_details') {
+      const pin = item.pins.find(pin => pin.id === payload.id);
+      if (!pin || pin.googleDetails) return;
+      pin.googleDetails = payload.details;
+      if (!pin.website && payload.website) {
+        pin.website = payload.website;
+        try { websiteLinkFits = appendPlaceWebsite(next.links, pin); } catch { return; }
+      }
+    } else if (id === 'map' && name === 'set_place_website') {
+      const pin = item.pins.find(pin => pin.id === payload.id);
+      if (!pin || pin.website) return;
+      try {
+        pin.website = payload.website;
+        websiteLinkFits = appendPlaceWebsite(next.links, pin);
+      } catch { return; }
     } else if (id === 'map' && name === 'restore_pin') {
       if (item.pins.some(pin => pin.id === payload.pin?.id) || !Number.isInteger(payload.index) || payload.index < 0 || payload.index > item.pins.length) return;
       item.pins.splice(payload.index, 0, payload.pin);
@@ -142,9 +164,10 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     try {
       const parsed = validateCanvasComponents(next, true);
       dataRef.current = parsed; setData(parsed); editedComponents.current.add(id);
+      if (['set_place_website', 'set_place_details'].includes(name)) editedComponents.current.add('links');
       if (id === 'essentials') { editedComponents.current.add('flights'); editedComponents.current.add('accommodation'); }
       if (id === 'findings') setEvidence(current => { const result = { ...current }; delete result[payload.id]; return result; });
-      pendingSave.current = null; setNotice('Unsaved changes. Save plan to keep your edits.'); setError('');
+      setNotice(websiteLinkFits ? 'Your changes will be saved automatically.' : 'Website saved with the place. Useful websites is full.'); setError('');
     } catch { setError('That change could not be applied. Check the details and try again.'); }
   }, []);
 
@@ -162,14 +185,14 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     try {
       const parsed = validateCanvasComponents(next, true);
       if (fingerprint(parsed) === fingerprint(dataRef.current)) return;
-      dataRef.current = parsed; setData(parsed); pendingSave.current = null;
-      setNotice('Mock booking state updated in your draft. Choose Save plan to keep it. No real reservation was made.');
+      dataRef.current = parsed; setData(parsed);
+      setNotice('Mock booking state updated. Your draft saves automatically. No real reservation was made.');
       setError('');
     } catch { setError('The mock booking could not be added to your canvas. Reopen the checkout and check its status.'); }
   }, []);
 
   async function generate(group = 'all', reviewedRevision, researchEntryReceipt) {
-    if (active.current || savingRef.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;
+    if (active.current || savingRef.current || pendingSave.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;
     const currentEpoch = epoch.current;
     const id = requestId(); const controller = new AbortController();
     const run = { id, controller, group, completed: new Set(), components: {} };
@@ -215,6 +238,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
             for (const mode of ['accommodation', 'flights']) {
               if (replacement[mode] && dataRef.current[mode]?.mockBooking) replacement[mode] = { ...replacement[mode], bookingStatus: 'mock-booked', mockBooking: dataRef.current[mode].mockBooking };
             }
+            if (replacement.links) replacement.links = preservePlaceWebsites(dataRef.current.links, replacement.links);
             const combined = { ...dataRef.current, ...replacement };
             if (group === 'all' && currentContext.context.flights === 'not-needed') delete combined.flights;
             const next = validateCanvasComponents(combined, true);
@@ -235,7 +259,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
             if (replacement.findings) setEvidence(sourceEvidence);
             if (group === 'all') { base.current.context_revision = run.contextRevision; setStaleContext(false); }
             // Generation never acquires a new save revision over another tab's changes.
-            setGroups(current => ({ ...current, ...statuses })); pendingSave.current = null;
+            setGroups(current => ({ ...current, ...statuses }));
             setNotice(statuses.research === 'loading' ? 'Checking details…' : statuses.themes === 'loading' ? 'Summarizing preferences…' : 'Your draft is taking shape.');
           } catch { setError('An invalid update was rejected. Your last valid draft is still here.'); }
         },
@@ -243,15 +267,15 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       if (active.current !== run || epoch.current !== currentEpoch) return;
       if (result?.status === 'error' || result?.status === 'interrupted') throw new Error('Generation could not finish. Your completed draft is still here. Retry the affected group.');
       if (result?.status !== 'stopped' && runGroups.some(key => !run.completed.has(key))) {
-        setNotice('Your completed details are still here. Nothing has been saved.');
+        setNotice('Completed details remain in your draft and will save automatically.');
         throw new Error('Some parts of your plan could not be generated. Retry the affected group.');
       }
-      setNotice(result?.status === 'stopped' ? 'Generation stopped. Completed draft details are unsaved.' : 'Draft ready to review. Nothing is saved until you choose Save plan.');
+      setNotice(result?.status === 'stopped' ? 'Generation stopped. Completed details will save automatically.' : 'Draft ready to review. Changes are saved automatically.');
     } catch (err) {
       if (active.current !== run || epoch.current !== currentEpoch) return;
       if (err.status === 401) callbacks.current.onExpired?.();
       setError(err.name === 'AbortError' ? '' : err.message || 'Generation could not finish. Retry the affected group.');
-      setNotice('Your completed details are still here. Nothing has been saved.');
+      setNotice('Completed details remain in your draft and will save automatically.');
       // A broken stream may leave the server run holding the context lease.
       // Release that run so the visible Retry action can actually start again.
       await api.cancelAgentTurn?.(selected, run.id).catch(() => {});
@@ -266,53 +290,62 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   async function stop() {
     const run = active.current; if (!run) return;
     const currentEpoch = epoch.current;
-    active.current = null; run.controller.abort(); setActiveGroup(null);
+    active.current = null; run.controller.abort();
     setGroups(current => Object.fromEntries(Object.entries(current).map(([key, value]) => [key, value === 'loading' ? 'error' : value])));
-    setNotice('Generation stopped. Completed draft details are unsaved and ready to edit.');
+    setNotice('Generation stopped. Completed details will save automatically.');
     try { await api.cancelAgentTurn(selected, run.id); }
-    catch { if (epoch.current === currentEpoch && !active.current) setError('The stream stopped, but cancellation could not be confirmed. Your draft is safe; retry after the current request finishes.'); }
+    catch { if (epoch.current === currentEpoch && !active.current) setError('The stream stopped, but cancellation could not be confirmed. Retry after the current request finishes.'); }
+    finally { if (epoch.current === currentEpoch && !active.current) setActiveGroup(null); }
   }
 
   async function save() {
-    if (!snapshot || !valid || active.current || savingRef.current || externalBusyRef.current || editors.length || conflict) return;
+    if (!snapshot || !valid || !base.current || active.current || savingRef.current || externalBusyRef.current || editors.length || conflict) return;
     const currentEpoch = epoch.current;
     const value = clone(snapshot);
     const body = { snapshot: value, context_revision: base.current.context_revision };
-    const signature = fingerprint(body);
-    if (!pendingSave.current || pendingSave.current.signature !== signature) pendingSave.current = { body, signature, id: requestId(), plan: { ...base.current } };
+    if (!pendingSave.current) pendingSave.current = { body, id: requestId(), plan: { ...base.current } };
     const pending = pendingSave.current;
-    savingRef.current = true; setSaving(true); setError(''); setNotice('Saving your plan…');
+    savingRef.current = true; setSaving(true); setSaveError(''); setNotice('Saving your draft…');
     try {
       const result = await api.saveCanvas(pending.plan, pending.body, pending.id);
       if (epoch.current !== currentEpoch) return;
+      if (!Number.isInteger(result.revision) || !Number.isInteger(result.context_revision)) throw new Error('The saved draft revision is unavailable.');
       const components = validateCanvasComponents(result.snapshot?.components, true);
       const sourceEvidence = validEvidence(result.snapshot?.evidence);
       base.current = { ...selected, revision: result.revision, context_revision: result.context_revision };
       const canonical = { version: 1, components, evidence: sourceEvidence };
-      editedComponents.current = new Set();
-      // A checkout may finish while Save is in flight. Keep that later change
-      // unsaved instead of overwriting it with the earlier reviewed snapshot.
-      let bookingChanged = false;
+      // Retry an ambiguous request with its original id and payload, then queue
+      // newer edits. A response must never overwrite changes made after that request.
       const next = { ...components };
-      for (const mode of ['accommodation', 'flights']) {
-        if (!dataRef.current[mode] || !value.components[mode] || !components[mode]) continue;
-        if (fingerprint(dataRef.current[mode].mockBooking) === fingerprint(value.components[mode].mockBooking)) continue;
-        bookingChanged = true;
-        next[mode] = { ...components[mode], bookingStatus: dataRef.current[mode].bookingStatus };
-        delete next[mode].mockBooking;
-        if (dataRef.current[mode].mockBooking) next[mode].mockBooking = dataRef.current[mode].mockBooking;
+      const changed = new Set();
+      for (const id of ids) {
+        if (fingerprint(dataRef.current[id]) === fingerprint(pending.body.snapshot.components[id])) continue;
+        changed.add(id);
+        if (dataRef.current[id]) next[id] = dataRef.current[id];
+        else delete next[id];
       }
-      dataRef.current = next; setData(next); setEvidence(sourceEvidence); setSaved(canonical); setNotice(bookingChanged ? 'Plan saved. Your newer mock booking update is still unsaved; choose Save plan to keep it.' : 'Saved. Your plan is ready to reopen.'); setConflict(false); setStaleContext(false); pendingSave.current = null;
+      const nextEvidence = changed.has('findings') ? evidenceRef.current : sourceEvidence;
+      editedComponents.current = changed;
+      dataRef.current = next; setData(next); setEvidence(nextEvidence); setSaved(canonical);
+      setNotice(changed.size ? 'Saving your latest changes…' : 'Draft saved automatically.');
+      setConflict(false); setStaleContext(false); pendingSave.current = null;
       callbacks.current.onSaved?.(result);
     } catch (err) {
       if (epoch.current !== currentEpoch) return;
       if (err.status === 401) callbacks.current.onExpired?.();
       const temporarilyBusy = ['context_locked', 'request_pending'].includes(err.code);
       setConflict(err.status === 409 && !temporarilyBusy);
-      setError(temporarilyBusy ? 'The current request is still finishing. Your edits are safe. Retry Save plan in a moment.' : err.status === 409 ? 'This Plan changed elsewhere. Your edits are still here. Reload the saved plan to review the latest version.' : 'Your plan could not be saved. Your edits are still here. Retry Save plan.');
-      setNotice('Unsaved changes');
+      setSaveError(temporarilyBusy ? 'The current request is still finishing. Your changes are not saved yet. Retry in a moment.' : err.status === 409 ? 'This plan changed elsewhere. Your changes are not saved. Review the latest draft before continuing.' : 'Your changes could not be saved. Keep this page open and retry.');
+      setNotice('Changes not saved');
     } finally { if (epoch.current === currentEpoch) { savingRef.current = false; setSaving(false); } }
   }
+
+  saveLatest.current = save;
+  useEffect(() => {
+    if (loading || !dirty || !valid || saving || activeGroup || externalBusy || editors.length || conflict || saveError) return;
+    const timer = setTimeout(() => { void saveLatest.current(); }, 350);
+    return () => clearTimeout(timer);
+  }, [snapshot, dirty, valid, loading, saving, activeGroup, externalBusy, editors.length, conflict, saveError]);
 
   const renderData = useMemo(() => {
     if (!data) return null;
@@ -332,16 +365,20 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (expectedDraft && fingerprint(dataRef.current) !== expectedDraft) return false;
     try {
       const next = clone(dataRef.current);
+      let websitesFit = true;
       for (const place of places) {
         if (next.map.pins.some(pin => pin.id === place.id || (pin.name === place.name && pin.position.lat === place.position.lat && pin.position.lng === place.position.lng))) continue;
-        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: place.reason.slice(0, 240) });
+        const googleDetails = /^google_[a-f0-9]{32}$/.test(place.id) && place.place_id && Object.hasOwn(place, 'editorial_summary')
+          ? { summary: place.editorial_summary, language: place.editorial_summary_language ?? null, placeId: place.place_id } : null;
+        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: '', ...(place.website ? { website: place.website } : {}), ...(googleDetails ? { googleDetails } : {}) });
+        if (!appendPlaceWebsite(next.links, place)) websitesFit = false;
       }
       next.map.status = 'ready'; delete next.map.error;
       const parsed = validateCanvasComponents(next, true);
-      dataRef.current = parsed; setData(parsed); editedComponents.current.add('map'); pendingSave.current = null;
-      setNotice('Places added to your draft. Choose Save plan to keep them.'); setError('');
+      dataRef.current = parsed; setData(parsed); editedComponents.current.add('map'); editedComponents.current.add('links');
+      setNotice(websitesFit ? 'Places and available websites added. Your draft saves automatically.' : 'Places added. Useful websites is full; their websites are still available in place details.'); setError('');
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }
-  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
+  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, saveError, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
 }

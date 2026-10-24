@@ -58,10 +58,10 @@ export function CanvasPlacePhoto({ place, destination, active }) {
 
   if (!eligible || (!result.loading && !result.photo)) return null;
   const photo = result.photo;
-  return <figure ref={host} className="places-photo">
-    {photo ? <><img src={photo.uri} alt={place.name} width="80" height="64" loading="lazy" onError={() => setResult({ loading: false, photo: null })}/><figcaption><span>Google Maps</span>{photo.authors.map((author, index) => {
+  return <figure className="places-photo">
+    {photo ? <><img ref={host} src={photo.uri} alt={place.name} width="72" height="72" loading="lazy" onError={() => setResult({ loading: false, photo: null })}/><figcaption><span>Google Maps photo</span>{photo.authors.map((author, index) => {
       const href = safeLink(author.uri);
       return <span className="places-photo-credit" key={index}>{href ? <a href={href} target="_blank" rel="noopener noreferrer">{author.displayName || 'Photo contributor'}</a> : author.displayName || 'Photo contributor'}</span>;
-    })}</figcaption></> : <div className="places-photo-loading" aria-hidden="true"/>}
+    })}</figcaption></> : <div ref={host} className="places-photo-loading" aria-hidden="true"/>}
   </figure>;
 }

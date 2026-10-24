@@ -67,7 +67,7 @@ export function SandboxCheckout({ planId, offerToken, recoveryToken, onClose, on
   const terminal = ["confirmed", "cancelled", "failed"].includes(review?.status);
   return <section className="mock-checkout" aria-busy={busy}>
     <h3 ref={heading} tabIndex={-1}>{confirmed ? "Mock booking confirmed" : "Sandbox checkout"}</h3>
-    <p className="travel-note">Test only — no real reservation or charge. Confirmed mock bookings update your canvas draft. Choose Save plan to keep the test stay.</p>
+    <p className="travel-note">Test only — no real reservation or charge. Confirmed mock bookings are saved automatically to your canvas draft.</p>
     {busy && <p role="status">{attempted ? "Checking your mock booking…" : "Refreshing price and room terms…"}</p>}
     {error && <p role="alert">{error}</p>}
     {review && <>

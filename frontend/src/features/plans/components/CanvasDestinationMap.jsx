@@ -27,7 +27,7 @@ async function geocode(request) {
 }
 
 export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect, fitRequest = 0, onShowAll, active = true, editing = false }) {
-  const { preview, destinationHint, onClearPreview, onSearchArea, onAddPreview, disabled, viewStateKey } = useContext(CanvasMapContext);
+  const { preview, destinationHint, onClearPreview, onAddPreview, disabled, viewStateKey } = useContext(CanvasMapContext);
   const { theme } = useAppearance();
   const canvas = useRef(null);
   const usableDestination = destination || destinationHint || '';
@@ -45,11 +45,9 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [candidates, setCandidates] = useState([]);
   const [resolved, setResolved] = useState(null);
   const [mapError, setMapError] = useState(false);
-  const [bounds, setBounds] = useState(null);
-  // A single stated candidate may frame the map without choosing it for the Plan.
+  // Geocoding frames only the local map; it never chooses a destination for the Plan.
 
   useEffect(() => {
     let alive = true;
@@ -79,14 +77,13 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
 
   useEffect(() => {
     let alive = true;
-    setCandidates([]); setResolved(null); setError('');
+    setResolved(null); setError('');
     if (!usableDestination) { setLoading(false); return; }
     setLoading(true);
     geocode({ address: usableDestination }).then(results => {
       if (!alive) return;
       setLoading(false);
       if (!results.length) setError('We couldn’t locate this destination. Check its name in the conversation, or retry.');
-      else if (results.length > 1 || results[0].partial_match) setCandidates(results);
       else setResolved(results[0]);
     }).catch(() => { if (alive) { setLoading(false); setError('The destination map couldn’t load. Your Plan details are still here.'); } });
     return () => { alive = false; };
@@ -116,7 +113,6 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   useEffect(() => {
     if (!runtime) return;
     const listener = runtime.map.addListener('idle', () => {
-      setBounds(runtime.map.getBounds()?.toJSON() || null);
       const viewport = { center: runtime.map.getCenter()?.toJSON(), zoom: runtime.map.getZoom(), signature: currentView.current.signature };
       if (validViewport(viewport)) { mapView.current = viewport; writeCanvasView(currentView.current.viewStateKey, { viewport }); }
     });
@@ -179,12 +175,11 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   const message = mapError ? 'The map is unavailable. Your places are available in List view.' : !usableDestination ? 'Choose a destination in the conversation to frame your map.' : loading ? 'Finding your destination…' : error || (!final && resolved ? `Exploring ${usableDestination}. Your final destination is still yours to choose.` : '');
   return <div className="canvas-map-adapter">
     <div className="canvas-google-map" ref={canvas} aria-label={usableDestination ? `Map of ${usableDestination}` : 'Destination map'}/>
-    {(message || candidates.length > 0) && <div className="canvas-map-message" role="status">
+    {message && <div className="canvas-map-message" role="status">
       {message && <p>{message}</p>}
-      {candidates.length > 0 && <><p>Which location should the map show? This only adjusts your map view.</p>{candidates.map(result => <button type="button" className="ds-button small" key={result.place_id} onClick={() => { setResolved(result); setCandidates([]); }}>{result.formatted_address}</button>)}</>}
       {(error || mapError) && <button type="button" className="ds-button small" onClick={() => setAttempt(value => value + 1)}>Retry map</button>}
     </div>}
-    {preview && <div className="canvas-map-preview"><div><strong>{preview.name}</strong><small>{places.some(place => place.id === preview.id) ? 'In your draft' : 'Preview only · not added to your draft'}</small></div><div className="places-actions">{onAddPreview && !places.some(place => place.id === preview.id) && <button type="button" className="ds-button small" disabled={disabled} onClick={() => onAddPreview(preview)}>Add to plan</button>}<button type="button" className="ds-text-button" onClick={onClearPreview}>Close preview</button></div></div>}
-    <div className="canvas-map-tools"><button type="button" className="ds-text-button" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}>Show all places</button>{onSearchArea && <button type="button" className="ds-button small" disabled={!bounds || disabled} onClick={() => onSearchArea(bounds)}>Search this map area</button>}</div>
+    {preview && <div className="canvas-map-preview"><div><strong>{preview.name}</strong><small>{places.some(place => place.id === preview.id) ? 'In your draft' : 'Preview only · not added to your draft'}</small>{preview.editorial_summary && <div className="places-provider-description"><small>Description from Google Maps</small><p lang={preview.editorial_summary_language || undefined}>{preview.editorial_summary}</p></div>}</div><div className="places-actions">{preview.website && <a className="ds-button small" href={preview.website} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${preview.name} website`}>Website ↗</a>}{onAddPreview && !places.some(place => place.id === preview.id) && <button type="button" className="ds-button small" disabled={disabled} onClick={() => onAddPreview(preview)}>Add to plan</button>}<button type="button" className="ds-text-button" onClick={onClearPreview}>Close preview</button></div></div>}
+    <div className="canvas-map-tools"><button type="button" className="ds-text-button" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}>Show all places</button></div>
   </div>;
 }

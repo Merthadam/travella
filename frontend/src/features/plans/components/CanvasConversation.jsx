@@ -38,7 +38,7 @@ export function CanvasConversation({ chat, data, disabled, generating, onClose, 
     <form className="canvas-chat-composer" onSubmit={send}>
       {area && <div className="canvas-chat-area"><Icon name="pin" size={13}/><span>Search within the map area</span><button type="button" className="ds-text-button" disabled={chat.active} onClick={onClearArea}>Use destination</button></div>}
       <div className="canvas-chat-input"><label className="sr-only" htmlFor="canvas-chat-message">Message Travella</label><textarea id="canvas-chat-message" ref={composer} value={input} onChange={event => setInput(event.target.value)} rows={2} maxLength={2000} placeholder="Ask about your trip…" disabled={blocked} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form.requestSubmit(); } }}/><div className="canvas-chat-send-row"><span>{generating ? 'Preparing your draft…' : <>Enter to send<span className="canvas-chat-keyboard-extra"> · Shift + Enter for a new line</span></>}</span>{chat.active ? <button type="button" className="ds-button small" onClick={chat.stop}>Stop</button> : <button type="submit" className="canvas-chat-send" aria-label="Send message" title="Send message" disabled={blocked || !input.trim()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>}</div></div>
-      <p>Add places to your draft, then Save plan to keep them.</p>
+      <p>Places you add are saved automatically to your draft.</p>
     </form>
   </aside>;
 }
