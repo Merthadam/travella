@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T13:24:25.756742+00:00"
 last_activity: 2026-10-24
-last_activity_desc: Google descriptions saved once and rendered from stored metadata at localhost:5175
+last_activity_desc: Canvas improvements verified with current main; shipping user-authorized merge
 state_head: a11bf00
 progress:
   total_phases: 17

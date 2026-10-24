@@ -28,3 +28,7 @@ Chrome DevTools rejected explicit screenshot file paths as outside configured wo
 - Browser functional evidence: [mobile-accessibility.txt](implementation/mobile-accessibility.txt)
 
 No live paid model generation was performed; stream completion persistence was covered by focused frontend regression tests.
+
+## Shipping follow-up
+
+The screenshot tool blocker was resolved during shipment: the original HTML preview and integrated production draft were captured and inspected. See [shipping evidence](../2026-10-24-canvas-ship/verification.md). Historical before-implementation capture remains unavailable; these are honestly labeled ship-time captures.
