@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261024-liv | Sketch cleaner place cards (design only) | 2026-10-24 | — | Browser sketch checked; implementation pending user direction | [Task](quick/261024-liv-sketch-cleaner-place-cards/) |
 | 261024-lap | Remove map location chooser | 2026-10-24 | 6dd02e1 | Verified in browser; 28 tests and build passed | [Task](quick/261024-lap-remove-map-location-chooser/) |
 | 261024-l6e | Remove Search this map area; keep Show all places | 2026-10-24 | 5239c66 | Verified in browser; 27 tests and build passed | [Task](quick/261024-l6e-remove-search-this-map-area-button/) |
 | 261024-kci | Google editorial descriptions and existing place website enrichment; verify Yakushima search | 2026-10-24 | bdec68a | Verified; historical search interruption not reproduced | [Task](quick/261024-kci-show-google-place-descriptions-and-websi/) |
