@@ -50,9 +50,9 @@ test('confirmed no flights omits the card and travel navigation while keeping ac
   render(<PlanningCanvas selected={{ plan_id: 'no-flights', title: 'Train trip' }} api={api}/>);
   await screen.findByRole('button', { name: 'Explore accommodation' });
   expect(screen.queryByRole('button', { name: 'Explore flights' })).toBeNull();
-  await user.click(screen.getByRole('button', { name: 'Edit details', exact: true }));
-  await user.type(screen.getByRole('textbox', { name: 'Date note' }), 'By train');
-  await user.click(screen.getByRole('button', { name: 'Save changes' }));
+  await user.click(screen.getByRole('button', { name: 'Edit dates', exact: true }));
+  await user.type(screen.getByRole('textbox', { name: /Date note/ }), 'By train');
+  await user.click(screen.getByRole('button', { name: 'Update dates' }));
   await user.click(screen.getByRole('button', { name: 'Explore accommodation' }));
   expect(screen.queryByRole('button', { name: 'Flights', exact: true })).toBeNull();
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
@@ -113,8 +113,8 @@ test('confirming Yes adds flights even when essentials were edited while flights
 
 test('open card edits and unsent chat survive flight and stay navigation', async () => {
   const user = userEvent.setup(); const api = setup();
-  await user.click(await screen.findByRole('button', { name: 'Edit details', exact: true }));
-  await user.type(screen.getByRole('textbox', { name: 'Date note' }), 'Unfinished date note');
+  await user.click(await screen.findByRole('button', { name: 'Add preference', exact: true }));
+  await user.type(screen.getByRole('textbox', { name: 'Preference' }), 'Unfinished preference');
   const message = screen.getByRole('textbox', { name: 'Message Travella' });
   expect(message.disabled).toBe(false);
   await user.type(message, 'Which airport is easiest?');
@@ -124,16 +124,16 @@ test('open card edits and unsent chat survive flight and stay navigation', async
   expect(screen.getByRole('region', { name: 'Explore flights' })).toBeTruthy();
   expect(screen.queryByRole('region', { name: 'Plan content' })).toBeNull();
   expect(screen.queryByRole('dialog', { name: 'Explore travel' })).toBeNull();
-  expect(screen.queryByRole('textbox', { name: 'Date note' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Stays', exact: true }));
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
-  expect(screen.getByRole('textbox', { name: 'Date note' }).value).toBe('Unfinished date note');
+  expect(screen.getByRole('textbox', { name: 'Preference' }).value).toBe('Unfinished preference');
   expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Which airport is easiest?');
   await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(api.editCanvas).toHaveBeenCalledOnce());
   expect(await screen.findByText('You can compare airports for Milan.')).toBeTruthy();
-  expect(screen.getByRole('textbox', { name: 'Date note' }).value).toBe('Unfinished date note');
+  expect(screen.getByRole('textbox', { name: 'Preference' }).value).toBe('Unfinished preference');
   expect(api.saveCanvas).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Use dark mode' })).toBeNull();
 });
@@ -147,14 +147,14 @@ test('cancelling an editor during a reply releases the save lock after the reply
       resolve({ status: 'complete' });
     };
   }));
-  await user.click(await screen.findByRole('button', { name: 'Edit details', exact: true }));
+  await user.click(await screen.findByRole('button', { name: 'Add preference', exact: true }));
   await user.type(screen.getByRole('textbox', { name: 'Message Travella' }), 'Help with this trip');
   await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
   finish();
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(false));
-  expect(screen.queryByRole('textbox', { name: 'Date note' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();
   expect(api.saveCanvas).not.toHaveBeenCalled();
 });
 

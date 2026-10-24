@@ -12,10 +12,6 @@
 .canvas-unified .canvas-page-heading h1{font:30px/1.2 var(--ds-display);letter-spacing:-.7px;margin:5px 0 0}
 .canvas-destination-monogram{display:grid;place-items:center;flex:none;width:44px;height:48px;border:1px solid var(--ds-line);border-radius:23px 23px 6px 6px;background:var(--ds-soft);font:italic 29px var(--ds-display)}
 .canvas-trip-essentials{min-width:0;flex:1 1 280px}
-.planning-canvas .canvas-trip-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;padding:9px 0;min-height:44px;border:0;background:transparent;color:var(--ds-muted);font:13px/1.6 var(--ds-font);text-align:left}
-.canvas-trip-summary>span+span{border-left:1px solid var(--ds-line);padding-left:14px}
-.canvas-trip-summary:hover{color:var(--ds-ink)}
-.canvas-trip-essentials .ds-form{padding:20px;background:var(--ds-surface);border:1px solid var(--ds-line);border-radius:12px;margin-top:10px}
 .canvas-unified.canvas-workspace .canvas-main-actions{gap:8px;max-width:none;margin-left:auto;justify-content:flex-end;align-items:center}
 .canvas-unified.canvas-workspace .canvas-save-state{width:auto;font-size:11px;text-align:right}
 .canvas-unified .canvas-main-actions .ds-button{font-size:12px;padding:9px 12px;min-height:40px}
@@ -56,8 +52,6 @@
   .canvas-unified.canvas-workspace .canvas-page-heading{gap:12px;padding:12px 0 24px}
   .canvas-unified .canvas-page-heading h1{font-size:26px}
   .canvas-unified.canvas-workspace .ds-canvas-grid{grid-template-columns:minmax(0,1fr);gap:16px}
-  .canvas-unified .canvas-trip-summary{font-size:12px;gap:8px}
-  .canvas-unified .canvas-trip-summary>span+span{padding-left:8px}
 }
 
 /* Travel retains its own full workspace while the canvas stays mounted. */
