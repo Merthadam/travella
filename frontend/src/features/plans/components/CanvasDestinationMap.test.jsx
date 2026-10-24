@@ -79,6 +79,20 @@ test('a stated candidate frames only the local map, once its hidden container be
   expect(onSelect).not.toHaveBeenCalled();
 });
 
+test('multiple or partial geocode matches still frame an empty map without a chooser or plan selection', async () => {
+  const viewport = { north: 31, south: 30, west: 130, east: 131 };
+  const geocode = vi.fn(async () => ({ results: [
+    { partial_match: true, geometry: { viewport, location: {} } },
+    { geometry: { viewport: {}, location: {} } },
+  ] }));
+  const fitBounds = mapRuntime(geocode);
+  const onSelect = vi.fn();
+  const { queryByText } = render(<AppearanceProvider><CanvasDestinationMap destination="Yakushima" final places={[]} onSelect={onSelect} /></AppearanceProvider>);
+  await waitFor(() => expect(fitBounds).toHaveBeenCalledExactlyOnceWith(viewport, 24));
+  expect(queryByText(/Which location should the map show/)).toBeNull();
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
 test('chosen destination overrides a hint and stale geocoding cannot recenter a newer destination', async () => {
   let finishMilan;
   const paris = { geometry: { viewport: { north: 49, south: 48, west: 2, east: 3 }, location: {} } };
