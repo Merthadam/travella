@@ -5,6 +5,7 @@ import { PlansApp } from './PlansApp';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { AccountSettingsPage } from './features/account/AccountSettingsPage';
 import { AppearanceProvider } from './features/appearance/AppearanceProvider';
+import { AccountAccessPrototype } from './prototypes/AccountAccessPrototype';
 
 const titles = {
   sign_in: 'Welcome back', register: 'Create your account', verify_email: 'Verify your email',
@@ -17,6 +18,7 @@ const titles = {
 };
 
 export function AccountApp() {
+  if (import.meta.env.DEV && new URLSearchParams(location.search).get('prototype') === 'account-access') return <AccountAccessPrototype />;
   return <AppearanceProvider><AccountContent /></AppearanceProvider>;
 }
 
