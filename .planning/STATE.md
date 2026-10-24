@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T13:14:55.349Z"
+last_updated: "2026-10-24T13:35:29.762Z"
 last_activity: 2026-10-24
 last_activity_desc: Focused dates travelers and budget editors implemented and browser verified
-state_head: bce9c011ee71397a7c723cc5039347a314753460
+state_head: b388db692806d7f58949412873909e1f543376c4
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-kvh: selected journal A refined with Google destination photos and Research → Canvas; verified prototype, production integration pending.
+Last activity: 2026-10-24 — Quick task 261024-l9g: approved plans journal implemented with inline Enter rename, small trash, automatic names and Google photos; browser/API/build verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -223,6 +223,7 @@ Resume file: None
 | 261024-cc7 | Generation loader follows app day/night palettes; desktop/mobile themes verified | 2026-10-24 | dc9de95 | — | [261024-cc7-match-canvas-generation-loader-to-app-da](./quick/261024-cc7-match-canvas-generation-loader-to-app-da/) |
 | 261024-k3m | Three plans journal prototypes; authenticated browser, naming, desktop/mobile and theme checks passed; selection pending | 2026-10-24 | 4165481 | — | [261024-k3m-prototype-three-travel-journal-plans-pag](./quick/261024-k3m-prototype-three-travel-journal-plans-pag/) |
 | 261024-kvh | Selected A with Google destination photos and Research to Canvas; browser and build verified; prototype only | 2026-10-24 | bce9c01 | — | [261024-kvh-refine-selected-journal-with-generated-p](./quick/261024-kvh-refine-selected-journal-with-generated-p/) |
+| 261024-l9g | Implement approved plans journal: inline Enter rename, small trash, automatic titles, Google photos; browser/API/build verified | 2026-10-24 | b388db6 | — | [261024-l9g-implement-approved-plans-journal-with-in](./quick/261024-l9g-implement-approved-plans-journal-with-in/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -336,3 +337,10 @@ Resume file: None
 - User selected A and clarified Google Maps destination photography, with a placeholder until generation. Selected phase labels follow Research → Canvas; automatic milestone naming retains custom names.
 - Prototype source bce9c01; live destination photos with contributor credit, shared photo treatment in generated dialog, fallback and authenticated desktop/mobile light/dark checks passed. Build passed.
 - Evidence: artifacts/testing/2026-10-24-plans-photo-refinement/verification.md. Actual Plans/Canvas production integration remains pending. Earlier design-selection deferral is superseded.
+
+### Production plans journal — 2026-10-24
+
+- User approved A and specified inline title editing with Enter plus a small trash icon. Source b388db6 implements those controls with existing lifecycle contracts, real recent-first cards, Research/Canvas stages, quiet dates and saved-place counts.
+- Automatic labels derive from existing trip facts; manual names always win. Reads never silently mutate Plan data. Generated/saved destination photos shared with the actual Canvas; attribution and honest placeholders retained.
+- 46 frontend and 73 CRUD tests passed, seven environment-dependent tests skipped; build, real authenticated rename/reload/delete/restore, mobile/themes and rebuilt runtime hashes verified. Test-owned records cleaned through soft deletion.
+- Evidence: artifacts/testing/2026-10-24-plans-journal-implementation/verification.md. Canonical http://localhost:5174 ready. Prior production deferral superseded; prototype files removed with history retained. No push/merge.
