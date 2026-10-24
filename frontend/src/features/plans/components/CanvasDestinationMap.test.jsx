@@ -126,3 +126,21 @@ test('saved pins fit together once, selecting a pin does not refit, and show all
   rerender(view(null, 1));
   expect(fitBounds).toHaveBeenCalledTimes(2);
 });
+
+test('reopening restores the explored viewport instead of automatically framing the city again', async () => {
+  sessionStorage.clear();const maps=[];
+  loadGoogleMaps.mockResolvedValue({maps:{},libraries:{
+    maps:{Map:class {
+      constructor(_,options){this.options=options;this.fitBounds=vi.fn();maps.push(this);}
+      addListener(){return {remove(){}};}
+      getCenter(){return {toJSON:()=>({lat:45.48,lng:9.20})};}
+      getZoom(){return 16;}
+    }},marker:{AdvancedMarkerElement:class{}},
+    geocoding:{Geocoder:class{async geocode(){return {results:[{geometry:{viewport:{},location:{}}}]};}}}
+  }});
+  const view=()=> <AppearanceProvider><CanvasMapContext.Provider value={{viewStateKey:'milan-reopen'}}><CanvasDestinationMap destination="Milan" final places={[]} onSelect={()=>{}}/></CanvasMapContext.Provider></AppearanceProvider>;
+  const first=render(view());await waitFor(()=>expect(maps[0]?.fitBounds).toHaveBeenCalledOnce());
+  first.unmount();render(view());await waitFor(()=>expect(maps).toHaveLength(2));
+  expect(maps[1].options).toMatchObject({center:{lat:45.48,lng:9.20},zoom:16});
+  expect(maps[1].fitBounds).not.toHaveBeenCalled();
+});

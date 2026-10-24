@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { useAppearance } from '../../appearance/AppearanceProvider';
 import { loadGoogleMaps } from '../../../lib/googleMaps';
 import { categories } from '../../../design-system/schemas';
+import { readCanvasView, writeCanvasView, validViewport } from '../canvasViewState';
 
 export const CanvasMapContext = createContext({});
 
@@ -25,10 +26,17 @@ async function geocode(request) {
 }
 
 export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect, fitRequest = 0, onShowAll, active = true, editing = false }) {
-  const { preview, destinationHint, onClearPreview, onSearchArea, onAddPreview, disabled } = useContext(CanvasMapContext);
+  const { preview, destinationHint, onClearPreview, onSearchArea, onAddPreview, disabled, viewStateKey } = useContext(CanvasMapContext);
   const { theme } = useAppearance();
   const canvas = useRef(null);
-  const mapView = useRef(null);
+  const usableDestination = destination || destinationHint || '';
+  const placePositions = places.map(p => `${p.id}:${p.position.lat}:${p.position.lng}`).join('|');
+  const signature = `${usableDestination}|${placePositions}`;
+  const [initialView] = useState(() => readCanvasView(viewStateKey).viewport);
+  const restored = useRef(validViewport(initialView) && initialView.signature === signature);
+  const mapView = useRef(restored.current ? initialView : null);
+  const currentView = useRef({ signature, viewStateKey }); currentView.current = { signature, viewStateKey };
+  const restoredSelection = useRef(restored.current ? selectedId : undefined);
   const framedDestination = useRef(null);
   const framedPlaces = useRef(null);
   const selection = useRef(onSelect); selection.current = onSelect;
@@ -41,7 +49,6 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   const [mapError, setMapError] = useState(false);
   const [bounds, setBounds] = useState(null);
   // A single stated candidate may frame the map without choosing it for the Plan.
-  const usableDestination = destination || destinationHint || '';
 
   useEffect(() => {
     let alive = true;
@@ -60,6 +67,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
       alive = false;
       if (map) {
         mapView.current = { center: map.getCenter()?.toJSON(), zoom: map.getZoom() };
+        if (validViewport(mapView.current)) writeCanvasView(currentView.current.viewStateKey, { viewport: { ...mapView.current, signature: currentView.current.signature } });
         window.google?.maps?.event.clearInstanceListeners(map);
       }
       setRuntime(null);
@@ -84,6 +92,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   }, [usableDestination, attempt]);
 
   useEffect(() => {
+    if (restored.current && initialView?.signature === signature) return;
     if (!runtime || !resolved || places.length || preview || framedDestination.current === resolved) return;
     const frame = () => {
       if (!canvas.current?.clientWidth || !canvas.current?.clientHeight || framedDestination.current === resolved) return;
@@ -105,11 +114,14 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
 
   useEffect(() => {
     if (!runtime) return;
-    const listener = runtime.map.addListener('idle', () => setBounds(runtime.map.getBounds()?.toJSON() || null));
+    const listener = runtime.map.addListener('idle', () => {
+      setBounds(runtime.map.getBounds()?.toJSON() || null);
+      const viewport = { center: runtime.map.getCenter()?.toJSON(), zoom: runtime.map.getZoom(), signature: currentView.current.signature };
+      if (validViewport(viewport)) { mapView.current = viewport; writeCanvasView(currentView.current.viewStateKey, { viewport }); }
+    });
     return () => listener.remove();
   }, [runtime]);
 
-  const placePositions = places.map(p => `${p.id}:${p.position.lat}:${p.position.lng}`).join('|');
   const selectedPlace = places.find(p => p.id === selectedId);
 
   useEffect(() => {
@@ -140,6 +152,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   useEffect(() => {
     if (!runtime || !active || preview || !places.length) return;
     const signature = `${fitRequest}:${places.map(p => `${p.id}:${p.position.lat}:${p.position.lng}`).join('|')}`;
+    if (restored.current && initialView?.signature === currentView.current.signature && fitRequest === 0 && framedPlaces.current === null) { framedPlaces.current = signature; return; }
     if (framedPlaces.current === signature) return;
     const frame = () => {
       if (!canvas.current?.clientWidth || !canvas.current?.clientHeight || framedPlaces.current === signature) return;
@@ -151,6 +164,8 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   }, [runtime, active, places, preview, fitRequest]);
 
   useEffect(() => {
+    if (restored.current && restoredSelection.current === selectedId) return;
+    restoredSelection.current = undefined;
     if (runtime && active && selectedPlace && !preview) runtime.map.panTo(selectedPlace.position);
   }, [runtime, active, selectedId, selectedPlace?.position.lat, selectedPlace?.position.lng, preview]);
 

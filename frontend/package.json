@@ -9,8 +9,7 @@
     "build": "vite build",
     "test": "vitest run",
     "dev:components": "vite --config vite.components.config.js",
-    "build:components": "vite build --config vite.components.config.js",
-    "prototype:canvas": "vite --config vite.prototype-cards.config.js --host localhost --port 5188 --strictPort"
+    "build:components": "vite build --config vite.components.config.js"
   },
   "dependencies": {
     "@a2ui/react": "0.12.0",

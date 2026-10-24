@@ -19,6 +19,7 @@ vi.mock('../travel/TravelSearch', () => ({
 beforeEach(() => {
   sessionStorage.clear(); vi.mocked(travelRequest).mockReset();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -120,6 +121,9 @@ test('open card edits and unsent chat survive flight and stay navigation', async
   expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(true);
   await user.click(screen.getByRole('button', { name: 'Explore flights' }));
   expect(screen.getByRole('region', { name: 'flights search' })).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'Explore flights' })).toBeTruthy();
+  expect(screen.queryByRole('region', { name: 'Plan content' })).toBeNull();
+  expect(screen.queryByRole('dialog', { name: 'Explore travel' })).toBeNull();
   expect(screen.queryByRole('textbox', { name: 'Date note' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Stays', exact: true }));
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
@@ -356,7 +360,10 @@ test('folding chat preserves its draft and restores keyboard focus without savin
   const user = userEvent.setup(); const api = setup();
   const message = await screen.findByRole('textbox', { name: 'Message Travella' });
   await waitFor(() => expect(message.disabled).toBe(false));
+  // A2UI mounts its cards asynchronously; wait for the complete workspace.
+  await screen.findByRole('region', { name: 'Your places' });
   await user.type(message, 'Keep this question for later');
+  expect(message.value).toBe('Keep this question for later');
   await user.click(screen.getByRole('button', { name: 'Collapse plan chat' }));
   expect(screen.queryByRole('textbox', { name: 'Message Travella' })).toBeNull();
   expect(screen.getByRole('region', { name: 'Plan content' }).tabIndex).toBe(0);
@@ -394,7 +401,9 @@ test('full generation hides the mounted workspace until the terminal result and 
   const trigger = await screen.findByRole('button', { name: 'Generate plan', exact: true });
   await waitFor(() => expect(trigger.disabled).toBe(false));
   const input = screen.getByRole('textbox', { name: 'Message Travella' });
+  await waitFor(() => expect(input.disabled).toBe(false));
   await user.type(input, 'Keep this unsent question');
+  expect(input.value).toBe('Keep this unsent question');
   await user.click(trigger);
   await user.click(await screen.findByRole('button', { name: 'Confirm & generate' }));
   await waitFor(() => expect(stream.api.generateCanvas).toHaveBeenCalledOnce());
