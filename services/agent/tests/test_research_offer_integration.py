@@ -21,8 +21,7 @@ def test_committed_offer_hydrates_and_confirmation_is_consumed_once(system, monk
     plan_id = plan["plan_id"]
     base = f"/v1/plans/{plan_id}"
     changes = [{"operation": "set", "field": field, "value": value, "source": "user_edit"}
-               for field, value in [("finalDestination", "Kyoto"), ("flexibleDates", True),
-                                    ("travelers", 2), ("flights", "not-needed")]]
+               for field, value in [("finalDestination", "Kyoto"), ("flights", "not-needed")]]
     edited = system.client.patch(base + "/research-context", headers=write_headers(system, 1),
                                  json={"changes": changes})
     assert edited.status_code == 200, edited.text
@@ -38,13 +37,13 @@ def test_committed_offer_hydrates_and_confirmation_is_consumed_once(system, monk
             self.calls += 1
             assert kwargs["context"].research_deferred is False
             return {"decision": "respond", "assistant_text": "We can review your trip details.",
-                    "draft_offer": {"intent": "offer", "reason": "useful_context", "priority_message_ids": ["current"]}}
+                    "draft_offer": {"intent": "offer", "reason": "useful_context", "priority_message_ids": []}}
 
     model = Model()
     handler = AgentTurnService(plan_reader=CrudPlanReader("http://crud"), context_reader=CrudContextReader("http://crud"),
                                graph=AgentGraph(model), runs=PlanRunStore(), receipts=ProcessReceiptCache())
     event = str(uuid4())
-    req = AgentRequest(plan_id=plan_id, event_id=event, message="We enjoy temples and food.")
+    req = AgentRequest(plan_id=plan_id, event_id=event, message="Please review my draft.")
     async def conversation():
         first = await handler.handle(req, "traveler-one", f"Bearer {system.token}")
         second = await handler.handle(req, "traveler-one", f"Bearer {system.token}")

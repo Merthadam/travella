@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
 import { definitions, ids } from '../../design-system/schemas';
 import { flightNeedConfirmed } from './flightNeeds';
+import { destinationConfirmed } from './generationRequirements';
 
 const groupIds = { themes: ['themes'], research: ['findings', 'links'], all: ids };
 const clone = value => structuredClone(value);
@@ -45,6 +46,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeGroup, setActiveGroup] = useState(null);
+  const [generationProgress, setGenerationProgress] = useState(null);
   const [groups, setGroups] = useState(initialGroups);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -65,6 +67,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   useEffect(() => {
     const generation = ++epoch.current;
     setMapDestinationHint('');
+    setGenerationProgress(null);
     setData(null); setEvidence({}); setSaved(null); setLoading(true); setError(''); setConflict(false); setStaleContext(false); setEditors([]); setNotice(''); setGroups(initialGroups); setActiveGroup(null); setSaving(false);
     base.current = null; pendingSave.current = null; editedComponents.current = new Set(); savingRef.current = false;
     Promise.all([api.canvas(selected), api.researchContext(selected)]).then(([canvas, context]) => {
@@ -168,8 +171,9 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (active.current || savingRef.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;
     const currentEpoch = epoch.current;
     const id = requestId(); const controller = new AbortController();
-    const run = { id, controller, group, completed: new Set() };
+    const run = { id, controller, group, completed: new Set(), components: {} };
     active.current = run; setActiveGroup(group); setError(''); setNotice('Preparing your trip…');
+    setGenerationProgress({ phase: 'research', count: 0, destination: dataRef.current?.map.final ? dataRef.current.map.destination : '' });
     const runGroups = group === 'all' ? ['themes', 'research'] : [group];
     setGroups(current => ({ ...current, ...Object.fromEntries(runGroups.map(key => [key, 'loading'])) }));
     try {
@@ -179,10 +183,12 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       if (active.current !== run || epoch.current !== currentEpoch) return;
       if (currentContext.locked) throw new Error('Trip details are being updated. Wait for the reply to finish, then review again.');
       if (reviewedRevision !== undefined && currentContext.revision !== reviewedRevision) throw new Error('Trip details changed after your review. Review them again before generating.');
+      if (!destinationConfirmed(currentContext.context)) throw new Error('Confirm a destination before generating your plan.');
       if (!flightNeedConfirmed(currentContext.context)) throw new Error('Confirm whether you need flights using Generate plan before generating sections.');
       setMapDestinationHint(mapHint(currentContext.context));
       if ((staleContext || currentContext.revision !== base.current.context_revision) && group !== 'all') { setStaleContext(true); throw new Error('The conversation changed. Regenerate the full plan to review the updated trip details.'); }
       run.contextRevision = currentContext.revision;
+      setGenerationProgress({ phase: 'research', count: 0, destination: currentContext.context.finalDestination || '' });
       const result = await api.generateCanvas(base.current, { group, context_revision: run.contextRevision, generation_id: id, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(group === 'research' ? { themes: dataRef.current.themes } : {}) }, id, {
         signal: controller.signal,
         onEvent(event) {
@@ -216,6 +222,15 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
               else run.completed.delete(key);
             }
             dataRef.current = next; setData(next);
+            // Count validated items from this run only, after their group completes.
+            // Duplicate snapshots replace values rather than incrementing a counter.
+            run.components = { ...run.components, ...incoming };
+            const count = ['themes', 'findings', 'links'].reduce((total, key) => {
+              const owner = key === 'themes' ? 'themes' : 'research';
+              const component = run.components[key];
+              return total + (run.completed.has(owner) && component?.status === 'ready' ? component.items.length : 0);
+            }, 0);
+            setGenerationProgress({ phase: runGroups.every(key => run.completed.has(key)) ? 'canvas' : 'research', count, destination: currentContext.context.finalDestination || '' });
             if (replacement.findings) setEvidence(sourceEvidence);
             if (group === 'all') { base.current.context_revision = run.contextRevision; setStaleContext(false); }
             // Generation never acquires a new save revision over another tab's changes.
@@ -327,5 +342,5 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }
-  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
+  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
 }

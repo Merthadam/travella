@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-23T18:25:47.842462+00:00"
+last_updated: "2026-10-24T06:57:43.970Z"
 last_activity: 2026-10-23
 last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
-state_head: 8f0a2f637e52c87aa3cafa004a29c5da7b189e65
+state_head: dc9de9568200ac3ff713df4b7d38a39d296ae3c0
 progress:
   total_phases: 17
   completed_phases: 1
@@ -200,6 +200,21 @@ Resume file: None
 | 261011-01k | Approved quiet Plans drawer; 18 focused tests, build and authenticated desktop/mobile persistence checks passed; baseline suite debt documented | 2026-10-11 | See quick summary | Verified | [261011-01k](./quick/261011-01k-implement-selected-recent-first-plans-dr/) |
 
 | 261016-rxj | Searchable travel country/airline selectors and ten-result pages; 40 frontend + 8 SSE journeys, build and live desktop/mobile browser checks passed | 2026-10-16 | 4b47e53 | Verified | [261016-rxj](./quick/261016-rxj-searchable-travel-selectors-and-paginati/) |
+| 261023-ma6 | Started remote main afb065d locally; health, authentication and container source hashes passed | 2026-10-23 | afb065d | — | [261023-ma6-start-main-locally-with-travella-local-a](./quick/261023-ma6-start-main-locally-with-travella-local-a/) |
+| 261023-mtp | Built and browser-verified three minimalist globe loading prototypes; design selection pending | 2026-10-23 | 34199b0 | — | [261023-mtp-prototype-three-minimalist-globe-loading](./quick/261023-mtp-prototype-three-minimalist-globe-loading/) |
+| 261023-nfh | Saved B Full focus as preferred globe loading design; implementation deferred | 2026-10-23 | bc73f17 | — | [261023-nfh-record-globe-loading-prototype-b-full-fo](./quick/261023-nfh-record-globe-loading-prototype-b-full-fo/) |
+| 261023-syu | Rebased globe prototypes onto origin/main 0456368; B preserved; build and 11 tests passed | 2026-10-23 | 23d0ba0 | — | [261023-syu-rebase-globe-loading-prototype-branch-on](./quick/261023-syu-rebase-globe-loading-prototype-branch-on/) |
+| 261023-t2f | Built three top loading bar prototypes alongside selected B globe; desktop/mobile browser checks and build passed; top-bar choice pending | 2026-10-23 | d827677 | — | [261023-t2f-prototype-top-loading-bars-alongside-sel](./quick/261023-t2f-prototype-top-loading-bars-alongside-sel/) |
+| 261023-ta4 | Refined selected C to Research then Canvas with continuous globe; build and desktop/mobile Chrome checks passed | 2026-10-23 | dae5c75 | — | [261023-ta4-refine-selected-c-loading-prototype-to-r](./quick/261023-ta4-refine-selected-c-loading-prototype-to-r/) |
+| 261023-tdw | Saved full-width Research Canvas loading prototype; build and desktop/mobile Chrome verification passed; stop here | 2026-10-23 | e489cf7 | — | [261023-tdw-make-selected-c-research-canvas-progress](./quick/261023-tdw-make-selected-c-research-canvas-progress/) |
+| 261023-tgv | Aligned selected globe loader with existing Plan chat and cards; added subtle sidebar reveal; build and desktop/mobile theme checks passed | 2026-10-23 | 854c6fe | — | [261023-tgv-align-selected-loading-prototype-with-ex](./quick/261023-tgv-align-selected-loading-prototype-with-ex/) |
+| 261023-to4 | Corrected scope to progress bar only; previous globe restored; build and desktop/mobile checks passed | 2026-10-23 | 21fd7b8 | — | [261023-to4-restore-previous-globe-prototype-and-ali](./quick/261023-to4-restore-previous-globe-prototype-and-ali/) |
+| 261023-tpz | Removed redundant destination strip from selected loader; build and desktop/mobile browser checks passed | 2026-10-23 | 1855a0f | — | [261023-tpz-remove-redundant-destination-header-from](./quick/261023-tpz-remove-redundant-destination-header-from/) |
+| 261023-trp | Matched globe and progress palette; removed redundant location and arrows; build and desktop/mobile checks passed | 2026-10-23 | b1c7baa | — | [261023-trp-match-loading-progress-bar-palette-and-r](./quick/261023-trp-match-loading-progress-bar-palette-and-r/) |
+| 261023-tt6 | Removed Cancel generation from selected preview for now; build and desktop/mobile checks passed | 2026-10-23 | d4e334b | — | [261023-tt6-remove-cancel-generation-action-from-sel](./quick/261023-tt6-remove-cancel-generation-action-from-sel/) |
+| 261023-ty6 | Implemented approved globe loading screen in actual canvas generation; verified desktop/mobile and real progress | 2026-10-23 | e6a04e4 | — | [261023-ty6-implement-approved-globe-loading-screen-](./quick/261023-ty6-implement-approved-globe-loading-screen-/) |
+| 261024-c05 | Confirmed destination unlocks canvas review; retain flight confirmation | 2026-10-24 | b97896d | — | [261024-c05-require-only-a-confirmed-destination-for](./quick/261024-c05-require-only-a-confirmed-destination-for/) |
+| 261024-cc7 | Generation loader follows app day/night palettes; desktop/mobile themes verified | 2026-10-24 | dc9de95 | — | [261024-cc7-match-canvas-generation-loader-to-app-da](./quick/261024-cc7-match-canvas-generation-loader-to-app-da/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -247,3 +262,45 @@ Resume file: None
 - Integrated main a99d35f; retained flight-need confirmation and conditional cards while allowing explicit read-only preview navigation. Source 8ce1419 passed 306 backend tests, 61 frontend tests, production build and authenticated Chrome verification. Twelve standalone fixture-dependent tests skipped; actual SSE→React journeys passed in the backend suite.
 - Live merged-source check returned 95 flight options, preloaded manual search correctly and preserved the saved Plan without a flight component. Test Plan cleanup verified. Evidence: artifacts/testing/2026-10-16-phase16-ship/verification.md. Phase verification fingerprint and security ship gate passed.
 - Merge through GitHub; preserve separate local main, other worktrees, unrelated caches and running Docker volumes. Phase 15 acceptance status remains unchanged.
+
+### Globe loading preference — 2026-10-23
+
+- User selected **B — Full focus** as the go-to canvas generation loading design.
+- Decision: `.planning/quick/261023-mtp-prototype-three-minimalist-globe-loading/DECISION.md`.
+- Implementation is deferred. User requested no further work for now.
+
+### Loading phase refinement — 2026-10-23
+
+- User selected top-bar **C**, refined to **Research → Canvas**, above the previously selected **B Full focus globe**. Globe and top rail animate through both loading phases; reduced motion is respected.
+- Updated interactive prototype verified on desktop/mobile. Production integration remains deferred. Decision: `.planning/quick/261023-ta4-refine-selected-c-loading-prototype-to-r/DECISION.md`.
+
+- Final loader refinement: Research → Canvas rail now spans the full available width on desktop/mobile. Preference saved; user requested stopping here. Prototype only.
+
+### Existing-component loader alignment — 2026-10-23
+
+- Preserved B globe and full-width C Research → Canvas shape; selected preview now reuses actual Plan chat and canvas cards with shared themes, typography and controls.
+- Added 1.1-second sidebar opening during simulated generation, independent desktop scrolling, existing mobile tabs and reduced-motion support. Build and authenticated desktop/mobile light/dark verification passed.
+- Decision: `.planning/quick/261023-tgv-align-selected-loading-prototype-with-ex/DECISION.md`. Prototype only; production integration remains deferred.
+
+### Scope correction — progress bar only — 2026-10-23
+
+- User clarified alignment applies only to the progress bar. Broad sidebar/card replacement and reveal animation from quick 261023-tgv were removed. Original accepted globe prototype restored; only the selected full-width Research → Canvas bar adopts current frontend styling.
+- Build and authenticated desktop/mobile browser verification passed. Evidence: `artifacts/testing/2026-10-23-progressbar-only/verification.md`. Prototype only.
+
+- Loader refinement 261023-tpz: removed redundant destination header strip from selected C, per user screenshot. Progress now leads directly into the globe. Build and authenticated desktop/mobile checks passed.
+
+- Loader refinement 261023-trp: progress bar now matches the globe palette; removed top-right destination label and decorative arrows from selected C. Plain Cancel action retained. Build and authenticated desktop/mobile checks passed; prototype only.
+
+- Loader refinement 261023-tt6: user explicitly requested removing Cancel generation for now. Removed from selected C prototype; desktop/mobile absence, retry/completion and build verified.
+
+### Production loader — 2026-10-23
+
+- User authorized implementation. Approved B globe / full-width C Research → Canvas now integrated in real full-plan generation and initial handoff, with validated current-run counts and hidden/inert workspace until terminal completion. This supersedes the earlier implementation deferral.
+- Source e6a04e4. 41 tests passed, one existing fixture skip; build, authenticated Chrome desktop/mobile, actual generation/save/reopen and error recovery verified. Live retry returned partial research and retained the saved plan; existing source-link key warning documented.
+- Local stack rebuilt from this checkout at http://localhost:5174; source hashes match. Evidence: artifacts/testing/2026-10-23-canvas-loader/verification.md. No push/merge.
+
+### Canvas loader shipment — 2026-10-24
+
+- User explicitly authorized merging prototype/canvas-globe-loading-20261023 despite remaining unspecified polish issues. Scope includes the approved themed globe loader, destination-only readiness with explicit flight confirmation, closed-chat plan scrolling and animated sidebar reveal.
+- Source 74d4567 is verified by the production loader, destination-only, loader-themes and canvas-scroll-chat reports under artifacts/testing. Scoped shipping security review: .planning/quick/261024-canvas-loader-ship/SECURITY.md, threats_open: 0. No source edits during shipping.
+- Ship through a GitHub PR into main and retain remaining polish for follow-up. Preserve the dirty separate main worktree and running local stack. This shipment does not assert completion of Phase 17 acceptance.

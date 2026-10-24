@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import replace
 from typing import Any
 
+from services.research_offers import assess_research_readiness
 from services.trip_context import TripContext, flight_need_confirmed
 
 from ...canvas_contracts import CanvasDraft, ThemesComponent
@@ -30,7 +31,11 @@ class CanvasGenerationNode:
             action = state.get("canvas_action")
             if action not in {"generate_themes", "generate_research", "generate_plan"}:
                 raise ValueError("Unsupported canvas action")
-            if not flight_need_confirmed(TripContext.model_validate(state.get("trip_context", {}))):
+            trip = TripContext.model_validate(state.get("trip_context", {}))
+            if not assess_research_readiness(trip).eligible:
+                return {"status": "unable to continue", "assistant_text": "", "question": None,
+                        "state_changes": [], "error": "Confirm a destination before generating your plan."}
+            if not flight_need_confirmed(trip):
                 return {"status": "unable to continue", "assistant_text": "", "question": None,
                         "state_changes": [], "error": "Confirm whether you need flights before generating your plan."}
             context = TurnContext(

@@ -1,0 +1,111 @@
+{
+  "A": {
+    "initial": {
+      "topbar": true,
+      "globeB": true,
+      "unknownTotal": true,
+      "count": "04",
+      "overflow": false,
+      "canvasCards": 0,
+      "chatVisible": false
+    },
+    "interactions": {
+      "increment": "05",
+      "cancel": "Generation cancelled.",
+      "topbarCancelled": true,
+      "retry": "00",
+      "error": "Let\u2019s try that again.",
+      "topbarError": true,
+      "topbarComplete": true,
+      "complete": {
+        "cards": 3,
+        "loader": false
+      },
+      "cardOpens": true,
+      "replay": "00",
+      "backgroundInert": true,
+      "reducedMotion": "none"
+    },
+    "mobile": {
+      "overflow": false,
+      "animation": "none",
+      "counter": "04\nitems ready"
+    },
+    "console": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=22 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Network requests\nShowing 1-3 of 3 (Page 1 of 1).\nreqid=558 GET http://localhost:5187/auth/session [200]\nreqid=559 GET http://localhost:5187/v1/traveler-profile [200]\nreqid=560 GET http://localhost:5187/v1/plans?view=active [200]"
+  },
+  "B": {
+    "initial": {
+      "topbar": true,
+      "globeB": true,
+      "unknownTotal": true,
+      "count": "04",
+      "overflow": false,
+      "canvasCards": 0,
+      "chatVisible": false
+    },
+    "interactions": {
+      "increment": "05",
+      "cancel": "Generation cancelled.",
+      "topbarCancelled": true,
+      "retry": "00",
+      "error": "Let\u2019s try that again.",
+      "topbarError": true,
+      "topbarComplete": true,
+      "complete": {
+        "cards": 3,
+        "loader": false
+      },
+      "cardOpens": true,
+      "replay": "00",
+      "backgroundInert": true,
+      "reducedMotion": "none"
+    },
+    "mobile": {
+      "overflow": false,
+      "animation": "none",
+      "counter": "04\nitems ready"
+    },
+    "console": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=38 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Network requests\nShowing 1-3 of 3 (Page 1 of 1).\nreqid=1006 GET http://localhost:5187/auth/session [200]\nreqid=1007 GET http://localhost:5187/v1/traveler-profile [200]\nreqid=1008 GET http://localhost:5187/v1/plans?view=active [200]"
+  },
+  "C": {
+    "initial": {
+      "topbar": true,
+      "globeB": true,
+      "unknownTotal": true,
+      "count": "04",
+      "overflow": false,
+      "canvasCards": 0,
+      "chatVisible": false
+    },
+    "interactions": {
+      "increment": "05",
+      "cancel": "Generation cancelled.",
+      "topbarCancelled": true,
+      "retry": "00",
+      "error": "Let\u2019s try that again.",
+      "topbarError": true,
+      "topbarComplete": true,
+      "complete": {
+        "cards": 3,
+        "loader": false
+      },
+      "cardOpens": true,
+      "replay": "00",
+      "backgroundInert": true,
+      "reducedMotion": "none"
+    },
+    "mobile": {
+      "overflow": false,
+      "animation": "none",
+      "counter": "04\nitems ready"
+    },
+    "console": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=54 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)",
+    "network": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Network requests\nShowing 1-3 of 3 (Page 1 of 1).\nreqid=1454 GET http://localhost:5187/auth/session [200]\nreqid=1455 GET http://localhost:5187/v1/traveler-profile [200]\nreqid=1456 GET http://localhost:5187/v1/plans?view=active [200]"
+  },
+  "switcher": {
+    "wrap": "C to A",
+    "reload": "A"
+  }
+}

@@ -22,7 +22,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-const confirmedFlights = { flights: 'needed', provenance: { flights: { source: 'user_edit', updated_at: '2026-10-16T10:00:00Z' } } };
+const confirmedFlights = { finalDestination: 'Milan', flights: 'needed', provenance: { finalDestination: { source: 'user_edit' }, flights: { source: 'user_edit', updated_at: '2026-10-16T10:00:00Z' } } };
 function setup() {
   const api = {
     canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, snapshot: null })),
@@ -359,6 +359,7 @@ test('folding chat preserves its draft and restores keyboard focus without savin
   await user.type(message, 'Keep this question for later');
   await user.click(screen.getByRole('button', { name: 'Collapse plan chat' }));
   expect(screen.queryByRole('textbox', { name: 'Message Travella' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'Plan content' }).tabIndex).toBe(0);
   const expand = screen.getByRole('button', { name: 'Expand plan chat' });
   await waitFor(() => expect(document.activeElement).toBe(expand));
   expect(expand.getAttribute('aria-expanded')).toBe('false');
@@ -367,4 +368,95 @@ test('folding chat preserves its draft and restores keyboard focus without savin
   await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Collapse plan chat' })));
   expect(api.editCanvas).not.toHaveBeenCalled();
   expect(api.saveCanvas).not.toHaveBeenCalled();
+});
+
+function streamFixture() {
+  let emit, finish;
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: { ...confirmedFlights, finalDestination: 'Milan' } }),
+    conversationMessages: async () => [],
+    cancelAgentTurn: vi.fn(async () => {}),
+    saveCanvas: vi.fn(),
+    generateCanvas: vi.fn((_plan, body, _id, { onEvent }) => new Promise(resolve => {
+      emit = (components, groups, overrides = {}) => onEvent({ type: 'STATE_SNAPSHOT', snapshot: { canvas_draft: { generation_id: body.generation_id, context_revision: 1, components, group_status: groups, ...overrides } } });
+      finish = resolve;
+    })),
+  };
+  return { api, emit: (...args) => emit(...args), finish: (...args) => finish(...args) };
+}
+const generatedTheme = { status: 'ready', items: [{ id: 'walks', kind: 'theme', text: 'Quiet walks', source: 'Conversation' }] };
+
+test('full generation hides the mounted workspace until the terminal result and reveals an editable unsaved canvas', async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  const user = userEvent.setup(); const stream = streamFixture();
+  render(<PlanningCanvas selected={{ plan_id: 'loader', title: 'Loader test' }} api={stream.api}/>);
+  const trigger = await screen.findByRole('button', { name: 'Generate plan', exact: true });
+  await waitFor(() => expect(trigger.disabled).toBe(false));
+  const input = screen.getByRole('textbox', { name: 'Message Travella' });
+  await user.type(input, 'Keep this unsent question');
+  await user.click(trigger);
+  await user.click(await screen.findByRole('button', { name: 'Confirm & generate' }));
+  await waitFor(() => expect(stream.api.generateCanvas).toHaveBeenCalledOnce());
+  const loader = screen.getByRole('region', { name: 'Generating your plan' });
+  const globe = loader.querySelector('svg');
+  const workspace = document.querySelector('.canvas-workspace-body');
+  expect(workspace.hidden).toBe(true);
+  expect(workspace.hasAttribute('inert')).toBe(true);
+  expect(screen.queryByRole('button', { name: 'Stop generation' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Message Travella' })).toBeNull();
+  expect(loader.querySelector('.generation-counter').textContent).toBe('00items ready');
+  act(() => stream.emit({ themes: generatedTheme }, { themes: 'ready', research: 'loading' }));
+  expect(loader.querySelector('.generation-counter').textContent).toBe('01item ready');
+  expect(loader.querySelector('[aria-current="step"]').textContent).toContain('Research');
+  act(() => stream.emit({
+    findings: { status: 'ready', items: [{ id: 'walk', title: 'Walking routes', summary: 'A quiet route', sources: [], certainty: 'uncertain' }] },
+    links: { status: 'ready', items: [{ id: 'city', title: 'City guide', url: 'https://example.org/city', purpose: 'Plan your visit', category: 'official' }] },
+  }, { themes: 'ready', research: 'ready' }));
+  expect(loader.querySelector('.generation-counter').textContent).toBe('03items ready');
+  expect(loader.querySelector('[aria-current="step"]').textContent).toContain('Canvas');
+  expect(loader.querySelector('svg')).toBe(globe);
+  expect(workspace.hidden).toBe(true);
+  await act(async () => stream.finish({ status: 'complete' }));
+  expect(screen.queryByRole('region', { name: 'Generating your plan' })).toBeNull();
+  expect(workspace.hidden).toBe(false);
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Plan content' })));
+  expect(screen.getByRole('textbox', { name: 'Message Travella' }).value).toBe('Keep this unsent question');
+  expect(screen.getByRole('button', { name: 'Save plan', exact: true }).disabled).toBe(false);
+  expect(stream.api.saveCanvas).not.toHaveBeenCalled();
+});
+
+test('progress ignores stale and invalid snapshots, does not double count, and resets after a failed run', async () => {
+  const stream = streamFixture();
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'progress' }, api: stream.api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  let run;
+  act(() => { run = result.current.generate(); });
+  await waitFor(() => expect(stream.api.generateCanvas).toHaveBeenCalledOnce());
+  act(() => stream.emit({ themes: generatedTheme }, { themes: 'ready' }, { generation_id: 'stale' }));
+  act(() => stream.emit({ themes: generatedTheme }, { themes: 'ready' }, { context_revision: 9 }));
+  act(() => stream.emit({ themes: { status: 'ready', items: 'invalid' } }, { themes: 'ready' }));
+  expect(result.current.generationProgress.count).toBe(0);
+  for (let i = 0; i < 2; i++) act(() => stream.emit({ themes: generatedTheme }, { themes: 'ready', research: 'loading' }));
+  expect(result.current.generationProgress).toMatchObject({ count: 1, phase: 'research' });
+  await act(async () => { stream.finish({ status: 'error' }); await run; });
+  expect(result.current.activeGroup).toBeNull();
+  expect(result.current.error).toContain('Generation could not finish');
+  expect(result.current.data.themes.items).toHaveLength(1);
+  expect(stream.api.cancelAgentTurn).toHaveBeenCalledOnce();
+  act(() => { run = result.current.generate(); });
+  expect(result.current.generationProgress).toMatchObject({ count: 0, phase: 'research' });
+  await waitFor(() => expect(stream.api.generateCanvas).toHaveBeenCalledTimes(2));
+  await act(async () => { stream.finish({ status: 'error' }); await run; });
+});
+
+test('the research handoff covers initial snapshot loading and releases the loader on a load error', async () => {
+  let fail;
+  const api = { canvas: () => new Promise((_resolve, reject) => { fail = reject; }), researchContext: async () => ({ revision: 1, context: confirmedFlights }), conversationMessages: async () => [] };
+  render(<PlanningCanvas selected={{ plan_id: 'handoff' }} api={api} autoGenerate={{ revision: 1 }}/>);
+  expect(screen.getByRole('region', { name: 'Generating your plan' })).toBeTruthy();
+  expect(document.querySelector('.canvas-workspace-body').hidden).toBe(true);
+  await act(async () => fail(new Error('Offline')));
+  expect(screen.queryByRole('region', { name: 'Generating your plan' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Retry loading' })).toBeTruthy();
 });

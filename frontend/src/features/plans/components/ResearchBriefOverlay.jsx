@@ -8,7 +8,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, m
 const viewport = () => ({ width: window.visualViewport?.width || window.innerWidth, height: window.visualViewport?.height || window.innerHeight });
 
 // Coordinates belong only to this mounted Plan. Neither drag nor toggle edits its data.
-export function ResearchBriefOverlay({ context, workspaceRef, composerRef, children, readiness = 'Your draft comes next. Let’s shape the essentials first.', actions }) {
+export function ResearchBriefOverlay({ context, workspaceRef, composerRef, children, readiness = 'Confirm a destination to create your draft. Other trip details can stay undecided.', actions }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(null);
   const [bounds, setBounds] = useState(viewport);

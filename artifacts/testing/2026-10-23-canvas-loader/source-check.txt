@@ -1,0 +1,4 @@
+frontend/src/features/plans/components/CanvasGenerationLoader.jsx MATCH
+frontend/src/features/plans/components/canvas-generation-loader.css MATCH
+frontend/src/features/plans/usePlanningCanvas.js MATCH
+frontend/src/features/plans/components/PlanningCanvas.jsx MATCH

@@ -20,6 +20,7 @@ class DraftOfferProposal(StrictOfferModel):
 
 class ResearchReadiness(StrictOfferModel):
     eligible: bool
+    # Retain legacy reason values so existing idempotency receipts remain readable.
     reasons: list[Literal["destination_required", "timing_required", "travelers_required", "priorities_required", "context_locked"]]
 
 
@@ -98,21 +99,14 @@ def explicit_draft_request(text: str) -> bool:
         r"(?:create|make|generate|review)\b[^.!?;]*\b(?:draft|itinerary)\b", value.strip()))
 
 
-def assess_research_readiness(context, *, has_priorities: bool = False, locked: bool = False) -> ResearchReadiness:
+def assess_research_readiness(context, *, locked: bool = False) -> ResearchReadiness:
     def explicit(field):
         provenance = context.provenance.get(field)
         return provenance is not None and provenance.source in {"user_edit", "user_explicit"}
 
     reasons = []
-    if not context.finalDestination or not explicit("finalDestination"):
+    if not context.finalDestination.strip() or not explicit("finalDestination"):
         reasons.append("destination_required")
-    if not ((context.flexibleDates and explicit("flexibleDates")) or
-            (context.dateStart and context.dateEnd and explicit("dateStart") and explicit("dateEnd"))):
-        reasons.append("timing_required")
-    if not context.travelers or not explicit("travelers"):
-        reasons.append("travelers_required")
-    if not has_priorities:
-        reasons.append("priorities_required")
     if locked:
         reasons.append("context_locked")
     return ResearchReadiness(eligible=not reasons, reasons=reasons)

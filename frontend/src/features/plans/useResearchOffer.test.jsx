@@ -96,9 +96,9 @@ test('retry clears a failed readiness read and restores the eligible manual acti
 
 test('missing readiness reasons tell the traveler what is still needed without treating the count as permission', async () => {
   const { api, change } = fixture();
-  change({ readiness: { eligible: false, reasons: ['priorities_required', 'timing_required'] } });
+  change({ readiness: { eligible: false, reasons: ['destination_required'] } });
   const { result } = renderHook(() => useResearchOffer(api, 'plan', 4, vi.fn()));
   await waitFor(() => expect(result.current.loading).toBe(false));
   expect(result.current.eligible).toBe(false);
-  expect(result.current.missingDetails).toEqual(['Tell Travella what matters most for this trip.', 'Add dates or choose flexible dates.']);
+  expect(result.current.missingDetails).toEqual(['Confirm a destination.']);
 });

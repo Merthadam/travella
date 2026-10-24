@@ -324,7 +324,7 @@ def test_older_crud_response_does_not_manufacture_generation_authorization(monke
 
 def test_prompt_respects_review_first_flights_and_persistent_deferral():
     prompt = load_prompt("chat-v1")
-    assert "Destination confirmation alone is not readiness" in prompt
+    assert "A confirmed single destination is the only trip-detail prerequisite" in prompt
     assert "does not block offering that review" in prompt
     assert "do not require every brief field or 6/6" in prompt
     assert "when deferred=true do not proactively re-offer" in prompt

@@ -1,0 +1,40 @@
+{
+  "opening": {
+    "start": 56,
+    "middle": 273.234375,
+    "end": 400,
+    "transition": "1.1s",
+    "blocked": true
+  },
+  "phase": {
+    "sameGlobe": true,
+    "active": "2Canvas",
+    "animation": "cg-turn",
+    "cards": 0
+  },
+  "folding": {
+    "closed": true,
+    "width": 56,
+    "open": true
+  },
+  "completion": {
+    "cards": 3,
+    "loader": false,
+    "composer": true,
+    "form": true,
+    "closed": true,
+    "messages": 2
+  },
+  "desktopReducedMotion": {
+    "globe": "none",
+    "transition": "0s"
+  },
+  "mobile": {
+    "overflow": false,
+    "globe": "none",
+    "transition": "0s",
+    "chatHidden": "none"
+  },
+  "console": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=18 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)",
+  "network": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\nEmulating prefers-reduced-motion: reduce\n## Network requests\nShowing 1-3 of 3 (Page 1 of 1).\nreqid=458 GET http://localhost:5187/auth/session [200]\nreqid=459 GET http://localhost:5187/v1/traveler-profile [200]\nreqid=460 GET http://localhost:5187/v1/plans?view=active [200]"
+}
