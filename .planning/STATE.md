@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T09:07:12.759847+00:00"
+last_updated: "2026-10-24T13:11:10.768419+00:00"
 last_activity: 2026-10-24
-last_activity_desc: Place websites added to chat, maps and useful links; desktop/mobile and persistence checked
-state_head: 5262676
+last_activity_desc: Google editorial descriptions and existing place websites verified; live Yakushima search working
+state_head: bdec68a
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-jp7: place websites running locally; desktop/mobile, provider, persistence and authorization checks passed; existing regression failures documented.
+Last activity: 2026-10-24 — Quick task 261024-kci: Google editorial descriptions and existing place website enrichment verified; real Yakushima search, desktop/mobile and persistence passed. Historical search failure cause remains unconfirmed.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261024-kci | Google editorial descriptions and existing place website enrichment; verify Yakushima search | 2026-10-24 | bdec68a | Verified; historical search interruption not reproduced | [Task](quick/261024-kci-show-google-place-descriptions-and-websi/) |
 | 261024-jp7 | Place websites in chat, map previews/details and automatic useful links | 2026-10-24 | 4a5db39 | Feature verified; baseline failures and extra screenshot limitation documented | [Task](quick/261024-jp7-add-place-websites-to-chat-map-and-usefu/) |
 | 261024-hd3 | Complete draft autosave; finalization deferred; stored research key-rotation fix | 2026-10-24 | e0ab187 / da7370e | Functional checks passed; screenshot gate incomplete | [Task](quick/261024-hd3-persist-planning-canvas-drafts-automatic/) |
 | 261024-f50 | Focused dates, travelers and budget editors without header expansion | 2026-10-24 | 5262676 | Verified | [Task](quick/261024-f50-make-canvas-dates-travelers-and-budget-c/) |
