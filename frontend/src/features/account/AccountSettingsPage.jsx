@@ -6,6 +6,7 @@ import { AccountIdentity } from './AccountIdentity';
 import { AccountSecurity } from './AccountSecurity';
 import { AccountIcon } from './AccountIcon';
 import { AppHeader } from '../../components/AppHeader';
+import { AccountMenu } from '../../components/AccountMenu';
 import { useAppearance } from '../appearance/AppearanceProvider';
 
 export const ACCOUNT_SETTINGS = [
@@ -21,7 +22,7 @@ export const ACCOUNT_SETTINGS = [
 ];
 const groups = [...new Set(ACCOUNT_SETTINGS.map(item => item.group))];
 
-export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans, navigationGuard, onProfileSaved }) {
+export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans, navigationGuard, onProfileSaved, onSignOut, sessionBusy = false, sessionError }) {
   const [profile, setProfile] = useState(initialProfile);
   const [account, setAccount] = useState(null);
   const [accountRead, setAccountRead] = useState('loading');
@@ -166,9 +167,10 @@ export function AccountSettingsPage({ initialProfile, onExpired, onNavigatePlans
   return <div className="account-page" data-theme={theme}>
     <AppHeader leading={<a className="brand" href="/plans" onClick={event => { event.preventDefault(); guard(onNavigatePlans); }}>Travella</a>}>
       <button className="nav-button" disabled={busy || identityBusy} onClick={() => guard(onNavigatePlans)}>My plans</button>
-      <span className="nav-current" aria-current="page">Account</span>
+      <AccountMenu current disabled={busy || identityBusy || sessionBusy} onSignOut={() => guard(onSignOut)} />
     </AppHeader>
     <main className="account-layout">
+      {sessionError && <p role="alert" className="error">{sessionError.message}</p>}
       <div className="account-heading"><div><h1>Account &amp; preferences</h1><p>Manage your personal details, travel preferences and security.</p></div>
         <div className="account-theme" aria-label="Appearance">{['light', 'dark'].map(value => <button key={value} aria-label={value === 'light' ? 'Light mode' : 'Dark mode'} aria-pressed={theme === value} onClick={() => setTheme(value)}><AccountIcon name={value} /> {value === 'light' ? 'Light' : 'Dark'}</button>)}</div>
       </div>

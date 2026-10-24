@@ -221,7 +221,7 @@ function AccountContent() {
     return <><div hidden={step === 'account'} inert={step === 'account'}><PlansApp inactive={step === 'account'} onExpired={() => go('sign_in')} onSignOut={signOut} onAccount={openAccount}
       accountBusy={busy} accountError={error} /></div>
       {step === 'account' && <AccountSettingsPage initialProfile={travelerProfile} onExpired={() => go('sign_in')}
-        navigationGuard={navigationGuard} onProfileSaved={setTravelerProfile} onNavigatePlans={openPlans} />}</>;
+        navigationGuard={navigationGuard} onProfileSaved={setTravelerProfile} onNavigatePlans={openPlans} onSignOut={signOut} sessionBusy={busy} sessionError={error} />}</>;
   }
 
   const hasEmail = ['sign_in', 'register', 'verify_email', 'forgot_password_email', 'reset_password'].includes(step);

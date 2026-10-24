@@ -8,7 +8,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, m
 const viewport = () => ({ width: window.visualViewport?.width || window.innerWidth, height: window.visualViewport?.height || window.innerHeight });
 
 // Coordinates belong only to this mounted Plan. Neither drag nor toggle edits its data.
-export function ResearchBriefOverlay({ context, workspaceRef, composerRef, children, readiness = 'Confirm a destination to create your draft. Other trip details can stay undecided.', actions }) {
+export function ResearchBriefOverlay({ context, workspaceRef, composerRef, children, hidden = false, readiness = 'Confirm a destination to create your draft. Other trip details can stay undecided.', actions }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(null);
   const [bounds, setBounds] = useState(viewport);
@@ -21,6 +21,7 @@ export function ResearchBriefOverlay({ context, workspaceRef, composerRef, child
   const progress = tripBriefProgress(context);
 
   useLayoutEffect(() => {
+    if (hidden) return;
     function place() {
       const next = viewport();
       setBounds(next);
@@ -46,24 +47,24 @@ export function ResearchBriefOverlay({ context, workspaceRef, composerRef, child
     window.addEventListener('resize', place);
     window.visualViewport?.addEventListener('resize', place);
     return () => { observer?.disconnect(); window.removeEventListener('resize', place); window.visualViewport?.removeEventListener('resize', place); };
-  }, [workspaceRef, composerRef]);
+  }, [workspaceRef, composerRef, hidden]);
 
   function close() { setOpen(false); trigger.current?.focus(); }
   useEffect(() => {
-    if (!open) return;
+    if (!open || hidden) return;
     function escape(event) {
       // A modal review owns Escape while it is open.
       if (event.key === 'Escape' && !document.querySelector('dialog[open]')) { event.preventDefault(); close(); }
     }
     document.addEventListener('keydown', escape);
     return () => document.removeEventListener('keydown', escape);
-  }, [open]);
+  }, [open, hidden]);
 
   const point = position || { x: MARGIN, y: MARGIN };
   const panelWidth = Math.min(340, bounds.width - MARGIN * 2);
   const above = point.y > bounds.height / 2;
   const panelHeight = Math.min(560, above ? point.y - MARGIN - 10 : bounds.height - point.y - SIZE - MARGIN - 10);
-  return createPortal(<div className="research-brief-layer">
+  return createPortal(<div className="research-brief-layer" hidden={hidden} inert={hidden}>
     <button ref={trigger} type="button" className="research-brief-trigger" style={{ left: point.x, top: point.y, '--brief-progress': `${progress.percentage}%` }}
       aria-label={`Trip brief, ${progress.count} of ${progress.total} details complete`} aria-expanded={open} aria-controls={`${id}-panel`} aria-describedby={`${id}-help`}
       title="Trip brief · Drag or use arrow keys to move" onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } setOpen(value => !value); }}

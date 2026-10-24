@@ -69,7 +69,8 @@ test('MFA challenge must succeed before the server session opens My plans', asyn
   await user.type(screen.getByLabelText('Authenticator code'), '123456');
   await user.click(screen.getByRole('button', { name: 'Verify', exact: true }));
   await screen.findByRole('heading', { name: 'My plans' });
-  await user.click(screen.getByRole('button', { name: 'Sign out' }));
+  await user.click(screen.getByRole('button', { name: 'Account menu' }));
+  await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
   await screen.findByRole('heading', { name: 'Welcome back' });
 });
 
@@ -82,7 +83,8 @@ test('Account opens preferences without enrollment and returns to the mounted Pl
   render(<AccountApp />);
   await screen.findByRole('heading', { name: 'My plans' });
   const originalPlans = document.querySelector('.plans-app');
-  await user.click(screen.getByRole('button', { name: 'Account', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Account menu' }));
+  await user.click(screen.getByRole('menuitem', { name: 'Account settings' }));
   await screen.findByRole('heading', { name: 'Account & preferences' });
   expect(location.pathname).toBe('/account');
   expect(originalPlans.parentElement.hidden).toBe(true);
