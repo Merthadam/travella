@@ -28,3 +28,11 @@ Another checkout (`thread-impatiens`) recreated the shared Compose stack during 
 Final successful test-plan console contained only the existing Lit development and Google marker-event warnings. Network errors caused by the competing runtime are documented above; normal CRUD reads and writes succeeded while this checkout was running.
 
 No push or merge. Live model calls and backend CRUD regression suites not applicable to this frontend-only change.
+
+## Delivery completed: dedicated container at localhost:5175
+
+User explicitly requested starting the container. The shared 5174 stack was overwritten again during launch. Started a separate Compose project `travella-compact-cards` at http://localhost:5175 (auth 8005, agent 8105). Compose definition: `/tmp/travella-compact-cards-compose.yaml`. It has its own app/connector containers and images; it connects to the existing PostgreSQL container through external network `travella-cards-db` and alias `cards-postgres`. No database copy, replacement or volume deletion. Existing seven-place Plan is available.
+
+Launched through `scripts/start-local-ready.sh` with `COMPOSE_PROJECT_NAME=travella-compact-cards`, `TRAVELLA_COMPOSE_FILE=/tmp/travella-compact-cards-compose.yaml`, `COMPOSE_ENV_FILES` pointing to this checkout's ignored `.env`, ports 5175/8005/8105, and both `FRONTEND_ORIGIN` and `TRAVELLA_LOCAL_ORIGIN` set to http://localhost:5175. Cognito precheck and sign-in/session/sign-out readiness passed. An initial attempt at host auth port 8004 collided with the existing research stack; retried with unused ports 8005/8105 without stopping other containers.
+
+All five changed runtime files and CRUD canvas model match this checkout by SHA-256. Chrome DevTools authenticated browser check: seven saved places, Yakusugi Land expanded, original Google summary and both links present, no duplicate title, overflow action present. All 19 observed fetch/XHR requests returned 200. Console: existing Lit/marker warnings plus unrelated missing favicon 404. [Running container screenshot](implementation/running-container.jpg) inspected. Opened the live Plan in the user's Chrome. No implementation changes or repeated tests required for this launch.

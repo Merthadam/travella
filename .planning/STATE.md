@@ -6,8 +6,8 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T13:24:25.756742+00:00"
 last_activity: 2026-10-24
-last_activity_desc: Removed map location chooser; automatic framing and Show all places verified
-state_head: 6dd02e1
+last_activity_desc: Compact place cards verified and running in dedicated container at localhost:5175
+state_head: c8c70a9
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-lap: removed map location chooser; authenticated desktop/mobile checks, 28 tests and build passed.
+Last activity: 2026-10-24 — Quick task 261024-loa: approved compact cards implemented; 45 tests/build/browser checks passed; dedicated container running at localhost:5175.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,7 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
-| 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; shared runtime coordination pending | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
+| 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; running at localhost:5175 | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
 | 261024-liv | Sketch cleaner place cards (design only) | 2026-10-24 | — | Browser sketch checked; implementation pending user direction | [Task](quick/261024-liv-sketch-cleaner-place-cards/) |
 | 261024-lap | Remove map location chooser | 2026-10-24 | 6dd02e1 | Verified in browser; 28 tests and build passed | [Task](quick/261024-lap-remove-map-location-chooser/) |
 | 261024-l6e | Remove Search this map area; keep Show all places | 2026-10-24 | 5239c66 | Verified in browser; 27 tests and build passed | [Task](quick/261024-l6e-remove-search-this-map-area-button/) |
