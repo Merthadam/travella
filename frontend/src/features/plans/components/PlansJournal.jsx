@@ -46,13 +46,15 @@ function PlanCard({ plan, featured, api, onExpired, onDone, onOpen }) {
   const title = <button ref={titleButton} className="journal-title" aria-label={`Rename ${plan.title}`} title="Click to rename" onClick={() => setEditing(true)}><span>{plan.title}</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m15 4 5 5-11 11-6 1 1-6ZM13 6l5 5"/></svg></button>;
   function cancel(restoreFocus = true) { setEditing(false); if (restoreFocus) requestAnimationFrame(() => titleButton.current?.focus({ preventScroll: true })); }
   return <article className={`journal-card ${featured ? 'journal-feature' : 'journal-entry'}`}>
+    <a className="journal-card-open" href={`/plans/${plan.plan_id}`} aria-label={plan.title} onClick={event => {
+      if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) onOpen(event, plan.plan_id);
+    }}/>
     <DestinationPhoto destination={plan.destination_summary} generated={generated}/>
     <div className="journal-card-body"><div className="journal-card-top">{featured && <span className="journal-kicker">PICK UP WHERE YOU LEFT OFF</span>}<span className={`journal-stage ${generated ? 'is-canvas' : ''}`}>{stage}</span><time dateTime={plan.last_activity_at} title={new Date(plan.last_activity_at).toLocaleString()}>{activityLabel(plan.last_activity_at)}</time><Trash key={`${plan.plan_id}:${plan.revision}`} plan={plan} api={api} onExpired={onExpired} onDone={onDone} disabled={editing}/></div>
       <div className="journal-name">{editing ? <InlineName plan={plan} api={api} onExpired={onExpired} onDone={(updated, operation) => { cancel(); onDone(updated, operation); }} onCancel={cancel}/> : featured ? <h2>{title}</h2> : <h3>{title}</h3>}</div>
       <p className="journal-destination">{plan.destination_summary || 'Destination undecided'}</p>
       <p className="journal-summary"><span>{tripDates(plan)}</span><span aria-hidden="true">·</span><span>{plan.saved_places_count ? `${plan.saved_places_count} ${plan.saved_places_count === 1 ? 'place' : 'places'} saved` : 'No saved places yet'}</span></p>
       {featured && <ol className="journal-progress" aria-label="Planning stage"><li aria-current={!generated ? 'step' : undefined} className="reached"><span>{generated ? '✓' : '1'}</span>Research</li><li aria-current={generated ? 'step' : undefined} className={generated ? 'reached' : ''}><span>2</span>Canvas</li></ol>}
-      <div className="journal-card-bottom">{featured && <p>{generated ? 'Your saved canvas is ready. Continue shaping your trip.' : plan.destination_summary ? 'Keep exploring ideas before generating your plan.' : 'Start with a place, a feeling, or a little time away.'}</p>}<a href={`/plans/${plan.plan_id}`} aria-label={plan.title} onClick={e => onOpen(e, plan.plan_id)}>{generated ? 'Open canvas' : 'Continue research'} <span aria-hidden="true">↗</span></a></div>
     </div>
   </article>;
 }
