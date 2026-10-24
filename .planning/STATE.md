@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T06:57:43.970Z"
 last_activity: 2026-10-24
-last_activity_desc: Canvas progress and trip header scroll together in all prototypes; user design selection pending
+last_activity_desc: Canvas progress and trip header visually blended; user design selection pending
 state_head: dc9de9568200ac3ff713df4b7d38a39d296ae3c0
 progress:
   total_phases: 17
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-e5l: progress and trip header scroll together; desktop/mobile browser verified; user design choice pending. Prior: User approved main merge. Integrated phase 16 travel previews with research cleanup and verified combined frontend, Agent/gateway, PostgreSQL and Chrome paths. GitHub PR records final merge status; no deployment.
+Last activity: 2026-10-24 — Quick task 261024-eat: continuous canvas introduction; desktop/mobile and light/dark browser verified; user design choice pending. Prior: User approved main merge. Integrated phase 16 travel previews with research cleanup and verified combined frontend, Agent/gateway, PostgreSQL and Chrome paths. GitHub PR records final merge status; no deployment.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261024-eat | Blend progress, trip header and canvas surfaces in A/B/C | 2026-10-24 | e56a972 | Browser verified; awaiting design choice | [Task](quick/261024-eat-blend-canvas-progress-and-trip-header-in/) |
 | 261024-e5l | Scroll Canvas progress and trip header together in A/B/C | 2026-10-24 | 9ca98a1 | Browser verified; awaiting design choice | [Task](quick/261024-e5l-scroll-trip-header-with-canvas-below-act/) |
 | 261024-dwo | Restore visible Flights, Accommodation and all canvas content in A/B/C | 2026-10-24 | c596857 | Browser verified; awaiting design choice | [Task](quick/261024-dwo-restore-full-canvas-content-in-single-ca/) |
 | 261024-dgt | Single-canvas A/B/C layout prototypes | 2026-10-24 | 39f0f95 | Browser verified; awaiting design choice | [Task](quick/261024-dgt-prototype-three-single-canvas-planning-l/) |
