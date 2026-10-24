@@ -5,8 +5,8 @@ current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T06:57:43.970Z"
-last_activity: 2026-10-23
-last_activity_desc: Phase 17 implemented with service-owned fan-out and real desktop/API verification
+last_activity: 2026-10-24
+last_activity_desc: Single-canvas layout prototypes verified; user design selection pending
 state_head: dc9de9568200ac3ff713df4b7d38a39d296ae3c0
 progress:
   total_phases: 17
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-23 — User approved main merge. Integrated phase 16 travel previews with research cleanup and verified combined frontend, Agent/gateway, PostgreSQL and Chrome paths. GitHub PR records final merge status; no deployment.
+Last activity: 2026-10-24 — Quick task 261024-dgt: single-canvas prototypes browser verified; user design choice pending. Prior: User approved main merge. Integrated phase 16 travel previews with research cleanup and verified combined frontend, Agent/gateway, PostgreSQL and Chrome paths. GitHub PR records final merge status; no deployment.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261024-dgt | Single-canvas A/B/C layout prototypes | 2026-10-24 | 39f0f95 | Browser verified; awaiting design choice | [Task](quick/261024-dgt-prototype-three-single-canvas-planning-l/) |
 | 261023-ssj | Integrate Research cleanup with current main and prepare authorized merge | 2026-10-23 | See branch merge commit | Verified; user authorized merge | [Task](quick/261023-ssj-integrate-research-cleanup-with-main-and/) |
 | 261023-skp | Top-right research brief and bottom composer | 2026-10-23 | d6abf21 | Desktop browser verified; 30 tests passed | [Task](quick/261023-skp-anchor-research-brief-at-progress-bar-an/) |
 | 261023-njb | Draggable desktop brief overlay with no conversation movement | 2026-10-23 | 1c3e236 | Verified prototype | [Task](quick/261023-njb-prototype-draggable-overlay-trip-brief-o/) |
