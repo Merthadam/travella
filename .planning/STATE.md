@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T12:41:30.279Z"
+last_updated: "2026-10-24T13:14:55.349Z"
 last_activity: 2026-10-24
 last_activity_desc: Focused dates travelers and budget editors implemented and browser verified
-state_head: 416548148326e8a0ee1ef0feca46330a7de1543b
+state_head: bce9c011ee71397a7c723cc5039347a314753460
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-k3m: three interactive My plans journal prototypes verified; user design selection pending.
+Last activity: 2026-10-24 — Quick task 261024-kvh: selected journal A refined with Google destination photos and Research → Canvas; verified prototype, production integration pending.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -222,6 +222,7 @@ Resume file: None
 | 261024-c05 | Confirmed destination unlocks canvas review; retain flight confirmation | 2026-10-24 | b97896d | — | [261024-c05-require-only-a-confirmed-destination-for](./quick/261024-c05-require-only-a-confirmed-destination-for/) |
 | 261024-cc7 | Generation loader follows app day/night palettes; desktop/mobile themes verified | 2026-10-24 | dc9de95 | — | [261024-cc7-match-canvas-generation-loader-to-app-da](./quick/261024-cc7-match-canvas-generation-loader-to-app-da/) |
 | 261024-k3m | Three plans journal prototypes; authenticated browser, naming, desktop/mobile and theme checks passed; selection pending | 2026-10-24 | 4165481 | — | [261024-k3m-prototype-three-travel-journal-plans-pag](./quick/261024-k3m-prototype-three-travel-journal-plans-pag/) |
+| 261024-kvh | Selected A with Google destination photos and Research to Canvas; browser and build verified; prototype only | 2026-10-24 | bce9c01 | — | [261024-kvh-refine-selected-journal-with-generated-p](./quick/261024-kvh-refine-selected-journal-with-generated-p/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -329,3 +330,9 @@ Resume file: None
 - User authorized merging the full approved canvas branch, including focused trip-detail editors and food classification. Source 8a46617; current main cde314b is its ancestor.
 - Combined final regressions: 73 passed, one existing optional Python SSE fixture skip. Prior authenticated browser evidence remains applicable; no runtime edits during shipping. Scoped security review: threats_open 0.
 - Shipment record: .planning/quick/261024-single-canvas-ship/VERIFICATION.md. PR #14: https://github.com/Merthadam/travella/pull/14. User-authorized merge to main; retain unrelated dirty main worktree and local preview.
+
+### Selected plans journal A — 2026-10-24
+
+- User selected A and clarified Google Maps destination photography, with a placeholder until generation. Selected phase labels follow Research → Canvas; automatic milestone naming retains custom names.
+- Prototype source bce9c01; live destination photos with contributor credit, shared photo treatment in generated dialog, fallback and authenticated desktop/mobile light/dark checks passed. Build passed.
+- Evidence: artifacts/testing/2026-10-24-plans-photo-refinement/verification.md. Actual Plans/Canvas production integration remains pending. Earlier design-selection deferral is superseded.
