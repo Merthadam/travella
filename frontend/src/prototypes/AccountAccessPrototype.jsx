@@ -9,7 +9,17 @@ const descriptions = { sign_in: 'Sign in to pick up where your plans left off.',
 
 function Brand() { return <span className="aap-brand"><span className="aap-mark" aria-hidden="true">✳</span> Travella<span className="aap-brand-dot">.</span></span>; }
 function JourneyArt() {
-  return <svg className="aap-journey-art" viewBox="0 0 500 310" fill="none" aria-hidden="true"><circle cx="250" cy="155" r="135"/><ellipse cx="250" cy="155" rx="72" ry="135"/><path d="M115 155h270M140 78q110 60 220 0M140 232q110-60 220 0M250 20v270"/><path className="aap-route" d="M146 205C110 100 365 30 343 129S208 261 276 246" strokeDasharray="4 7"/><circle className="aap-stop" cx="146" cy="205" r="7"/><circle className="aap-stop" cx="276" cy="246" r="7"/><path className="aap-plane" d="m340 93 21 13-16 4-6 15-8-28z"/></svg>;
+  return <svg className="aap-journey-art" viewBox="0 0 500 310" fill="none" aria-hidden="true">
+    <g className="aap-globe-grid">
+      <circle cx="250" cy="155" r="112"/>
+      <ellipse cx="250" cy="155" rx="48" ry="112"/>
+      <path d="M138 155h224M153 99h194M153 211h194"/>
+    </g>
+    <path className="aap-route" d="M174 213Q202 88 329 111"/>
+    <circle className="aap-stop" cx="174" cy="213" r="4"/>
+    <circle className="aap-destination-ring" cx="329" cy="111" r="10"/>
+    <circle className="aap-stop" cx="329" cy="111" r="4"/>
+  </svg>;
 }
 export function VariantA({ form, theme, toggleTheme }) {
   return <div className="aap-split"><aside className="aap-story"><Brand/><div className="aap-story-copy"><span className="aap-kicker">LESS SEARCHING. MORE POSSIBILITY.</span><h2>Somewhere<br/>{' '}starts here.</h2><p>A spark of an idea. A place you’ve been thinking about.<br/>Let’s turn it into your kind of trip.</p><JourneyArt/></div><span className="aap-story-footer">A little curiosity goes a long way.</span></aside><main className="aap-split-main"><button className="aap-theme-toggle" onClick={toggleTheme} aria-label={theme==='dark'?'Switch to light mode':'Switch to night mode'} title={theme==='dark'?'Light mode':'Night mode'}>{theme==='dark'?<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>:<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>}</button>{form}</main></div>;
@@ -25,6 +35,7 @@ export function VariantC({ form, step, go }) {
 export function AccountAccessPrototype() {
   const [variant,setVariant]=useState(()=>variants[new URLSearchParams(location.search).get('variant')]?new URLSearchParams(location.search).get('variant'):'A');
   const [step,setStep]=useState('sign_in');
+  const [controlsOpen,setControlsOpen]=useState(false);
   const [theme,setTheme]=useState(()=>new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -67,6 +78,6 @@ export function AccountAccessPrototype() {
     {step==='mfa_challenge'&&<p className="aap-create"><button disabled={busy} onClick={()=>go('mfa_recovery')}>Use a recovery code</button></p>}
   </section>;
   return <div className={`aap-root aap-variant-${variant}`} data-aap-theme={theme}>{variant==='A'?<VariantA form={form} theme={theme} toggleTheme={toggleTheme}/>:variant==='B'?<VariantB form={form}/>:<VariantC form={form} step={step} go={go}/>}
-    <aside className="aap-controls" aria-label="Prototype controls"><div className="aap-controls-top"><button aria-label="Previous design" onClick={()=>change(-1)}>←</button><div><small>DESIGN PROTOTYPE · SIMULATED ACTIONS</small><strong>{variant} · {variants[variant]}</strong></div><button aria-label="Next design" onClick={()=>change(1)}>→</button></div><div className="aap-controls-bottom"><label>Screen <select aria-label="Preview screen" value={step} onChange={e=>go(e.target.value)}>{Object.entries(titles).map(([key,title])=><option key={key} value={key}>{title}</option>)}</select></label><button onClick={toggleTheme}>{theme==='light'?'Night':'Light'} mode</button><button disabled={!hasEmail&&!hasCode&&!hasPassword} onClick={()=>{setError(errorCopy);setNotice('');}}>Show error</button></div><div className="aap-controls-bottom"><label>Sign-in response <select aria-label="Simulated sign-in response" value={outcome} onChange={e=>{setOutcome(e.target.value);go('sign_in');}}><option value="success">Success</option><option value="error">Sign-in failed</option></select></label></div><span className="aap-state">{step} · {busy?'loading':error?'error':'ready'} · no account requests</span></aside>
+    <button className="aap-controls-launcher" hidden={controlsOpen} onClick={()=>setControlsOpen(true)} aria-expanded={controlsOpen} aria-controls="aap-prototype-controls">Prototype · Show controls</button><aside id="aap-prototype-controls" className="aap-controls" aria-label="Prototype controls" hidden={!controlsOpen}><div className="aap-controls-top"><button aria-label="Previous design" onClick={()=>change(-1)}>←</button><div><small>DESIGN PROTOTYPE · SIMULATED ACTIONS <button className="aap-controls-dismiss" onClick={()=>setControlsOpen(false)} aria-label="Hide prototype controls">×</button></small><strong>{variant} · {variants[variant]}</strong></div><button aria-label="Next design" onClick={()=>change(1)}>→</button></div><div className="aap-controls-bottom"><label>Screen <select aria-label="Preview screen" value={step} onChange={e=>go(e.target.value)}>{Object.entries(titles).map(([key,title])=><option key={key} value={key}>{title}</option>)}</select></label><button onClick={toggleTheme}>{theme==='light'?'Night':'Light'} mode</button><button disabled={!hasEmail&&!hasCode&&!hasPassword} onClick={()=>{setError(errorCopy);setNotice('');}}>Show error</button></div><div className="aap-controls-bottom"><label>Sign-in response <select aria-label="Simulated sign-in response" value={outcome} onChange={e=>{setOutcome(e.target.value);go('sign_in');}}><option value="success">Success</option><option value="error">Sign-in failed</option></select></label></div><span className="aap-state">{step} · {busy?'loading':error?'error':'ready'} · no account requests</span></aside>
   </div>;
 }
