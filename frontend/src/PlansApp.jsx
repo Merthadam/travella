@@ -63,6 +63,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
   const [view, setView] = useState('active'), [plans, setPlans] = useState([]), [selected, setSelected] = useState(null);
   const [cursor, setCursor] = useState(null), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [notice, setNotice] = useState(''), [dialog, setDialog] = useState(null);
+  const [renameNotice, setRenameNotice] = useState('');
   const [destinationView, setDestinationView] = useState('map');
   const mapsApiKey = getGoogleMapsApiKey();
   const [mapsStatus, setMapsStatus] = useState('');
@@ -299,7 +300,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     setDialog(null);
     if (operation === 'delete') { setNotice(`Plan moved to Recently deleted. Restore it before ${date(plan.recovery_deadline)}.`); load('active'); }
     else if (operation === 'restore') { setNotice('Plan restored.'); open(plan.plan_id, false, true); }
-    else { setNotice('Plan name updated.'); if (selected) setSelected(plan); else setPlans(current => [plan, ...current.filter(item => item.plan_id !== plan.plan_id)]); }
+    else { setRenameNotice(`Plan name updated to ${plan.title}.`); if (selected) setSelected(plan); else setPlans(current => current.map(item => item.plan_id === plan.plan_id ? plan : item)); }
   }
   const link = (event, callback) => { event.preventDefault(); if (!busy) callback(); };
   function actions(plan) {
@@ -330,6 +331,7 @@ export function PlansApp({ onExpired, onSignOut, onAccount, accountBusy = false,
     } catch (err) { if (err.status === 401) onExpired(); else setError({ message: err.message || 'Could not remove this destination.' }); }
   }
   return <div className={`plans-app${conversationPage ? ' chat-app' : ''}`}>
+    <p className="sr-only" role="status">{renameNotice}</p>
     <a className="skip-link" href={conversationPage ? (canvasPage ? '#canvas-main' : '#conversation-main') : '#plans-main'}>{conversationPage ? (canvasPage ? 'Skip to plan canvas' : 'Skip to conversation') : 'Skip to plans'}</a>
     <AppHeader className={conversationPage ? 'chat-header' : ''} leading={conversationPage ? <div className="chat-nav-leading">
         <button type="button" className="sidebar-toggle" aria-label={planDrawerOpen ? 'Close plans navigation' : 'Open plans navigation'} aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}><span /><span /><span /></button>

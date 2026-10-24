@@ -93,7 +93,7 @@ test('rename validates exact title and keeps the normalized value', async () => 
   await user.keyboard('{Enter}');
   await waitFor(() => expect(api.commit).toHaveBeenCalled());
   expect(api.commit.mock.calls[0][0].title).toBe('Café');
-  expect(await screen.findByText('Plan name updated.')).toBeTruthy();
+  expect(await screen.findByText('Plan name updated to Café.')).toBeTruthy();
 });
 
 test('delete and restore preserve the authoritative lifecycle', async () => {
@@ -226,7 +226,7 @@ test('inline name retries an uncertain commit with the same request and title', 
   await user.click(await screen.findByRole('button', { name: 'Rename Island break' }));
   await user.clear(screen.getByLabelText('Plan name')); await user.type(screen.getByLabelText('Plan name'), 'Our trip{Enter}');
   await screen.findByRole('button', { name: 'Retry saving' });
-  expect(screen.getByLabelText('Plan name').disabled).toBe(true);
+  expect(screen.getByLabelText('Plan name').readOnly).toBe(true);
   await user.click(screen.getByRole('button', { name: 'Retry saving' }));
   await screen.findByRole('button', { name: 'Rename Our trip' });
   expect(api.prepare).toHaveBeenCalledTimes(1);
@@ -244,4 +244,45 @@ test('journal filters authoritative stages and searches loaded titles', async ()
   expect(screen.getByText('No trips here just yet.')).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Show all plans' }));
   expect(screen.getAllByRole('article')).toHaveLength(2);
+});
+
+
+test('renaming an ordinary card keeps its position and restores focus to its title', async () => {
+  const api = makeApi([plan('a', 'Featured trip'), plan('b', 'Second trip')]); const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('button', { name: 'Rename Second trip' }));
+  await user.clear(screen.getByLabelText('Plan name')); await user.type(screen.getByLabelText('Plan name'), 'Renamed trip{Enter}');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Renamed trip' })).toBe(document.activeElement));
+  const cards = screen.getAllByRole('article');
+  expect(cards[0].textContent).toContain('Featured trip');
+  expect(cards[1].textContent).toContain('Renamed trip');
+  expect(screen.getByText('Plan name updated to Renamed trip.').className).toContain('sr-only');
+});
+
+test('unchanged Enter and clicking away cancel without writes or stealing focus', async () => {
+  const api = makeApi([plan('a', 'Island break')]); const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('button', { name: 'Rename Island break' }));
+  await user.keyboard('{Enter}');
+  expect(screen.queryByLabelText('Plan name')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Rename Island break' }));
+  await user.clear(screen.getByLabelText('Plan name')); await user.type(screen.getByLabelText('Plan name'), 'Unsubmitted');
+  const search = screen.getByLabelText('Find a trip'); await user.click(search);
+  expect(screen.queryByLabelText('Plan name')).toBeNull(); expect(document.activeElement).toBe(search);
+  expect(api.prepare).not.toHaveBeenCalled(); expect(api.commit).not.toHaveBeenCalled();
+});
+
+test('saving retains field focus and a filtered renamed card stays visible until search changes', async () => {
+  const api = makeApi([plan('a', 'Island break')]); let finish;
+  api.prepare.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const user = userEvent.setup(); render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await screen.findByRole('button', { name: 'Rename Island break' });
+  await user.type(screen.getByLabelText('Find a trip'), 'Island');
+  await user.click(screen.getByRole('button', { name: 'Rename Island break' }));
+  const field = screen.getByLabelText('Plan name'); await user.clear(field); await user.type(field, 'Forest holiday{Enter}');
+  expect(field.readOnly).toBe(true); expect(document.activeElement).toBe(field); expect(field.disabled).toBe(false);
+  finish({ challenge: 'challenge', title: 'Forest holiday' });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Forest holiday' })).toBe(document.activeElement));
+  await user.type(screen.getByLabelText('Find a trip'), 'x');
+  expect(screen.queryByRole('button', { name: 'Rename Forest holiday' })).toBeNull();
 });
