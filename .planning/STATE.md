@@ -322,3 +322,9 @@ Resume file: None
 - Quick 261024-fn4: actual place additions and previews use provider food types instead of hardcoded Activity. Signed suggestions and existing saved pins unchanged.
 - 46 focused tests, build, real authenticated café/museum search, save/readback/reload, category filters, and mobile check passed. Test-owned plan cleaned up; runtime source hashes match.
 - Evidence: artifacts/testing/2026-10-24-food-categories/verification.md. No push/merge.
+
+### Single canvas shipment — 2026-10-24
+
+- User authorized merging the full approved canvas branch, including focused trip-detail editors and food classification. Source 8a46617; current main cde314b is its ancestor.
+- Combined final regressions: 73 passed, one existing optional Python SSE fixture skip. Prior authenticated browser evidence remains applicable; no runtime edits during shipping. Scoped security review: threats_open 0.
+- Shipment record: .planning/quick/261024-single-canvas-ship/VERIFICATION.md. Merge through GitHub; retain unrelated dirty main worktree and local preview.
