@@ -144,3 +144,16 @@ test('reopening restores the explored viewport instead of automatically framing 
   expect(maps[1].options).toMatchObject({center:{lat:45.48,lng:9.20},zoom:16});
   expect(maps[1].fitBounds).not.toHaveBeenCalled();
 });
+
+test('food previews use the same category color as saved food pins', async () => {
+  const markers = [];
+  const preview = { id: 'cafe', name: 'Cafe', types: ['cafe', 'food'], position: { lat: 45.47, lng: 9.18 } };
+  loadGoogleMaps.mockResolvedValue({ maps: {}, libraries: {
+    maps: { Map: class { panTo() {} setZoom() {} addListener() { return { remove() {} }; } getCenter() { return { toJSON: () => preview.position }; } getZoom() { return 15; } } },
+    marker: { AdvancedMarkerElement: class { constructor(options) { Object.assign(this, options); markers.push(this); } addListener() { return { remove() {} }; } } },
+  } });
+  const { categories } = await import('../../../design-system/schemas');
+  render(<AppearanceProvider><CanvasMapContext.Provider value={{ preview }}><CanvasDestinationMap destination="" final={false} places={[]} onSelect={() => {}} /></CanvasMapContext.Provider></AppearanceProvider>);
+  await waitFor(() => expect(markers).toHaveLength(1));
+  expect(markers[0].content.style.getPropertyValue('--category')).toBe(categories.food.color);
+});

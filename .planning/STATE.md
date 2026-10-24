@@ -316,3 +316,9 @@ Resume file: None
 - User selected the blended prototype and refined the implementation to one shared places card and dedicated Flights/Stays screens. Production implementation completed in d85919e.
 - Canvas resume and per-plan map/filter/selection/chat/scroll recovery verified within the browser tab; explicit Save plan still owns durable content. 54 tests passed, one existing SSE fixture skip; build and authenticated desktop/mobile browser checks passed. Test-created plan cleaned up.
 - Evidence: artifacts/testing/2026-10-24-single-canvas-implementation/verification.md. Prototype retained on its source branch; removed from production route. No push/merge. Earlier single-canvas prototype design-choice deferral is superseded.
+
+### Food category correction — 2026-10-24
+
+- Quick 261024-fn4: actual place additions and previews use provider food types instead of hardcoded Activity. Signed suggestions and existing saved pins unchanged.
+- 46 focused tests, build, real authenticated café/museum search, save/readback/reload, category filters, and mobile check passed. Test-owned plan cleaned up; runtime source hashes match.
+- Evidence: artifacts/testing/2026-10-24-food-categories/verification.md. No push/merge.

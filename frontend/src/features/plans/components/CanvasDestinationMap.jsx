@@ -3,6 +3,7 @@ import { useAppearance } from '../../appearance/AppearanceProvider';
 import { loadGoogleMaps } from '../../../lib/googleMaps';
 import { categories } from '../../../design-system/schemas';
 import { readCanvasView, writeCanvasView, validViewport } from '../canvasViewState';
+import { suggestedPlaceCategory } from '../placeCategory';
 
 export const CanvasMapContext = createContext({});
 
@@ -128,7 +129,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     if (!runtime || !preview || !active) return;
     runtime.map.panTo(preview.position); runtime.map.setZoom(15);
     if (places.some(place => place.id === preview.id || (place.name === preview.name && place.position.lat === preview.position.lat && place.position.lng === preview.position.lng))) return;
-    const content = document.createElement('span'); content.className = 'canvas-map-pin is-preview'; content.style.setProperty('--category', categories.activity.color);
+    const content = document.createElement('span'); content.className = 'canvas-map-pin is-preview'; content.style.setProperty('--category', categories[suggestedPlaceCategory(preview)].color);
     content.append(pinIcon());
     const marker = new runtime.Marker({ map: runtime.map, position: preview.position, title: `Preview only: ${preview.name}`, content });
     return () => { marker.map = null; };

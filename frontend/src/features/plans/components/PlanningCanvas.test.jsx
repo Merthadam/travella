@@ -469,3 +469,24 @@ test('the research handoff covers initial snapshot loading and releases the load
   expect(screen.queryByRole('region', { name: 'Generating your plan' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Retry loading' })).toBeTruthy();
 });
+
+test('adding a food suggestion preserves its category in the saved canvas', async () => {
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: { finalDestination: 'Milan' } }),
+    saveCanvas: vi.fn(async (_plan, body) => ({ ...body, revision: 2 })),
+  };
+  const { result, unmount } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'food-plan' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  act(() => result.current.addActivities([{ id: 'cafe', name: 'Cafe', types: ['cafe', 'food', 'point_of_interest', 'establishment'], position: { lat: 45.47, lng: 9.18 }, reason: 'Coffee stop' }]));
+  expect(result.current.data.map.pins[0].category).toBe('food');
+  expect(api.saveCanvas).not.toHaveBeenCalled();
+  await act(() => result.current.save());
+  const saved = api.saveCanvas.mock.calls[0][1];
+  expect(saved.snapshot.components.map.pins[0].category).toBe('food');
+  unmount();
+  api.canvas = async () => ({ ...saved, revision: 2, saved_context_revision: saved.context_revision });
+  const restored = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'food-plan' }, api }));
+  await waitFor(() => expect(restored.result.current.loading).toBe(false));
+  expect(restored.result.current.data.map.pins[0].category).toBe('food');
+});
