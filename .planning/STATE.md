@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T11:36:29.624Z"
+last_updated: "2026-10-24T12:30:19.312Z"
 last_activity: 2026-10-24
 last_activity_desc: Focused dates travelers and budget editors implemented and browser verified
-state_head: c8c2ca0f9c9cc7adee67ef0b8ade33ededa0bb94
+state_head: e29ed97939410099fa74ce53a37107cb371800f6
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Quick task 261024-ip3: avatar account menu B implemented and browser verified; five pre-existing AccountApp test failures documented.
+Last activity: 2026-10-24 — Quick task 261024-jr6: three login redesign prototypes browser verified; awaiting design selection.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -224,6 +224,7 @@ Resume file: None
 | 261024-hw3 | Three account menu prototypes; Chrome desktop/mobile verified; user selection pending | 2026-10-24 | 8133377 | — | [261024-hw3-prototype-three-account-menu-header-opti](./quick/261024-hw3-prototype-three-account-menu-header-opti/) |
 | 261024-i0v | User selected account menu B; decision recorded | 2026-10-24 | de8bb21 | — | [261024-i0v-record-selected-account-menu-prototype-b](./quick/261024-i0v-record-selected-account-menu-prototype-b/) |
 | 261024-ip3 | Implemented account menu B; 36 focused tests and browser checks passed; baseline AccountApp failures documented | 2026-10-24 | c8c2ca0 | — | [261024-ip3-implement-selected-avatar-account-dropdo](./quick/261024-ip3-implement-selected-avatar-account-dropdo/) |
+| 261024-jr6 | Three login redesign prototypes browser verified; production selection pending | 2026-10-24 | e29ed97 | — | [261024-jr6-redesign-account-access-screens-preservi](./quick/261024-jr6-redesign-account-access-screens-preservi/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -342,3 +343,9 @@ Resume file: None
 - User requested implementation of selected B. Shared avatar/account card now uses real account and guarded logout handlers across Plans and Account. Prototype source retained on prototype/account-menu-20261024; runtime prototype wiring removed.
 - Keyboard/focus, busy/error recovery, draft preservation, real logout/login, desktop/mobile/themes and research-brief layering verified. 36 focused tests and build passed; five existing AccountApp failures reproduced on baseline, seven AccountApp tests passed.
 - Evidence: `artifacts/testing/2026-10-24-account-menu-implementation/verification.md`. Local preview: http://localhost:5188/plans. No push/merge/deployment. Supersedes earlier production-integration pending status.
+
+### Login redesign exploration — 2026-10-24
+
+- User requested a redesigned login with existing functionality. Built A split welcome, B quiet centered form and C workspace navigation rail on dev-only account-access prototype query. Original auth handlers unchanged.
+- Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
+- Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.
