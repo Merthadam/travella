@@ -129,6 +129,14 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
         next[mode].subtitle = payload.travelers ? `${payload.travelers} travelers` : 'Travelers not set';
         next[mode].detail = payload.dates.flexible ? 'Flexible dates' : [payload.dates.start, payload.dates.end].filter(Boolean).join(' → ') || 'Dates not set';
       }
+    } else if (id === 'map' && name === 'set_place_details') {
+      const pin = item.pins.find(pin => pin.id === payload.id);
+      if (!pin || pin.googleDetails) return;
+      pin.googleDetails = payload.details;
+      if (!pin.website && payload.website) {
+        pin.website = payload.website;
+        try { websiteLinkFits = appendPlaceWebsite(next.links, pin); } catch { return; }
+      }
     } else if (id === 'map' && name === 'set_place_website') {
       const pin = item.pins.find(pin => pin.id === payload.id);
       if (!pin || pin.website) return;
@@ -156,7 +164,7 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     try {
       const parsed = validateCanvasComponents(next, true);
       dataRef.current = parsed; setData(parsed); editedComponents.current.add(id);
-      if (name === 'set_place_website') editedComponents.current.add('links');
+      if (['set_place_website', 'set_place_details'].includes(name)) editedComponents.current.add('links');
       if (id === 'essentials') { editedComponents.current.add('flights'); editedComponents.current.add('accommodation'); }
       if (id === 'findings') setEvidence(current => { const result = { ...current }; delete result[payload.id]; return result; });
       setNotice(websiteLinkFits ? 'Your changes will be saved automatically.' : 'Website saved with the place. Useful websites is full.'); setError('');
@@ -360,7 +368,9 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       let websitesFit = true;
       for (const place of places) {
         if (next.map.pins.some(pin => pin.id === place.id || (pin.name === place.name && pin.position.lat === place.position.lat && pin.position.lng === place.position.lng))) continue;
-        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: '', ...(place.website ? { website: place.website } : {}) });
+        const googleDetails = /^google_[a-f0-9]{32}$/.test(place.id) && place.place_id && Object.hasOwn(place, 'editorial_summary')
+          ? { summary: place.editorial_summary, language: place.editorial_summary_language ?? null, placeId: place.place_id } : null;
+        next.map.pins.push({ id: place.id, name: place.name, category: suggestedPlaceCategory(place), position: place.position, description: '', ...(place.website ? { website: place.website } : {}), ...(googleDetails ? { googleDetails } : {}) });
         if (!appendPlaceWebsite(next.links, place)) websitesFit = false;
       }
       next.map.status = 'ready'; delete next.map.error;

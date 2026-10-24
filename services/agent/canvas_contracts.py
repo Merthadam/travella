@@ -2,6 +2,7 @@
 
 from typing import Any, Literal
 
+from services.place_details import GooglePlaceDetails
 from services.place_websites import WebsiteUrl, public_website
 
 from pydantic import Field, model_validator
@@ -137,6 +138,7 @@ class PinPosition(StrictResult):
 
 
 class CanvasPin(StrictResult):
+    googleDetails: GooglePlaceDetails | None = None
     website: WebsiteUrl | None = None
     id: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
     name: str = Field(min_length=1, max_length=120)

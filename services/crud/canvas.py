@@ -15,6 +15,7 @@ from typing import Annotated, Literal
 from urllib.parse import urlsplit
 from uuid import UUID
 
+from services.place_details import GooglePlaceDetails
 from services.place_websites import WebsiteUrl, public_website
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -91,6 +92,7 @@ class Position(Strict):
 
 
 class Pin(Strict):
+    googleDetails: GooglePlaceDetails | None = None
     website: WebsiteUrl | None = None
     id: ItemId
     name: str = Field(min_length=1, max_length=120)

@@ -12,6 +12,7 @@ beforeEach(async () => {
   const digest = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode('right-id'));
   place.id = 'google_' + Buffer.from(digest).toString('hex').slice(0, 32);
   search.mockReset();
+  loadGoogleMaps.mockClear();
   loadGoogleMaps.mockResolvedValue({ libraries: { places: { Place: { searchByText: search } } } });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -37,9 +38,9 @@ test('shows verbatim provider text and defers website enrichment until the draft
   expect(onAction).not.toHaveBeenCalled();
   expect(new URL(screen.getByRole('link', { name: 'Open Garden in Google Maps' }).href).searchParams.get('query_place_id')).toBe('right-id');
   rerender(<CanvasPlaceDetails place={place} destination="Milan" onAction={onAction}/>);
-  await waitFor(() => expect(onAction).toHaveBeenCalledWith('set_place_website', { id: place.id, website: 'https://example.org/garden' }));
+  await waitFor(() => expect(onAction).toHaveBeenCalledWith('set_place_details', { id: place.id, details: { summary: detail().editorialSummary, language: 'en', placeId: 'right-id' }, website: 'https://example.org/garden' }));
   onAction.mockClear();
-  rerender(<CanvasPlaceDetails place={{ ...place, website: 'https://existing.example.org' }} destination="Milan" onAction={onAction}/>);
+  rerender(<CanvasPlaceDetails place={{ ...place, website: 'https://existing.example.org', googleDetails: { summary: detail().editorialSummary, language: 'en', placeId: 'right-id' } }} destination="Milan" onAction={onAction}/>);
   expect(screen.getByRole('link', { name: 'Visit Garden website' }).getAttribute('href')).toBe('https://existing.example.org');
   expect(onAction).not.toHaveBeenCalled();
 });
@@ -65,4 +66,20 @@ test('late responses from a previous place cannot enrich the selected place', as
   expect(onAction).not.toHaveBeenCalled();
   expect(screen.queryByRole('link', { name: 'Visit Garden website' })).toBeNull();
   expect(new URL(screen.getByRole('link', { name: 'Open Garden in Google Maps' }).href).searchParams.has('query_place_id')).toBe(false);
+});
+
+
+test.each(['Saved Google description.', null])('saved details render immediately and never refetch, including absent descriptions: %s', summary => {
+  const onAction = vi.fn();
+  const saved = { ...place, website: 'https://example.org', description: 'Old generated note', googleDetails: { summary, language: 'en', placeId: 'right-id' } };
+  const first = render(<CanvasPlaceDetails place={saved} destination="Milan" onAction={onAction}/>);
+  if (summary) expect(screen.getByText(summary)).toBeTruthy();
+  expect(screen.queryByRole('status')).toBeNull();
+  first.unmount();
+  render(<CanvasPlaceDetails place={saved} destination="Milan" onAction={onAction}/>);
+  expect(loadGoogleMaps).not.toHaveBeenCalled();
+  expect(search).not.toHaveBeenCalled();
+  expect(onAction).not.toHaveBeenCalled();
+  expect(screen.queryByText('Old generated note')).toBeNull();
+  expect(new URL(screen.getByRole('link', { name: 'Open Garden in Google Maps' }).href).searchParams.get('query_place_id')).toBe('right-id');
 });

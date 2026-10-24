@@ -490,3 +490,36 @@ test('adding a food suggestion preserves its category in the saved canvas', asyn
   await waitFor(() => expect(restored.result.current.loading).toBe(false));
   expect(restored.result.current.data.map.pins[0].category).toBe('food');
 });
+
+test('provider summaries are saved with additions and later enrichment survives reload and undo', async () => {
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: { finalDestination: 'Milan' } }),
+    saveCanvas: vi.fn(async (_plan, body) => ({ ...body, revision: 2 })),
+  };
+  const { result, unmount } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'saved-descriptions' }, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  const provider = { id: 'google_' + 'a'.repeat(32), name: 'Garden', place_id: 'google-place', position: { lat: 45.47, lng: 9.18 }, editorial_summary: 'Original provider description.', editorial_summary_language: 'en' };
+  act(() => result.current.addActivities([provider, { id: 'legacy', name: 'Legacy', position: provider.position }]));
+  expect(result.current.data.map.pins[0].googleDetails).toEqual({ summary: provider.editorial_summary, language: 'en', placeId: provider.place_id });
+  const metadata = { summary: null, language: null, placeId: 'legacy-provider-id' };
+  act(() => result.current.action('map', 'set_place_details', { id: 'legacy', details: metadata, website: 'https://example.org' }));
+  const enriched = result.current.data.map.pins[1];
+  expect(enriched.googleDetails).toEqual(metadata);
+  expect(result.current.data.links.items).toHaveLength(1);
+  act(() => result.current.action('map', 'set_place_details', { id: 'legacy', details: { ...metadata, summary: 'Overwrite' } }));
+  expect(result.current.data.map.pins[1].googleDetails.summary).toBeNull();
+  act(() => result.current.action('map', 'remove_pin', { id: 'legacy' }));
+  act(() => result.current.action('map', 'set_place_details', { id: 'legacy', details: metadata }));
+  expect(result.current.data.map.pins).toHaveLength(1);
+  act(() => result.current.action('map', 'restore_pin', { pin: enriched, index: 1 }));
+  await act(() => result.current.save());
+  const saved = api.saveCanvas.mock.calls[0][1];
+  expect(saved.snapshot.components.map.pins[1].googleDetails).toEqual(metadata);
+  unmount();
+  api.canvas = async () => ({ ...saved, revision: 2, saved_context_revision: saved.context_revision });
+  const restored = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'saved-descriptions' }, api }));
+  await waitFor(() => expect(restored.result.current.loading).toBe(false));
+  expect(restored.result.current.data.map.pins[0].googleDetails.summary).toBe(provider.editorial_summary);
+  expect(restored.result.current.data.map.pins[1].googleDetails).toEqual(metadata);
+});
