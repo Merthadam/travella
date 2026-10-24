@@ -9,6 +9,7 @@ import { CanvasDestinationMap, CanvasMapContext } from './CanvasDestinationMap';
 import { usePlanningCanvas } from '../usePlanningCanvas';
 import { confirmFlightNeed } from '../flightNeeds';
 import { useCanvasConversation } from '../useCanvasConversation';
+import { DestinationPhoto } from './DestinationPhoto';
 import { CanvasPlacePhoto } from './CanvasPlacePhoto';
 import { CanvasConversation } from './CanvasConversation';
 import '../../../design-system/tokens.css';
@@ -259,6 +260,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
         {canvas.data?.essentials && <TripEssentials compact preview={false} data={canvas.data.essentials} disabled={busy} onAction={(name, payload) => action('essentials', name, payload)}/>}
         <div className="canvas-main-actions"><span className="canvas-save-state" role="status" aria-live="polite">{chatBusy ? 'Your companion is replying…' : progress}</span>{canvas.activeGroup ? <button type="button" className="ds-button" onClick={canvas.stop}>Stop generation</button> : <button type="button" className="ds-button canvas-generate" disabled={canvas.loading || busy || canvas.editing || !canvas.data} onClick={() => generate('all')}><Icon name="spark" size={16}/>{canvas.saved || canvas.data?.themes.items.length ? 'Regenerate plan' : 'Generate plan'}</button>}<button type="button" className="ds-button primary" disabled={canvas.loading || busy || canvas.editing || !canvas.valid || canvas.conflict || !canvas.dirty} onClick={canvas.save}>{canvas.saving ? 'Saving…' : 'Save plan'}</button></div>
       </header>
+      {!canvas.loading && (canvas.saved || (canvas.groups.themes === 'ready' && canvas.groups.research === 'ready')) && <DestinationPhoto destination={canvas.data?.map.final ? canvas.data.map.destination : ''} generated className="canvas-destination-photo"/>}
       {reviewLoading && <p role="status" className="canvas-notice">Loading trip details for review…</p>}
       {reviewError && <p role="alert" className="canvas-error">{reviewError}</p>}
       {canvas.loading && <p role="status" className="canvas-notice">Loading your saved plan…</p>}

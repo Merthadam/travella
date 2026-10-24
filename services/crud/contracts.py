@@ -28,6 +28,11 @@ class PlanRef:
     last_activity_at: datetime
     recovery_deadline: datetime | None
     conversation: ConversationRef
+    planning_stage: str = "research"
+    date_start: str = ""
+    date_end: str = ""
+    flexible_dates: bool = False
+    saved_places_count: int = 0
 
 
 @dataclass(frozen=True)
