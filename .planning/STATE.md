@@ -6,8 +6,8 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T13:35:29.762Z"
 last_activity: 2026-10-24
-last_activity_desc: Whole plan cards open plans with independent rename and trash controls
-state_head: 9b2563f8bd4e1da7eee731a7dc9d0e7f032830bc
+last_activity_desc: Verified journal integrated with main and authorized for shipment
+state_head: e656d9f
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Completed quick task 261024-m18: whole-card plan links and removed CTA sections; authenticated browser/build verified.
+Last activity: 2026-10-24 — User-authorized journal shipment: integrated current main; 87 frontend and 73 CRUD tests passed; authenticated browser verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
