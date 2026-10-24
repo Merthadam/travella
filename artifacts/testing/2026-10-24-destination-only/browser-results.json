@@ -1,0 +1,531 @@
+[
+  {
+    "command": {
+      "js": "async () => {const {plansApi:api,requestId}=await import('/src/plansApi.js');const p=await api.create(requestId());window.testPlanId=p.plan_id;const ctx=await api.researchContext(p);await api.updateResearchContext(p,[{operation:'set',field:'finalDestination',value:'Lisbon',source:'user_edit'}],ctx.revision,requestId());const r=await api.researchOffer(p);return {planId:p.plan_id,readiness:r.readiness};}"
+    },
+    "result": {
+      "planId": "9e420149-678c-4bd3-96d6-7355ecc031cc",
+      "readiness": {
+        "eligible": false,
+        "reasons": [
+          "timing_required",
+          "travelers_required",
+          "priorities_required"
+        ]
+      }
+    }
+  },
+  {
+    "command": {
+      "tool": "navigate_page",
+      "args": {
+        "url": "http://localhost:5174/plans/9e420149-678c-4bd3-96d6-7355ecc031cc",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully navigated to http://localhost:5174/plans/9e420149-678c-4bd3-96d6-7355ecc031cc.\n## Pages\n1: about:blank\n2: Travella \u2014 Account access (http://localhost:5174/plans/9e420149-678c-4bd3-96d6-7355ecc031cc) [selected]"
+  },
+  {
+    "command": {
+      "js": "() => {document.querySelector('button[aria-label^=\"Trip brief,\"]').click();return true;}"
+    },
+    "result": true
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "/Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/prickle-script/artifacts/testing/2026-10-24-destination-only/plan/before-extra-requirements.png",
+        "fullPage": true,
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the full current page.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/prickle-script/artifacts/testing/2026-10-24-destination-only/plan/before-extra-requirements.png."
+  },
+  {
+    "command": {
+      "js": "() => ({url:location.href, text:document.body.innerText.slice(-2400)})"
+    },
+    "result": {
+      "url": "http://localhost:5174/plans/9e420149-678c-4bd3-96d6-7355ecc031cc",
+      "text": "Skip to conversation\nTravella\nAccount\nSign out\n1\nResearch\n2\nDraft plan\n\nYOUR TRAVEL RESEARCHER\n\nWhere would you like to go?\n\nAsk about a place, or tell me what kind of trip you\u2019re imagining.\n\nMessage Travella\nEnter to send \u00b7 Shift + Enter for a new line\n\n1/6\nYour draft comes next. Let\u2019s shape the essentials first. Press Enter or Space to open. Use arrow keys to move the brief; Shift moves farther. Escape closes it.\nTrip brief\n\u00d7\n\nYour draft comes next. Let\u2019s shape the essentials first.\n\nWhere to?\n1 candidates \u00b7 final place set\nPlaces to consider\n\u2713\nSettled destination\nLisbon\nLisbon\nChosen\nRemove\nAdd a place\nAdd\n\nEdited by you\n\nWhen & who?\n0 of 2 details\nBudget\nNot set\nWhat we need\n0 of 2 decided\n\nAdd dates or choose flexible dates. Add the number of travelers. Tell Travella what matters most for this trip.\n\nReview & create draft"
+    }
+  },
+  {
+    "command": {
+      "tool": "navigate_page",
+      "args": {
+        "type": "reload",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully reloaded the page.\n## Pages\n1: about:blank\n2: Travella \u2014 Account access (http://localhost:5174/plans/9e420149-678c-4bd3-96d6-7355ecc031cc) [selected]"
+  },
+  {
+    "command": {
+      "js": "() => ({url:location.href,text:document.body.innerText.slice(0,500)})"
+    },
+    "result": {
+      "url": "http://localhost:5174/plans/9e420149-678c-4bd3-96d6-7355ecc031cc",
+      "text": "Skip to conversation\nTravella\nAccount\nSign out\n1\nResearch\n2\nDraft plan\n\nYOUR TRAVEL RESEARCHER\n\nWhere would you like to go?\n\nAsk about a place, or tell me what kind of trip you\u2019re imagining.\n\nMessage Travella\nEnter to send \u00b7 Shift + Enter for a new line\n\n1/6\nReady to review a draft. Press Enter or Space to open. Use arrow keys to move the brief; Shift moves farther. Escape closes it."
+    }
+  },
+  {
+    "command": {
+      "js": "() => {document.querySelector('button[aria-label^=\"Trip brief,\"]').click();return document.body.innerText}"
+    },
+    "result": "Skip to conversation\nTravella\nAccount\nSign out\n1\nResearch\n2\nDraft plan\n\nYOUR TRAVEL RESEARCHER\n\nWhere would you like to go?\n\nAsk about a place, or tell me what kind of trip you\u2019re imagining.\n\nMessage Travella\nEnter to send \u00b7 Shift + Enter for a new line\n\n1/6\nReady to review a draft. Press Enter or Space to open. Use arrow keys to move the brief; Shift moves farther. Escape closes it."
+  },
+  {
+    "command": {
+      "js": "async () => {const {plansApi:api}=await import('/src/plansApi.js');const r=await api.researchOffer({plan_id:'9e420149-678c-4bd3-96d6-7355ecc031cc'});return {readiness:r.readiness,context:r.context,buttons:[...document.querySelectorAll('button')].map(x=>({text:x.innerText,disabled:x.disabled})),text:document.body.innerText.slice(-1500)}} "
+    },
+    "result": {
+      "readiness": {
+        "eligible": true,
+        "reasons": []
+      },
+      "context": {
+        "candidates": [
+          "Lisbon"
+        ],
+        "finalDestination": "Lisbon",
+        "dateStart": "",
+        "dateEnd": "",
+        "dateNote": "",
+        "flexibleDates": false,
+        "travelers": null,
+        "budget": "",
+        "noFixedBudget": false,
+        "flights": "undecided",
+        "accommodation": "undecided",
+        "provenance": {
+          "candidates": {
+            "source": "user_edit",
+            "updated_at": "2026-10-24T06:40:53.449203+00:00"
+          },
+          "finalDestination": {
+            "source": "user_edit",
+            "updated_at": "2026-10-24T06:40:53.449203+00:00"
+          }
+        }
+      },
+      "buttons": [
+        {
+          "text": "",
+          "disabled": false
+        },
+        {
+          "text": "Account",
+          "disabled": false
+        },
+        {
+          "text": "Sign out",
+          "disabled": false
+        },
+        {
+          "text": "2\nDraft plan",
+          "disabled": true
+        },
+        {
+          "text": "",
+          "disabled": true
+        },
+        {
+          "text": "1/6",
+          "disabled": false
+        },
+        {
+          "text": "\u00d7",
+          "disabled": false
+        },
+        {
+          "text": "Chosen",
+          "disabled": true
+        },
+        {
+          "text": "Remove",
+          "disabled": false
+        },
+        {
+          "text": "Add",
+          "disabled": true
+        },
+        {
+          "text": "",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "disabled": false
+        },
+        {
+          "text": "Review & create draft",
+          "disabled": false
+        }
+      ],
+      "text": "Skip to conversation\nTravella\nAccount\nSign out\n1\nResearch\n2\nDraft plan\n\nYOUR TRAVEL RESEARCHER\n\nWhere would you like to go?\n\nAsk about a place, or tell me what kind of trip you\u2019re imagining.\n\nMessage Travella\nEnter to send \u00b7 Shift + Enter for a new line\n\n1/6\nReady to review a draft. Press Enter or Space to open. Use arrow keys to move the brief; Shift moves farther. Escape closes it.\nTrip brief\n\u00d7\n\nReady to review a draft.\n\nWhere to?\n1 candidates \u00b7 final place set\nPlaces to consider\n\u2713\nSettled destination\nLisbon\nLisbon\nChosen\nRemove\nAdd a place\nAdd\n\nEdited by you\n\nWhen & who?\n0 of 2 details\nBudget\nNot set\nWhat we need\n0 of 2 decided\nReview & create draft"
+    }
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "artifacts/testing/2026-10-24-destination-only/implementation/destination-only-ready-desktop.png",
+        "fullPage": true,
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the full current page.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/prickle-script/artifacts/testing/2026-10-24-destination-only/implementation/destination-only-ready-desktop.png."
+  },
+  {
+    "command": {
+      "js": "() => {[...document.querySelectorAll('button')].find(x=>x.innerText==='Review & create draft').click();return 'Review requested';}"
+    },
+    "result": "Review requested"
+  },
+  {
+    "command": {
+      "js": "() => ({dialog:document.querySelector('dialog').innerText, radios:[...document.querySelectorAll('input[type=radio]')].map(x=>({value:x.value,checked:x.checked})),confirmDisabled:[...document.querySelectorAll('button')].find(x=>x.innerText==='Confirm & generate').disabled})"
+    },
+    "result": {
+      "dialog": "RESEARCH \u2192 PLANNING CANVAS\n\nReady to generate your plan?\n\nYour destination is set. Confirm whether you need flights; other details can stay undecided.\n\nDestination\nLisbon\nDates\nStart undecided \u2192 End undecided\nTravelers\nUndecided\nBudget\nUndecided\nAccommodation\nUndecided\nDo you need flights for this trip?\nYes, include flights\nNo, leave flights out\n\nChoose one to continue. Other undecided details can stay open.\n\nThis creates a draft canvas. You\u2019ll review it before choosing Save plan.\n\nEdit trip details\nConfirm & generate",
+      "radios": [
+        {
+          "value": "needed",
+          "checked": false
+        },
+        {
+          "value": "not-needed",
+          "checked": false
+        }
+      ],
+      "confirmDisabled": true
+    }
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "artifacts/testing/2026-10-24-destination-only/implementation/flight-confirmation-desktop.png",
+        "fullPage": true,
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the full current page.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/prickle-script/artifacts/testing/2026-10-24-destination-only/implementation/flight-confirmation-desktop.png."
+  },
+  {
+    "command": {
+      "tool": "emulate",
+      "args": {
+        "viewport": "390x844x1,mobile,touch",
+        "pageId": 2
+      }
+    },
+    "result": "Emulation configured successfully\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "js": "() => {document.querySelector('button[aria-label^=\"Trip brief,\"]')?.click();return {dialog:!!document.querySelector('dialog[open]'),text:document.body.innerText.slice(-600)}} "
+    },
+    "result": {
+      "dialog": false,
+      "text": "Skip to conversation\nTravella\nAccount\nSign out\n1\nResearch\n2\nDraft plan\n\nYOUR TRAVEL RESEARCHER\n\nWhere would you like to go?\n\nAsk about a place, or tell me what kind of trip you\u2019re imagining.\n\nMessage Travella\nEnter to send\n\n1/6\nReady to review a draft. Press Enter or Space to open. Use arrow keys to move the brief; Shift moves farther. Escape closes it."
+    }
+  },
+  {
+    "command": {
+      "js": "() => {[...document.querySelectorAll('button')].find(x=>x.innerText==='Review & create draft').click();return 'Review requested on mobile'}"
+    },
+    "result": "Review requested on mobile"
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "artifacts/testing/2026-10-24-destination-only/implementation/flight-confirmation-mobile.png",
+        "fullPage": true,
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the full current page.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/prickle-script/artifacts/testing/2026-10-24-destination-only/implementation/flight-confirmation-mobile.png.\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "js": "() => {document.querySelector('input[value=\"not-needed\"]').click();return 'No flights chosen explicitly'}"
+    },
+    "result": "No flights chosen explicitly"
+  },
+  {
+    "command": {
+      "js": "() => {const b=[...document.querySelectorAll('button')].find(x=>x.innerText==='Confirm & generate');const enabled=!b.disabled;b.click();return {enabled,confirmationClicked:true}} "
+    },
+    "result": {
+      "enabled": true,
+      "confirmationClicked": true
+    }
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "artifacts/testing/2026-10-24-destination-only/implementation/destination-only-generating-mobile.png",
+        "fullPage": true,
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the full current page.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/prickle-script/artifacts/testing/2026-10-24-destination-only/implementation/destination-only-generating-mobile.png.\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "js": "async () => {const {plansApi:api}=await import('/src/plansApi.js');const r=await api.researchContext({plan_id:'9e420149-678c-4bd3-96d6-7355ecc031cc'});return {context:r.context,locked:r.locked,loader:document.querySelector('.canvas-generation-loader')?.innerText,text:document.body.innerText.slice(-1200)}} "
+    },
+    "result": {
+      "context": {
+        "candidates": [
+          "Lisbon"
+        ],
+        "finalDestination": "Lisbon",
+        "dateStart": "",
+        "dateEnd": "",
+        "dateNote": "",
+        "flexibleDates": false,
+        "travelers": null,
+        "budget": "",
+        "noFixedBudget": false,
+        "flights": "not-needed",
+        "accommodation": "undecided",
+        "provenance": {
+          "flights": {
+            "source": "user_edit",
+            "updated_at": "2026-10-24T06:47:24.367657+00:00"
+          },
+          "candidates": {
+            "source": "user_edit",
+            "updated_at": "2026-10-24T06:40:53.449203+00:00"
+          },
+          "finalDestination": {
+            "source": "user_edit",
+            "updated_at": "2026-10-24T06:40:53.449203+00:00"
+          }
+        }
+      },
+      "locked": true,
+      "loader": "1\nResearch\n2\nCanvas\n\nYOUR NEXT CHAPTER\n\nFROM AN IDEA TO YOUR ITINERARY\n\nLisbon is\ntaking shape.\n\nResearching your Lisbon trip\u2026\n\n05\nitems ready\n\nEverything opens together, when it\u2019s ready.\n\nPutting your plan together",
+      "text": "Skip to plan canvas\nTravella\nAccount\nSign out\n1\nResearch\n2\nCanvas\n\nYOUR NEXT CHAPTER\n\nFROM AN IDEA TO YOUR ITINERARY\n\nLisbon is\ntaking shape.\n\nResearching your Lisbon trip\u2026\n\n05\nitems ready\n\nEverything opens together, when it\u2019s ready.\n\nPutting your plan together"
+    }
+  },
+  {
+    "command": {
+      "js": "() => ({loader:document.querySelector('.canvas-generation-loader')?.innerText,error:document.querySelector('.canvas-error')?.innerText,notice:document.querySelector('.canvas-notice')?.innerText,body:document.body.innerText.slice(0,1000)})"
+    },
+    "result": {
+      "loader": "1\nResearch\n2\nCanvas\n\nYOUR NEXT CHAPTER\n\nFROM AN IDEA TO YOUR ITINERARY\n\nLisbon is\ntaking shape.\n\nResearching your Lisbon trip\u2026\n\n05\nitems ready\n\nEverything opens together, when it\u2019s ready.\n\nPutting your plan together",
+      "body": "Skip to plan canvas\nTravella\nAccount\nSign out\n1\nResearch\n2\nCanvas\n\nYOUR NEXT CHAPTER\n\nFROM AN IDEA TO YOUR ITINERARY\n\nLisbon is\ntaking shape.\n\nResearching your Lisbon trip\u2026\n\n05\nitems ready\n\nEverything opens together, when it\u2019s ready.\n\nPutting your plan together"
+    }
+  },
+  {
+    "command": {
+      "tool": "list_console_messages",
+      "args": {
+        "types": [
+          "error",
+          "warn"
+        ],
+        "pageSize": 50,
+        "pageId": 2
+      }
+    },
+    "result": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=32 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)"
+  },
+  {
+    "command": {
+      "js": "() => ({loading:!!document.querySelector('.canvas-generation-loader'),counter:document.querySelector('.generation-counter')?.innerText,errors:[...document.querySelectorAll('.canvas-error,.canvas-notice')].map(x=>x.innerText),text:document.body.innerText.slice(-1800)})"
+    },
+    "result": {
+      "loading": false,
+      "errors": [
+        "Draft ready to review. Nothing is saved until you choose Save plan."
+      ],
+      "text": "Skip to plan canvas\nTravella\nAccount\nSign out\n1\nResearch\n2\nPlanning canvas\nPlan & map\nConversation\n\u2190 Back to conversation\nYOUR PLAN, TAKING SHAPE\nUntitled plan\n\nReview the details, make it yours, and save when you\u2019re ready.\n\nUnsaved changes\nRegenerate plan\nSave plan\n\nDraft ready to review. Nothing is saved until you choose Save plan.\n\nThemes & preferences\nRegenerate\nResearch & websites\nRegenerate\nTHE FOUNDATION\nTrip essentials\nWhen\nNot set\nYour travel window\nTravel party\nNot set\nGood company, great memories\nTrip budget\nNot set\nFor the whole adventure\nYour places\n\nLisbon \u00b7 0 places\n\nList\nMap\nNo places added yet\n\nFind places in the conversation, then add the ones you want.\n\n0 places\nYOUR TRAVEL DNA\nThe feel of your trip\nLive music\n\u2197\nWellness\n\u2197\nWindsurfing\n\u2197\nPriority\n[existing example-account saved preference redacted]\nSaved preference\nPriority\n[existing example-account saved preference redacted]\nSaved preference\nSOMEWHERE TO CALL HOME\nAccommodation\nNot booked\nStay in Lisbon\n\nTravelers not set\n\nDates not set\nStill deciding if needed\nExplore accommodation\nLiteAPI sandbox \u00b7 test inventory\nA LITTLE LOCAL KNOWLEDGE\nGood to know\nResearch notes\n01\nFado venues are filterable\nSource attached\n02\nLisboa Card\nSource attached\n03\nTourist offices for help\nSource attached\n04\nAccessibility and allergy gaps\nWorth double-checking\nUSEFUL WEBSITES\nWorth keeping close\nwww.visitlisboa.com\n\u2197\nvisitlisboa.com\n\nOfficial guide for fado venues, Lisboa Card, Metro map and tourist offices.\n\nEdit website"
+    }
+  },
+  {
+    "command": {
+      "js": "() => {const b=[...document.querySelectorAll('button')].find(x=>x.innerText==='Save plan');const enabled=!b.disabled;b.click();return {enabled,saveClicked:true}} "
+    },
+    "result": {
+      "enabled": true,
+      "saveClicked": true
+    }
+  },
+  {
+    "command": {
+      "js": "async () => {const {plansApi:api}=await import('/src/plansApi.js');const p={plan_id:'9e420149-678c-4bd3-96d6-7355ecc031cc'};const r=await api.researchContext(p);const c=await api.canvas(p);return {context:r.context,locked:r.locked,canvasSaved:!!c.snapshot,canvasRevision:c.revision,saveState:document.querySelector('.canvas-save-state')?.innerText,componentIds:Object.keys(c.snapshot?.components||{})}} "
+    },
+    "result": {
+      "context": {
+        "candidates": [
+          "Lisbon"
+        ],
+        "finalDestination": "Lisbon",
+        "dateStart": "",
+        "dateEnd": "",
+        "dateNote": "",
+        "flexibleDates": false,
+        "travelers": null,
+        "budget": "",
+        "noFixedBudget": false,
+        "flights": "not-needed",
+        "accommodation": "undecided",
+        "provenance": {
+          "flights": {
+            "source": "user_edit",
+            "updated_at": "2026-10-24T06:47:24.367657+00:00"
+          },
+          "candidates": {
+            "source": "user_edit",
+            "updated_at": "2026-10-24T06:40:53.449203+00:00"
+          },
+          "finalDestination": {
+            "source": "user_edit",
+            "updated_at": "2026-10-24T06:40:53.449203+00:00"
+          }
+        }
+      },
+      "locked": false,
+      "canvasSaved": true,
+      "canvasRevision": 2,
+      "saveState": "Saved",
+      "componentIds": [
+        "map",
+        "links",
+        "themes",
+        "findings",
+        "essentials",
+        "accommodation"
+      ]
+    }
+  },
+  {
+    "command": {
+      "tool": "navigate_page",
+      "args": {
+        "type": "reload",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully reloaded the page.\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Pages\n1: about:blank\n2: Travella \u2014 Account access (http://localhost:5174/plans/9e420149-678c-4bd3-96d6-7355ecc031cc) [selected]"
+  },
+  {
+    "command": {
+      "js": "() => {const b=[...document.querySelectorAll('button')].find(x=>x.innerText.replace(/\\s/g,'')==='2Draftplan');b?.click();return {draftEnabled:b&&!b.disabled,clicked:!!b}} "
+    },
+    "result": {
+      "clicked": false
+    }
+  },
+  {
+    "command": {
+      "js": "() => ({url:location.href,text:document.body.innerText.slice(0,1000),saveState:document.querySelector('.canvas-save-state')?.innerText,buttons:[...document.querySelectorAll('button')].slice(0,16).map(x=>x.innerText)})"
+    },
+    "result": {
+      "url": "http://localhost:5174/plans/9e420149-678c-4bd3-96d6-7355ecc031cc",
+      "text": "Skip to plan canvas\nTravella\nAccount\nSign out\n1\nResearch\n2\nPlanning canvas\nPlan & map\nConversation\n\u2190 Back to conversation\nYOUR PLAN, TAKING SHAPE\nUntitled plan\n\nReview the details, make it yours, and save when you\u2019re ready.\n\nSaved\nRegenerate plan\nSave plan\n\nSaved plan loaded.\n\nThemes & preferences\nRegenerate\nResearch & websites\nRegenerate\nTHE FOUNDATION\nTrip essentials\nWhen\nNot set\nYour travel window\nTravel party\nNot set\nGood company, great memories\nTrip budget\nNot set\nFor the whole adventure\nYour places\n\nLisbon \u00b7 0 places\n\nList\nMap\nNo places added yet\n\nFind places in the conversation, then add the ones you want.\n\n0 places\nYOUR TRAVEL DNA\nThe feel of your trip\nLive music\n\u2197\nWellness\n\u2197\nWindsurfing\n\u2197\nPriority\n[existing example-account saved preference redacted]\nSaved preference\nPriority\n[existing example-account saved preference redacted]\nSaved preference\nSOMEWHERE TO CALL HOME\nAccommodation\nNot booked\nStay in Lisbon\n\nTravelers not set\n\nDates not set\nStill deciding if needed\nExplore accommodation\nLite",
+      "saveState": "Saved",
+      "buttons": [
+        "",
+        "Account",
+        "Sign out",
+        "Plan & map",
+        "Conversation",
+        "\u2190 Back to conversation",
+        "Regenerate plan",
+        "Save plan",
+        "Regenerate",
+        "Regenerate",
+        "",
+        "List",
+        "Map",
+        "Keep place",
+        "Remove place",
+        ""
+      ]
+    }
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "artifacts/testing/2026-10-24-destination-only/implementation/saved-canvas-reloaded-mobile.png",
+        "fullPage": false,
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the current page's viewport.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/prickle-script/artifacts/testing/2026-10-24-destination-only/implementation/saved-canvas-reloaded-mobile.png.\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "tool": "list_network_requests",
+      "args": {
+        "resourceTypes": [
+          "fetch",
+          "xhr"
+        ],
+        "pageSize": 100,
+        "includePreservedRequests": true,
+        "pageId": 2
+      }
+    },
+    "result": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Network requests\nShowing 1-53 of 53 (Page 1 of 1).\nreqid=590 GET http://localhost:5174/auth/session [200]\nreqid=591 GET http://localhost:5174/v1/traveler-profile [200]\nreqid=592 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc?view=active [200]\nreqid=593 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/destinations [200]\nreqid=594 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-context [200]\nreqid=595 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer [200]\nreqid=596 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/conversation/messages [200]\nreqid=597 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/brief [200]\nreqid=598 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer [200]\nreqid=599 GET http://localhost:5174/v1/plans/undefined/research-offer [404]\nreqid=600 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer [200]\nreqid=601 GET http://localhost:5174/auth/session [200]\nreqid=602 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer [200]\nreqid=603 POST http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer/actions [200]\nreqid=716 GET http://localhost:5174/auth/session [200]\nreqid=717 GET http://localhost:5174/v1/traveler-profile [200]\nreqid=718 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc?view=active [200]\nreqid=719 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/destinations [200]\nreqid=720 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-context [200]\nreqid=721 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer [200]\nreqid=722 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/conversation/messages [200]\nreqid=723 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/brief [200]\nreqid=724 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer [200]\nreqid=725 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer [200]\nreqid=726 POST http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer/actions [200]\nreqid=727 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer [200]\nreqid=728 POST http://localhost:5174/v1/agent/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/events/stream [200]\nreqid=729 POST http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer/actions [200]\nreqid=730 POST http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-offer/actions [200]\nreqid=731 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/canvas [200]\nreqid=732 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-context [200]\nreqid=733 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/conversation/messages [200]\nreqid=734 GET http://localhost:5174/v1/agent/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/travel/capabilities [200]\nreqid=735 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-context [200]\nreqid=736 POST http://localhost:5174/v1/agent/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/events/stream [200]\nreqid=737 GET http://localhost:5174/auth/session [200]\nreqid=738 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-context [200]\nreqid=739 GET http://localhost:5174/auth/session [200]\nreqid=740 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/conversation/messages [200]\nreqid=741 POST http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/canvas/challenge [200]\nreqid=742 PUT http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/canvas [200]\nreqid=743 GET http://localhost:5174/auth/session [200]\nreqid=744 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-context [200]\nreqid=745 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/canvas [200]\nreqid=858 GET http://localhost:5174/auth/session [200]\nreqid=859 GET http://localhost:5174/v1/traveler-profile [200]\nreqid=860 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc?view=active [200]\nreqid=861 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/destinations [200]\nreqid=862 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/canvas [200]\nreqid=863 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/research-context [200]\nreqid=864 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/conversation/messages [200]\nreqid=865 GET http://localhost:5174/v1/agent/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/travel/capabilities [200]\nreqid=866 GET http://localhost:5174/v1/plans/9e420149-678c-4bd3-96d6-7355ecc031cc/brief [200]"
+  },
+  {
+    "command": {
+      "tool": "list_console_messages",
+      "args": {
+        "types": [
+          "error",
+          "warn"
+        ],
+        "pageSize": 50,
+        "includePreservedMessages": true,
+        "pageId": 2
+      }
+    },
+    "result": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Console messages\nShowing 1-3 of 3 (Page 1 of 1).\nmsgid=26 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)\nmsgid=28 [error] Failed to load resource: the server responded with a status of 404 (Not Found) (0 args)\nmsgid=32 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args) [2 times]"
+  },
+  {
+    "command": {
+      "js": "async () => {const {plansApi:api,requestId}=await import('/src/plansApi.js');const plan=await api.get('9e420149-678c-4bd3-96d6-7355ecc031cc');const {challenge}=await api.prepare(plan,'delete');await api.commit({plan,operation:'delete',challenge,id:requestId()});let activeStatus;try{await api.get(plan.plan_id);activeStatus=200}catch(e){activeStatus=e.status};const deleted=await api.get(plan.plan_id,'deleted');return {activeStatus,lifecycle:deleted.lifecycle,onlyVerificationPlanDeleted:true}} "
+    },
+    "result": {
+      "activeStatus": 404,
+      "lifecycle": "deleted",
+      "onlyVerificationPlanDeleted": true
+    }
+  },
+  {
+    "command": {
+      "js": "async () => {const r=await fetch('/auth/sign-out',{method:'POST',headers:{'Content-Type':'application/json','X-Travella-Request':'1'},body:'{}'});return {isolatedSessionSignOut:r.status}} "
+    },
+    "result": {
+      "isolatedSessionSignOut": 200
+    }
+  }
+]
