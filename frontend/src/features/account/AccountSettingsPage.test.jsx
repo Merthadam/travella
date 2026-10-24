@@ -186,7 +186,7 @@ test('transient session failure preserves editor and expiry rejects late save', 
   fetch.mockImplementation(path => path.endsWith('/sections') ? new Promise(resolve => { finish = resolve; }) : Promise.resolve(response(401, {})));
   await user.click(screen.getByRole('button', { name: 'Save changes' }));
   act(() => window.dispatchEvent(new Event('focus')));
-  await screen.findByRole('heading', { name: 'Welcome back' });
+  await screen.findByRole('heading', { name: 'Welcome back.' });
   await act(async () => finish(response(200, { ...profile, accessibility_needs: 'Private draft', revision: 4 })));
   expect(screen.queryByText('Private draft')).toBeNull();
   expect(screen.queryByText('Your food and accessibility preferences were saved.')).toBeNull();
@@ -277,9 +277,29 @@ test('Account appearance applies to Plans and stays selected when returning', as
   expect(document.querySelector('.account-page')).toBeNull();
   expect(document.documentElement.dataset.theme).toBe('dark');
   expect(document.documentElement.style.colorScheme).toBe('dark');
-  await user.click(screen.getByRole('button', { name: 'Account', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Account menu' }));
+  await user.click(screen.getByRole('menuitem', { name: 'Account settings' }));
   await screen.findByRole('heading', { name: 'Account & preferences' });
   expect(screen.getByRole('button', { name: 'Dark mode' }).getAttribute('aria-pressed')).toBe('true');
   await user.click(screen.getByRole('button', { name: 'Light mode' }));
   expect(document.documentElement.dataset.theme).toBe('light');
+});
+
+
+test('account menu logout respects unsaved changes and can recover from a session error', async () => {
+  const user = userEvent.setup(); const onSignOut = vi.fn();
+  render(<AccountSettingsPage initialProfile={profile} onExpired={vi.fn()} onSignOut={onSignOut} sessionError={{ message: 'Unable to connect. Please try again.' }} />);
+  expect(screen.getByRole('alert').textContent).toContain('Unable to connect');
+  await user.click(screen.getByRole('button', { name: 'Food & accessibility' }));
+  await user.click(screen.getByRole('button', { name: 'Edit food & accessibility' }));
+  await user.type(screen.getByLabelText('Food preferences & allergies'), ' test');
+  await user.click(screen.getByRole('button', { name: 'Account menu' }));
+  await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+  expect(onSignOut).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+  expect(screen.getByLabelText('Food preferences & allergies').value).toContain('test');
+  await user.click(screen.getByRole('button', { name: 'Account menu' }));
+  await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+  await user.click(screen.getByRole('button', { name: 'Discard changes' }));
+  expect(onSignOut).toHaveBeenCalledTimes(1);
 });

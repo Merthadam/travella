@@ -5,16 +5,7 @@ import { PlansApp } from './PlansApp';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { AccountSettingsPage } from './features/account/AccountSettingsPage';
 import { AppearanceProvider } from './features/appearance/AppearanceProvider';
-
-const titles = {
-  sign_in: 'Welcome back', register: 'Create your account', verify_email: 'Verify your email',
-  verified: 'Your email is verified', mfa_challenge: 'Two-step verification',
-  forgot_password_email: 'Recover your account', neutral_confirmation: 'Check your inbox',
-  reset_password: 'Set a new password',
-  mfa_enrollment: 'Set up an authenticator', recovery_codes: 'Save your recovery codes',
-  mfa_recovery: 'Use a recovery code', mfa_recovery_enrollment: 'Replace your authenticator',
-  signed_in: 'My plans', loading: 'Opening your account…',
-};
+import { AccountAccess } from './features/auth/AccountAccess';
 
 export function AccountApp() {
   return <AppearanceProvider><AccountContent /></AppearanceProvider>;
@@ -221,53 +212,11 @@ function AccountContent() {
     return <><div hidden={step === 'account'} inert={step === 'account'}><PlansApp inactive={step === 'account'} onExpired={() => go('sign_in')} onSignOut={signOut} onAccount={openAccount}
       accountBusy={busy} accountError={error} /></div>
       {step === 'account' && <AccountSettingsPage initialProfile={travelerProfile} onExpired={() => go('sign_in')}
-        navigationGuard={navigationGuard} onProfileSaved={setTravelerProfile} onNavigatePlans={openPlans} />}</>;
+        navigationGuard={navigationGuard} onProfileSaved={setTravelerProfile} onNavigatePlans={openPlans} onSignOut={signOut} sessionBusy={busy} sessionError={error} />}</>;
   }
 
-  const hasEmail = ['sign_in', 'register', 'verify_email', 'forgot_password_email', 'reset_password'].includes(step);
-  const hasPassword = ['sign_in', 'register', 'reset_password'].includes(step);
-  const isForm = hasEmail || ['mfa_challenge', 'mfa_enrollment', 'mfa_recovery', 'mfa_recovery_enrollment'].includes(step);
-  const fieldError = (name) => error?.fields?.includes(name);
-  function field(name, label, props) {
-    return <label>{label}<input name={name} required aria-invalid={fieldError(name) || undefined}
-      aria-describedby={fieldError(name) ? `${name}-error` : undefined} {...props} />
-      {fieldError(name) && <span id={`${name}-error`} className="field-error">Check {label.toLowerCase()}.</span>}</label>;
-  }
-  return <main className="shell">
-    <p className="eyebrow">TRAVELLA ACCOUNT</p>
-    <h1 ref={heading} tabIndex={-1}>{titles[step] || 'Account access'}</h1>
-    {['register', 'verify_email', 'verified'].includes(step) && <ol className="checklist" aria-label="Account steps">
-      {['Account details', 'Verify email', 'Sign in'].map((label, i) => <li key={label}
-        aria-current={i === ['register', 'verify_email', 'verified'].indexOf(step) ? 'step' : undefined}>{label}</li>)}
-    </ol>}
-    {error && <div role="alert" className="error">{error.message}</div>}
-    {notice && <p role="status" className="quiet">{notice}</p>}
-    {isForm && <form key={step} onSubmit={submit} aria-busy={busy}>
-      <fieldset disabled={busy}>
-        {step === 'register' && <>
-          {field('first_name', 'First name', { value: firstName, onChange: e => setFirstName(e.target.value), autoComplete: 'given-name', maxLength: 128 })}
-          {field('last_name', 'Last name', { value: lastName, onChange: e => setLastName(e.target.value), autoComplete: 'family-name', maxLength: 128 })}
-        </>}
-        {hasEmail && field('email', 'Email', { type: 'email', value: email, onChange: e => setEmail(e.target.value), autoComplete: 'email' })}
-        {hasPassword && field('password', step === 'reset_password' ? 'New password' : 'Password', { type: 'password', autoComplete: step === 'register' || step === 'reset_password' ? 'new-password' : 'current-password', maxLength: 256 })}
-        {['verify_email', 'mfa_challenge', 'mfa_enrollment', 'mfa_recovery', 'mfa_recovery_enrollment', 'reset_password'].includes(step) && field('code', step === 'verify_email' ? 'Email verification code' : step === 'reset_password' ? 'Password reset code' : step === 'mfa_recovery' ? 'Recovery code' : 'Authenticator code', { inputMode: 'text', autoComplete: 'one-time-code', maxLength: step === 'mfa_recovery' ? 64 : 6 })}
-        <div className="actions">
-          {step !== 'sign_in' && <button type="button" onClick={() => go(step === 'verify_email' ? 'register' : 'sign_in')}>Back</button>}
-          <button className="primary" type="submit">{busy ? 'Please wait…' : step === 'register' ? 'Create account' : step === 'sign_in' ? 'Sign in' : step === 'forgot_password_email' ? 'Send instructions' : step === 'reset_password' ? 'Update password' : 'Verify'}</button>
-        </div>
-      </fieldset>
-    </form>}
-    {step === 'sign_in' && <nav className="secondary" aria-label="Account help">
-      <button disabled={busy} onClick={() => go('register')}>Create account</button>
-      <button disabled={busy} onClick={() => go('forgot_password_email')}>Forgot password?</button>
-      <button disabled={busy} onClick={() => go('verify_email')}>Verify email</button>
-    </nav>}
-    {step === 'verify_email' && <button disabled={busy} onClick={resend}>Resend code</button>}
-    {step === 'mfa_challenge' && <button disabled={busy} onClick={() => go('mfa_recovery')}>Use a recovery code</button>}
-    {step === 'verified' && <><p className="quiet">Your email is verified. Continue to sign in.</p><button className="primary" onClick={() => go('sign_in')}>Continue</button></>}
-    {step === 'neutral_confirmation' && <><button className="primary" onClick={() => go('reset_password')}>I have a reset code</button><button onClick={() => go('sign_in')}>Back to sign in</button></>}
-    {step === 'mfa_enrollment' && <p className="quiet">Add the secret code <code>{secretCode}</code> to your authenticator app, then enter the six-digit code.</p>}
-    {step === 'mfa_recovery_enrollment' && <p className="quiet">Add the replacement secret <code>{secretCode}</code> to your new authenticator app, then enter its six-digit code.</p>}
-    {step === 'recovery_codes' && <><p className="quiet">Save these codes somewhere safe. Each can be used once, and they will not be shown again.</p><pre className="recovery-codes">{recoveryCodes.join('\n')}</pre><button className="primary" onClick={() => go('signed_in')}>I saved my codes</button></>}
-  </main>;
+  return <AccountAccess key={step} step={step} heading={heading} email={email} firstName={firstName} lastName={lastName}
+    busy={busy} error={error} notice={notice} secretCode={secretCode} recoveryCodes={recoveryCodes}
+    onEmailChange={setEmail} onFirstNameChange={setFirstName} onLastNameChange={setLastName}
+    onClearError={() => setError(null)} onNavigate={go} onSubmit={submit} onResend={resend} />;
 }
