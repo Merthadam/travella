@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-25T09:36:40.402Z"
+last_updated: "2026-10-25T09:48:50.100Z"
 last_activity: 2026-10-25
-last_activity_desc: Local origin main launched and authentication verified
-state_head: 4e0780a0edb6132b065253efda36922f2e41b636
+last_activity_desc: On-map reset and expanded map verified locally
+state_head: 2010203b817e51137f462c1fed7cc80c2d56403a
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-25 — Completed quick task 261025-epi: local origin main launched and authentication verified.
+Last activity: 2026-10-25 — Completed quick task 261025-eti: on-map reset and expanded map verified locally.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -242,6 +242,7 @@ Resume file: None
 | 261024-ko9 | Simplify login globe and remove prototype viewport cutoff; browser verified | 2026-10-24 | 8d4111f | — | [261024-ko9-simplify-selected-login-a-globe-illustra](./quick/261024-ko9-simplify-selected-login-a-globe-illustra/) |
 | 261024-lb5 | Implement approved full-screen login A; 52 tests and real authentication browser checks passed | 2026-10-24 | 63bec5d | — | [261024-lb5-implement-approved-full-screen-login-a-d](./quick/261024-lb5-implement-approved-full-screen-login-a-d/) |
 | 261025-epi | Start local origin main and verify authentication | 2026-10-25 | 4e0780a | — | [261025-epi-start-local-origin-main-and-verify-authe](./quick/261025-epi-start-local-origin-main-and-verify-authe/) |
+| 261025-eti | Move show all places onto map and fill available height | 2026-10-25 | 2010203 | — | [261025-eti-move-show-all-places-onto-map-and-fill-a](./quick/261025-eti-move-show-all-places-onto-map-and-fill-a/) |
 
 ### Roadmap Evolution — 2026-10-06
 
