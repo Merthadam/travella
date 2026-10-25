@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T13:24:25.756742+00:00"
-last_activity: 2026-10-24
-last_activity_desc: Canvas improvements shipping through PR 17 after integrated verification
-state_head: a11bf00
+last_updated: "2026-10-25T10:13:10.715Z"
+last_activity: 2026-10-25
+last_activity_desc: Removed Check again from missing place descriptions; verified locally
+state_head: 2d78e061dfef5dac2e08fc354e1968500a7d5d5a
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-24 — Canvas improvements shipping through PR #17; user-authorized merge after integrated verification. Main account and journal work preserved.
+Last activity: 2026-10-25 — Completed quick task 261025-fg2: removed Check again; tests/build/browser verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -241,6 +241,10 @@ Resume file: None
 | 261024-kbs | Refine selected login A: night mode, natural recovery and inline errors; browser verified prototype | 2026-10-24 | 4befe42 | — | [261024-kbs-refine-login-prototype-a-with-night-mode](./quick/261024-kbs-refine-login-prototype-a-with-night-mode/) |
 | 261024-ko9 | Simplify login globe and remove prototype viewport cutoff; browser verified | 2026-10-24 | 8d4111f | — | [261024-ko9-simplify-selected-login-a-globe-illustra](./quick/261024-ko9-simplify-selected-login-a-globe-illustra/) |
 | 261024-lb5 | Implement approved full-screen login A; 52 tests and real authentication browser checks passed | 2026-10-24 | 63bec5d | — | [261024-lb5-implement-approved-full-screen-login-a-d](./quick/261024-lb5-implement-approved-full-screen-login-a-d/) |
+| 261025-epi | Start local origin main and verify authentication | 2026-10-25 | 4e0780a | — | [261025-epi-start-local-origin-main-and-verify-authe](./quick/261025-epi-start-local-origin-main-and-verify-authe/) |
+| 261025-eti | Move show all places onto map and fill available height | 2026-10-25 | 2010203 | — | [261025-eti-move-show-all-places-onto-map-and-fill-a](./quick/261025-eti-move-show-all-places-onto-map-and-fill-a/) |
+| 261025-far | Make travel summary cards clickable and remove redundant explore row | 2026-10-25 | e4234b1 | — | [261025-far-make-travel-summary-cards-clickable-and-](./quick/261025-far-make-travel-summary-cards-clickable-and-/) |
+| 261025-fg2 | Remove check again from missing place descriptions | 2026-10-25 | 2d78e06 | — | [261025-fg2-remove-check-again-from-missing-place-de](./quick/261025-fg2-remove-check-again-from-missing-place-de/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -390,3 +394,9 @@ Resume file: None
 - User requested a redesigned login with existing functionality. Built A split welcome, B quiet centered form and C workspace navigation rail on dev-only account-access prototype query. Original auth handlers unchanged.
 - Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
 - Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.
+
+### Canvas polish shipment — 2026-10-25
+
+- User authorized merge of eight-marten into main: taller map with floating reset, missing-description messaging without Check again, and whole-card travel navigation.
+- Source 03fe3d8 based on current main 4e0780a. Existing 14 map, 21 PlanningCanvas and 11 final place/link tests, build, and authenticated desktop/mobile checks passed. Scoped shipping security review: zero open threats.
+- PR #18: https://github.com/Merthadam/travella/pull/18 (eight-marten → main), created for the user-authorized merge. Shipping record: `.planning/quick/261025-canvas-polish-ship/VERIFICATION.md`. Preserve the separate dirty main checkout and running local app.
