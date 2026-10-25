@@ -12,3 +12,5 @@ User explicitly requested merge to main. Scope: floating Show all places control
 - Existing Google Maps console warnings and bundle-size advisory are documented. Map planning capture timing deviation is disclosed in its evidence report; production screenshot and behavior checks passed.
 - Security ship gate: SECURITY.md asserts threats_open: 0 after scoped inline review.
 - Preserve the separate dirty main checkout and running local preview. Ship via GitHub PR from eight-marten to main using the user's authorization. This does not claim completion of unrelated phase acceptance work.
+
+PR: https://github.com/Merthadam/travella/pull/18. GitHub reported CLEAN/MERGEABLE with no configured status checks before the documentation-only PR tracking commit.
