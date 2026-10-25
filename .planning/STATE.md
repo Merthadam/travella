@@ -4,10 +4,10 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-25T10:04:58.354Z"
+last_updated: "2026-10-25T10:13:10.715Z"
 last_activity: 2026-10-25
-last_activity_desc: Whole-card travel navigation verified locally
-state_head: e4234b14f9560b395f228009e4c05fe0100f8418
+last_activity_desc: Removed Check again from missing place descriptions; verified locally
+state_head: 2d78e061dfef5dac2e08fc354e1968500a7d5d5a
 progress:
   total_phases: 17
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-25 — Completed quick task 261025-far: whole-card travel navigation verified locally.
+Last activity: 2026-10-25 — Completed quick task 261025-fg2: removed Check again; tests/build/browser verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -244,6 +244,7 @@ Resume file: None
 | 261025-epi | Start local origin main and verify authentication | 2026-10-25 | 4e0780a | — | [261025-epi-start-local-origin-main-and-verify-authe](./quick/261025-epi-start-local-origin-main-and-verify-authe/) |
 | 261025-eti | Move show all places onto map and fill available height | 2026-10-25 | 2010203 | — | [261025-eti-move-show-all-places-onto-map-and-fill-a](./quick/261025-eti-move-show-all-places-onto-map-and-fill-a/) |
 | 261025-far | Make travel summary cards clickable and remove redundant explore row | 2026-10-25 | e4234b1 | — | [261025-far-make-travel-summary-cards-clickable-and-](./quick/261025-far-make-travel-summary-cards-clickable-and-/) |
+| 261025-fg2 | Remove check again from missing place descriptions | 2026-10-25 | 2d78e06 | — | [261025-fg2-remove-check-again-from-missing-place-de](./quick/261025-fg2-remove-check-again-from-missing-place-de/) |
 
 ### Roadmap Evolution — 2026-10-06
 
