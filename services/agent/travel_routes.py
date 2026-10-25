@@ -5,13 +5,16 @@ import json
 import time
 from collections import defaultdict, deque
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+
 from .travel_client import TravelClient
 from .travel_contracts import INPUTS, OUTPUTS, POST_ACTIONS, TravelInvocation
 
 ERRORS = {
+    "offer_expired": (409, "This flight option is no longer available to verify. Search again for fresh options."),
     "sandbox_only": (403, "Mock checkout requires a sandbox key."),
     "checkout_expired": (409, "This checkout expired. Search again for a fresh offer."),
     "provider_timeout": (504, "The search took too long. Try again."),

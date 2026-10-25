@@ -9,16 +9,25 @@ import re
 import time
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal, get_args
-from uuid import uuid4
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 from pydantic import Field, model_validator
 
 from services.shared.traveler_profile import reference_catalog
-from ..travel_contracts import Currency, HotelSearch, Hotel, FlightSearch, Flight, Airports, Capabilities, validate_dates
-from .research_result import StrictResult, public_https_url
 
+from ..travel_contracts import (
+    Airports,
+    Capabilities,
+    Currency,
+    Flight,
+    FlightSearch,
+    Hotel,
+    HotelSearch,
+    validate_dates,
+)
+from .research_result import StrictResult, public_https_url
 
 Text = Annotated[str, Field(max_length=240)]
 Identifier = Annotated[str, Field(min_length=1, max_length=100)]
@@ -571,6 +580,8 @@ class TravelSearchFailure(Exception):
 
 class CanvasTravelObserver:
     names = {"travel_capabilities", "search_destinations", "search_stays", "search_airports", "search_flights"}
+    max_calls = 5
+    category_limits = {"lookup": 2}
 
     def __init__(self, client, context, authorization_token, draft, message, deadline=None, *, flight_only=False, parse_message=True):
         self.client, self.context, self.authorization_token = client, context, authorization_token
@@ -616,11 +627,11 @@ class CanvasTravelObserver:
         key = json.dumps([action, criteria], sort_keys=True)
         if key in self.cache:
             return self.cache[key]
-        limit = 2 if category == "lookup" else 1
-        if self.calls >= 5 or self.counts[category] >= limit:
+        limit = self.category_limits.get(category, 1)
+        if self.calls >= self.max_calls or self.counts.get(category, 0) >= limit:
             raise ValueError("travel_call_limit")
         self.calls += 1
-        self.counts[category] += 1
+        self.counts[category] = self.counts.get(category, 0) + 1
         # Flight rates can take up to the connector's 115-second deadline.
         # Keep the enclosing turn deadline and time for the model's reply.
         timeout = min(120 if category == "flights" else 45, self.deadline - time.monotonic() - 5)
@@ -699,7 +710,9 @@ class CanvasTravelObserver:
                         truncated=bool(raw.get("truncated")), notices=raw.get("notices", []), results=results,
                         search_only_dates=[normalized.get("check_in", normalized.get("departure_date")), normalized.get("check_out", normalized.get("return_date"))] != [draft_facts(self.draft)["start"], draft_facts(self.draft)["end"]])
                     while len(snapshot.model_dump_json().encode()) > 130000 and snapshot.results:
-                        snapshot.results.pop(); snapshot.returned_count -= 1; snapshot.truncated = True
+                        snapshot.results.pop()
+                        snapshot.returned_count -= 1
+                        snapshot.truncated = True
                     if len(snapshot.model_dump_json().encode()) > 130000:
                         raise ValueError("travel_payload_limit")
                     self.snapshots[snapshot.search_id] = snapshot

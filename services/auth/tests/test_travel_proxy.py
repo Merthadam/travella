@@ -151,3 +151,21 @@ def test_checkout_handles_never_sent_in_query_string():
     assert status==409 and 'PRIVATE' not in json.dumps(data)
     assert requests[0].method=='POST' and not requests[0].url.query
     assert json.loads(requests[0].content)['token']=='a'*60
+
+
+def test_expired_research_offer_uses_post_and_safe_research_message():
+    requests = []
+
+    def upstream(request):
+        requests.append(request)
+        return httpx.Response(409, json={"message": "PRIVATE_SUPPLIER_ERROR"})
+
+    client = AgentClient("https://agent.test", transport=httpx.MockTransport(upstream))
+    option_id = "flight-" + "0" * 32
+    status, data = client.travel(
+        PLAN, "flights/verify", {"option_id": option_id}, token="server-token"
+    )
+    assert status == 409
+    assert data == {"message": "This flight option expired. Search again for fresh options."}
+    assert requests[0].method == "POST" and not requests[0].url.query
+    assert json.loads(requests[0].content) == {"option_id": option_id}

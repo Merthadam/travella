@@ -3,6 +3,7 @@
 These private FastMCP servers expose provider tools:
 
 - `map_server.py` resolves candidate names, resolves destination bounds, searches Google Places inside a geographic rectangle, and retrieves compact place details. The canvas editor uses these tools through `services/agent/maps_client.py`.
+- `travel_server.py` exposes LiteAPI searches and the read-only inspection tools below. The current Claude Canvas agent uses these through the existing private travel client.
 - `research_server.py` is a retained legacy Tavily server. Current chat/research uses Claude Agent SDK native web tools and does not call it.
 - Traveler memory is handled separately by `services/agent/memory.py`; see `docs/agent/llm-flow.md` for the current profile and memory behavior.
 
@@ -14,6 +15,47 @@ permission-restricted service-auth file, then starts the stack. The Agent uses t
 official MCP client to call the local Streamable HTTP servers. Their service-token
 and signed Plan-scope checks remain enabled. Provider keys are still needed for
 Google Maps and are read only by the Maps MCP container. Tavily is not required by the current agent flow.
+
+## LiteAPI travel inspection tools
+
+All four named tools require authenticated `plan_id` scope and carry MCP
+read-only annotations. They also remain available through the existing
+`travel_search(action, criteria, plan_id)` dispatcher, which the Agent's travel
+client uses.
+
+| Tool | Input besides Plan scope | Evidence returned |
+| --- | --- | --- |
+| `get_stay_details` | Observed `hotel_id` | Property description, facilities, location and images; no availability claim |
+| `get_stay_reviews` | Observed `hotel_id`; optional `limit` (1–10), `offset` (0–1000), `sentiment` | Bounded guest review excerpts without reviewer identity fields; optional sentiment explicitly labeled AI-generated |
+| `get_stay_rates` | Complete `HotelSearch` criteria including `hotel_id` | Dated room prices, meal plans and available cancellation terms |
+| `verify_flight_offer` | Opaque `option_id` returned by flight search | Refreshed fare, original-price comparison, baggage and available change terms |
+
+The Claude SDK exposes the same four names alongside the existing search tools.
+Its stay-rate tool additionally requires date evidence from the Canvas or actual
+traveler messages. Inspection shares per-turn time/output budgets; up to six
+uncached inspections are allowed within ten total provider calls. Hotel details
+and room previews are trimmed before reaching the model. Supplier content is
+untrusted evidence, and missing facts remain unknown.
+
+Flight references are private, process-local entries scoped to the provider key,
+traveler and Plan. At most 512 references survive for up to ten minutes, shortened
+by supplier expiry. Restart, eviction, expiry or a request reaching another
+process requires a fresh search. A multi-replica deployment needs an equivalent
+shared expiring registry or request affinity before relying on verification
+across requests. Raw supplier offer IDs never enter agent/browser projections.
+
+These inspection tools use the configured LiteAPI account and report its sandbox
+status. Flight verification requires the existing flights feature flag. They
+never invoke prebook, payment or booking endpoints and never save a Plan. The
+existing explicit sandbox checkout dispatcher is separate. This change does not
+enable supplier accounts or modify that checkout flow.
+
+Run the private server with `uv run python -m services.mcps.travel_server`.
+When deploying through an MCP gateway, synchronize its target catalog to expose
+the new named tools. Existing dispatcher clients remain compatible. Deterministic
+connector and SDK integration tests live in
+`services/mcps/tests/test_travel_research.py` and
+`services/agent/tests/test_travel_research_tools.py`; they do not contact LiteAPI.
 
 ## Canvas editing Maps tools
 

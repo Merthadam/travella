@@ -12,6 +12,7 @@ from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
 
 import httpx
+
 from services.agent.travel_contracts import INPUTS, OUTPUTS
 from services.shared.traveler_profile import reference_catalog
 
@@ -380,6 +381,9 @@ def normalize_flights(payload, criteria, api=None):
                 or None,
             }
         )
+        if api and api.scope and isinstance(offer.get("offerId"), str) and 0 < len(offer["offerId"]) <= 20000:
+            from .travel_research import remember_offer
+            result[-1]["id"] = remember_offer(api, offer, criteria, result[-1]["price"])
         if api and api.sandbox and api.scope and isinstance(offer.get("offerId"), str) and len(offer["offerId"]) <= 20000:
             from .sandbox_checkout import seal
             result[-1]["checkout_token"] = seal(api, "flight-offer", {"offer": offer["offerId"], "criteria": criteria, "flight": result[-1].copy()})
@@ -411,6 +415,8 @@ class LiteApi:
                 async with client.stream(method, path, **kwargs) as response:
                     if response.status_code == 204:
                         return {"data": []}
+                    if path == "/flights/verify" and response.status_code == 404:
+                        raise ProviderUnavailable("offer_expired")
                     if response.status_code not in (200, 201):
                         raise ProviderUnavailable()
                     data = bytearray()
@@ -447,9 +453,19 @@ class LiteApi:
                 "hotels": bool(self.key),
                 "flights": bool(self.key and self.flights_enabled),
             }
-        if action in {"airports", "flights/search"} and not self.flights_enabled:
+        if action in {"airports", "flights/search", "flights/verify"} and not self.flights_enabled:
             raise ProviderUnavailable()
-        if action == "places":
+        if action == "flights/verify":
+            from .travel_research import verify_offer
+            result = {**envelope, **await verify_offer(self, data["option_id"])}
+        elif action == "hotels/reviews":
+            from .travel_research import normalize_reviews
+            raw = await self.request("GET", "/data/reviews", params={
+                "hotelId": data["hotel_id"], "limit": data["limit"], "offset": data["offset"],
+                "getSentiment": str(data["sentiment"]).lower(), "timeout": 4,
+            })
+            result = {**envelope, **normalize_reviews(raw, data)}
+        elif action == "places":
             country = next(
                 c["name"]
                 for c in reference_catalog("countries")

@@ -1,11 +1,12 @@
 """Bounded travel contracts shared by the public and private boundaries."""
 
-from datetime import date, timedelta
 import re
+from datetime import date, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
 from services.shared.traveler_profile import reference_catalog
 
 Country = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
@@ -119,6 +120,16 @@ class HotelQuery(Strict):
     hotel_id: HotelId
 
 
+class HotelReviewsQuery(HotelQuery):
+    limit: int = Field(default=5, ge=1, le=10)
+    offset: int = Field(default=0, ge=0, le=1000)
+    sentiment: bool = False
+
+
+class FlightVerifyQuery(Strict):
+    option_id: str = Field(pattern=r"^flight-[a-f0-9]{32}$")
+
+
 class SandboxHandle(Strict):
     token: str = Field(min_length=50, max_length=40000, pattern=r"^[A-Za-z0-9_=-]+$")
 
@@ -140,14 +151,37 @@ class SandboxFlightConfirm(SandboxHandle):
 class TravelInvocation(Strict):
     plan_id: UUID
     action: Literal[
-        "capabilities", "airports", "places", "hotels/search", "hotels/detail", "flights/search",
-        "sandbox/prebook", "sandbox/book", "sandbox/status",
-        "sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status"
+        "capabilities",
+        "airports",
+        "places",
+        "hotels/search",
+        "hotels/detail",
+        "hotels/reviews",
+        "flights/search",
+        "flights/verify",
+        "sandbox/prebook",
+        "sandbox/book",
+        "sandbox/status",
+        "sandbox/flights/verify",
+        "sandbox/flights/prebook",
+        "sandbox/flights/book",
+        "sandbox/flights/status",
     ]
     criteria: dict = Field(default_factory=dict)
 
 
-POST_ACTIONS = {"sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
+POST_ACTIONS = {
+    "flights/verify",
+    "sandbox/flights/verify",
+    "sandbox/flights/prebook",
+    "sandbox/flights/book",
+    "sandbox/flights/status",
+    "hotels/search",
+    "flights/search",
+    "sandbox/prebook",
+    "sandbox/book",
+    "sandbox/status",
+}
 
 INPUTS = {
     "sandbox/flights/verify": SandboxHandle,
@@ -162,7 +196,9 @@ INPUTS = {
     "places": PlaceQuery,
     "hotels/search": HotelSearch,
     "hotels/detail": HotelQuery,
+    "hotels/reviews": HotelReviewsQuery,
     "flights/search": FlightSearch,
+    "flights/verify": FlightVerifyQuery,
 }
 
 
@@ -312,6 +348,47 @@ class HotelDetail(Envelope):
     hotel: HotelContent
 
 
+class GuestReview(Public):
+    score: float | None = Field(default=None, ge=0, le=10)
+    date: str | None = Field(default=None, max_length=40)
+    headline: str | None = Field(default=None, max_length=240)
+    pros: str | None = Field(default=None, max_length=600)
+    cons: str | None = Field(default=None, max_length=600)
+
+
+class ReviewCategory(Public):
+    name: str = Field(max_length=80)
+    score: float | None = Field(default=None, ge=0, le=10)
+    description: str | None = Field(default=None, max_length=400)
+
+
+class ReviewSentiment(Public):
+    ai_generated: Literal[True] = True
+    categories: list[ReviewCategory] = Field(default_factory=list, max_length=10)
+    pros: list[str] = Field(default_factory=list, max_length=10)
+    cons: list[str] = Field(default_factory=list, max_length=10)
+
+
+class HotelReviews(Envelope):
+    hotel_id: HotelId
+    checked_at: str
+    reviews: list[GuestReview] = Field(max_length=10)
+    sentiment: ReviewSentiment | None = None
+    notices: list[str] = Field(default_factory=list, max_length=5)
+
+
+class FlightVerification(Envelope):
+    checked_at: str
+    flight: Flight
+    previous_price: Money
+    price_changed: bool
+    fare_name: str | None = Field(default=None, max_length=240)
+    changeable: bool | None = None
+    change_fee: Money | None = None
+    mixed_cabin: bool | None = None
+    notices: list[str] = Field(default_factory=list, max_length=10)
+
+
 class SandboxResult(Public):
     sandbox: Literal[True] = True
     provider: Literal["LiteAPI"] = "LiteAPI"
@@ -332,7 +409,9 @@ class SandboxFlightResult(Public):
     sandbox: Literal[True] = True
     mode: Literal["flights"] = "flights"
     provider: Literal["LiteAPI"] = "LiteAPI"
-    status: Literal["review", "ready_to_book", "confirmed", "pending", "cancelled", "failed", "unknown"]
+    status: Literal[
+        "review", "ready_to_book", "confirmed", "pending", "cancelled", "failed", "unknown"
+    ]
     token: str
     flight: Flight
     passenger_count: int
@@ -341,7 +420,10 @@ class SandboxFlightResult(Public):
 
 
 OUTPUTS = {
-    **{f"sandbox/flights/{action}": SandboxFlightResult for action in ("verify", "prebook", "book", "status")},
+    **{
+        f"sandbox/flights/{action}": SandboxFlightResult
+        for action in ("verify", "prebook", "book", "status")
+    },
     "sandbox/prebook": SandboxResult,
     "sandbox/book": SandboxResult,
     "sandbox/status": SandboxResult,
@@ -350,5 +432,7 @@ OUTPUTS = {
     "places": Places,
     "hotels/search": SearchResult,
     "hotels/detail": HotelDetail,
+    "hotels/reviews": HotelReviews,
     "flights/search": SearchResult,
+    "flights/verify": FlightVerification,
 }
