@@ -305,3 +305,23 @@ Current user agreement, 2026-10-23. Desktop Research and its explicit draft hand
 | RC-17-08 | Typed offers, ownership, revisions, idempotency, successful-turn persistence and cancellation prevent stale/cross-Plan/replayed actions. | 17-02, 17-03, 17-04, 17-05 |
 | RC-17-09 | Existing canvas access, regenerate/retry, dirty-state handling and explicit Save plan remain unchanged. | 17-04, 17-05 |
 | RC-17-10 | Real example-account desktop Chrome and changed CRUD API evidence, scoped regressions and production mock exclusion gate delivery. | 17-05 |
+
+
+## Phase 18 extension: focused travel conversations
+
+The user approved dedicated Flights and Accommodation agents on 2026-10-25. The authoritative requirement definitions and plan mapping are in [18-REQUIREMENTS.md](phases/18-focused-flights-and-accommodation-agents/18-REQUIREMENTS.md).
+
+| Requirement | Phase | Status |
+| --- | --- | --- |
+| FOCUS-01 | 18 | Planned — isolated topic histories |
+| FOCUS-02 | 18 | Planned — compact shared trip brief |
+| FOCUS-03 | 18 | Planned — accommodation matching |
+| FOCUS-04 | 18 | Planned — flight comparison and verification |
+| FOCUS-05 | 18 | Planned — focused workspaces |
+| FOCUS-06 | 18 | Planned — interruption and stale-context protection |
+| FOCUS-07 | 18 | Planned — explicit saved research choices |
+| FOCUS-08 | 18 | Planned — evidence and capability honesty |
+| FOCUS-09 | 18 | Planned — ownership, tool scope and retention |
+| FOCUS-10 | 18 | Planned — attributed topic memory |
+
+No implementation or acceptance is claimed by this extension.

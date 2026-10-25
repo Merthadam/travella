@@ -17,6 +17,7 @@ Travella's full documented MVP moves a traveler from secure account access throu
 - [ ] **Phase 10: Evidence-grounded iterative agent research** - Travelers ask about any country or place and get source-grounded answers with useful explanations, citations, and honest uncertainty.
 
 - [ ] **Phase 17: Research phase cleanup** - Desktop Research overlay and timely, explicitly confirmed draft offer.
+- [ ] **Phase 18: Focused Flights and Accommodation Agents** - Flights/Stays substages within a trip, with focused discussions and shared trip context.
 
 ## Phase Details
 
@@ -447,6 +448,7 @@ Plans:
 **UI hint:** yes
 **Status:** Implemented; real desktop/API evidence and code review complete. User UAT/live-model quality pending.
 **Success Criteria:**
+
 1. Research has one quiet full-width state bar and movable progress circle; real brief editing works in an overlay without chat/composer movement.
 2. Destination confirmation explains a future draft; useful context prompts one inline review offer without requiring all brief fields.
 3. Keep researching survives reload/restart and prevents repeated invitations; manual review stays accessible.
@@ -456,18 +458,48 @@ Plans:
 **Plans:** 5 plans in 5 sequential waves.
 
 **Wave 1**
+
 - [x] 17-01-PLAN.md — Desktop Research shell and real floating brief
 
 **Wave 2** *(blocked on Wave 1 completion)*
+
 - [x] 17-02-PLAN.md — Canonical readiness and durable manual review/defer flow
 
 **Wave 3** *(blocked on Waves 1–2 completion)*
+
 - [x] 17-03-PLAN.md — Agent-timed inline offer from committed conversation
 
 **Wave 4** *(blocked on Waves 1–3 completion)*
+
 - [x] 17-04-PLAN.md — Exact confirmation and existing canvas handoff
 
 **Wave 5** *(blocked on Waves 1–4 completion)*
+
 - [ ] 17-05-PLAN.md — Desktop/API evidence executed; user acceptance and live-model quality pending
 
 **Cross-cutting constraints:** Desktop Research only; existing editable A2UI; no premature or automatic generation/save; token-derived ownership; current reviewed revisions; durable respectful deferral; allowlisted browser projection; no paid calls or implementation during planning; no auto-execution.
+
+### Phase 18: Focused Flights and Accommodation Agents
+
+**Goal:** Travelers work out the most suitable accommodation and return flight in Flights/Stays substages of their existing trip, with separate persistent specialist conversations, a compact shared brief and grounded provider evidence.
+**Requirements:** FOCUS-01, FOCUS-02, FOCUS-03, FOCUS-04, FOCUS-05, FOCUS-06, FOCUS-07, FOCUS-08, FOCUS-09, FOCUS-10
+**Depends on:** Existing Phase 16/17 Canvas and Agent implementation; LiteAPI tools in caf905b. Earlier acceptance gaps remain independently open.
+**UI hint:** yes
+**Status:** Draft plans written; visual planning evidence pending (Chrome DevTools profile conflict). No implementation started.
+
+**Success Criteria:**
+1. Trip, Flights and Stays histories remain separate across reload/session boundaries, with topic-specific tools enforced by the host.
+2. Both specialists receive current theme, confirmed requirements, relevant selected activities and accepted travel choices; exploratory discussion does not silently change shared facts.
+3. Accommodation comparisons investigate property/room/review evidence; flight comparisons verify fares and explain timing/baggage tradeoffs with honest unknowns.
+4. Explicit shortlisted/preferred research choices persist through authorized CRUD and remain visibly unbooked; preferred-option choice marks a substage ready and relevant shared changes require review.
+5. HTTP/database, migration, browser and grounded-agent evaluations establish behavior, with source/evidence links and any live limits recorded.
+
+**Plans:** 5 draft implementation plans in 5 sequential development waves; these are not traveler-facing stages.
+
+- [ ] 18-01-PLAN.md — Stays conversation end to end and compact versioned brief
+- [ ] 18-02-PLAN.md — Accommodation matching and grounded comparison
+- [ ] 18-03-PLAN.md — Dedicated flight research conversation
+- [ ] 18-04-PLAN.md — Durable research memory and explicit trip choices
+- [ ] 18-05-PLAN.md — Integrated browser, persistence and agent acceptance
+
+**Cross-cutting constraints:** One Plan graph and Agent service; Claude SDK workers with application-owned history; CRUD authority; exact confirmation; bounded topic context/tools; no booking/payment expansion; no auto-execution. See phase CONTEXT, REQUIREMENTS, UI-SPEC, AI-SPEC and VALIDATION.

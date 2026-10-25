@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T13:24:25.756742+00:00"
 last_activity: 2026-10-25
-last_activity_desc: Added four read-only LiteAPI inspection tools; deterministic integration verified, live acceptance pending
+last_activity_desc: Drafted Phase 18 focused travel agent plans; visual planning evidence pending
 state_head: a11bf00
 progress:
   total_phases: 17
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-25 — Completed quick task 261025-g4x: four read-only LiteAPI tools wired into private MCP and Claude; 29 targeted tests passed, baseline UI fixture failures isolated. Separate conversation design and live acceptance remain pending.
+Last activity: 2026-10-25 — Phase 18 added with five draft plans for focused Flights/Stays conversations. User approved scope; Chrome DevTools profile conflict leaves visual planning evidence pending. Implementation has not started; Phase 17 acceptance status is unchanged.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -90,6 +90,8 @@ Account scrolling follow-up (2026-10-16): viewport scrolling and focus restorati
 - Missing security workflows above are implementation gaps, not merely missing credentials. Phase 1 remains incomplete.
 
 ### Roadmap Evolution
+
+- Phase 18 added: Focused Flights and Accommodation Agents. Five draft plans, shared brief and separate topic history; visual planning gate pending.
 
 - Phase 17 added and planned: Research phase cleanup, desktop only, five sequential waves; no automatic execution.
 - Phase 16 added: Date-gated travel previews and booking navigation; full GSD discussion, research, planning, implementation and verification requested. Separate booking LangGraph flow deferred.
