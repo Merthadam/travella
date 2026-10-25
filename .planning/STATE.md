@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T13:24:25.756742+00:00"
 last_activity: 2026-10-25
-last_activity_desc: Researched LiteAPI tools and focused Flights/Stays conversations; proposals only
+last_activity_desc: Added four read-only LiteAPI inspection tools; deterministic integration verified, live acceptance pending
 state_head: a11bf00
 progress:
   total_phases: 17
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-25 — Completed quick task 261025-fzw: LiteAPI and scoped Claude SDK conversation research; implementation and UI design remain undecided.
+Last activity: 2026-10-25 — Completed quick task 261025-g4x: four read-only LiteAPI tools wired into private MCP and Claude; 29 targeted tests passed, baseline UI fixture failures isolated. Separate conversation design and live acceptance remain pending.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261025-g4x | Add LiteAPI stay details/reviews/rates and flight verification tools | 2026-10-25 | caf905b | 29 targeted tests passed; 387 broad passes with 8 baseline UI failures; no live calls/deployment | [Task](quick/261025-g4x-add-read-only-hotel-details-reviews-and-/) |
 | 261025-fzw | Research LiteAPI tools and scoped Claude SDK conversations | 2026-10-25 | 877b5b5 | Documentation/source review complete; no implementation or live capability verification | [Task](quick/261025-fzw-research-liteapi-tools-and-scoped-claude/) |
 | 261024-m71 | Persist Google place descriptions | 2026-10-24 | a11bf00 | 65 tests/build passed; reload uses saved descriptions with zero detail requests | [Task](quick/261024-m71-persist-google-place-descriptions-in-sav/) |
 | 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; running at localhost:5175 | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
