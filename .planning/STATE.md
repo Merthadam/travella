@@ -394,3 +394,9 @@ Resume file: None
 - User requested a redesigned login with existing functionality. Built A split welcome, B quiet centered form and C workspace navigation rail on dev-only account-access prototype query. Original auth handlers unchanged.
 - Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
 - Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.
+
+### Canvas polish shipment — 2026-10-25
+
+- User authorized merge of eight-marten into main: taller map with floating reset, missing-description messaging without Check again, and whole-card travel navigation.
+- Source 03fe3d8 based on current main 4e0780a. Existing 14 map, 21 PlanningCanvas and 11 final place/link tests, build, and authenticated desktop/mobile checks passed. Scoped shipping security review: zero open threats.
+- Shipping record: `.planning/quick/261025-canvas-polish-ship/VERIFICATION.md`. Preserve the separate dirty main checkout and running local app.
