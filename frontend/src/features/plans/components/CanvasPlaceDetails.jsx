@@ -51,7 +51,7 @@ export function CanvasPlaceDetails({ place, destination, disabled, onAction, act
   const current = result?.key === key ? result : null;
   const details = savedDetails?.summary ? savedDetails : current?.details || savedDetails;
   const loading = eligible && (!savedDetails || attempt > 0) && !current;
-  const checkAgain = () => setRetry({ id: place.id, count: attempt + 1 });
+  const retryDetails = () => setRetry({ id: place.id, count: attempt + 1 });
   const website = place.website || current?.details?.website;
   const mapsUrl = `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query: `${place.position.lat},${place.position.lng}`, ...(details?.placeId ? { query_place_id: details.placeId } : {}) })}`;
   useEffect(() => {
@@ -62,11 +62,10 @@ export function CanvasPlaceDetails({ place, destination, disabled, onAction, act
   }, [disabled, place.id, place.website, savedDetails, current, onAction]);
   return <>
     {loading && <p role="status">Loading Google Maps details…</p>}
-    {current?.error && <p role="status">Couldn’t load Google Maps details. <button type="button" className="ds-text-button" onClick={checkAgain}>Retry details</button></p>}
+    {current?.error && <p role="status">Couldn’t load Google Maps details. <button type="button" className="ds-text-button" onClick={retryDetails}>Retry details</button></p>}
     {details?.summary && <div className="places-provider-description"><p lang={details.language || undefined}>{details.summary}</p><span className="places-note-label">Description from Google Maps</span></div>}
     {!loading && !current?.error && (savedDetails || current) && !details?.summary && <div className="places-provider-description">
       <p className="places-note-label">{details ? 'Google Maps hasn’t provided a description for this place.' : 'Google Maps details unavailable for this place.'}</p>
-      {eligible && <button type="button" className="ds-text-button" onClick={checkAgain}>Check again</button>}
     </div>}
     {!loading && !current?.error && details && !website && <p className="places-note-label">No website listed on Google Maps.</p>}
     <div className="places-actions places-detail-actions">{website && <a href={website} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${place.name} website`}>Website ↗</a>}<a href={mapsUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${place.name} in Google Maps`}>Google Maps ↗</a>{actions}</div>
