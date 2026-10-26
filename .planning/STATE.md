@@ -401,3 +401,9 @@ Resume file: None
 - User authorized merge of eight-marten into main: taller map with floating reset, missing-description messaging without Check again, and whole-card travel navigation.
 - Source 03fe3d8 based on current main 4e0780a. Existing 14 map, 21 PlanningCanvas and 11 final place/link tests, build, and authenticated desktop/mobile checks passed. Scoped shipping security review: zero open threats.
 - PR #18: https://github.com/Merthadam/travella/pull/18 (eight-marten → main), created for the user-authorized merge. Shipping record: `.planning/quick/261025-canvas-polish-ship/VERIFICATION.md`. Preserve the separate dirty main checkout and running local app.
+
+### Canvas controls shipment — 2026-10-26
+
+- User approved the verified map reset icon and whole-card flight navigation and explicitly authorized merge. PR #19: https://github.com/Merthadam/travella/pull/19 (highly-rook → main).
+- Application source 73676b0; base c7d8906. 35 focused tests, build, authenticated desktop/mobile pointer/keyboard checks and runtime comparisons passed. Scoped security review: zero open threats.
+- Shipping record: .planning/quick/261026-canvas-controls-ship/VERIFICATION.md. Preview remains http://localhost:5190 because a concurrent checkout owns port 5174. Preserve dirty primary main checkout, database volumes and running stacks. This shipment does not close broader Phase 17 acceptance.
