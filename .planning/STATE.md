@@ -5,8 +5,8 @@ current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-24T13:24:25.756742+00:00"
-last_activity: 2026-10-25
-last_activity_desc: Drafted Phase 18 focused travel agent plans; visual planning evidence pending
+last_activity: 2026-10-26
+last_activity_desc: Implemented Phase 18 focused travel substages; runtime evidence recorded, user UAT and full live-quality matrix pending
 state_head: a11bf00
 progress:
   total_phases: 17
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-25 — Phase 18 added with five draft plans for focused Flights/Stays conversations. User approved scope; Chrome DevTools profile conflict leaves visual planning evidence pending. Implementation has not started; Phase 17 acceptance status is unchanged.
+Last activity: 2026-10-26 — Phase18 implemented with separate Claude SDK specialists inside a private LangGraph subflow, CRUD-owned topic histories/choices and dedicated Canvas discussions. Real browser/API/PostgreSQL checks and a bounded live SDK sample are recorded in Phase18 verification. Full live-quality matrix and user UAT remain open. Phase17 and Phase15 acceptance status is unchanged.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 

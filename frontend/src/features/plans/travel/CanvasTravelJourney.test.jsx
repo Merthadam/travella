@@ -44,13 +44,13 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
     }
     throw new Error(`Unexpected network boundary: ${url}`);
   }));
-  const api={...plansApi,brief:vi.fn(async()=>({})),destinations:vi.fn(async()=>[]),canvas:vi.fn(async()=>({revision:1,context_revision:1,saved_context_revision:1,snapshot:{components:fixture.components}})),researchContext:vi.fn(async()=>({revision:1,context:{}})),conversationMessages:vi.fn(async()=>[]),saveCanvas:vi.fn(),cancelAgentTurn:vi.fn(async()=>{})};
+  const api={...plansApi,brief:vi.fn(async()=>({})),destinations:vi.fn(async()=>[]),canvas:vi.fn(async()=>({revision:1,context_revision:1,saved_context_revision:1,snapshot:{components:fixture.components}})),researchContext:vi.fn(async()=>({revision:1,context:{}})),conversationMessages:vi.fn(async()=>[]),travelTopic:vi.fn(async(_,topic)=>({plan_id:fixture.plan_id,topic,revision:1,messages:[],shortlist:[],preferred:null,comparison:null,readiness:'researching'})),saveCanvas:vi.fn(),cancelAgentTurn:vi.fn(async()=>{})};
   api.get=vi.fn(async()=>({plan_id:fixture.plan_id,title:'Test stays',lifecycle:'active',resume_target:'workspace'}));
   const leavePrompt=vi.fn(()=>true); vi.stubGlobal('confirm',leavePrompt);
   const mounted=render(<AppearanceProvider><PlansApp api={api}/></AppearanceProvider>);
   const user=userEvent.setup();
-  await user.click(await screen.findByRole('button',{name:'Edit details',exact:true}));
-  await user.type(screen.getByRole('textbox',{name:'Date note'}),'Unfinished editor');
+  await user.click(await screen.findByRole('button',{name:'Add preference',exact:true}));
+  await user.type(screen.getByRole('textbox',{name:'Preference'}),'Unfinished editor');
   // Same-URL view history belongs to the mounted Canvas. Exercise the parent
   // without relying on a child's stopImmediatePropagation/listener ordering.
   history.pushState({},'',location.href);
@@ -60,7 +60,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   }));
   expect(leavePrompt).not.toHaveBeenCalled();
   expect(api.get).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole('textbox',{name:'Date note'}).value).toBe('Unfinished editor');
+  expect(screen.getByRole('textbox',{name:'Preference'}).value).toBe('Unfinished editor');
   for (const [index,turn] of turns.entries()) {
     await user.type(screen.getByRole('textbox',{name:'Message Travella'}),turn.message);
     await user.click(screen.getByRole('button',{name:'Send message'}));
@@ -120,7 +120,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   expect(requests).toHaveLength(++count);
   await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
-  expect(screen.getByRole('textbox',{name:'Date note'}).value).toBe('Unfinished editor');
+  expect(screen.getByRole('textbox',{name:'Preference'}).value).toBe('Unfinished editor');
   expect(leavePrompt).not.toHaveBeenCalled();
   expect(api.get).toHaveBeenCalledTimes(1);
   expect(api.saveCanvas).not.toHaveBeenCalled();

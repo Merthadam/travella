@@ -29,6 +29,7 @@ function setup() {
     canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, snapshot: null })),
     researchContext: vi.fn(async () => ({ revision: 1, context: { ...confirmedFlights, finalDestination: 'Milan', travelers: 2 } })),
     conversationMessages: vi.fn(async () => []),
+    travelTopic: vi.fn(async (plan, topic) => ({ plan_id: plan.plan_id, topic, revision: 1, messages: [], readiness: 'researching', shortlist: [], preferred: null, comparison: null })),
     saveCanvas: vi.fn(), cancelAgentTurn: vi.fn(async () => {}),
     editCanvas: vi.fn(async (_selected, _draft, _message, _id, { onEvent }) => {
       onEvent({ type: 'TEXT_MESSAGE_CONTENT', delta: 'You can compare airports for Milan.' });
@@ -46,6 +47,7 @@ test('confirmed no flights omits the card and travel navigation while keeping ac
     canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
     researchContext: async () => ({ revision: 1, context: { ...confirmedFlights, flights: 'not-needed' } }),
     conversationMessages: async () => [],
+    travelTopic: async (plan, topic) => ({ plan_id: plan.plan_id, topic, revision: 1, messages: [], readiness: 'researching', shortlist: [], preferred: null, comparison: null }),
   };
   render(<PlanningCanvas selected={{ plan_id: 'no-flights', title: 'Train trip' }} api={api}/>);
   await screen.findByRole('button', { name: 'Explore accommodation' });
@@ -55,6 +57,7 @@ test('confirmed no flights omits the card and travel navigation while keeping ac
   await user.click(screen.getByRole('button', { name: 'Update dates' }));
   await user.click(screen.getByRole('button', { name: 'Explore accommodation' }));
   expect(screen.queryByRole('button', { name: 'Flights', exact: true })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Adjust search' }));
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
 });
 
@@ -120,12 +123,14 @@ test('open card edits and unsent chat survive flight and stay navigation', async
   await user.type(message, 'Which airport is easiest?');
   expect(screen.queryByRole('button', { name: 'Save plan', exact: true })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Explore flights' }));
+  await user.click(screen.getByRole('button', { name: 'Adjust search' }));
   expect(screen.getByRole('region', { name: 'flights search' })).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Explore flights' })).toBeTruthy();
   expect(screen.queryByRole('region', { name: 'Plan content' })).toBeNull();
   expect(screen.queryByRole('dialog', { name: 'Explore travel' })).toBeNull();
   expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Stays', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Adjust search' }));
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
   expect(screen.getByRole('textbox', { name: 'Preference' }).value).toBe('Unfinished preference');
@@ -181,6 +186,7 @@ const booking = { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hot
 test('confirmed checkout switches the real canvas card to a clearly labeled mock state', async () => {
   const user = userEvent.setup(); const api = setup();
   await user.click(await screen.findByRole('button', { name: 'Explore accommodation' }));
+  await user.click(screen.getByRole('button', { name: 'Adjust search' }));
   await user.click(screen.getByRole('button', { name: 'Complete mock stay' }));
   await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
   expect(await screen.findByText('Mock booked')).toBeTruthy();

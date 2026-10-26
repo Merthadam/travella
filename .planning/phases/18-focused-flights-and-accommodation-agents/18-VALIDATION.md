@@ -1,17 +1,17 @@
 ---
 phase: 18
-status: planned
+status: partially_executed
 nyquist_compliant: false
 wave_0_complete: false
 ---
 
 # Phase 18 validation strategy
 
-These are future execution checks. No implementation tests were run during planning.
+Execution results are recorded in 18-VERIFICATION.md and the linked artifact report. The matrix below remains the full acceptance target; unexecuted live/browser combinations are explicitly pending.
 
 ## Before implementation
 
-Resolve the Chrome DevTools profile conflict without closing unrelated user sessions. Inspect current Flights/Stays and the static planning outline; save and inspect desktop/mobile screenshots under `artifacts/testing/<execution-date>-focused-travel/plan/`. Record adjustments to UI-SPEC. This is required even though the user declined interactive alternatives. Pending evidence blocks declaring frontend planning verified.
+Resolve the Chrome DevTools profile conflict without closing unrelated user sessions. Inspect current Flights/Stays and the static planning outline; save and inspect desktop/mobile screenshots under `artifacts/testing/<execution-date>-focused-travel/plan/`. Record adjustments to UI-SPEC. This is required even though the user declined interactive alternatives. This gate was resolved with an isolated Chrome DevTools session; desktop/mobile planning screenshots were inspected.
 
 ## Automated and API coverage
 

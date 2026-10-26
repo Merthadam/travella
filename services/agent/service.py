@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -74,6 +75,9 @@ class AgentTurnService:
         token = (authorization or "")[7:].strip()
         plan = await self._read_plan(subject, request.plan_id, token)
         plan_id = str(request.plan_id)
+        if request.topic != "trip":
+            from .specialist_service import handle_specialist
+            return await handle_specialist(self, request, subject, token, plan, on_text_delta=on_text_delta)
         edit_input = None
         if request.canvas_edit:
             try:
@@ -122,7 +126,7 @@ class AgentTurnService:
                     ):
                         traveler_profile = profile_context(current)
         try:
-            reservation = await self.runs.reserve(subject, plan_id, request.event_id, exclusive=True)
+            reservation = await self.runs.reserve(subject, plan_id, request.event_id, exclusive=True, input_digest=hashlib.sha256(json.dumps(request.model_dump(mode="json"), sort_keys=True).encode()).hexdigest())
         except ValueError:
             raise HTTPException(409, "Another reply is running for this Plan.") from None
         if not reservation.owner:
@@ -202,7 +206,10 @@ class AgentTurnService:
                 "plan_id": plan_id,
                 "plan_revision": int(context.get("revision", plan.get("revision", 1))),
                 "conversation_id": context.get("conversation_id"),
-                "brief": context.get("brief", {}),
+                "brief": {**context.get("brief", {}), **({"accepted_travel_choices": {
+                    "active": True, "value": context["accepted_travel_choices"],
+                    "source": "traveler_confirmed_research_choices", "unbooked": True,
+                }} if context.get("accepted_travel_choices") else {})},
                 "trip_context": context_snapshot["context"] if context_snapshot else {},
                 "state_changes": [],
                 "recent_messages": context.get("messages", []),
@@ -446,6 +453,7 @@ class AgentTurnService:
                                                "research_offer": final.get("research_offer"),
                                                "assistant_message_id": final.get("assistant_message_id"),
                                                "flight_preview": final.get("flight_preview"),
+                                               "travel_specialist_result": final.get("travel_specialist_result"),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"
@@ -483,7 +491,7 @@ class AgentTurnService:
                     public_snapshot.update({name: item for name, item in value.items() if item is not None})
                     yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
                 else:
-                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result", "research_offer", "assistant_message_id", "flight_preview") if value.get(name) is not None}
+                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result", "research_offer", "assistant_message_id", "flight_preview", "travel_specialist_result") if value.get(name) is not None}
                     if snapshot:
                         public_snapshot.update(snapshot)
                         yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
@@ -536,7 +544,7 @@ class AgentTurnService:
         *,
         generation: int | None = None,
     ) -> None:
-        if request.canvas_action or not self.context_reader:
+        if request.topic != "trip" or request.canvas_action or not self.context_reader:
             return
         token = (authorization or "")[7:].strip()
         plan_id = request.plan_id

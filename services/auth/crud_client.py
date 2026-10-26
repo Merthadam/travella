@@ -54,13 +54,13 @@ class CrudClient:
         else:
             profile_route = False
             match = re.fullmatch(
-            r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|research-context|research-offer/actions|research-offer|destinations|conversation/messages|canvas/challenge|canvas)(?:/([0-9a-fA-F-]{36}))?)?)?",
+            r"/v1/plans(?:/([0-9a-fA-F-]{36})(?:/(activity|title|restore|challenges|brief|research-context|research-offer/actions|research-offer|destinations|conversation/messages|canvas/challenge|canvas|travel/(?:stays|flights)(?:/choices(?:/challenge)?)?)(?:/([0-9a-fA-F-]{36}))?)?)?",
             path,
             )
             if not match:
                 raise HTTPException(404, "Plan unavailable.")
             plan_id, action, destination_id = match.groups()
-            allowed = (
+            allowed = ({"GET"} if action and action.startswith("travel/") and action.count("/") == 1 else {"POST"}) if action and action.startswith("travel/") else (
                 {
                     None: {"GET", "DELETE"},
                     "activity": {"POST"},
@@ -99,7 +99,7 @@ class CrudClient:
         for name in ("idempotency-key", "if-match", "x-plan-challenge"):
             if name in headers:
                 forwarded[name] = headers[name]
-        query = {key: value for key, value in params.items() if key in {"view", "limit", "cursor"}}
+        query = {key: value for key, value in params.items() if key in {"view", "limit", "cursor", "topic"}}
         try:
             with httpx.Client(
                 base_url=self.base_url,
@@ -120,9 +120,12 @@ class CrudClient:
                 raise ValueError("Unexpected upstream status")
             from services.crud.canvas import CanvasChallengeOutput, CanvasOutput
             from services.crud.research_offers import ResearchOfferSnapshot
+            from services.travel_topics import TopicSnapshot
 
             schema = (
-                ResearchOfferSnapshot if action in {"research-offer", "research-offer/actions"}
+                CanvasChallengeOutput if action and action.startswith("travel/") and action.endswith("/challenge")
+                else TopicSnapshot if action and action.startswith("travel/")
+                else ResearchOfferSnapshot if action in {"research-offer", "research-offer/actions"}
                 else CanvasOutput if action == "canvas"
                 else CanvasChallengeOutput if action == "canvas/challenge"
                 else

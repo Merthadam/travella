@@ -26,6 +26,8 @@ from ..travel_contracts import (
     PlaceQuery,
     Places,
     SearchResult,
+    StayCatalog,
+    StayCatalogQuery,
 )
 from .canvas_travel import CanvasTravelObserver, draft_facts, safe_flight, safe_stay
 from .research_result import StrictResult
@@ -62,6 +64,8 @@ class CanvasTravelTools(CanvasTravelObserver):
     }
     max_calls = 10
     category_limits = {"lookup": 2, "inspection": 6}
+    allow_refinement = False
+    preview_limit = 3
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, parse_message=False)
@@ -99,13 +103,16 @@ class CanvasTravelTools(CanvasTravelObserver):
 
     def _evidence(self, payload):
         encoded = json.dumps(payload, ensure_ascii=False)
-        if self.tool_bytes + len(encoded.encode()) > 24576:
+        if self.tool_bytes + len(encoded.encode()) > self.evidence_limit:
             return self._error(
                 "travel_text_limit",
                 "Evidence limit reached. Summarize the evidence already retrieved.",
             )
         self.tool_bytes += len(encoded.encode())
         return {"content": [{"type": "text", "text": encoded}]}
+
+    def _preview_options(self, snapshot):
+        return [item.model_dump() for item in snapshot.results[:self.preview_limit]]
 
     async def _inspect(self, name, arguments):
         try:
@@ -247,7 +254,7 @@ class CanvasTravelTools(CanvasTravelObserver):
             except ValueError as error:
                 return self._error("date_evidence_required", str(error))
             previous = self.criteria_by_mode.get(mode)
-            if previous is not None and previous != parsed.criteria:
+            if previous is not None and previous != parsed.criteria and not self.allow_refinement:
                 return self._error(
                     "search_already_attempted",
                     "Only one search per mode per turn. Ask the traveler before another search.",
@@ -259,7 +266,7 @@ class CanvasTravelTools(CanvasTravelObserver):
                 snapshot = self.snapshots.get(payload.get("search_id"))
                 if snapshot:
                     # Evidence for comparisons; handles and checkout tokens never reach the model.
-                    payload["options"] = [item.model_dump() for item in snapshot.results[:3]]
+                    payload["options"] = self._preview_options(snapshot)
                     self.tool_bytes -= len(response["content"][0]["text"].encode())
                     return self._evidence(payload)
             return response
@@ -267,7 +274,11 @@ class CanvasTravelTools(CanvasTravelObserver):
         # Lookup tools help the model resolve locations before all booking inputs
         # exist; they do not search rates, and share the same bounded call budget.
         try:
-            if name == "travel_capabilities":
+            if name == "get_stay_filter_catalog":
+                query = StayCatalogQuery.model_validate(arguments)
+                result = StayCatalog.model_validate(await self._call("hotels/catalog", query.model_dump(), "lookup"))
+                payload = result.model_dump()
+            elif name == "travel_capabilities":
                 if arguments:
                     return self._error("invalid_lookup_inputs", "This tool takes no arguments.")
                 from ..travel_contracts import Capabilities
@@ -289,7 +300,7 @@ class CanvasTravelTools(CanvasTravelObserver):
                 )
                 payload = {"airports": [a.model_dump() for a in result.airports]}
             encoded = json.dumps(payload)
-            if self.tool_bytes + len(encoded.encode()) > 24576:
+            if self.tool_bytes + len(encoded.encode()) > self.evidence_limit:
                 raise ValueError("travel_text_limit")
             self.tool_bytes += len(encoded.encode())
             return {"content": [{"type": "text", "text": encoded}]}
@@ -308,6 +319,10 @@ class CanvasTravelTools(CanvasTravelObserver):
             )
 
     def server(self):
+        @tool("get_stay_filter_catalog", "Read actual provider hotel_types or facilities IDs before filtering. Optional q matches names (e.g. apartment or kitchen), up to100 entries. Property facilities do not guarantee a specific room amenity.", StayCatalogQuery.model_json_schema())
+        async def catalog(args):
+            return await self.invoke("get_stay_filter_catalog", args)
+
         @tool(
             "travel_capabilities",
             "Check enabled provider modes. Read-only; no booking inputs required.",
@@ -383,7 +398,8 @@ class CanvasTravelTools(CanvasTravelObserver):
         return create_sdk_mcp_server(
             name="travel",
             version="3.0.0",
-            tools=[
+            tools=[item for item in [
+                catalog,
                 capabilities,
                 destinations,
                 stays,
@@ -393,5 +409,159 @@ class CanvasTravelTools(CanvasTravelObserver):
                 reviews,
                 rates,
                 verify,
-            ],
+            ] if item.name in self.names],
         )
+
+
+class SpecialistTravelTools(CanvasTravelTools):
+    """One topic, three refinements, and ten calls shared with inspections."""
+
+    allow_refinement = True
+    preview_limit = 10
+    evidence_limit = 96 * 1024
+    category_limits = {"lookup": 2, "inspection": 6, "stays": 3, "flights": 3}
+
+    def __init__(self, *args, topic, **kwargs):
+        if topic not in {"stays", "flights"}:
+            raise ValueError("invalid_specialist_topic")
+        super().__init__(*args, **kwargs)
+        self.mode, self.modes = topic, [topic]
+        self.names = {"travel_capabilities"} | (
+            {"search_destinations", "search_stays", "get_stay_details", "get_stay_reviews", "get_stay_rates", "get_stay_filter_catalog"}
+            if topic == "stays" else {"search_airports", "search_flights", "verify_flight_offer"}
+        )
+        self.rate_calls = 0
+        self.catalogs = {}
+        self.observed_hotel_ids = set()
+        self.observed_flight_ids = set()
+        self.observation_times = {}
+        self.failed_calls = set()
+
+    def _preview_options(self, snapshot):
+        options = super()._preview_options(snapshot)
+        if snapshot.mode == "stays":
+            for item in options:
+                # Searches establish candidates; detailed room inspections have
+                # their own six-rate preview. Preserve explicit omission counts
+                # instead of repeatedly spending the budget on all room terms.
+                item["rooms_omitted"] = max(0, len(item["rooms"]) - 3)
+                item["facilities_omitted"] = max(0, len(item["facilities"]) - 12)
+                item["rooms"] = item["rooms"][:3]
+                item["facilities"] = item["facilities"][:12]
+        return options
+
+    async def _inspect(self, name, arguments):
+        response = await super()._inspect(name, arguments)
+        if response.get("is_error"):
+            if name == "verify_flight_offer" and "offer_expired" in response["content"][0]["text"]:
+                identifier = arguments["option_id"]
+                self.observed_flight_ids.discard(identifier)
+                for snap in self.snapshots.values():
+                    snap.results = [item for item in snap.results if item.id != identifier]
+                    snap.returned_count = len(snap.results)
+                    snap.preview_ids = [value for value in snap.preview_ids if value != identifier]
+            return response
+        payload = json.loads(response["content"][0]["text"])
+        if name == "get_stay_rates":
+            from .canvas_travel import StayOption
+            for raw in payload["results"]:
+                observed = StayOption.model_validate(raw)
+                for snap in self.snapshots.values():
+                    if snap.mode == "stays":
+                        for index, option in enumerate(snap.results):
+                            baseline = snap.criteria.model_dump(mode="json")
+                            inspected = HotelSearch.model_validate(arguments["criteria"]).model_dump(mode="json")
+                            same_search = all(baseline[key] == inspected[key] for key in ("check_in", "check_out", "rooms", "currency", "guest_nationality", "destination"))
+                            if option.hotel_id == observed.hotel_id and same_search:
+                                snap.results[index] = observed.model_copy(update={"id": option.id})
+                                self.observation_times[option.id] = payload["searched_at"]
+        elif name == "verify_flight_offer":
+            self.observation_times[arguments["option_id"]] = payload["checked_at"]
+        return response
+
+    async def _call(self, action, criteria, category):
+        key = json.dumps([action, criteria], sort_keys=True)
+        if key in self.failed_calls:
+            raise ValueError("failed_call_not_retryable")
+        cached = key in self.cache
+        is_rate = action in {"hotels/search", "flights/search"}
+        if is_rate and not cached:
+            if self.rate_calls >= 3:
+                raise ValueError("travel_rate_limit")
+            # A failed supplier call still consumes a search attempt.
+            self.rate_calls += 1
+        try:
+            result = await super()._call(action, criteria, category)
+        except Exception:
+            self.failed_calls.add(key)
+            raise
+        if result.get("status") in {"unavailable", "invalid"}:
+            self.failed_calls.add(key)
+        if action == "hotels/catalog":
+            catalog = StayCatalog.model_validate(result)
+            self.catalogs.setdefault(catalog.kind, set()).update(item.id for item in catalog.items)
+        return result
+
+    async def _invoke(self, name, arguments):
+        if name not in self.names:
+            return self._error("tool_not_allowed", "Use only this discussion's read-only tools.")
+        if name in {"get_stay_details", "get_stay_reviews", "get_stay_rates"}:
+            hotel_id = arguments.get("criteria", {}).get("hotel_id") if name == "get_stay_rates" else arguments.get("hotel_id")
+            if hotel_id not in self.observed_hotel_ids:
+                return self._error("unknown_option", "Search first; inspect only a hotel observed in this turn.")
+        if name == "verify_flight_offer" and arguments.get("option_id") not in self.observed_flight_ids:
+            return self._error("unknown_option", "Search first; only observed current-turn offers can be verified.")
+        if name in {"search_stays", "get_stay_rates"}:
+            criteria = arguments.get("criteria", {})
+            for field, kind in (("hotel_type_ids", "hotel_types"), ("facility_ids", "facilities")):
+                values = criteria.get(field, [])
+                if not isinstance(values, list) or any(type(value) is not int or value not in self.catalogs.get(kind, set()) for value in values):
+                    return self._error("filter_catalog_required", "Resolve actual supported filter IDs with get_stay_filter_catalog first.")
+        # Parent searches reuse the first snapshot of a mode. Expose only an
+        # identical-criteria snapshot during the call, then retain other valid
+        # observations for comparison without treating them as current results.
+        older = {}
+        if name in {"search_stays", "search_flights"}:
+            schema = HotelSearch if self.mode == "stays" else FlightSearch
+            try:
+                criteria = schema.model_validate(arguments.get("criteria"))
+            except ValidationError:
+                return await super()._invoke(name, arguments)
+            travelers = draft_facts(self.draft)["travelers"]
+            party = sum(room.adults + len(room.children_ages) for room in criteria.rooms) if self.mode == "stays" else criteria.adults + len(criteria.children_ages) + len(criteria.infant_ages)
+            if travelers is not None and party != travelers:
+                return self._error("party_mismatch", "Keep the confirmed trip party size. Ask the traveler to update the trip before changing it.")
+            older = {key: snap for key, snap in self.snapshots.items() if snap.criteria != criteria}
+            self.snapshots = {key: snap for key, snap in self.snapshots.items() if key not in older}
+        try:
+            response = await super()._invoke(name, arguments)
+        except asyncio.CancelledError:
+            self.snapshots.clear()
+            raise
+        else:
+            self.snapshots = {**older, **self.snapshots}
+            for snap in self.snapshots.values():
+                for option in snap.results[:self.preview_limit]:
+                    if snap.mode == "stays":
+                        self.observed_hotel_ids.add(option.hotel_id)
+                    else:
+                        self.observed_flight_ids.add(option.id)
+            return response
+
+    def selected(self, selections):
+        from datetime import UTC, datetime
+
+        if sum(len(item.option_ids) for item in selections) > 3:
+            raise ValueError("comparison_limit")
+        output, seen, option_ids = [], set(), set()
+        for selection in selections:
+            snapshot = self.snapshots.get(selection.search_id)
+            if not snapshot or selection.mode != self.mode or snapshot.search_id in seen or datetime.fromisoformat(snapshot.expires_at) <= datetime.now(UTC):
+                raise ValueError("travel_selection_unknown")
+            valid = {item.id for item in snapshot.results[:self.preview_limit]}
+            if not set(selection.option_ids).issubset(valid) or len(set(selection.option_ids)) != len(selection.option_ids) or option_ids.intersection(selection.option_ids):
+                raise ValueError("travel_option_unknown")
+            seen.add(snapshot.search_id)
+            option_ids.update(selection.option_ids)
+            output.append(snapshot.model_copy(update={"preview_ids": selection.option_ids}).model_dump(mode="json"))
+        return output

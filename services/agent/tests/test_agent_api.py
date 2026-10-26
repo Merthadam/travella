@@ -89,7 +89,8 @@ def test_profile_memory_sync_uses_verified_identity_and_safe_status():
 
     assert response.status_code == 200
     assert response.json() == {"status": "synced"}
-    assert memory.calls == [("traveler-1", payload)]
+    assert memory.calls == [("traveler-1", {**payload, "home_city": None, "default_airport": None,
+                                         "interest_ids": [], "custom_interests": []})]
 
 
 def test_invalid_identity_and_foreign_plan_fail_before_adapter():

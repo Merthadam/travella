@@ -72,6 +72,9 @@ class ResearchContextRepository:
         now = self.plans.clock()
         assistant_message_id = None
         if data.action == "begin":
+            from .models import TravelTopicRun
+            if self.session.get(TravelTopicRun, (plan_id, data.event_id)):
+                raise LifecycleProblem("request_reused")
             # A durable receipt prevents a retried HTTP event from applying state twice.
             from .models import PlanActionReceipt
             receipt = self.session.scalar(select(PlanActionReceipt).where(

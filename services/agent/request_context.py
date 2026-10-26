@@ -19,6 +19,16 @@ _TRAVELER_PROFILE: ContextVar[dict[str, Any] | None] = ContextVar(
 )
 
 _TRAVEL_RESULTS: ContextVar[list | None] = ContextVar("travella_travel_results", default=None)
+_SPECIALIST_INPUT: ContextVar[dict | None] = ContextVar("travella_specialist_input", default=None)
+
+def bind_specialist_input(value):
+    return _SPECIALIST_INPUT.set(value)
+
+def reset_specialist_input(token):
+    _SPECIALIST_INPUT.reset(token)
+
+def current_specialist_input():
+    return _SPECIALIST_INPUT.get() or {}
 
 def bind_travel_results(value):
     return _TRAVEL_RESULTS.set(value)

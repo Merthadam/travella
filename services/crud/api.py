@@ -26,6 +26,8 @@ from .repository import PlanRepository, as_utc, normalize_title, validate_reques
 from .research_context import ResearchContextRepository
 from .research_offers import ResearchOfferRepository, ResearchOfferSnapshot
 from services.research_offers import ResearchOfferAction, ResearchEntryConsume
+from services.travel_topics import ChoiceMutation, SpecialistTopic, Topic, TopicRun, TopicSnapshot
+from .topic_conversations import TopicRepository
 from .schemas import (
     BriefInput,
     BriefMutationOutput,
@@ -154,8 +156,26 @@ def create_router(session_factory, verifier, *, required_scope, clock=None) -> A
         return BriefMutationOutput(plan_id=brief.plan_id, revision=brief.revision, **brief.payload)
 
     @router.get("/{plan_id}/conversation/messages", response_model=list[dict])
-    def conversation_messages(plan_id: UUID, repo: Repo, me=Depends(identity), limit: int = Query(12, ge=1, le=50)):
-        return repo.conversation_messages(me.subject, plan_id, limit)
+    def conversation_messages(plan_id: UUID, repo: Repo, me=Depends(identity), limit: int = Query(12, ge=1, le=50), topic: Topic = "trip"):
+        return repo.conversation_messages(me.subject, plan_id, limit, topic)
+
+    @router.get("/{plan_id}/travel/{topic}", response_model=TopicSnapshot)
+    def travel_topic(plan_id: UUID, topic: SpecialistTopic, repo: Repo, me=Depends(identity)):
+        return TopicRepository(repo).snapshot(me.subject, plan_id, topic)
+
+    @router.post("/{plan_id}/travel/{topic}/run", response_model=dict)
+    def travel_run(plan_id: UUID, topic: SpecialistTopic, data: TopicRun, repo: Repo, me=Depends(identity)):
+        return TopicRepository(repo).run(me.subject, plan_id, topic, data)
+
+    @router.post("/{plan_id}/travel/{topic}/choices/challenge", response_model=CanvasChallengeOutput)
+    def travel_choice_challenge(plan_id: UUID, topic: SpecialistTopic, data: ChoiceMutation,
+                                request_id: WriteId, if_match: Revision, repo: Repo, me=Depends(identity)):
+        return TopicRepository(repo).challenge(me.subject, plan_id, topic, request_id, if_match, data)
+
+    @router.post("/{plan_id}/travel/{topic}/choices", response_model=TopicSnapshot)
+    def travel_choice(plan_id: UUID, topic: SpecialistTopic, data: ChoiceMutation, request_id: WriteId,
+                      if_match: Revision, x_plan_challenge: Challenge, repo: Repo, me=Depends(identity)):
+        return TopicRepository(repo).choose(me.subject, plan_id, topic, request_id, if_match, data, x_plan_challenge)
 
     @router.post("/{plan_id}/conversation/messages", response_model=dict)
     def append_conversation_message(plan_id: UUID, data: dict, repo: Repo, me=Depends(identity)):

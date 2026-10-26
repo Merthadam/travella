@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { TravelSearch, useTravelCapabilities } from '../travel/TravelSearch';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTravelCapabilities } from '../travel/TravelSearch';
+import { TravelWorkspace } from '../travel/TravelWorkspace';
 import { useFlightBookingSync } from '../travel/useFlightBookingSync';
 import { TripEssentials } from '../../../design-system/components/TripEssentials';
 import { readCanvasView, writeCanvasView } from '../canvasViewState';
@@ -25,7 +26,12 @@ const groupLabel = { all: 'plan', themes: 'themes and preferences', research: 'r
 
 export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDirtyChange, onBusyChange, autoGenerate = false }) {
   const [chatBusy, setChatBusy] = useState(false);
-  const canvas = usePlanningCanvas({ selected, api, onExpired, onSaved, externalBusy: chatBusy });
+  const [specialistBusy, setSpecialistBusy] = useState({});
+  const [switchingTravel, setSwitchingTravel] = useState(false);
+  const specialistStops = useRef({});
+  const registerTravelStop = useCallback((mode, stop) => { specialistStops.current[mode] = stop; }, []);
+  const travelBusyChanged = useCallback((topic, active) => setSpecialistBusy(current => ({ ...current, [topic]: active })), []);
+  const canvas = usePlanningCanvas({ selected, api, onExpired, onSaved, externalBusy: chatBusy || switchingTravel || Object.values(specialistBusy).some(Boolean) });
   const chat = useCanvasConversation({ selected, api, data: canvas.data, blocked: Boolean(canvas.activeGroup || canvas.saving || canvas.loading), onExpired, onAdd: canvas.addActivities, onBusyChange: setChatBusy });
   const [viewState] = useState(() => readCanvasView(selected.plan_id));
   const [chatOpen, setChatOpen] = useState(viewState.chatOpen !== false);
@@ -70,9 +76,22 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   useEffect(() => {
     if (screen) { travelScreen.current.scrollTop = 0; travelScreen.current.querySelector('button')?.focus(); }
   }, [screen]);
-  function returnToCanvas() {
+  async function stopTravel() {
+    setSwitchingTravel(true);
+    try {
+      for (const stop of Object.values(specialistStops.current)) if (stop && !await stop()) return false;
+      if (chat.active) await chat.stop();
+      return true;
+    } finally { setSwitchingTravel(false); }
+  }
+  async function returnToCanvas() {
+    if (switchingTravel || !await stopTravel()) return;
     if (resultsOpen.current) closeTravelResults();
     else { travelReturnFocus.current = screen; setScreen(null); }
+  }
+  async function openTravel(mode) {
+    if (switchingTravel || !await stopTravel()) return;
+    setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); setMobileView('canvas');
   }
   const [travelResultId, setTravelResultId] = useState(null);
   const [travelImports, setTravelImports] = useState({});
@@ -160,7 +179,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   const dialog = useRef(null);
   const returnFocus = useRef(null);
   const dirty = canvas.dirty || canvas.editing;
-  const busy = Boolean(canvas.activeGroup || canvas.saving || chatBusy || reviewLoading);
+  const busy = Boolean(canvas.activeGroup || canvas.saving || chatBusy || reviewLoading || switchingTravel || Object.values(specialistBusy).some(Boolean));
   const callbacks = useRef({ onDirtyChange, onBusyChange }); callbacks.current = { onDirtyChange, onBusyChange };
 
   useEffect(() => { callbacks.current.onDirtyChange?.(dirty); }, [dirty]);
@@ -235,7 +254,7 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
   function action(id, name, payload) {
     if (name === 'clear_place_preview') { setPreview(null); return; }
     if (name === 'open_flights' && canvas.data?.flights?.need !== 'needed') return;
-    if (name === 'open_flights' || name === 'open_accommodation') { const mode = name === 'open_flights' ? 'flights' : 'accommodation'; setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); setMobileView('canvas'); return; }
+    if (name === 'open_flights' || name === 'open_accommodation') { void openTravel(name === 'open_flights' ? 'flights' : 'accommodation'); return; }
     if (name === 'retry') { generate(id === 'themes' ? 'themes' : id === 'findings' || id === 'links' ? 'research' : 'all'); return; }
     if (name === 'editor_state' || !chatBusy) canvas.action(id, name, payload);
   }
@@ -280,10 +299,10 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
       </dialog>
     </div>
       <section ref={travelScreen} hidden={!screen} className="canvas-travel-screen" aria-label={activeTravel === 'flights' ? 'Explore flights' : 'Explore stays'}>
-      {screen && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus onClick={returnToCanvas}>{resultsOpen.current ? '← Back to plan chat' : '← Back to canvas'}</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([mode, , key]) => travel.capabilities?.[key] && (mode !== 'flights' || flightBrowsing)).map(([mode, label]) => <button key={mode} aria-pressed={activeTravel === mode} onClick={() => { setVisitedTravel(prev => ({ ...prev, [mode]: true })); setScreen(mode); }}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
+      {screen && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus disabled={switchingTravel} onClick={returnToCanvas}>{switchingTravel ? 'Finishing discussion…' : resultsOpen.current ? '← Back to plan chat' : '← Back to canvas'}</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([mode, , key]) => travel.capabilities?.[key] && (mode !== 'flights' || flightBrowsing)).map(([mode, label]) => <button key={mode} disabled={switchingTravel} aria-pressed={activeTravel === mode} onClick={() => openTravel(mode)}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
       {screen && <header className="canvas-travel-heading"><p>{selected.title}</p><h1>{activeTravel === 'flights' ? 'Flights' : 'Stays'}</h1></header>}
       {screen === 'travel-results' && !selectedTravel && <section aria-label="Travel result recovery"><p role="status">These results are no longer available. Return to Plan chat to search again.</p></section>}
-      {['accommodation', 'flights'].filter(mode => visitedTravel[mode] && (mode !== 'flights' || flightBrowsing)).map(mode => <TravelSearch key={`${selected.plan_id}-${mode}`} planId={selected.plan_id} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} onExpired={onExpired} onBookingResult={canvas.updateMockBooking}/>)}
+      {['accommodation', 'flights'].filter(mode => visitedTravel[mode] && (mode !== 'flights' || flightBrowsing)).map(mode => <TravelWorkspace key={`${selected.plan_id}-${mode}`} selected={selected} api={api} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} pendingEdits={dirty || Boolean(canvas.saveError)} blocked={Boolean(canvas.activeGroup || canvas.saving || chatBusy || switchingTravel)} onExpired={onExpired} onBusyChange={travelBusyChanged} registerStop={registerTravelStop} onChoiceSaved={canvas.acceptTravelChoiceRevision} onBookingResult={canvas.updateMockBooking}/>)}
       </section>
     <div id="plan-chat-panel" className="canvas-chat-panel" hidden={!chatOpen || Boolean(screen)}><CanvasConversation collapseRef={chatCollapseButton} visible={chatOpen && !screen} chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={collapseChat} onPreview={showPlace} onAdd={canvas.addActivities} onOpenTravel={openTravelResults}/></div>
     {!chatOpen && !screen && <div className="canvas-chat-rail"><button ref={chatReopenButton} type="button" className="canvas-chat-expand" aria-label="Expand plan chat" title="Expand plan chat" aria-controls="plan-chat-panel" aria-expanded={false} onClick={openChat}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 4v16m15-8H8m5-5-5 5 5 5"/></svg><span>Chat</span>{chat.active && <span className="canvas-chat-rail-status" aria-label="Travella is replying"/>}</button></div>}

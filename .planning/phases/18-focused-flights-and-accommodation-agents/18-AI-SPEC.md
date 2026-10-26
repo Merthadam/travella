@@ -1,6 +1,6 @@
 # Specialist agent contract
 
-Status: proposed implementation and evaluation contract; no live evaluation executed.
+Status: implemented. Deterministic invariants and a bounded live Claude SDK/LiteAPI sandbox sample executed; full live evaluation matrix and user acceptance pending. See artifacts/testing/2026-10-25-focused-travel/agent-evaluation.md.
 
 ## Input and authority
 
@@ -12,7 +12,7 @@ Current explicit traveler instruction controls this research turn, but a conflic
 
 Return bounded answer text, source-linked comparison facts, validated option references and optional research proposals. The host validates referenced options and their topic/search identity before presentation. Order recommendations by stated priorities; explain material tradeoffs and missing evidence. The existing provider-order card selection rule must be replaced only for specialist results, with validation that ranking contains observed IDs.
 
-The SDK catalog and invocation handler enforce the same topic allowlist specified in RESEARCH.md. Ten total provider calls per specialist turn, three rate searches and six inspections are ceilings within one shared budget. The agent may refine independently within known constraints, asking when a preference or tradeoff needs traveler judgment. General Trip behavior retains its existing search limit. The filter catalog lookup shares the lookup budget and can be cached by provider/environment. Limit comparisons to three options, preserve a finite turn deadline, and stop on provider failure unless the traveler deliberately retries. No model output directly changes a Plan, preference choice, shortlist or booking state.
+The SDK catalog and invocation handler enforce the same topic allowlist specified in RESEARCH.md. Ten total provider calls per specialist turn, three rate searches, six inspections and96KiB of projected provider evidence are ceilings within one shared budget. Search previews show at most10properties,3rooms and12facilities per property with explicit omission counts; room inspection returns up to6rates. General Trip retains its24KiB ceiling. The agent may refine independently within known constraints, asking when a preference or tradeoff needs traveler judgment. General Trip behavior retains its existing search limit. The filter catalog lookup shares the lookup budget and can be cached by provider/environment. Limit comparisons to three options, preserve a finite turn deadline, and stop on provider failure unless the traveler deliberately retries. No model output directly changes a Plan, preference choice, shortlist or booking state.
 
 When the budget ends, summarize checked options and unresolved issues; do not schedule autonomous background searches. A preferred option becomes ready only through exact traveler confirmation. Relevant shared changes mark it for review without losing the historical choice.
 

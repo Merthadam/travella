@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -52,6 +53,12 @@ async def travel_search(action: str, criteria: dict, plan_id: str) -> dict:
 
 
 _READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
+
+
+@travel_mcp.tool(annotations=_READ_ONLY)
+async def get_stay_filter_catalog(plan_id: str, kind: Literal["hotel_types", "facilities"], q: str = "") -> dict:
+    """Resolve supported property/facility IDs; optional name query, at most100 entries."""
+    return await travel_search("hotels/catalog", {"kind": kind, "q": q}, plan_id)
 
 
 @travel_mcp.tool(annotations=_READ_ONLY)

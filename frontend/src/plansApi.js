@@ -1,4 +1,5 @@
 import { ApiError, request } from './api';
+import { travelTopicProjection } from './features/plans/travel/travelTopicSchema';
 
 export const requestId = () => `${Date.now()}.${crypto.randomUUID()}`;
 export function normalizeTitle(value) {
@@ -18,13 +19,13 @@ export function researchOfferProjection(value) {
   return { id: value.id, status: value.status, revision: value.revision, message_id: value.message_id };
 }
 
-async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit, researchEntryReceipt }) {
+async function agentTurnStream(plan, message, eventId, { signal, onEvent, topic, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit, researchEntryReceipt }) {
   let response;
   try {
     response = await fetch(`${agentPath(plan)}/stream`, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json', 'X-Travella-Request': '1', Accept: 'text/event-stream' },
-      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
+      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(topic ? { topic } : {}), ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
@@ -51,8 +52,9 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwar
       onEvent({ type: event.type, messageId: String(event.messageId || '') });
     } else if (event.type === 'CUSTOM' && event.name === 'a2ui' && event.value && typeof event.value === 'object') {
       onEvent({ type: 'CUSTOM', name: 'a2ui', value: event.value });
-    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result || event.snapshot.research_offer || event.snapshot.flight_preview)) {
-      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}), ...(event.snapshot.flight_preview ? { flight_preview: event.snapshot.flight_preview } : {}), research_offer: researchOfferProjection(event.snapshot.research_offer), assistant_message_id: typeof event.snapshot.assistant_message_id === 'string' ? event.snapshot.assistant_message_id.slice(0, 100) : undefined } });
+    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result || event.snapshot.research_offer || event.snapshot.flight_preview || event.snapshot.travel_specialist_result)) {
+      const specialist = travelTopicProjection(event.snapshot.travel_specialist_result, plan.plan_id, topic);
+      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(specialist ? { travel_specialist_result: specialist } : {}), ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}), ...(event.snapshot.flight_preview ? { flight_preview: event.snapshot.flight_preview } : {}), research_offer: researchOfferProjection(event.snapshot.research_offer), assistant_message_id: typeof event.snapshot.assistant_message_id === 'string' ? event.snapshot.assistant_message_id.slice(0, 100) : undefined } });
     } else if (event.type === 'TERMINAL') {
       terminal = {
         type: 'TERMINAL',
@@ -61,6 +63,7 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, forwar
         sources: Array.isArray(event.sources) ? event.sources.slice(0, 5).map(source => ({ title: String(source?.title || '').slice(0, 120), url: String(source?.url || '').slice(0, 320) })) : [],
         message: typeof event.message === 'string' ? event.message.slice(0, 240) : undefined,
         research_offer: researchOfferProjection(event.research_offer),
+        ...(travelTopicProjection(event.travel_specialist_result, plan.plan_id, topic) ? { travel_specialist_result: travelTopicProjection(event.travel_specialist_result, plan.plan_id, topic) } : {}),
         assistant_message_id: typeof event.assistant_message_id === 'string' ? event.assistant_message_id.slice(0, 100) : undefined,
       };
       onEvent(terminal);
@@ -93,6 +96,14 @@ export const plansApi = {
   activity: (plan, id) => request(`${path(plan.plan_id)}/activity`, {}, { headers: { 'Idempotency-Key': id, 'If-Match': String(plan.revision) } }),
   destinations: plan => request(`${path(plan.plan_id)}/destinations`),
   conversationMessages: plan => request(`${path(plan.plan_id)}/conversation/messages`),
+  travelTopic: async (plan, topic) => {
+    const snapshot = travelTopicProjection(await request(`${path(plan.plan_id)}/travel/${encodeURIComponent(topic)}`), plan.plan_id, topic);
+    if (!snapshot) throw new ApiError('This discussion could not be loaded safely.', 502);
+    return snapshot;
+  },
+  travelTurn: (plan, topic, message, id, stream) => agentTurnStream(plan, message, id, { ...stream, topic }),
+  prepareTravelChoice: (plan, topic, action, revision) => request(`${path(plan.plan_id)}/travel/${encodeURIComponent(topic)}/choices/challenge`, action, { headers: { 'Idempotency-Key': requestId(), 'If-Match': String(revision) } }),
+  commitTravelChoice: (plan, topic, action, revision, challenge, id) => request(`${path(plan.plan_id)}/travel/${encodeURIComponent(topic)}/choices`, action, { headers: { 'Idempotency-Key': id, 'If-Match': String(revision), 'X-Plan-Challenge': challenge } }),
   researchContext: plan => request(`${path(plan.plan_id)}/research-context`),
   researchOffer: plan => request(`${path(plan.plan_id)}/research-offer`),
   researchOfferAction: (plan, action, revision, id) => request(`${path(plan.plan_id)}/research-offer/actions`, action, { headers: { 'Idempotency-Key': id, 'If-Match': String(revision) } }),

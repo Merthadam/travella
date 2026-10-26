@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import html
+import hashlib
 import ipaddress
 import json
 import math
 import re
+import time
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
@@ -17,6 +19,7 @@ from services.agent.travel_contracts import INPUTS, OUTPUTS
 from services.shared.traveler_profile import reference_catalog
 
 BASE = "https://api.liteapi.travel/v3.0"
+_catalog_cache: dict[tuple[str, str, str], tuple[float, dict]] = {}
 
 
 class ProviderUnavailable(Exception):
@@ -436,6 +439,38 @@ class LiteApi:
         except (httpx.HTTPError, ValueError, TypeError):
             raise ProviderUnavailable() from None
 
+    def _catalog_key(self, kind):
+        return (BASE, hashlib.sha256((self.key or "").encode()).hexdigest(), kind)
+
+    async def stay_catalog(self, kind, *, cached_only=False):
+        key = self._catalog_key(kind)
+        cached = _catalog_cache.get(key)
+        if cached and cached[0] > time.monotonic():
+            return cached[1]
+        if cached_only:
+            raise ProviderUnavailable("provider_response_invalid")
+        raw = await self.request("GET", "/data/hotelTypes" if kind == "hotel_types" else "/data/facilities")
+        if not isinstance(raw.get("data"), list):
+            raise ProviderUnavailable("provider_response_invalid")
+        values = []
+        for item in raw["data"]:
+            item = obj(item)
+            identifier = item.get("id", item.get("facilityId", item.get("facility_id")))
+            label = text(item.get("name", item.get("facility")), 120)
+            if isinstance(identifier, str) and identifier.isdigit():
+                identifier = int(identifier)
+            if type(identifier) is int and identifier > 0 and label:
+                values.append({"id": identifier, "name": label})
+        if raw["data"] and not values:
+            raise ProviderUnavailable("provider_response_invalid")
+        values = list({item["id"]: item for item in values}.values())
+        result = {"provider": "LiteAPI", "sandbox": self.sandbox, "kind": kind,
+                  "items": values[:1000], "truncated": len(values) > 1000}
+        if len(_catalog_cache) >= 64:
+            _catalog_cache.pop(next(iter(_catalog_cache)))
+        _catalog_cache[key] = (time.monotonic() + 3600, result)
+        return result
+
     async def call(self, action, criteria):
         data = INPUTS[action].model_validate(criteria).model_dump(mode="json")
         envelope = {"provider": "LiteAPI", "sandbox": self.sandbox}
@@ -455,7 +490,11 @@ class LiteApi:
             }
         if action in {"airports", "flights/search", "flights/verify"} and not self.flights_enabled:
             raise ProviderUnavailable()
-        if action == "flights/verify":
+        if action == "hotels/catalog":
+            catalog = await self.stay_catalog(data["kind"])
+            matches = [item for item in catalog["items"] if data["q"].casefold() in item["name"].casefold()]
+            result = {**catalog, "items": matches[:100], "truncated": catalog["truncated"] or len(matches) > 100}
+        elif action == "flights/verify":
             from .travel_research import verify_offer
             result = {**envelope, **await verify_offer(self, data["option_id"])}
         elif action == "hotels/reviews":
@@ -522,6 +561,13 @@ class LiteApi:
             result = {**envelope, "status": "ready", "hotel": hotel_content(h)}
         else:
             if action == "hotels/search":
+                for field, kind in (("hotel_type_ids", "hotel_types"), ("facility_ids", "facilities")):
+                    if data[field]:
+                        # Resolve catalogs explicitly first: no hidden provider calls
+                        # outside the specialist's ten-call research budget.
+                        catalog = await self.stay_catalog(kind, cached_only=True)
+                        if not set(data[field]).issubset({item["id"] for item in catalog["items"]}):
+                            raise ValueError("unknown_stay_filter")
                 body = {
                     "checkin": data["check_in"],
                     "checkout": data["check_out"],
@@ -536,6 +582,13 @@ class LiteApi:
                     "limit": 30,
                     "timeout": 12,
                 }
+                if data["hotel_type_ids"]:
+                    body["hotelTypeIds"] = data["hotel_type_ids"]
+                if data["facility_ids"]:
+                    body["facilities"] = data["facility_ids"]
+                    body["strictFacilityFiltering"] = data["strict_facility_filtering"]
+                if data["refundable_rates_only"]:
+                    body["refundableRatesOnly"] = True
                 body.update(
                     {"hotelIds": [data["hotel_id"]]}
                     if data["hotel_id"]

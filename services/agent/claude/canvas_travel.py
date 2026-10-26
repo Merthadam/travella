@@ -581,6 +581,7 @@ class TravelSearchFailure(Exception):
 class CanvasTravelObserver:
     names = {"travel_capabilities", "search_destinations", "search_stays", "search_airports", "search_flights"}
     max_calls = 5
+    evidence_limit = 24576
     category_limits = {"lookup": 2}
 
     def __init__(self, client, context, authorization_token, draft, message, deadline=None, *, flight_only=False, parse_message=True):
@@ -720,7 +721,7 @@ class CanvasTravelObserver:
                 payload = {"search_id": snapshot.search_id, "mode": mode, "count": snapshot.returned_count,
                            "options": [{"id": item.id, "label": (getattr(item, "name", None) or ", ".join(item.airlines))[:240], "price": item.price.model_dump(exclude={"excluded_taxes"})} for item in snapshot.results[:10]]}
             encoded = json.dumps(payload, ensure_ascii=False)
-            if self.tool_bytes + len(encoded.encode()) > 24576:
+            if self.tool_bytes + len(encoded.encode()) > self.evidence_limit:
                 raise ValueError("travel_text_limit")
             self.tool_bytes += len(encoded.encode())
             return {"content": [{"type": "text", "text": encoded}]}

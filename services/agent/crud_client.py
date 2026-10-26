@@ -33,6 +33,19 @@ class CrudContextReader:
     def __init__(self, base_url: str) -> None:
         self.base_url = base_url.rstrip("/")
 
+    async def travel_run(self, plan_id: UUID, token: str, *, topic: str, **payload) -> dict:
+        if topic not in {"stays", "flights"}:
+            raise HTTPException(422, "Unknown travel discussion.")
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(
+                f"{self.base_url}/v1/plans/{plan_id}/travel/{topic}/run",
+                headers={"Authorization": f"Bearer {token}"}, json=payload,
+            )
+        if response.status_code >= 400:
+            raise HTTPException(response.status_code if response.status_code in {401, 404, 409, 422} else 503,
+                                "Travel discussion changed or could not be saved. Please retry.")
+        return response.json()
+
     async def context(self, plan_id: UUID, token: str) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(

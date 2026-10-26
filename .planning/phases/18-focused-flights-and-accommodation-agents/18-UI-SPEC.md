@@ -1,12 +1,12 @@
 ---
 phase: 18
-status: draft
-visual_verification: blocked
+status: implemented
+visual_verification: desktop_mobile_inspected
 ---
 
 # Focused travel workspaces
 
-This is a textual design contract for the agreed direction, not a visually verified design. The user declined interactive alternatives. Before frontend implementation, capture and inspect the current screens and a rendered outline through Chrome DevTools; the profile conflict is recorded in the evidence report.
+The user declined interactive alternatives. An isolated Chrome DevTools session captured the rendered desktop/mobile outline before implementation and the authenticated final workspaces after implementation. Screenshots were inspected; broader light/native-zoom acceptance remains pending. See the execution verification report.
 
 ## Layout and navigation
 
@@ -33,4 +33,4 @@ Use the existing Stays navigation label and “Accommodation assistant” in its
 
 Reuse semantic buttons/forms, visible focus, keyboard navigation and existing accessible chat markup. Focus returns to the triggering option after detail/review closes. Errors use alerts; streaming text avoids repeatedly announcing the full transcript. Test desktop and mobile, light/dark themes and 200% zoom. No composer obstruction, clipped comparison terms or focus loss on topic switch.
 
-Planning outline: `artifacts/testing/2026-10-25-focused-travel-planning/plan/workspace-outline.html`. Screenshots and visual inspection are pending; existence of this file does not waive the project testing skill.
+Planning outline: `artifacts/testing/2026-10-25-focused-travel-planning/plan/workspace-outline.html`. Inspected planning screenshots: artifacts/testing/2026-10-25-focused-travel/plan/workspace-desktop.png and workspace-mobile.png. Actual implementation evidence is in the adjacent implementation directory.

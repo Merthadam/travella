@@ -58,6 +58,10 @@ class HotelSearch(Strict):
     guest_nationality: Country
     currency: Currency = "EUR"
     hotel_id: HotelId | None = None
+    hotel_type_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(default_factory=list, max_length=10)
+    facility_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(default_factory=list, max_length=10)
+    strict_facility_filtering: bool = True
+    refundable_rates_only: bool = False
     _exact_dates = field_validator("check_in", "check_out", mode="before")(exact_date)
     _nationality = field_validator("guest_nationality")(Destination.country.__func__)
 
@@ -130,6 +134,24 @@ class FlightVerifyQuery(Strict):
     option_id: str = Field(pattern=r"^flight-[a-f0-9]{32}$")
 
 
+class StayCatalogQuery(Strict):
+    kind: Literal["hotel_types", "facilities"]
+    q: str = Field(default="", max_length=80)
+
+
+class StayCatalogItem(Strict):
+    id: int = Field(strict=True, ge=1)
+    name: str = Field(min_length=1, max_length=120)
+
+
+class StayCatalog(Strict):
+    provider: Literal["LiteAPI"] = "LiteAPI"
+    sandbox: bool
+    kind: Literal["hotel_types", "facilities"]
+    items: list[StayCatalogItem] = Field(max_length=1000)
+    truncated: bool = False
+
+
 class SandboxHandle(Strict):
     token: str = Field(min_length=50, max_length=40000, pattern=r"^[A-Za-z0-9_=-]+$")
 
@@ -157,6 +179,7 @@ class TravelInvocation(Strict):
         "hotels/search",
         "hotels/detail",
         "hotels/reviews",
+        "hotels/catalog",
         "flights/search",
         "flights/verify",
         "sandbox/prebook",
@@ -197,6 +220,7 @@ INPUTS = {
     "hotels/search": HotelSearch,
     "hotels/detail": HotelQuery,
     "hotels/reviews": HotelReviewsQuery,
+    "hotels/catalog": StayCatalogQuery,
     "flights/search": FlightSearch,
     "flights/verify": FlightVerifyQuery,
 }
@@ -433,6 +457,7 @@ OUTPUTS = {
     "hotels/search": SearchResult,
     "hotels/detail": HotelDetail,
     "hotels/reviews": HotelReviews,
+    "hotels/catalog": StayCatalog,
     "flights/search": SearchResult,
     "flights/verify": FlightVerification,
 }

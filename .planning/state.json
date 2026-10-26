@@ -76,7 +76,7 @@
     {
       "number": "18",
       "name": "Focused Flights and Accommodation Agents",
-      "status": "planned"
+      "status": "in_progress"
     }
   ],
   "next": {
@@ -84,5 +84,5 @@
     "label": "Review implemented desktop Research cleanup",
     "reason": "No implementation blockers; independent verification human_needed. Desktop acceptance/native zoom and authorized live-model quality remain pending; prior Phase15 untouched."
   },
-  "updated_at": "2026-10-25T11:48:33.023321+00:00"
+  "updated_at": "2026-10-26T01:00:00Z"
 }

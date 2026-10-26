@@ -16,6 +16,8 @@ class AgentState(TypedDict, total=False):
     event_id: str
     generation: int
     message: str
+    topic: str
+    travel_specialist_result: dict[str, Any] | None
     canvas_action: str | None
     canvas_draft: dict[str, Any] | None
     canvas_edit: dict[str, Any] | None

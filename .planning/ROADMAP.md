@@ -485,7 +485,7 @@ Plans:
 **Requirements:** FOCUS-01, FOCUS-02, FOCUS-03, FOCUS-04, FOCUS-05, FOCUS-06, FOCUS-07, FOCUS-08, FOCUS-09, FOCUS-10
 **Depends on:** Existing Phase 16/17 Canvas and Agent implementation; LiteAPI tools in caf905b. Earlier acceptance gaps remain independently open.
 **UI hint:** yes
-**Status:** Draft plans written; visual planning evidence pending (Chrome DevTools profile conflict). No implementation started.
+**Status:** Implemented locally; authenticated browser, actual HTTP/PostgreSQL persistence and a bounded live SDK/provider sample exercised. Full agent-quality matrix and user UAT remain pending. See 18-VERIFICATION.md.
 
 **Success Criteria:**
 1. Trip, Flights and Stays histories remain separate across reload/session boundaries, with topic-specific tools enforced by the host.
@@ -494,12 +494,12 @@ Plans:
 4. Explicit shortlisted/preferred research choices persist through authorized CRUD and remain visibly unbooked; preferred-option choice marks a substage ready and relevant shared changes require review.
 5. HTTP/database, migration, browser and grounded-agent evaluations establish behavior, with source/evidence links and any live limits recorded.
 
-**Plans:** 5 draft implementation plans in 5 sequential development waves; these are not traveler-facing stages.
+**Plans:** Four implementation plans delivered; integrated evidence recorded in plan05, with full live-quality/user acceptance still open. These development waves are not traveler-facing stages.
 
-- [ ] 18-01-PLAN.md — Stays conversation end to end and compact versioned brief
-- [ ] 18-02-PLAN.md — Accommodation matching and grounded comparison
-- [ ] 18-03-PLAN.md — Dedicated flight research conversation
-- [ ] 18-04-PLAN.md — Durable research memory and explicit trip choices
+- [x] 18-01-PLAN.md — Stays conversation end to end and compact versioned brief
+- [x] 18-02-PLAN.md — Accommodation matching and grounded comparison
+- [x] 18-03-PLAN.md — Dedicated flight research conversation
+- [x] 18-04-PLAN.md — Durable research memory and explicit trip choices
 - [ ] 18-05-PLAN.md — Integrated browser, persistence and agent acceptance
 
-**Cross-cutting constraints:** One Plan graph and Agent service; Claude SDK workers with application-owned history; CRUD authority; exact confirmation; bounded topic context/tools; no booking/payment expansion; no auto-execution. See phase CONTEXT, REQUIREMENTS, UI-SPEC, AI-SPEC and VALIDATION.
+**Cross-cutting constraints:** One Plan graph and Agent service; Claude SDK workers with application-owned history; CRUD authority; exact confirmation; bounded topic context/tools; no booking/payment expansion; implementation explicitly authorized. See phase CONTEXT, REQUIREMENTS, UI-SPEC, AI-SPEC and VALIDATION.
