@@ -176,7 +176,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   return <div className="canvas-map-adapter">
     <div className="canvas-map-frame">
       <div className="canvas-google-map" ref={canvas} aria-label={usableDestination ? `Map of ${usableDestination}` : 'Destination map'}/>
-      <div className="canvas-map-tools"><button type="button" className="ds-button small" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}>Show all places</button></div>
+      <div className="canvas-map-tools"><button type="button" className="ds-button canvas-map-reset" aria-label="Show all places" title="Show all places" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     </div>
     {message && <div className="canvas-map-message" role="status">
       {message && <p>{message}</p>}

@@ -43,6 +43,7 @@
 .ds-places .canvas-map-frame .canvas-google-map { position:absolute; inset:0; height:100%; border-radius:8px; }
 .ds-places .canvas-map-frame .canvas-map-tools { position:absolute; z-index:1; top:12px; left:12px; right:12px; margin:0; pointer-events:none; }
 .ds-places .canvas-map-tools .ds-button { pointer-events:auto; min-height:44px; background:var(--ds-surface); color:var(--ds-ink); border:1px solid var(--ds-line); box-shadow:0 2px 8px #0003; }
+.ds-places .canvas-map-tools .canvas-map-reset { width:44px; height:44px; padding:0; border-radius:10px; }
 .ds-places .canvas-map-tools .ds-button:hover:not(:disabled) { background:var(--ds-soft); }
 .ds-places .canvas-map-pin { display:block; width:28px; height:36px; padding:0; border:0; border-radius:0; background:none; box-shadow:none; filter:drop-shadow(0 1px 2px #0005); }
 .ds-places .canvas-map-pin svg { width:28px; height:36px; }
