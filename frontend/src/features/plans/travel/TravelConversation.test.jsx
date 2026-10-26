@@ -15,14 +15,14 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-test('topic discussions restore separately, preserve unsent drafts, and reveal manual search deliberately', async () => {
+test('topic discussions restore separately, preserve unsent drafts, and keep manual search available alongside collapsible chat', async () => {
   const user = userEvent.setup();
   const api = { travelTopic: vi.fn(async (_, topic) => ({ ...snapshot(topic), messages: [{ message_id: topic, role: 'assistant', content: topic === 'stays' ? 'A quiet apartment matters.' : 'Prefer a morning flight.' }] })), travelTurn: vi.fn(), cancelAgentTurn: vi.fn() };
   function Workspaces({ mode }) { return <><TravelWorkspace selected={selected} api={api} mode="accommodation" active={mode === 'stays'} pendingEdits/><TravelWorkspace selected={selected} api={api} mode="flights" active={mode === 'flights'}/></>; }
   const view = render(<Workspaces mode="stays"/>);
   await screen.findByText('A quiet apartment matters.');
   expect(screen.queryByText('Prefer a morning flight.')).toBeTruthy(); // retained hidden workspace
-  expect(screen.queryByRole('region', { name: 'Manual search' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'Manual search' })).toBeTruthy();
   const composer = screen.getByRole('textbox', { name: 'Message accommodation assistant' });
   await user.type(composer, 'I would like a balcony');
   expect(screen.getByText(/unfinished canvas edits/)).toBeTruthy();
@@ -31,8 +31,11 @@ test('topic discussions restore separately, preserve unsent drafts, and reveal m
   expect(screen.queryByRole('textbox', { name: 'Message accommodation assistant' })).toBeNull();
   view.rerender(<Workspaces mode="stays"/>);
   expect(screen.getByRole('textbox', { name: 'Message accommodation assistant' }).value).toBe('I would like a balcony');
-  await user.click(screen.getByRole('button', { name: 'Adjust search' }));
+  await user.click(screen.getByRole('button', { name: 'Hide accommodation chat' }));
+  expect(screen.queryByRole('textbox', { name: 'Message accommodation assistant' })).toBeNull();
   expect(screen.getByRole('region', { name: 'Manual search' })).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Open accommodation chat' }));
+  expect(screen.getByRole('textbox', { name: 'Message accommodation assistant' }).value).toBe('I would like a balcony');
   expect(api.travelTurn).not.toHaveBeenCalled();
 });
 

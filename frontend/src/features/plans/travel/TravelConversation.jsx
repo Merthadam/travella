@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChatMarkdown } from '../components/ChatMarkdown';
 
-export function TravelConversation({ chat, topic, visible, disabled, onDraftMessage }) {
+export function TravelConversation({ chat, topic, visible, disabled, onDraftMessage, onClose }) {
   const [input, setInput] = useState('');
   const history = useRef(null), nearBottom = useRef(true), composer = useRef(null);
   const title = topic === 'stays' ? 'Accommodation assistant' : 'Flight assistant';
@@ -13,7 +13,7 @@ export function TravelConversation({ chat, topic, visible, disabled, onDraftMess
     setInput(''); await chat.send(text); requestAnimationFrame(() => composer.current?.focus());
   }
   return <aside className="canvas-chat travel-conversation" aria-label={title}>
-    <header className="canvas-chat-header"><div className="canvas-guide-heading"><div><strong>{title}</strong><small>Find the best fit among the options we check.</small></div></div></header>
+    <header className="canvas-chat-header"><div className="canvas-guide-heading"><div><strong>{title}</strong><small>Find the best fit among the options we check.</small></div></div>{onClose && <button type="button" className="canvas-chat-collapse" aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}>×</button>}</header>
     <div className="canvas-chat-history" ref={history} aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} discussion`} aria-busy={chat.active || chat.loading} onScroll={event => { const el = event.currentTarget; nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
       {chat.loading && <p role="status">Loading your discussion…</p>}
       {chat.historyError && <div className="canvas-chat-error" role="alert"><p>{chat.historyError}</p><button type="button" className="ds-button" onClick={chat.retryHistory}>Retry loading discussion</button></div>}

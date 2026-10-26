@@ -310,3 +310,22 @@ test.each(['accommodation', 'flights'])('%s paginates ten at a time, preserves c
   expect(screen.queryByText('Your comparison (1/3)')).toBeNull();
   expect(travelRequest).not.toHaveBeenCalled();
 });
+
+
+test("manual results can prepare a discussion without replacing browsing or exposing offer tokens", async () => {
+  const onDiscuss = vi.fn();
+  const data = response("Courtyard apartment");
+  data.results[0].checkout_token = "private-offer-token";
+  searchRequest.mockResolvedValue(data);
+  render(<TravelSearch {...props} onDiscuss={onDiscuss} />);
+  const user = await fill();
+  await user.click(screen.getByRole("button", { name: "Search stays" }));
+  await user.click(await screen.findByRole("button", { name: "Discuss with assistant" }));
+  expect(onDiscuss).toHaveBeenCalledTimes(1);
+  const message = onDiscuss.mock.calls[0][0];
+  expect(message).toContain("Courtyard apartment");
+  expect(message).toContain("2027-11-13 to 2027-11-16");
+  expect(message).not.toContain("private-offer-token");
+  expect(screen.getByRole("button", { name: /View rooms/ })).toBeTruthy();
+  expect(searchRequest).toHaveBeenCalledTimes(1);
+});

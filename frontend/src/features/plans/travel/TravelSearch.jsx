@@ -415,7 +415,7 @@ export function filterResults(
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
 }
-export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = '' }) {
+export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = '', onDiscuss }) {
   const stay = mode === "accommodation";
   const dates = initialData?.essentials?.dates;
   const [city, setCity] = useState(initialData?.map?.destination || "");
@@ -1082,6 +1082,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                     >
                       {stay ? "View rooms" : "View flight"} →
                     </button>
+                    {onDiscuss && <button type="button" onClick={() => onDiscuss(`Help me assess this ${stay ? 'stay' : 'return flight'} from my manual search: ${stay ? item.name : item.airlines.join(' / ')}. ${stay ? `${snapshot.criteria.check_in} to ${snapshot.criteria.check_out}` : `${snapshot.criteria.origin} to ${snapshot.criteria.destination}, ${snapshot.criteria.departure_date} to ${snapshot.criteria.return_date}`}. Shown total: ${priceLabel(item.price)}. Please check how it fits my trip and verify current details before recommending it.`.slice(0, 1800))}>Discuss with assistant</button>}
                     <label className="travel-check">
                       <input
                         type="checkbox"

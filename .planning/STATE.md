@@ -246,6 +246,8 @@ Resume file: None
 | 261024-ko9 | Simplify login globe and remove prototype viewport cutoff; browser verified | 2026-10-24 | 8d4111f | — | [261024-ko9-simplify-selected-login-a-globe-illustra](./quick/261024-ko9-simplify-selected-login-a-globe-illustra/) |
 | 261024-lb5 | Implement approved full-screen login A; 52 tests and real authentication browser checks passed | 2026-10-24 | 63bec5d | — | [261024-lb5-implement-approved-full-screen-login-a-d](./quick/261024-lb5-implement-approved-full-screen-login-a-d/) |
 
+| 261026-b8g | Restore manual travel browsing with parallel separate specialist sidechat; desktop/mobile and manual provider journeys verified | 2026-10-26 | see task summary | Verified | [261026-b8g](./quick/261026-b8g-restore-manual-travel-booking-interfaces/) |
+
 ### Roadmap Evolution — 2026-10-06
 
 - Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.

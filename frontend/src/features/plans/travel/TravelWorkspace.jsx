@@ -11,7 +11,10 @@ const optionId = option => option.evidence_id || option.id;
 export function TravelWorkspace({ selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, importedSnapshot, importRequest, importReason }) {
   const topic = mode === 'accommodation' ? 'stays' : 'flights';
   const chat = useTravelConversation({ selected, api, topic, visible: active, blocked, onExpired, onBusyChange });
-  const [pane, setPane] = useState('chat'), [manual, setManual] = useState(false), [draftMessage, setDraftMessage] = useState(null);
+  const [pane, setPane] = useState('options'), [chatOpen, setChatOpen] = useState(true), [draftMessage, setDraftMessage] = useState(null);
+  const chatToggle = useRef(null), browseTab = useRef(null);
+  function openChat() { setChatOpen(true); setPane('chat'); }
+  function closeChat() { setChatOpen(false); setPane('options'); requestAnimationFrame(() => { const target = browseTab.current?.getClientRects().length ? browseTab.current : chatToggle.current; target?.focus(); }); }
   const [selectedIds, setSelectedIds] = useState([]), [review, setReview] = useState(null), [saving, setSaving] = useState(false), [choiceError, setChoiceError] = useState('');
   const [clock, setClock] = useState(Date.now());
   const dialog = useRef(null), returnFocus = useRef(null);
@@ -19,7 +22,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
   const unavailable = blocked || chat.active || chat.loading || snapshot?.locked || Boolean(chat.historyError);
   const stop = useRef(chat.stop); stop.current = chat.stop;
   useEffect(() => { registerStop?.(mode, () => stop.current()); return () => registerStop?.(mode, null); }, [mode, registerStop]);
-  useEffect(() => { if (importedSnapshot) { setManual(true); setPane('options'); } }, [importRequest, importedSnapshot?.search_id]);
+  useEffect(() => { if (importedSnapshot) { setPane('options'); } }, [importRequest, importedSnapshot?.search_id]);
   useEffect(() => { if (review) { returnFocus.current = document.activeElement; dialog.current?.showModal(); } else { dialog.current?.close(); returnFocus.current?.focus?.(); } }, [review]);
   useEffect(() => { setSelectedIds([]); }, [snapshot?.comparison]);
   useEffect(() => { if (!active) return; const timer = setInterval(() => setClock(Date.now()), 10000); return () => clearInterval(timer); }, [active]);
@@ -28,7 +31,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
   const preferred = snapshot?.preferred;
   const readiness = snapshot?.readiness === 'ready' ? 'Ready · selected, not booked' : snapshot?.readiness === 'needs_review' ? 'Needs review · trip details changed' : 'Researching';
   function discuss(items) {
-    setDraftMessage({ text: `${items.length > 1 ? 'Compare these options for my trip' : 'Tell me more about this option'}: ${items.map(item => `${item.title} (reference ${optionId(item)})`).join('; ')}.`, nonce: Date.now() }); setPane('chat');
+    setDraftMessage({ text: `${items.length > 1 ? 'Compare these options for my trip' : 'Tell me more about this option'}: ${items.map(item => `${item.title} (reference ${optionId(item)})`).join('; ')}.`, nonce: Date.now() }); openChat();
   }
   async function prepare(action, option) {
     if (unavailable || saving) return;
@@ -62,28 +65,28 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
       {option.unknowns?.length > 0 && <p className="travel-option-unknowns"><strong>Still to check:</strong> {option.unknowns.join(' · ')}</p>}
       <p className="travel-option-source">{option.provider} · Observed {new Date(option.observed_at).toLocaleString()}<br/>Historical research. Price and availability may change; no reservation is held.</p>
       {stale && <p className="travel-option-unknowns">This observed offer has expired. Search again for current options.</p>}
-      <div className="travel-option-actions"><button type="button" className="ds-button small" disabled={unavailable} onClick={() => discuss([option])}>Discuss this option</button>{stale && <button type="button" className="ds-button small" disabled={unavailable} onClick={() => { setDraftMessage({ text: `Search again for current options similar to ${option.title}.`, nonce: Date.now() }); setPane('chat'); }}>Search again</button>}{!isSaved && !chosen && <button type="button" className="ds-button small" disabled={unavailable || saving || stale || shortlist.length >= 5} onClick={() => prepare('shortlist', option)}>Save to shortlist</button>}{(!chosen || snapshot.readiness === 'needs_review') && <button type="button" className="ds-button primary small" disabled={unavailable || saving || stale} onClick={() => prepare('prefer', option)}>{chosen ? 'Review choice' : 'Choose for trip'}</button>}{(isSaved || chosen || saved) && <button type="button" className="ds-text-button" disabled={unavailable || saving} onClick={() => prepare('remove', option)}>Remove {chosen ? 'choice' : 'from shortlist'}</button>}</div>
+      <div className="travel-option-actions"><button type="button" className="ds-button small" disabled={unavailable} onClick={() => discuss([option])}>Discuss this option</button>{stale && <button type="button" className="ds-button small" disabled={unavailable} onClick={() => { setDraftMessage({ text: `Search again for current options similar to ${option.title}.`, nonce: Date.now() }); openChat(); }}>Search again</button>}{!isSaved && !chosen && <button type="button" className="ds-button small" disabled={unavailable || saving || stale || shortlist.length >= 5} onClick={() => prepare('shortlist', option)}>Save to shortlist</button>}{(!chosen || snapshot.readiness === 'needs_review') && <button type="button" className="ds-button primary small" disabled={unavailable || saving || stale} onClick={() => prepare('prefer', option)}>{chosen ? 'Review choice' : 'Choose for trip'}</button>}{(isSaved || chosen || saved) && <button type="button" className="ds-text-button" disabled={unavailable || saving} onClick={() => prepare('remove', option)}>Remove {chosen ? 'choice' : 'from shortlist'}</button>}</div>
       {!saved && <label className="travel-compare-check"><input type="checkbox" checked={selectedIds.includes(id)} disabled={unavailable} onChange={event => setSelectedIds(ids => event.target.checked ? [...ids, id] : ids.filter(value => value !== id))}/> Compare this option</label>}
     </article>;
   }
-  return <div hidden={!active} className={`travel-workspace travel-pane-${pane}`}>
+  return <div hidden={!active} className={`travel-workspace travel-pane-${pane} ${chatOpen ? "travel-chat-open" : "travel-chat-closed"}`}>
     <div className="travel-substage-status" role="status">{readiness}</div>
     <TravelContextSummary brief={snapshot?.brief} pending={pendingEdits}/>
     {pendingEdits && <p className="travel-pending-context" role="status">Your unfinished canvas edits are not included yet. Finish saving them to update this discussion.</p>}
-    <nav className="travel-pane-tabs" aria-label={`${topic} workspace view`}><button type="button" aria-pressed={pane === 'chat'} onClick={() => setPane('chat')}>Chat</button><button type="button" aria-pressed={pane === 'options'} onClick={() => setPane('options')}>Options ({options.length})</button></nav>
+    <div className="travel-workspace-toolbar"><p>Search and compare yourself, or talk it through with your assistant.</p><button ref={chatToggle} type="button" className="ds-button small travel-chat-toggle" aria-controls={`travel-${topic}-chat`} aria-expanded={chatOpen} onClick={chatOpen ? closeChat : openChat}>{chatOpen ? 'Hide' : 'Open'} {topic === 'stays' ? 'accommodation' : 'flight'} chat</button></div>
+    <nav className="travel-pane-tabs" aria-label={`${topic} workspace view`}><button ref={browseTab} type="button" aria-pressed={pane === 'options'} onClick={() => setPane('options')}>Browse {topic === 'stays' ? 'stays' : 'flights'}</button><button type="button" aria-pressed={pane === 'chat'} onClick={openChat}>{topic === 'stays' ? 'Accommodation' : 'Flight'} chat{chat.active ? ' · replying' : ''}</button></nav>
     <div className="travel-workspace-panes">
-      <div className="travel-chat-pane"><TravelConversation chat={chat} topic={topic} visible={active && pane === 'chat'} disabled={blocked || snapshot?.locked && !chat.active} onDraftMessage={draftMessage}/></div>
       <section className="travel-options-pane" aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} options`}>
-        <header className="travel-options-heading"><div><h2>Your options</h2><p role="status">{options.length ? `${options.length} options checked for this trip` : 'Start with what matters to you in the discussion.'}</p></div><button type="button" className="ds-button small" aria-expanded={manual} onClick={() => setManual(value => !value)}>Adjust search</button></header>
+        <TravelSearch planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={text => { setDraftMessage({ text, nonce: Date.now() }); openChat(); }}/>
+        {(preferred || shortlist.length > 0 || options.length > 0) && <header className="travel-options-heading"><div><h2>Assistant recommendations</h2><p>{options.length} options checked in your discussion</p></div></header>}
         {snapshot?.readiness === 'needs_review' && <p className="canvas-notice">Your trip details have changed. The previous choice is kept for reference. Research again before confirming it fits.</p>}
         {preferred && <section aria-label="Preferred option"><h2>Your choice</h2>{card(preferred, true)}</section>}
         {shortlist.filter(item => optionId(item) !== optionId(preferred || {})).length > 0 && <section aria-label="Saved shortlist"><h2>Shortlist</h2>{shortlist.filter(item => optionId(item) !== optionId(preferred || {})).map(item => card(item, true))}</section>}
         {options.length > 0 && <section aria-label="Research comparison"><div className="travel-comparison-heading"><h2>Latest research</h2><button type="button" className="ds-button small" disabled={unavailable || selectedIds.length < 2} onClick={() => discuss(options.filter(item => selectedIds.includes(optionId(item))))}>Compare selected ({selectedIds.length})</button></div>{options.map(item => card(item))}</section>}
-        {!options.length && !preferred && <div className="travel-research-empty"><h3>{topic === 'stays' ? 'A stay that fits your trip' : 'A flight that fits your plans'}</h3><p>{topic === 'stays' ? 'Compare location, room details, cancellation terms, and the total stay price.' : 'Compare the full return journey, timings, baggage, fare terms, and total price.'}</p><p>Your assistant will ask about missing details before searching. You choose what to shortlist or select.</p></div>}
         {snapshot?.notes?.items?.length > 0 && <details className="travel-research-notes"><summary>What we’ve learned</summary><ul>{snapshot.notes.items.map((note, index) => <li key={index}><strong>{noteLabels[note.kind] || 'Research note'}:</strong> {note.text}</li>)}</ul>{snapshot.notes.incomplete && <p>This is a partial summary; the discussion keeps the details.</p>}</details>}
         {choiceError && !review && <p role="alert" className="canvas-chat-error">{choiceError}</p>}
-        <div hidden={!manual}><TravelSearch planId={selected.plan_id} mode={mode} active={active && manual} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason}/></div>
       </section>
+      <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatOpen}><TravelConversation chat={chat} topic={topic} visible={active && chatOpen} disabled={blocked || snapshot?.locked && !chat.active} onDraftMessage={draftMessage} onClose={closeChat}/></div>
     </div>
     <dialog className="canvas-confirm travel-choice-review" ref={dialog} aria-labelledby={`travel-${topic}-review`} onCancel={event => { event.preventDefault(); if (!saving) setReview(null); }}>
       <h2 id={`travel-${topic}-review`}>{review?.body.action === 'prefer' ? 'Choose this option for your trip?' : review?.body.action === 'remove' ? 'Remove this saved option?' : 'Save this option to your shortlist?'}</h2>

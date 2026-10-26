@@ -13,3 +13,23 @@
 .travel-research-empty{background:var(--ds-soft);border:1px dashed var(--ds-line);border-radius:14px;padding:24px;line-height:1.7;color:var(--ds-muted);font-size:14px;margin:10px 0}.travel-research-empty h3{color:var(--ds-ink);font-size:18px}.travel-research-notes{font-size:13px;line-height:1.7;margin:20px 0}.travel-research-notes summary{cursor:pointer}.travel-pane-tabs{display:none}.travel-options-pane .travel-search{padding:0}.travel-choice-review{max-width:min(560px,calc(100vw - 32px));overflow-wrap:anywhere}
 @media(max-width:900px){.travel-workspace-panes{grid-template-columns:minmax(280px,1fr) minmax(0,1fr)}.travel-options-pane{padding:16px}}
 @media(max-width:760px){.travel-pane-tabs{display:flex;gap:8px;margin-bottom:12px}.travel-pane-tabs button{flex:1;min-height:44px;border:1px solid var(--ds-line);border-radius:8px;background:var(--ds-surface);color:var(--ds-ink)}.travel-pane-tabs button[aria-pressed=true]{background:var(--ds-active);color:var(--ds-active-text)}.travel-workspace-panes{display:flex;height:calc(100dvh - 310px);min-height:450px}.travel-chat-pane,.travel-options-pane{width:100%;border:0}.travel-pane-chat .travel-options-pane,.travel-pane-options .travel-chat-pane{display:none}.travel-context-summary summary span{display:block}.travel-conversation .canvas-chat-composer{padding:12px}.travel-option-actions .ds-button{flex:1}.travel-choice-review>div{flex-wrap:wrap}}
+
+/* Manual browsing remains the primary pane; the specialist is a companion. */
+.canvas-travel-screen:not([hidden]):has(.travel-workspace){display:flex;flex-direction:column;overflow:hidden;padding-bottom:16px}
+.travel-workspace-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;flex-shrink:0}
+.travel-workspace-toolbar p{font-size:13px;color:var(--ds-muted);margin:0}
+.travel-workspace-panes{grid-template-columns:minmax(0,1fr) 380px;flex:1;min-height:0;height:auto;max-height:none;border:0;border-radius:0;background:transparent;gap:20px}
+.travel-chat-closed .travel-workspace-panes{grid-template-columns:minmax(0,1fr)}
+.travel-chat-pane{border:1px solid var(--ds-line);border-radius:14px;overflow:hidden}
+.travel-chat-pane[hidden]{display:none}
+.travel-options-pane{padding:0 8px 24px 0;container-type:inline-size}
+.travel-options-pane .travel-heading{margin-top:0}
+.travel-options-pane .travel-heading h2{font-size:30px}
+.travel-options-pane .travel-main-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.travel-options-pane .travel-main-fields>.travel-primary{grid-column:1/-1}
+.travel-options-heading{margin-top:28px;padding-top:20px;border-top:1px solid var(--ds-line)}
+@container(max-width:900px){.travel-results-layout{grid-template-columns:1fr}.travel-filters{display:flex;flex-wrap:wrap;gap:14px;align-items:center}.travel-filters h3{width:100%}.travel-filters>label{margin:0;flex:1;min-width:120px}.travel-result{flex-wrap:wrap}.travel-result-actions{width:100%;border-left:0;border-top:1px solid var(--ds-line)}}
+@media(max-width:1100px) and (min-width:761px){.travel-workspace-panes{grid-template-columns:minmax(0,1fr) 320px}.travel-result.stay{display:block}.travel-result>img,.travel-result .travel-photo-placeholder{width:100%;height:150px;object-fit:cover}}
+@media(max-width:760px){.canvas-travel-screen:not([hidden]):has(.travel-workspace){overflow:auto}.travel-workspace{flex:none}.travel-chat-toggle{display:none}.travel-workspace-toolbar{margin-bottom:12px}.travel-workspace-panes{display:block;flex:none;min-height:0;height:auto;overflow:visible}.travel-options-pane{padding:0;overflow:visible}.travel-chat-pane{height:calc(100dvh - 190px);min-height:400px}.travel-pane-chat .travel-options-pane,.travel-pane-options .travel-chat-pane{display:none}.travel-pane-chat .travel-chat-pane{display:block}.travel-pane-tabs{position:sticky;top:0;z-index:2;background:var(--ds-bg);padding:8px 0}.travel-options-pane .travel-heading h2{font-size:28px}}
+.canvas-travel-screen:has(.travel-workspace)>.travel-navigation,.canvas-travel-screen:has(.travel-workspace)>.canvas-travel-heading{width:100%;max-width:none;flex-shrink:0}
+@media(max-width:760px){.canvas-travel-screen .travel-workspace-toolbar .travel-chat-toggle{display:none}.travel-pane-tabs{background:var(--ds-surface)}.travel-workspace .travel-form,.travel-workspace input,.travel-workspace select{scroll-margin-top:80px}}
