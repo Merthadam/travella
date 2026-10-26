@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-26 — Quick261026-c0h completed: Canvas-consistent travel sidechat and manual browsing verified on desktop/mobile. Phase18 implemented with separate Claude SDK specialists inside a private LangGraph subflow, CRUD-owned topic histories/choices and dedicated Canvas discussions. Real browser/API/PostgreSQL checks and a bounded live SDK sample are recorded in Phase18 verification. Full live-quality matrix and user UAT remain open. Phase17 and Phase15 acceptance status is unchanged.
+Last activity: 2026-10-26 — Quick261026-d92 implemented: chat suggestions and manual property/amenity filters; automated checks pass, required browser verification awaits example-account sign-in recovery (401). Phase18 implemented with separate Claude SDK specialists inside a private LangGraph subflow, CRUD-owned topic histories/choices and dedicated Canvas discussions. Real browser/API/PostgreSQL checks and a bounded live SDK sample are recorded in Phase18 verification. Full live-quality matrix and user UAT remain open. Phase17 and Phase15 acceptance status is unchanged.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -248,6 +248,7 @@ Resume file: None
 
 | 261026-b8g | Restore manual travel browsing with parallel separate specialist sidechat; desktop/mobile and manual provider journeys verified | 2026-10-26 | see task summary | Verified | [261026-b8g](./quick/261026-b8g-restore-manual-travel-booking-interfaces/) |
 | 261026-c0h | Align travel with Canvas sidechat; shared controls, full-height dock, editable questions and mobile composer verified | 2026-10-26 | bb64608 | Verified | [261026-c0h](./quick/261026-c0h-align-travel-sidechat-with-canvas-and-si/) |
+| 261026-d92 | Suggestions in chat and shared provider stay filters implemented; authenticated browser checks await example-account sign-in recovery | 2026-10-26 | c82fb5b | Incomplete — browser auth | [261026-d92](./quick/261026-d92-put-travel-suggestions-in-chat-and-expos/) |
 
 ### Roadmap Evolution — 2026-10-06
 
