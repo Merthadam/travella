@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-25 — Completed quick task 261025-fg2: removed Check again; tests/build/browser verified.
+Last activity: 2026-10-26 — Completed quick task 261026-bob: latest main started locally; health, authentication and source hashes verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261026-bob | Start latest main locally | 2026-10-26 | c7d8906 (runtime source) | Health/auth/hashes passed; container migration compatibility applied | [Task](quick/261026-bob-start-latest-main-locally-and-verify-aut/) |
 | 261024-m71 | Persist Google place descriptions | 2026-10-24 | a11bf00 | 65 tests/build passed; reload uses saved descriptions with zero detail requests | [Task](quick/261024-m71-persist-google-place-descriptions-in-sav/) |
 | 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; running at localhost:5175 | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
 | 261024-liv | Sketch cleaner place cards (design only) | 2026-10-24 | — | Browser sketch checked; implementation pending user direction | [Task](quick/261024-liv-sketch-cleaner-place-cards/) |
@@ -400,3 +401,9 @@ Resume file: None
 - User authorized merge of eight-marten into main: taller map with floating reset, missing-description messaging without Check again, and whole-card travel navigation.
 - Source 03fe3d8 based on current main 4e0780a. Existing 14 map, 21 PlanningCanvas and 11 final place/link tests, build, and authenticated desktop/mobile checks passed. Scoped shipping security review: zero open threats.
 - PR #18: https://github.com/Merthadam/travella/pull/18 (eight-marten → main), created for the user-authorized merge. Shipping record: `.planning/quick/261025-canvas-polish-ship/VERIFICATION.md`. Preserve the separate dirty main checkout and running local app.
+
+### Canvas controls shipment — 2026-10-26
+
+- User approved the verified map reset icon and whole-card flight navigation and explicitly authorized merge. PR #19: https://github.com/Merthadam/travella/pull/19 (highly-rook → main).
+- Application source 73676b0; base c7d8906. 35 focused tests, build, authenticated desktop/mobile pointer/keyboard checks and runtime comparisons passed. Scoped security review: zero open threats.
+- Shipping record: .planning/quick/261026-canvas-controls-ship/VERIFICATION.md. Preview remains http://localhost:5190 because a concurrent checkout owns port 5174. Preserve dirty primary main checkout, database volumes and running stacks. This shipment does not close broader Phase 17 acceptance.
