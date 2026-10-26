@@ -118,3 +118,22 @@ test('starter prompts prepare editable drafts without starting research, using t
   expect(composer.value).toContain('\nNear my activities.');
   expect(api.travelTurn).not.toHaveBeenCalled();
 });
+
+test('suggestions live inside chat, filter by detail, and prepare a fresh search without sending', async () => {
+  const user = userEvent.setup();
+  const other = { ...option, id: 'other', title: 'Station hotel', summary: 'Near the train station.', facts: ['Breakfast'], unknowns: [] };
+  const api = { travelTopic: vi.fn(async () => ({ ...snapshot('stays'), comparison: { options: [option, other] } })), travelTurn: vi.fn() };
+  render(<TravelWorkspace api={api} selected={selected} mode="accommodation" active/>);
+  const suggestions = await screen.findByRole('region', { name: 'Travel suggestions' });
+  await within(suggestions).findByText('Courtyard apartment');
+  expect(suggestions.closest('.canvas-chat-history')).toBeTruthy();
+  expect(within(screen.getByRole('region', { name: 'Accommodation options' })).queryByText('Courtyard apartment')).toBeNull();
+  await user.type(within(suggestions).getByRole('searchbox', { name: 'Filter suggestions' }), 'kitchen');
+  expect(within(suggestions).queryByText('Station hotel')).toBeNull();
+  await user.click(within(suggestions).getByRole('button', { name: 'Search again' }));
+  expect(screen.getByRole('textbox', { name: 'Message accommodation assistant' }).value).toContain('Courtyard apartment');
+  expect(api.travelTurn).not.toHaveBeenCalled();
+  await user.clear(within(suggestions).getByRole('searchbox'));
+  await user.type(within(suggestions).getByRole('searchbox'), 'no match');
+  expect(within(suggestions).getByText(/No suggestions match/)).toBeTruthy();
+});

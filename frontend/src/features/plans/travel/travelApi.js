@@ -1,4 +1,15 @@
 export async function travelRequest(planId, action, criteria, signal) {
+  // The connector validates selected IDs against its scoped, expiring catalog.
+  // Refresh it explicitly before every filtered rate request, including room details.
+  if (action === "hotels/search") {
+    for (const [field, kind] of [["hotel_type_ids", "hotel_types"], ["facility_ids", "facilities"]]) {
+      if (!criteria?.[field]?.length) continue;
+      const catalog = await travelRequest(planId, "hotels/catalog", { kind }, signal);
+      if (!Array.isArray(catalog.items) || !criteria[field].every(id => catalog.items.some(item => item.id === id))) {
+        throw new Error("A selected search filter is no longer available. Remove it and choose again.");
+      }
+    }
+  }
   const write = action.endsWith("/search") || action.startsWith("sandbox/");
   const query = !write && criteria ? `?${new URLSearchParams(criteria)}` : "";
   const response = await fetch(

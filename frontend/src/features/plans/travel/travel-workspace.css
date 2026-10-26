@@ -53,3 +53,18 @@
  .travel-option-actions .ds-button{flex:1}
  .travel-choice-review>div{flex-wrap:wrap}
 }
+
+/* Recommendations are part of the topic conversation. */
+.travel-suggestions-jump{flex-shrink:0;padding:10px 20px;text-align:left;border-bottom:1px solid var(--ds-line)}
+.travel-chat-suggestions{outline:none;scroll-margin-top:12px}
+.travel-suggestions-heading h2,.travel-chat-suggestions section>h2{font-size:16px;margin:18px 0 10px}
+.travel-suggestions-heading p{font-size:12px;color:var(--ds-muted)}
+.travel-suggestions-filter{display:block;font-size:12px;margin-bottom:18px}
+.travel-suggestions-filter input{width:100%;margin-top:7px}
+.travel-chat-suggestions .travel-research-option{padding:14px;margin-bottom:14px}
+.travel-chat-suggestions .travel-option-heading h3{font-size:16px}
+.travel-suggestion-details{margin:12px 0}
+.travel-suggestion-details summary{cursor:pointer;font-size:12px;color:var(--ds-muted)}
+.travel-chat-suggestions .travel-option-actions{gap:6px}
+.travel-chat-suggestions .travel-option-actions .ds-button{font-size:12px;min-height:40px;flex:1}
+.travel-chat-suggestions .travel-option-actions .ds-text-button{width:100%;text-align:left}

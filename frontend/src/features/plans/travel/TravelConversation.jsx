@@ -3,8 +3,9 @@ import { ChatMarkdown } from '../components/ChatMarkdown';
 import { ChatHeader, ChatComposer } from '../components/ChatControls';
 import { TravelContextSummary } from './TravelContextSummary';
 
-export function TravelConversation({ chat, topic, visible, disabled, onDraftMessage, onClose, brief, pendingEdits }) {
+export function TravelConversation({ chat, topic, visible, disabled, onDraftMessage, onClose, brief, pendingEdits, suggestions, suggestionCount = 0 }) {
   const [input, setInput] = useState('');
+  const suggestionsRef = useRef(null);
   const history = useRef(null), nearBottom = useRef(true), composer = useRef(null);
   const title = topic === 'stays' ? 'Accommodation assistant' : 'Flight assistant';
   const prompts = topic === 'stays' ? ['Find stays near my activities', 'Help me choose an area', 'Look for an apartment with a kitchen'] : ['Find flights that fit my trip', 'Help me compare baggage and fares', 'Prioritize convenient flight times'];
@@ -19,6 +20,7 @@ export function TravelConversation({ chat, topic, visible, disabled, onDraftMess
   return <aside className="canvas-chat travel-conversation" aria-label={title}>
     <ChatHeader title={topic === 'stays' ? 'Stay chat' : 'Flight chat'} subtitle="Your trip, with a focused discussion" collapseLabel={`Collapse ${topic === 'stays' ? 'accommodation' : 'flight'} chat`} panelId={`travel-${topic}-chat`} onClose={onClose}/>
     <div className="travel-chat-context"><TravelContextSummary brief={brief}/>{pendingEdits && <p className="travel-pending-context" role="status">Your unfinished canvas edits are not included yet. Finish saving them to update this discussion.</p>}</div>
+    {suggestionCount > 0 && <button type="button" className="travel-suggestions-jump ds-text-button" onClick={() => { suggestionsRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' }); suggestionsRef.current?.focus({ preventScroll: true }); }}>View suggestions ({suggestionCount})</button>}
     <div className="canvas-chat-history" ref={history} aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} discussion`} aria-busy={chat.active || chat.loading} onScroll={event => { const el = event.currentTarget; nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
       {chat.loading && <p role="status">Loading your discussion…</p>}
       {chat.historyError && <div className="canvas-chat-error" role="alert"><p>{chat.historyError}</p><button type="button" className="ds-button" onClick={chat.retryHistory}>Retry loading discussion</button></div>}
@@ -29,6 +31,7 @@ export function TravelConversation({ chat, topic, visible, disabled, onDraftMess
         {item.status === 'streaming' && !item.content && <div className="canvas-chat-thinking" role="status"><span/><span/><span/><p>Researching your options…</p></div>}
         {['stopped', 'interrupted'].includes(item.status) && <p className="canvas-chat-status">{item.status === 'stopped' ? 'Reply stopped' : 'Reply interrupted'}</p>}
       </article>)}
+      <section ref={suggestionsRef} tabIndex={-1} className="travel-chat-suggestions" aria-label="Travel suggestions">{suggestions}</section>
       {chat.error && <p role="alert" className="canvas-chat-error">{chat.error}</p>}
     </div>
     <ChatComposer id={`travel-${topic}-message`} label={`Message ${title.toLowerCase()}`} placeholder={topic === 'stays' ? 'Ask about stays…' : 'Ask about flights…'} input={input} setInput={setInput} composerRef={composer} visible={visible} blocked={blocked} active={chat.active} onSend={send} onStop={chat.stop} footer="Choose what to save. Nothing is booked."/>

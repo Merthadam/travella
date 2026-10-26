@@ -329,3 +329,49 @@ test("manual results can prepare a discussion without replacing browsing or expo
   expect(screen.getByRole("button", { name: /View rooms/ })).toBeTruthy();
   expect(searchRequest).toHaveBeenCalledTimes(1);
 });
+
+test('provider-backed apartment and amenity filters apply to new searches and can be cleared', async () => {
+  searchRequest.mockImplementation((plan, action, criteria) => Promise.resolve(action === 'hotels/catalog'
+    ? { items: criteria.kind === 'hotel_types' ? [{ id: 201, name: 'Apartments' }] : [{ id: 7, name: 'Kitchen' }, { id: 8, name: 'Pool' }] }
+    : response('Filtered apartment')));
+  render(<TravelSearch {...props}/>);
+  const user = await fill();
+  await user.click(screen.getByText('Property type, amenities & cancellation'));
+  const type = await screen.findByRole('combobox', { name: 'Property type' });
+  await user.click(type); await user.type(type, 'apart'); await user.click(screen.getByRole('option', { name: 'Apartments' }));
+  for (const name of ['Kitchen', 'Pool']) {
+    const field = screen.getByRole('combobox', { name: 'Add an amenity' });
+    await user.click(field); await user.type(field, name); await user.click(screen.getByRole('option', { name }));
+  }
+  await user.selectOptions(screen.getByLabelText('Amenity matching'), 'any');
+  await user.click(screen.getByLabelText('Search refundable rates only'));
+  await user.click(screen.getByRole('button', { name: 'Search stays' }));
+  await screen.findByText('Filtered apartment');
+  const request = searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2];
+  expect(request).toMatchObject({ hotel_type_ids: [201], facility_ids: [7, 8], strict_facility_filtering: false, refundable_rates_only: true });
+  await user.click(screen.getByRole('button', { name: 'Clear search filters' }));
+  await user.click(screen.getByRole('button', { name: 'Search stays' }));
+  const last = searchRequest.mock.calls.filter(call => call[1] === 'hotels/search').at(-1)[2];
+  expect(last.hotel_type_ids).toBeUndefined(); expect(last.facility_ids).toBeUndefined(); expect(last.refundable_rates_only).toBeUndefined();
+});
+
+test('catalog failure offers retry and keeps ordinary manual search available', async () => {
+  searchRequest.mockImplementation((plan, action) => action === 'hotels/catalog' ? Promise.reject(new Error('Unavailable')) : Promise.resolve(response('Hotel')));
+  render(<TravelSearch {...props}/>);
+  const user = await fill();
+  await user.click(screen.getByText('Property type, amenities & cancellation'));
+  expect(await screen.findByRole('button', { name: 'Retry filters' })).toBeTruthy();
+  expect(screen.queryByRole('combobox', { name: 'Property type' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Search stays' }));
+  expect(await screen.findByText('Hotel')).toBeTruthy();
+});
+
+test('manual continuation preserves property and amenity filters imported from agent results', async () => {
+  const data = imported();
+  Object.assign(data.criteria, { hotel_type_ids: [201], facility_ids: [7], strict_facility_filtering: false, refundable_rates_only: true });
+  searchRequest.mockResolvedValue(response('Apartment continuation'));
+  render(<TravelSearch {...props} importedSnapshot={data}/>);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Search stays' }));
+  await screen.findByText('Apartment continuation');
+  expect(searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2]).toMatchObject({ hotel_type_ids: [201], facility_ids: [7], strict_facility_filtering: false, refundable_rates_only: true });
+});

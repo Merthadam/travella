@@ -4,6 +4,7 @@ import { travelRequest } from "./travelApi";
 import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
 import { FlightSandboxCheckout, FlightMockRecovery } from "./FlightSandboxCheckout";
 import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
+import { StaySearchFilters, emptyStayFilters } from "./StaySearchFilters";
 import { StayDestination } from "./StayDestination";
 import { travelSnapshotSchema, travelState, TravelPhoto } from "./CanvasTravel";
 import "./travel-search.css";
@@ -418,6 +419,7 @@ export function filterResults(
 export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = '', onDiscuss }) {
   const stay = mode === "accommodation";
   const dates = initialData?.essentials?.dates;
+  const [stayFilters, setStayFilters] = useState(emptyStayFilters);
   const [city, setCity] = useState(initialData?.map?.destination || "");
   const [place, setPlace] = useState(null);
   const [country, setCountry] = useState("");
@@ -479,6 +481,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       setCity(c.destination.city); setPlace({name:c.destination.city,place_id:c.destination.place_id});
       setCountry(c.destination.country_code); setNationality(c.guest_nationality);
       setStart(c.check_in); setEnd(c.check_out); setRooms(c.rooms);
+      setStayFilters({ hotel_type_ids: c.hotel_type_ids || [], facility_ids: c.facility_ids || [], strict_facility_filtering: c.strict_facility_filtering ?? true, refundable_rates_only: c.refundable_rates_only || false });
     } else {
       setOrigin({iata:c.origin,label:c.origin}); setDestination({iata:c.destination,label:c.destination});
       setStart(c.departure_date); setEnd(c.return_date); setAdults(c.adults);
@@ -539,6 +542,9 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
           })),
           guest_nationality: nationality,
           currency,
+          ...(stayFilters.hotel_type_ids.length ? { hotel_type_ids: stayFilters.hotel_type_ids } : {}),
+          ...(stayFilters.facility_ids.length ? { facility_ids: stayFilters.facility_ids, strict_facility_filtering: stayFilters.strict_facility_filtering } : {}),
+          ...(stayFilters.refundable_rates_only ? { refundable_rates_only: true } : {}),
         }
       : {
           origin: origin.iata,
@@ -755,6 +761,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
             </label>
           )}
         </div>
+        {stay && <StaySearchFilters planId={planId} active={active} value={stayFilters} onChange={setStayFilters} onExpired={onExpired}/>}
         <details className="travel-party">
           <summary>
             {stay
