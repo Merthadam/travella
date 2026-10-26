@@ -31,7 +31,7 @@ test('topic discussions restore separately, preserve unsent drafts, and keep man
   expect(screen.queryByRole('textbox', { name: 'Message accommodation assistant' })).toBeNull();
   view.rerender(<Workspaces mode="stays"/>);
   expect(screen.getByRole('textbox', { name: 'Message accommodation assistant' }).value).toBe('I would like a balcony');
-  await user.click(screen.getByRole('button', { name: 'Hide accommodation chat' }));
+  await user.click(screen.getByRole('button', { name: 'Collapse accommodation chat' }));
   expect(screen.queryByRole('textbox', { name: 'Message accommodation assistant' })).toBeNull();
   expect(screen.getByRole('region', { name: 'Manual search' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Open accommodation chat' }));
@@ -101,4 +101,20 @@ test('failed cancellation keeps further sends blocked until Stop succeeds', asyn
   await act(async () => { expect(await result.current.send('Another flight')).toBe(false); });
   await act(async () => { expect(await result.current.stop()).toBe(true); });
   expect(result.current.active).toBe(false);
+});
+
+
+test('starter prompts prepare editable drafts without starting research, using the Canvas send control', async () => {
+  const user = userEvent.setup();
+  const api = { travelTopic: vi.fn(async () => snapshot('stays')), travelTurn: vi.fn() };
+  render(<TravelWorkspace selected={selected} api={api} mode="accommodation" active/>);
+  await user.click(await screen.findByRole('button', { name: 'Help me choose an area' }));
+  const composer = screen.getByRole('textbox', { name: 'Message accommodation assistant' });
+  expect(composer.value).toBe('Help me choose an area');
+  await waitFor(() => expect(document.activeElement).toBe(composer));
+  expect(screen.getByRole('button', { name: 'Send message' }).disabled).toBe(false);
+  expect(api.travelTurn).not.toHaveBeenCalled();
+  await user.type(composer, '{Shift>}{Enter}{/Shift}Near my activities.');
+  expect(composer.value).toContain('\nNear my activities.');
+  expect(api.travelTurn).not.toHaveBeenCalled();
 });

@@ -2,24 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivitySuggestions } from '../../../design-system/a2ui/ActivitySuggestions';
 import { Icon } from '../../../design-system/components/primitives';
 import { ChatMarkdown } from './ChatMarkdown';
+import { ChatHeader, ChatComposer } from './ChatControls';
 import { TravelPreviews } from '../travel/CanvasTravel';
 
 export function CanvasConversation({ chat, data, disabled, generating, onClose, onPreview, onAdd, area, onClearArea, collapseRef, visible, onOpenTravel }) {
   const [input, setInput] = useState('');
   const history = useRef(null); const nearBottom = useRef(true); const composer = useRef(null);
   useEffect(() => { if (visible && nearBottom.current && history.current) history.current.scrollTop = history.current.scrollHeight; }, [chat.messages, chat.active, visible]);
-  useEffect(() => {
-    const element = composer.current;
-    if (!visible || !element) return;
-    element.style.height = '0px';
-    element.style.height = `${Math.min(160, Math.max(48, input ? element.scrollHeight : 48))}px`;
-  }, [input, visible]);
   const blocked = disabled || chat.loading || Boolean(chat.historyError) || chat.active;
   async function send(event) { event.preventDefault(); const text = input.trim(); if (!text || blocked) return; setInput(''); await chat.send(text, area); requestAnimationFrame(() => composer.current?.focus()); }
   const pins = data?.map?.pins || [];
   const isAdded = place => pins.some(pin => pin.id === place.id || (pin.name === place.name && pin.position.lat === place.position.lat && pin.position.lng === place.position.lng));
   return <aside className="canvas-chat" aria-label="Plan editing chat">
-    <header className="canvas-chat-header"><div className="canvas-guide-heading"><div><strong>Plan chat</strong><small>{data?.map?.destination || 'Find places and update your draft'}</small></div></div><button ref={collapseRef} type="button" className="canvas-chat-collapse" aria-label="Collapse plan chat" title="Collapse plan chat" aria-controls="plan-chat-panel" aria-expanded={true} onClick={onClose}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M20 4v16M5 12h11m-5-5 5 5-5 5"/></svg></button></header>
+    <ChatHeader title="Plan chat" subtitle={data?.map?.destination || 'Find places and update your draft'} collapseRef={collapseRef} collapseLabel="Collapse plan chat" panelId="plan-chat-panel" onClose={onClose}/>
     <div className="canvas-chat-history" ref={history} aria-label="Plan conversation" aria-busy={chat.loading || chat.active} onScroll={event => { const el = event.currentTarget; nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}>
       {chat.loading && <p className="canvas-chat-status" role="status">Loading conversation…</p>}
       {chat.historyError && <div className="canvas-chat-error" role="alert"><p>{chat.historyError}</p><button type="button" className="ds-button small" onClick={chat.retryHistory}>Retry loading conversation</button></div>}
@@ -35,10 +30,8 @@ export function CanvasConversation({ chat, data, disabled, generating, onClose, 
       {chat.error && <p className="canvas-chat-error" role="alert">{chat.error}</p>}
       {!chat.loading && !chat.historyError && chat.messages.length === 0 && <div className="canvas-chat-starters"><button type="button" disabled={blocked} onClick={() => chat.send('Find a few activities that fit this trip.', area)}>Find activities</button><button type="button" disabled={blocked} onClick={() => chat.send('Find a few relaxed outdoor places to explore.', area)}>Find parks and walks</button></div>}
     </div>
-    <form className="canvas-chat-composer" onSubmit={send}>
+    <ChatComposer id="canvas-chat-message" label="Message Travella" placeholder="Ask about your trip…" input={input} setInput={setInput} composerRef={composer} visible={visible} blocked={blocked} active={chat.active} onSend={send} onStop={chat.stop} hint={generating ? 'Preparing your draft…' : undefined} footer="Places you add are saved automatically to your draft.">
       {area && <div className="canvas-chat-area"><Icon name="pin" size={13}/><span>Search within the map area</span><button type="button" className="ds-text-button" disabled={chat.active} onClick={onClearArea}>Use destination</button></div>}
-      <div className="canvas-chat-input"><label className="sr-only" htmlFor="canvas-chat-message">Message Travella</label><textarea id="canvas-chat-message" ref={composer} value={input} onChange={event => setInput(event.target.value)} rows={2} maxLength={2000} placeholder="Ask about your trip…" disabled={blocked} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form.requestSubmit(); } }}/><div className="canvas-chat-send-row"><span>{generating ? 'Preparing your draft…' : <>Enter to send<span className="canvas-chat-keyboard-extra"> · Shift + Enter for a new line</span></>}</span>{chat.active ? <button type="button" className="ds-button small" onClick={chat.stop}>Stop</button> : <button type="submit" className="canvas-chat-send" aria-label="Send message" title="Send message" disabled={blocked || !input.trim()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>}</div></div>
-      <p>Places you add are saved automatically to your draft.</p>
-    </form>
+    </ChatComposer>
   </aside>;
 }

@@ -630,19 +630,8 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       aria-label={stay ? "Accommodation search" : "Flight search"}
     >
       <header className="travel-heading">
-        <span className="travel-kicker">
-          {stay ? "SOMEWHERE TO CALL HOME" : "THE WAY THERE"}
-        </span>
-        <h2 ref={heading} tabIndex={-1}>
-          {stay
-            ? "Find your little corner of the world."
-            : "A good trip starts with a good flight."}
-        </h2>
-        <p>
-          {stay
-            ? "Find a comfortable base for everything ahead."
-            : "Compare the journey, the fare, and the time you get back."}
-        </p>
+        <h2 ref={heading} tabIndex={-1}>{stay ? 'Find a place to stay' : 'Find your flights'}</h2>
+        <p>{stay ? 'Compare places, rooms and total prices.' : 'Compare return flights, fares and journey times.'}</p>
       </header>
       {stay && initialData?.accommodation?.mockBooking && <section className="travel-empty" aria-label="Mock stay details">
         <h3>Mock booked · {initialData.accommodation.mockBooking.hotelName}</h3>
@@ -1082,7 +1071,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                     >
                       {stay ? "View rooms" : "View flight"} →
                     </button>
-                    {onDiscuss && <button type="button" onClick={() => onDiscuss(`Help me assess this ${stay ? 'stay' : 'return flight'} from my manual search: ${stay ? item.name : item.airlines.join(' / ')}. ${stay ? `${snapshot.criteria.check_in} to ${snapshot.criteria.check_out}` : `${snapshot.criteria.origin} to ${snapshot.criteria.destination}, ${snapshot.criteria.departure_date} to ${snapshot.criteria.return_date}`}. Shown total: ${priceLabel(item.price)}. Please check how it fits my trip and verify current details before recommending it.`.slice(0, 1800))}>Discuss with assistant</button>}
+                    {onDiscuss && <button type="button" onClick={() => onDiscuss(`Help me assess this ${stay ? 'stay' : 'return flight'} from my manual search: ${stay ? item.name : item.airlines.join(' / ')}. ${stay ? `${snapshot.criteria.check_in} to ${snapshot.criteria.check_out}` : `${snapshot.criteria.origin} to ${snapshot.criteria.destination}, ${snapshot.criteria.departure_date} to ${snapshot.criteria.return_date}`}. Shown total: ${priceLabel(item.price)}. Please check how it fits my trip and verify current details before recommending it.`.slice(0, 1800))}>{stay ? 'Ask about this stay' : 'Ask about this flight'}</button>}
                     <label className="travel-check">
                       <input
                         type="checkbox"

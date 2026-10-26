@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { TravelSearch } from './TravelSearch';
 import { TravelConversation } from './TravelConversation';
-import { TravelContextSummary } from './TravelContextSummary';
 import { useTravelConversation } from './useTravelConversation';
 import './travel-workspace.css';
 
@@ -70,13 +69,10 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
     </article>;
   }
   return <div hidden={!active} className={`travel-workspace travel-pane-${pane} ${chatOpen ? "travel-chat-open" : "travel-chat-closed"}`}>
-    <div className="travel-substage-status" role="status">{readiness}</div>
-    <TravelContextSummary brief={snapshot?.brief} pending={pendingEdits}/>
-    {pendingEdits && <p className="travel-pending-context" role="status">Your unfinished canvas edits are not included yet. Finish saving them to update this discussion.</p>}
-    <div className="travel-workspace-toolbar"><p>Search and compare yourself, or talk it through with your assistant.</p><button ref={chatToggle} type="button" className="ds-button small travel-chat-toggle" aria-controls={`travel-${topic}-chat`} aria-expanded={chatOpen} onClick={chatOpen ? closeChat : openChat}>{chatOpen ? 'Hide' : 'Open'} {topic === 'stays' ? 'accommodation' : 'flight'} chat</button></div>
-    <nav className="travel-pane-tabs" aria-label={`${topic} workspace view`}><button ref={browseTab} type="button" aria-pressed={pane === 'options'} onClick={() => setPane('options')}>Browse {topic === 'stays' ? 'stays' : 'flights'}</button><button type="button" aria-pressed={pane === 'chat'} onClick={openChat}>{topic === 'stays' ? 'Accommodation' : 'Flight'} chat{chat.active ? ' · replying' : ''}</button></nav>
+    <nav className="travel-pane-tabs" aria-label={`${topic} workspace view`}><button ref={browseTab} type="button" aria-pressed={pane === 'options'} onClick={() => setPane('options')}>Browse {topic === 'stays' ? 'stays' : 'flights'}</button><button type="button" aria-pressed={pane === 'chat'} onClick={openChat}>{topic === 'stays' ? 'Stay' : 'Flight'} chat{chat.active ? ' · replying' : ''}</button></nav>
     <div className="travel-workspace-panes">
       <section className="travel-options-pane" aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} options`}>
+        <div className="travel-substage-status" role="status">{readiness}</div>
         <TravelSearch planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={text => { setDraftMessage({ text, nonce: Date.now() }); openChat(); }}/>
         {(preferred || shortlist.length > 0 || options.length > 0) && <header className="travel-options-heading"><div><h2>Assistant recommendations</h2><p>{options.length} options checked in your discussion</p></div></header>}
         {snapshot?.readiness === 'needs_review' && <p className="canvas-notice">Your trip details have changed. The previous choice is kept for reference. Research again before confirming it fits.</p>}
@@ -86,7 +82,8 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
         {snapshot?.notes?.items?.length > 0 && <details className="travel-research-notes"><summary>What we’ve learned</summary><ul>{snapshot.notes.items.map((note, index) => <li key={index}><strong>{noteLabels[note.kind] || 'Research note'}:</strong> {note.text}</li>)}</ul>{snapshot.notes.incomplete && <p>This is a partial summary; the discussion keeps the details.</p>}</details>}
         {choiceError && !review && <p role="alert" className="canvas-chat-error">{choiceError}</p>}
       </section>
-      <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatOpen}><TravelConversation chat={chat} topic={topic} visible={active && chatOpen} disabled={blocked || snapshot?.locked && !chat.active} onDraftMessage={draftMessage} onClose={closeChat}/></div>
+      <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatOpen}><TravelConversation chat={chat} topic={topic} visible={active && chatOpen} disabled={blocked || snapshot?.locked && !chat.active} onDraftMessage={draftMessage} onClose={closeChat} brief={snapshot?.brief} pendingEdits={pendingEdits}/></div>
+      {!chatOpen && <div className="canvas-chat-rail"><button ref={chatToggle} type="button" className="canvas-chat-expand" aria-label={`Open ${topic === 'stays' ? 'accommodation' : 'flight'} chat`} title="Open chat" aria-controls={`travel-${topic}-chat`} aria-expanded={false} onClick={openChat}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 4v16m15-8H8m5-5-5 5 5 5"/></svg><span>Chat</span>{chat.active && <span className="canvas-chat-rail-status" aria-label="Travella is replying"/>}</button></div>}
     </div>
     <dialog className="canvas-confirm travel-choice-review" ref={dialog} aria-labelledby={`travel-${topic}-review`} onCancel={event => { event.preventDefault(); if (!saving) setReview(null); }}>
       <h2 id={`travel-${topic}-review`}>{review?.body.action === 'prefer' ? 'Choose this option for your trip?' : review?.body.action === 'remove' ? 'Remove this saved option?' : 'Save this option to your shortlist?'}</h2>

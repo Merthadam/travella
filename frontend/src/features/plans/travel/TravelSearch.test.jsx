@@ -320,7 +320,7 @@ test("manual results can prepare a discussion without replacing browsing or expo
   render(<TravelSearch {...props} onDiscuss={onDiscuss} />);
   const user = await fill();
   await user.click(screen.getByRole("button", { name: "Search stays" }));
-  await user.click(await screen.findByRole("button", { name: "Discuss with assistant" }));
+  await user.click(await screen.findByRole("button", { name: "Ask about this stay" }));
   expect(onDiscuss).toHaveBeenCalledTimes(1);
   const message = onDiscuss.mock.calls[0][0];
   expect(message).toContain("Courtyard apartment");
