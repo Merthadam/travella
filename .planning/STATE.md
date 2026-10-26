@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-25 — Completed quick task 261025-fg2: removed Check again; tests/build/browser verified.
+Last activity: 2026-10-26 — Completed quick task 261026-bob: latest main started locally; health, authentication and source hashes verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261026-bob | Start latest main locally | 2026-10-26 | c7d8906 (runtime source) | Health/auth/hashes passed; container migration compatibility applied | [Task](quick/261026-bob-start-latest-main-locally-and-verify-aut/) |
 | 261024-m71 | Persist Google place descriptions | 2026-10-24 | a11bf00 | 65 tests/build passed; reload uses saved descriptions with zero detail requests | [Task](quick/261024-m71-persist-google-place-descriptions-in-sav/) |
 | 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; running at localhost:5175 | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
 | 261024-liv | Sketch cleaner place cards (design only) | 2026-10-24 | — | Browser sketch checked; implementation pending user direction | [Task](quick/261024-liv-sketch-cleaner-place-cards/) |
