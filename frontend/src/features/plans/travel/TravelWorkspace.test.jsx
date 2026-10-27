@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { TravelWorkspace } from './TravelWorkspace';
 import { draftTravelFacts } from './CanvasTravel';
@@ -24,6 +24,31 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
 }
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn(); });
 afterEach(() => { cleanup(); chat.real = false; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+
+test('main comparison preserves selection order and facts when discussion fails or search changes', async () => {
+  chat.send = vi.fn(async () => false);
+  const data = workspaceSnapshot('flights');
+  data.results = Array.from({ length: 4 }, (_, i) => ({ ...structuredClone(data.results[0]), id: `flight-${i}`, airlines: [`Carrier ${i}`] }));
+  data.returned_count = 4; data.preview_ids = data.results.slice(0, 3).map(item => item.id);
+  const view = render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="flights" active initialData={initialData} importedSnapshot={data}/>);
+  fireEvent.click(screen.getByText('Close chat'));
+  const boxes = screen.getAllByLabelText('Compare');
+  fireEvent.click(boxes[2]); fireEvent.click(boxes[0]); fireEvent.click(boxes[1]);
+  expect(chat.send).not.toHaveBeenCalled();
+  expect(boxes[3].disabled).toBe(true);
+  expect(screen.getByText('Compare up to three options. Remove one to add another.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Compare selected (3)' }));
+  const comparison = await screen.findByRole('region', { name: 'Option comparison' });
+  expect([...comparison.querySelectorAll('[data-comparison-option]')].map(node => node.dataset.comparisonOption)).toEqual(['flight-2', 'flight-0', 'flight-1']);
+  expect(comparison.textContent).toContain('Return total for all travelers');
+  expect(comparison.textContent).toContain('Source: LiteAPI');
+  expect(screen.getByRole('button', { name: 'Browse flights' }).getAttribute('aria-pressed')).toBe('true');
+  expect(await screen.findByRole('button', { name: 'Retry comparison discussion' })).toBeTruthy();
+  expect(chat.send.mock.calls[0][1].options.map(ref => ref.option_id)).toEqual(['flight-2', 'flight-0', 'flight-1']);
+  view.rerender(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="flights" active initialData={initialData} importedSnapshot={workspaceSnapshot('flights', 'new-search')} importRequest={1}/>);
+  expect(within(screen.getByRole('region', { name: 'Option comparison' })).getByText('Earlier search · historical comparison')).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'Option comparison' }).textContent).toContain('Carrier 2');
+});
 
 test.each(['stays', 'flights'])('manual %s filters retain labeled unknowns and sort missing prices last like host operations', topic => {
   const known = workspaceSnapshot(topic).results[0];
