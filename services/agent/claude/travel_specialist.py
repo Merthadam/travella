@@ -27,6 +27,15 @@ from .research_result import StrictResult
 from .runtime import ClaudeSdkRuntime, ResearchWorkerError, _deny
 
 
+_SAFE_FAILURE_REASONS = frozenset({
+    "comparison_limit", "travel_selection_unknown", "travel_option_unknown",
+    "travel_room_unknown", "travel_room_selection_required",
+    "unattributed_specialist_note", "travel_payload_limit",
+    "workspace_search_changed", "workspace_action_limit",
+    "workspace_pending_edits", "workspace_scope_mismatch",
+})
+
+
 class ComparisonReference(StrictResult):
     search_id: str = Field(min_length=1, max_length=100)
     option_id: str = Field(min_length=1, max_length=100)
@@ -241,6 +250,7 @@ class ClaudeSdkTravelSpecialist:
         current = next((item for item in reversed(scoped) if item.get("status") == "pending" and item.get("role") == "user" and item.get("content") == message), None)
         if current:
             payload["current_message_id"] = str(current.get("message_id", current.get("id", "")))
+        stage = "sdk_setup"
         try:
             async with asyncio.timeout(min(120, self.config.timeout_seconds)):
                 with self.worker.session() as (root, cli):
@@ -263,19 +273,25 @@ class ClaudeSdkTravelSpecialist:
                             "description": "Exact observed room/rate ID discussed in the answer."}
                         reference["required"].append("room_id")
                     options.output_format = {"type": "json_schema", "schema": schema}
+                    stage = "sdk_consume"
                     result = await self.worker._consume(json.dumps(payload), options, structured_stream=answer_stream)
+                    stage = "result_validation"
                     reply = SpecialistAnswer.model_validate(result.structured_output)
                     grouped = defaultdict(list)
                     for reference in reply.comparisons:
                         grouped[reference.search_id].append(reference.option_id)
                     selections = [TravelSelection(search_id=key, mode=topic, option_ids=ids) for key, ids in grouped.items()]
+                    stage = "selection"
                     bundles = travel.selected(selections)
+                    stage = "comparison"
                     comparison = Comparison(options=[_comparison(travel.snapshots[ref.search_id], next(item for item in travel.snapshots[ref.search_id].results if item.id == ref.option_id), travel.observation_times.get(ref.option_id), room_id=ref.room_id) for ref in reply.comparisons])
                     # Keep the original full search for an explicit manual handoff.
                     from ..travel_registry import travel_registry
+                    stage = "registry"
                     for snap in travel.snapshots.values():
                         travel_registry.put(context.traveler_scope, context.plan_id, snap)
                     from ..travel_workspace import finalize_workspace_view
+                    stage = "workspace_finalize"
                     final_view = finalize_workspace_view(travel.workspace)
                     if final_view:
                         collect_workspace_update(final_view)
@@ -293,7 +309,9 @@ class ClaudeSdkTravelSpecialist:
                             projected["rooms"] = [room.model_dump(mode="json")]
                             projected["price"] = {**projected["price"], **room.total.model_dump(),
                                                   "excluded_taxes": [tax.model_dump() for tax in room.excluded_taxes]}
+                    stage = "notes"
                     output_notes = _notes(prior_notes.model_dump(), reply.notes, scoped)
+                    stage = "answer_stream"
                     await answer_stream.finish(reply.answer)
                     collect_travel_results(bundles)
                     logging.getLogger(__name__).info("travel_specialist topic=%s calls=%s rates=%s", topic, travel.calls, travel.rate_calls)
@@ -304,5 +322,9 @@ class ClaudeSdkTravelSpecialist:
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            logging.getLogger(__name__).warning("travel_specialist_failed topic=%s code=%s", topic, error.code if isinstance(error, ResearchWorkerError) else type(error).__name__)
+            # Exception values may contain provider/model text. Only exact host
+            # validation tokens are diagnostic data; never log arbitrary args.
+            candidate = error.args[0] if type(error) is ValueError and len(error.args) == 1 else None
+            reason = candidate if isinstance(candidate, str) and candidate in _SAFE_FAILURE_REASONS else "unclassified"
+            logging.getLogger(__name__).warning("travel_specialist_failed topic=%s code=%s stage=%s reason=%s", topic, error.code if isinstance(error, ResearchWorkerError) else type(error).__name__, stage, reason)
             raise ResearchWorkerError("travel_specialist_unavailable") from None
