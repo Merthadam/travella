@@ -92,7 +92,7 @@ class EvidenceReference(StrictResult):
 
 class CanvasFinding(StrictResult):
     title: str = Field(min_length=1, max_length=120)
-    summary: str = Field(min_length=1, max_length=600)
+    summary: str = Field(min_length=1, max_length=300)
     sources: list[EvidenceReference] = Field(max_length=5)
     certainty: Literal["supported", "uncertain", "conflicting", "unavailable"]
     time_sensitive: bool
@@ -100,7 +100,7 @@ class CanvasFinding(StrictResult):
 
 class CanvasLink(StrictResult):
     evidence_id: str = Field(min_length=1, max_length=180)
-    purpose: str = Field(min_length=1, max_length=240)
+    purpose: str = Field(min_length=1, max_length=80)
     category: Literal["official", "transport", "attraction", "practical", "other"]
 
 

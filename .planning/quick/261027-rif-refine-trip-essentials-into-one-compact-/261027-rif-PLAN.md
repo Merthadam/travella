@@ -1,0 +1,7 @@
+# Compact trip briefing prototype
+
+User rejected A/B/C and accepted one small summary covering the whole trip. Interpret agreement as a blend of plan context and destination knowledge. Refine one direction, not another three alternatives. Continue the existing prototype branch; no production integration or model calls.
+
+Build D, the default preview: approximately 80–120 words, one paragraph and three highlights with contextual official-source links, a Read more/Show less disclosure, and no preference editors, keep controls or decision panel. Preserve old prototype URLs for history. Compact honest loading/empty sample states and inspectable local disclosure state remain available outside the card. Use explicitly labeled sample Plan details; cite actual tourism sources for destination claims. Existing authenticated host remains unchanged outside the dev-only preview.
+
+Verify real example-account browser via Chrome DevTools, disclosure pointer/keyboard behavior, reload reset, loading/empty states, mobile and light/dark layouts, source link destinations, no Plan writes, console/network and production build. Prefer the already-proven isolated Chrome CDP capture path if MCP screenshot transport remains unreliable. Capture and inspect screenshots under artifacts/testing/2026-10-27-trip-brief/plan. Record direction agreement and prototype completion separately from production acceptance.

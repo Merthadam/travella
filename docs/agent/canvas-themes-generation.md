@@ -39,6 +39,24 @@ No browser-supplied identity chooses the traveler scope.
 
 ## Components and generation
 
+The Planning Canvas displays themes, findings and links together as **Your trip,
+in brief**. Its overview derives from current canvas data; three research findings
+appear with inline sources, and Read more exposes remaining context, sources and
+preference editing. Existing saved component contracts are unchanged. Refresh
+briefing runs `generate_research` after the existing replacement confirmation;
+completed results use the existing automatic draft-save flow.
+
+The research worker selects basic destination context, useful transport and
+trip-specific resources rather than filling a fixed website directory. For a
+confirmed ski interest this may include the specific resort's lift information and
+local rental suppliers; city interests may call for transit and attraction pages.
+It receives current themes, trip context and minimal saved-place names/categories.
+Saved places come from an authenticated CRUD canvas read, with a matching Plan
+revision and destination. They provide personalization context, never evidence
+for local claims. Source IDs and exact supporting quotes still come from the
+observed read-evidence registry. Research reuses the existing bounded SDK session
+and review; no extra model pass or parallel agent is added.
+
 `canvas_generation` is a dedicated node in the existing graph. Its workers are
 focused, disposable SDK sessions; there is no extra parent model routing through
 the SDK Agent tool.

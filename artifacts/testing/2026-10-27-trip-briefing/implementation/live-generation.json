@@ -1,0 +1,40 @@
+{
+  "state": {
+    "text": "Your trip, in brief\nLisbon\n\nA trip to Lisbon for 2 travelers. Your interests: Food and culture. Priorities: A quiet base and an unhurried pace.\n\nGetting around by metro. The visitor site calls the metro the easiest way to get around. It runs daily 6:30 a.m. to 1:00 a.m., the last departure from each line's terminal stations. Check fares and rules before travel. Check metro tickets and hours ↗\n(opens in a new tab)\n\nMetro tickets and cards. Metro payment options include a navegante occasional card, a personalized card, or a contactless bank card. The occasional card can't be shared between passengers, so two travelers need separate cards or payments. Check metro tickets and hours ↗\n(opens in a new tab)\n\nFood and wine ideas. The official visitor site has an Eat & Drink category and presents wine culture as a distinct attraction under Lisbon Flavours. It's a starting point for food-focused plans. Explore areas, food and Lisboa Card ↗\n(opens in a new tab)\n\nRead more ⌄\nRefresh briefing",
+    "links": [
+      {
+        "url": "https://www.metrolisboa.pt/en/",
+        "text": "Check metro tickets and hours ↗ (opens in a new tab)"
+      },
+      {
+        "url": "https://www.metrolisboa.pt/en/",
+        "text": "Check metro tickets and hours ↗ (opens in a new tab)"
+      },
+      {
+        "url": "https://www.visitlisboa.com/en",
+        "text": "Explore areas, food and Lisboa Card ↗ (opens in a new tab)"
+      },
+      {
+        "url": "https://www.visitlisboa.com/en",
+        "text": "Explore areas, food and Lisboa Card ↗ (opens in a new tab)"
+      }
+    ],
+    "count": 3,
+    "save": "Draft saved automatically"
+  },
+  "errors": [],
+  "failed": [
+    {
+      "status": 404,
+      "path": "/favicon.ico"
+    },
+    {
+      "status": 401,
+      "path": "/auth/session"
+    },
+    {
+      "status": 503,
+      "path": "/v1/agent/plans/ec345f34-0687-4e7c-9af1-3169105fe155/travel/capabilities"
+    }
+  ]
+}

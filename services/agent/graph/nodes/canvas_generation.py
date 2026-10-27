@@ -52,7 +52,7 @@ class CanvasGenerationNode:
             if "flights" not in known:
                 components.pop("flights", None)
             # Existing saved pins survive generation if the chosen destination is unchanged.
-            old_map = components.get("map", {})
+            old_map = state.get("saved_map") or components.get("map", {})
             if old_map.get("destination") == known["map"]["destination"]:
                 known["map"]["pins"] = old_map.get("pins", [])
             for key, value in known.items():
@@ -99,6 +99,8 @@ class CanvasGenerationNode:
                                 destination=context.trip_context.get("finalDestination", ""),
                                 themes=draft.components.get("themes", {"status": "ready", "items": []}),
                                 trip_context=context.trip_context,
+                                saved_places=[{"name": pin["name"], "category": pin["category"]}
+                                              for pin in known["map"]["pins"]],
                                 reusable_evidence=state.get("reusable_evidence", []),
                                 usage=group_usage, evidence_sink=private_evidence,
                             )
