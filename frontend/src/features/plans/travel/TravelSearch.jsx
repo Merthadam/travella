@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTravelWorkspace } from "./useTravelWorkspace";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
 import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
 import { FlightSandboxCheckout, FlightMockRecovery } from "./FlightSandboxCheckout";
 import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
-import { StaySearchFilters, emptyStayFilters } from "./StaySearchFilters";
+import { StaySearchFilters } from "./StaySearchFilters";
 import { StayDestination } from "./StayDestination";
-import { travelSnapshotSchema, travelState, TravelPhoto } from "./CanvasTravel";
+import { travelState, TravelPhoto } from "./CanvasTravel";
 import "./travel-search.css";
 
 const currencies = ["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"];
@@ -421,91 +422,38 @@ export function filterResults(
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
 }
-export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = '', onDiscuss, onChoose, onCompare, discussionDisabled }) {
+export function TravelSearch(props) {
+  return props.workspace ? <ControlledTravelSearch {...props}/> : <StandaloneTravelSearch {...props}/>;
+}
+function StandaloneTravelSearch(props) {
+  const workspace = useTravelWorkspace({ planId: props.planId, topic: props.mode === "accommodation" ? "stays" : "flights", initialData: props.initialData, active: props.active, onExpired: props.onExpired });
+  return <ControlledTravelSearch {...props} workspace={workspace}/>;
+}
+function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onCompare, discussionDisabled, workspace }) {
   const stay = mode === "accommodation";
-  const dates = initialData?.essentials?.dates;
-  const [stayFilters, setStayFilters] = useState(emptyStayFilters);
-  const [city, setCity] = useState(initialData?.map?.destination || "");
-  const [place, setPlace] = useState(null);
-  const [country, setCountry] = useState("");
-  const [nationality, setNationality] = useState("");
-  const [start, setStart] = useState(dates?.flexible ? "" : dates?.start || "");
-  const [end, setEnd] = useState(dates?.flexible ? "" : dates?.end || "");
-  const [rooms, setRooms] = useState([{ adults: 2, children_ages: [] }]);
-  const [adults, setAdults] = useState(2);
-  const [children, setChildren] = useState([]);
-  const [infants, setInfants] = useState([]);
-  const [origin, setOrigin] = useState(null);
-  const [destination, setDestination] = useState(null);
-  const [cabin, setCabin] = useState("ECONOMY");
-  const [currency, setCurrency] = useState("EUR");
-  const [snapshot, setSnapshot] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { snapshot, loading, error, imported, draftCriteria, view, detailsReference } = workspace.state;
+  const field = name => [draftCriteria[name], value => workspace.setDraft(name, value)];
+  const local = name => [view[name], value => workspace.setView(current => ({ [name]: typeof value === "function" ? value(current[name]) : value, ...(name !== "page" ? { page: 1 } : {}) }))];
+  const [stayFilters, setStayFilters] = field("stayFilters"), [city, setCity] = field("city"), [place, setPlace] = field("place"), [country, setCountry] = field("country"), [nationality, setNationality] = field("nationality");
+  const [start, setStart] = field("start"), [end, setEnd] = field("end"), [rooms, setRooms] = field("rooms"), [adults, setAdults] = field("adults"), [children, setChildren] = field("children"), [infants, setInfants] = field("infants");
+  const [origin, setOrigin] = field("origin"), [destination, setDestination] = field("destination"), [cabin, setCabin] = field("cabin"), [currency, setCurrency] = field("currency");
+  const [stars, setStars] = local("stars"), [rating, setRating] = local("rating"), [airline, setAirline] = local("airline"), [page, setPage] = local("page"), [budget, setBudget] = local("budget"), [refundable, setRefundable] = local("refundable"), [direct, setDirect] = local("direct"), [bag, setBag] = local("bag"), [sort, setSort] = local("sort");
+  const compared = view.comparison_refs.filter(ref => ref.search_id === snapshot?.search_id).map(ref => ref.option_id);
+  const setCompared = value => workspace.setView(current => ({ comparison_refs: (typeof value === "function" ? value(current.comparison_refs.map(ref => ref.option_id)) : value).map(option_id => ({ search_id: snapshot.search_id, option_id, room_id: null })) }));
+  const setError = value => workspace.dispatch({ type: "error", value });
+  const detail = detailsReference?.item;
+  const setDetail = item => workspace.dispatch({ type: "details", value: item ? { item, snapshot, reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } } : null });
   const [recovery, setRecovery] = useState(null);
-  const [detail, setDetail] = useState(null);
-  const [compared, setCompared] = useState([]);
-  const [stars, setStars] = useState("");
-  const [rating, setRating] = useState("");
-  const [airline, setAirline] = useState("");
-  const [page, setPage] = useState(1);
-  const resultsHeading = useRef(null);
-  const [budget, setBudget] = useState("");
-  const [refundable, setRefundable] = useState(false);
-  const [direct, setDirect] = useState(false);
-  const [bag, setBag] = useState(false);
-  const [sort, setSort] = useState("provider");
-  const [imported, setImported] = useState(false);
   const [, setImportClock] = useState(0);
-  const importedId = useRef(null);
-  const heading = useRef(null);
-  const form = useRef(null);
-  const pending = useRef(null);
-  const epoch = useRef(0);
+  const resultsHeading = useRef(null), heading = useRef(null), form = useRef(null);
   useEffect(() => {
-    if (!imported || !active) return;
+    if (!snapshot || !active) return;
     const timer = setInterval(() => setImportClock(Date.now()), 10000);
     return () => clearInterval(timer);
-  }, [imported, active]);
-  // New search identity is an explicit import; parent clock/rerenders never
-  // rehydrate the form or overwrite a subsequent manual result.
+  }, [snapshot, active]);
   useEffect(() => {
-    const identity = `${planId}:${mode}:${importedSnapshot?.search_id}:${importRequest}`;
-    if (!importedSnapshot || identity === importedId.current) return;
-    epoch.current++;
-    pending.current?.abort();
-    setLoading(false); setDetail(null); setCompared([]); resetFilters();
-    const parsed = travelSnapshotSchema.safeParse(importedSnapshot);
-    if (!parsed.success || parsed.data.plan_id !== planId || parsed.data.mode !== (stay ? 'stays' : 'flights') || importReason || travelState(parsed.data, initialData)) {
-      setImported(false); setSnapshot(null); setError('These results are no longer available. Return to Plan chat to search again.'); return;
-    }
-    const value = parsed.data, c = value.criteria;
-    importedId.current = identity;
-    setImported(true); setError(''); setSnapshot(value); setCurrency(c.currency);
-    if (stay) {
-      setCity(c.destination.city); setPlace({name:c.destination.city,place_id:c.destination.place_id});
-      setCountry(c.destination.country_code); setNationality(c.guest_nationality);
-      setStart(c.check_in); setEnd(c.check_out); setRooms(c.rooms);
-      setStayFilters({ hotel_type_ids: c.hotel_type_ids || [], facility_ids: c.facility_ids || [], strict_facility_filtering: c.strict_facility_filtering ?? true, refundable_rates_only: c.refundable_rates_only || false });
-    } else {
-      setOrigin({iata:c.origin,label:c.origin}); setDestination({iata:c.destination,label:c.destination});
-      setStart(c.departure_date); setEnd(c.return_date); setAdults(c.adults);
-      setChildren(c.children_ages); setInfants(c.infant_ages); setCabin(c.cabin_class); setCountry(c.country_code);
-    }
-    heading.current?.focus();
+    if (importedSnapshot && workspace.importSnapshot(importedSnapshot, `${planId}:${mode}:${importedSnapshot.search_id}:${importRequest}`, importReason)) heading.current?.focus();
   }, [importedSnapshot?.search_id, importRequest, planId, mode]);
-  useEffect(() => {
-    if (!active) {
-      epoch.current++;
-      pending.current?.abort();
-      setLoading(false);
-      setDetail(null);
-    }
-    return () => {
-      epoch.current++;
-      pending.current?.abort();
-    };
-  }, [active, planId]);
   const roomChange = (i, patch) =>
     setRooms((prev) =>
       prev.map((room, j) => (i === j ? { ...room, ...patch } : room)),
@@ -583,34 +531,8 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       );
       return;
     }
-    pending.current?.abort();
-    const controller = new AbortController();
-    pending.current = controller;
-    const current = ++epoch.current;
-    setLoading(true);
-    try {
-      const result = await travelRequest(
-        planId,
-        stay ? "hotels/search" : "flights/search",
-        criteria,
-        controller.signal,
-      );
-      if (current === epoch.current) {
-        setImported(false);
-        setSnapshot({ ...result, criteria });
-        setCompared([]);
-        resetFilters();
-      }
-    } catch (e) {
-      if (current === epoch.current && e.name !== "AbortError") {
-        setError(e.message || "Unable to connect. Please try again.");
-        if (e.status === 401) onExpired?.();
-      }
-    } finally {
-      if (current === epoch.current) setLoading(false);
-    }
+    await workspace.search(criteria);
   }
-  useEffect(() => { setPage(1); }, [budget, refundable, direct, bag, sort, stars, rating, airline]);
   const unavailable = imported && (importReason || travelState(snapshot, initialData));
   function openDetail(item) {
     if (imported && (importReason || travelState(snapshot, initialData))) { setImportClock(Date.now()); return; }
@@ -865,9 +787,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
             : "Flight search can take up to two minutes."}{" "}
           <button
             onClick={() => {
-              epoch.current++;
-              pending.current?.abort();
-              setLoading(false);
+              workspace.cancel();
             }}
           >
             Cancel search

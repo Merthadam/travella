@@ -5,13 +5,16 @@ import { travelRequest } from './travelApi';
 import { TravelSearch } from './TravelSearch';
 import { TravelConversation } from './TravelConversation';
 import { useTravelConversation } from './useTravelConversation';
+import { useTravelWorkspace } from './useTravelWorkspace';
 import './travel-workspace.css';
 
 const noteLabels = { user_preference: 'Your preference', assistant_inference: 'Assistant suggestion', rejection: 'Ruled out', research_override: 'Exploratory search' };
 const optionId = option => option.evidence_id || option.id;
 export function TravelWorkspace({ selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, importedSnapshot, importRequest, importReason }) {
   const topic = mode === 'accommodation' ? 'stays' : 'flights';
-  const chat = useTravelConversation({ selected, api, topic, visible: active, blocked, onExpired, onBusyChange });
+  const stop = useRef(null);
+  const workspace = useTravelWorkspace({ owner: selected.owner_id || selected.subject || 'session', planId: selected.plan_id, topic, initialData, active, onExpired, onManualChange: () => stop.current?.() });
+  const chat = useTravelConversation({ selected, api, topic, visible: active, blocked, onExpired, onBusyChange, getWorkspaceContext: workspace.getWorkspaceContext, onWorkspaceRunStart: workspace.onWorkspaceRunStart, onWorkspaceRunEnd: workspace.onWorkspaceRunEnd, onWorkspaceUpdate: workspace.applyWorkspaceUpdate });
   const [pane, setPane] = useState('options'), [chatOpen, setChatOpen] = useState(true), [contextOptions, setContextOptions] = useState([]);
   const chatToggle = useRef(null), browseTab = useRef(null);
   function openChat() { setChatOpen(true); setPane('chat'); }
@@ -22,7 +25,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
   const dialog = useRef(null), returnFocus = useRef(null);
   const snapshot = chat.snapshot;
   const unavailable = blocked || chat.active || chat.loading || snapshot?.locked || Boolean(chat.historyError);
-  const stop = useRef(chat.stop); stop.current = chat.stop;
+  stop.current = chat.stop;
   useEffect(() => { registerStop?.(mode, () => stop.current()); return () => registerStop?.(mode, null); }, [mode, registerStop]);
   useEffect(() => { if (importedSnapshot) { setHandoff(null); setPane('options'); } }, [importRequest, importedSnapshot?.search_id]);
   useEffect(() => { if (review) { returnFocus.current = document.activeElement; dialog.current?.showModal(); } else { dialog.current?.close(); returnFocus.current?.focus?.(); } }, [review]);
@@ -103,7 +106,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
     <div className="travel-workspace-panes">
       <section className="travel-options-pane" aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} options`}>
         <div className="travel-substage-status" role="status">{readiness}</div>
-        <TravelSearch planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={handoff?.snapshot || importedSnapshot} importRequest={handoff?.nonce || importRequest} importReason={handoff ? '' : importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onCompare={compare} discussionDisabled={unavailable || saving}/>
+        <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={handoff?.snapshot || importedSnapshot} importRequest={handoff?.nonce || importRequest} importReason={handoff ? '' : importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onCompare={compare} discussionDisabled={unavailable || saving}/>
 
       </section>
       <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatOpen}><TravelConversation chat={chat} topic={topic} visible={active && chatOpen} disabled={blocked || snapshot?.locked && !chat.active} contextOptions={contextOptions} onClearContext={() => setContextOptions([])} onClose={closeChat} brief={snapshot?.brief} pendingEdits={pendingEdits} renderSuggestions={renderSuggestions} savedSuggestions={savedSuggestions}/></div>

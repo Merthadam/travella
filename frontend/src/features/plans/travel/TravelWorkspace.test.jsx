@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { TravelWorkspace } from './TravelWorkspace';
 import { draftTravelFacts } from './CanvasTravel';
+import { initialWorkspace, travelWorkspaceReducer } from './useTravelWorkspace';
+import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 
 const chat = vi.hoisted(() => ({ active: true, loading: false, historyError: 'History unavailable', messages: [], snapshot: null, stop: vi.fn(() => new Promise(() => {})) }));
 vi.mock('./useTravelConversation', () => ({ useTravelConversation: () => chat }));
@@ -37,4 +39,44 @@ test.each(['stays', 'flights'])('mounted %s manual HTTP search works with chat c
   fetch.mockResolvedValue({ ok: true, json: async () => fresh });
   fireEvent.click(screen.getByRole('button', { name: topic === 'stays' ? 'Search stays' : 'Search flights' }));
   expect(await screen.findByRole('heading', { name: 'Fresh result' })).toBeTruthy();
+});
+
+function authorized() {
+  const state = initialWorkspace({ owner: 'owner', planId: 'plan-1', topic: 'stays', initialData, instanceId: 'instance-1' });
+  return travelWorkspaceReducer(state, { type: 'run-start', authority: { run_id: 'run-1', brief_digest: 'b'.repeat(64) } });
+}
+function update() { return { action_id: 'action-1', plan_id: 'plan-1', topic: 'stays', instance_id: 'instance-1', base_revision: 0, run_id: 'run-1', brief_digest: 'b'.repeat(64), search_id: 'search-1', snapshot: workspaceSnapshot(), view: emptyWorkspaceView() }; }
+test('atomic agent batch applies evidence and clean draft once with one inverse; never applies during hydration', () => {
+  const state = authorized(), envelope = update();
+  expect(travelWorkspaceUpdateSchema.safeParse(envelope).success).toBe(true);
+  expect(travelWorkspaceReducer(state, { type: 'workspace-update', update: envelope, hydrating: true })).toBe(state);
+  const next = travelWorkspaceReducer(state, { type: 'workspace-update', update: envelope });
+  expect(next.snapshot.search_id).toBe('search-1');
+  expect(next.draftCriteria.city).toBe('Rome');
+  expect(next.appliedCriteria).toEqual(envelope.snapshot.criteria);
+  expect(next.revision).toBe(1);
+  expect(next.inverse.snapshot).toBeNull();
+  expect(travelWorkspaceReducer(next, { type: 'workspace-update', update: envelope })).toBe(next);
+  const undone = travelWorkspaceReducer(next, { type: 'undo' });
+  expect(undone.snapshot).toBeNull(); expect(undone.revision).toBe(2); expect(undone.inverse).toBeNull();
+});
+test.each(['plan_id', 'topic', 'instance_id', 'base_revision', 'run_id', 'brief_digest', 'search_id'])('agent batch rejects stale %s', field => {
+  const state = authorized(), envelope = update();
+  envelope[field] = field === 'base_revision' ? 1 : field === 'topic' ? 'flights' : field === 'brief_digest' ? 'c'.repeat(64) : 'other';
+  expect(travelWorkspaceReducer(state, { type: 'workspace-update', update: envelope })).toBe(state);
+});
+test('agent batch rejects changed owner, expired evidence, fabricated membership, extra fields and dirty drafts', () => {
+  const state = authorized();
+  for (const envelope of [ { ...update(), unexpected: true }, { ...update(), view: { ...emptyWorkspaceView(), dismissed_ids: ['invented'] } }, { ...update(), snapshot: { ...workspaceSnapshot(), searched_at: '2020-01-01T00:00:00Z', expires_at: '2020-01-01T00:10:00Z' } } ])
+    expect(travelWorkspaceReducer(state, { type: 'workspace-update', update: envelope })).toBe(state);
+  for (const changed of [{ ...state, owner: 'other-owner' }, { ...state, draftDirty: true }, travelWorkspaceReducer(state, { type: 'draft', field: 'start', value: '2027-11-14' }), travelWorkspaceReducer(state, { type: 'view', patch: { sort: 'price' } })])
+    expect(travelWorkspaceReducer(changed, { type: 'workspace-update', update: update() })).toBe(changed);
+});
+test('opening details and scrolling preserve authority; revisions stay safe at integer boundary', () => {
+  const state = authorized();
+  const inspected = travelWorkspaceReducer(state, { type: 'details', value: { reference: { search_id: 'search-1', option_id: 'option-1', room_id: null } } });
+  expect(inspected.revision).toBe(state.revision); expect(inspected.authority).toBe(state.authority);
+  expect(travelWorkspaceReducer(inspected, { type: 'scroll' })).toBe(inspected);
+  const wrapped = travelWorkspaceReducer({ ...state, revision: Number.MAX_SAFE_INTEGER }, { type: 'draft', field: 'city', value: 'Paris' });
+  expect(wrapped.instanceId).not.toBe(state.instanceId); expect(wrapped.revision).toBe(0); expect(wrapped.authority).toBeNull();
 });
