@@ -156,6 +156,8 @@ test.each(['filter', 'inactive', 'same-property'])('exact room comparison respec
   const rendered = render(<TravelWorkspace {...props}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View room-a' }));
   const details = await screen.findByRole('dialog');
+  expect(within(details).getByText(/Observed room offer · total stay/)).toBeTruthy();
+  expect(within(details).queryByText(/Total for all rooms/)).toBeNull();
   let finish;
   fetch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
   fireEvent.click(within(details).getByRole('button', { name: 'Compare room' }));
@@ -167,6 +169,13 @@ test.each(['filter', 'inactive', 'same-property'])('exact room comparison respec
   fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Compare room' }));
   await waitFor(() => expect(within(screen.getByRole('region', { name: 'Option comparison' })).getAllByRole('article')).toHaveLength(2));
   expect(screen.getByText('Exact room: room-a')).toBeTruthy(); expect(screen.getByText('Exact room: room-b')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'View room-a' }));
+  const reopened = await screen.findByRole('dialog');
+  fetch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  fireEvent.click(within(reopened).getByRole('button', { name: 'Compare room' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Close comparison' }));
+  await act(async () => finish({ ok: true, json: async () => snapshot }));
+  expect(screen.queryByRole('region', { name: 'Option comparison' })).toBeNull();
 });
 
 test('opening a historical exact room keeps current inventory and never starts a supplier search', async () => {

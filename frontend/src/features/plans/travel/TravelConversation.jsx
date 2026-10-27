@@ -17,7 +17,6 @@ export function TravelConversation({ chat, topic, visible, disabled, contextOpti
     const submitted = input;
     const sent = await chat.send(text, contextOptions.length ? { intent: 'discuss', options: contextOptions.map(item => item.reference) } : undefined);
     if (sent) { setInput(current => current === submitted ? '' : current); onClearContext?.(); }
-    requestAnimationFrame(() => composer.current?.focus());
   }
   return <aside className="canvas-chat travel-conversation" aria-label={title}>
     <ChatHeader title={topic === 'stays' ? 'Stay chat' : 'Flight chat'} subtitle="Your trip, with a focused discussion" collapseLabel={`Collapse ${topic === 'stays' ? 'accommodation' : 'flight'} chat`} panelId={`travel-${topic}-chat`} onClose={onClose}/>

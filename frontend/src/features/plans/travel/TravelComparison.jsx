@@ -10,10 +10,15 @@ export function comparisonEntry(snapshot, reference) {
 }
 const money = price => price?.amount != null && price?.currency ? `${price.estimated ? 'Estimated ' : ''}${price.currency} ${price.amount}` : 'Price unavailable';
 const refund = value => value === true ? 'Refundable; check exact terms' : value === false ? 'Non-refundable' : 'Cancellation terms unavailable';
-const party = c => c.rooms ? `${c.rooms.length} rooms · ${c.rooms.reduce((n, r) => n + r.adults + r.children_ages.length, 0)} travelers` : `${c.adults} adults · ${c.children_ages.length} children · ${c.infant_ages.length} infants`;
+const count = (n, singular, plural = `${singular}s`) => `${n} ${n === 1 ? singular : plural}`;
+const party = c => c.rooms ? `${count(c.rooms.length, 'room')} · ${count(c.rooms.reduce((n, r) => n + r.adults + r.children_ages.length, 0), 'traveler')}` : [count(c.adults, 'adult'), c.children_ages.length && count(c.children_ages.length, 'child', 'children'), c.infant_ages.length && count(c.infant_ages.length, 'infant')].filter(Boolean).join(' · ');
 const scope = ({ snapshot: { criteria: c, mode }, item, reference }) => JSON.stringify([mode, (reference.room_id ? item.rooms.find(room => room.id === reference.room_id)?.total : item.price)?.currency, c.currency, c.check_in || c.departure_date, c.check_out || c.return_date, c.rooms || [c.adults, c.children_ages, c.infant_ages], c.origin, c.destination, c.cabin_class]);
 function Journey({ leg, label }) {
-  return <div><strong>{label}</strong>{leg.segments.map((s, index) => <p key={index}>{s.origin} {s.departure_at.replace('T', ' ')} → {s.destination} {s.arrival_at.replace('T', ' ')}{(s.operating_airline || s.operating_code) && ` · Operated by ${s.operating_airline || s.operating_code}`}</p>)}<p>{leg.duration_minutes == null ? 'Duration unavailable' : `${leg.duration_minutes} min`} · {leg.stops == null ? 'Stops unavailable' : `${leg.stops} stops`} · Local airport times</p></div>;
+  const date = leg.segments[0]?.departure_at.slice(0, 10);
+  const local = value => `${value.slice(0, 10) !== date ? `${value.slice(0, 10)} ` : ''}${value.slice(11, 16)}`;
+  const minutes = leg.duration_minutes;
+  const duration = minutes == null ? 'Duration unavailable' : [Math.floor(minutes / 60) && `${Math.floor(minutes / 60)}h`, (minutes % 60 || minutes === 0) && `${minutes % 60}m`].filter(Boolean).join(' ');
+  return <div><strong>{label} · {date}</strong>{leg.segments.map((s, index) => <p key={index}>{s.origin} <time dateTime={s.departure_at} title={s.departure_at}>{local(s.departure_at)}</time> → {s.destination} <time dateTime={s.arrival_at} title={s.arrival_at}>{local(s.arrival_at)}</time>{(s.operating_airline || s.operating_code) && ` · Operated by ${s.operating_airline || s.operating_code}`}</p>)}<p>{duration} · {leg.stops == null ? 'Stops unavailable' : leg.stops === 0 ? 'Direct' : count(leg.stops, 'stop')} · Local airport times</p></div>;
 }
 export function TravelComparison({ entries, currentSearchId, onDetails, onChoose, onShortlist, onClose, onDiscuss, discussionError, discussing, choiceDisabled }) {
   if (!entries.length) return null;

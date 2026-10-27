@@ -9,7 +9,7 @@ import { StaySearchFilters } from "./StaySearchFilters";
 import { StayDestination } from "./StayDestination";
 import { travelState, TravelPhoto, travelSnapshotSchema } from "./CanvasTravel";
 import { CarrierMarks } from "./CarrierMark";
-import { TravelComparison, comparisonEntry } from './TravelComparison';
+import { TravelComparison, comparisonEntry, referenceKey } from './TravelComparison';
 import "./travel-search.css";
 
 const currencies = ["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"];
@@ -160,12 +160,12 @@ function Airport({ label, value, onChange, planId, active, onExpired }) {
     </div>
   );
 }
-function Price({ price, stay }) {
+function Price({ price, stay, room = false }) {
   return (
     <div className="travel-price">
       <strong>{price?.estimated ? 'Estimated ' : ''}{priceLabel(price)}</strong>
       <small>
-        {stay ? "Total for all rooms & nights" : "Return total · all travelers"}{price?.currency && ` · ${price.currency}`}
+        {stay ? room ? 'Observed room offer · total stay' : "Total for all rooms & nights" : "Return total · all travelers"}{price?.currency && ` · ${price.currency}`}
       </small>
       {price?.excluded_taxes?.map((tax, i) => (
         <small key={i}>
@@ -249,6 +249,7 @@ function Room({ room, onCheckout, onDiscuss, onChoose, onCompare }) {
       <Price
         price={{ ...room.total, excluded_taxes: room.excluded_taxes }}
         stay
+        room
       />
     </article>
   );
@@ -474,7 +475,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   const setCompared = value => workspace.setView(current => ({ comparison_refs: (typeof value === "function" ? value(current.comparison_refs.map(ref => ref.option_id)) : value).map(option_id => current.comparison_refs.find(ref => ref.search_id === snapshot.search_id && ref.option_id === option_id) || ({ search_id: snapshot.search_id, option_id, room_id: null })) }));
   const [comparison, setComparison] = useState([]), [comparisonError, setComparisonError] = useState(false), [discussing, setDiscussing] = useState(false);
   const comparisonRun = useRef(0);
-  useEffect(() => { setComparison([]); comparisonRun.current++; }, [planId, mode]);
+  useEffect(() => { setComparison([]); comparisonRun.current++; return () => { comparisonRun.current++; }; }, [planId, mode, active, workspace.state.instanceId]);
   async function discussComparison(entries) {
     if (!onCompare || entries.length < 2) return;
     const run = ++comparisonRun.current; setDiscussing(true); setComparisonError(false);
@@ -489,17 +490,23 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   }
   async function compareRoom({ reference }) {
     workspace.setView(current => ({ comparison_refs: current.comparison_refs }));
+    const token = workspace.getWorkspaceContext(), run = ++comparisonRun.current;
+    const current = () => {
+      const now = workspace.getWorkspaceContext();
+      return run === comparisonRun.current && now.instance_id === token.instance_id && now.revision === token.revision;
+    };
     try {
       const original = travelSnapshotSchema.parse(await travelRequest(planId, 'research/snapshot', { search_id: reference.search_id }));
+      if (!current()) return;
       if (original.plan_id !== planId || original.mode !== 'stays') throw new Error('Invalid room evidence');
       const entry = comparisonEntry(original, reference);
       if (!entry) throw new Error('Room evidence unavailable');
       const base = comparison.length ? comparison : view.comparison_refs.map(ref => comparisonEntry(snapshot, ref)).filter(Boolean);
-      const index = base.findIndex(value => value.item.hotel_id === entry.item.hotel_id);
+      const index = base.findIndex(value => referenceKey(value.reference) === referenceKey(entry.reference));
       if (index < 0 && base.length >= 3) { setError('Compare up to three options. Remove one to add another.'); return; }
       setComparison(index < 0 ? [...base, entry] : base.map((value, i) => i === index ? entry : value));
       setComparisonError(false);
-    } catch (err) { if (err.status === 401) onExpired?.(); setError('This room observation is unavailable. Search again to compare current rooms.'); }
+    } catch (err) { if (!current()) return; if (err.status === 401) onExpired?.(); setError('This room observation is unavailable. Search again to compare current rooms.'); }
   }
   const setError = value => workspace.dispatch({ type: "error", value });
   const detail = detailsReference?.item;
@@ -1087,7 +1094,13 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                   )}
                   <div className="travel-result-actions">
                     <Price price={item.price} stay={stay} />
-                    {workspace.dismiss && snapshot.search_id && <button type="button" disabled={workspace.state.draftDirty || evidenceExpired} onClick={() => workspace.dismiss({ search_id: snapshot.search_id, option_id: item.id, room_id: null })}>Dismiss from results</button>}
+                    {workspace.dismiss && snapshot.search_id && <button type="button" data-dismiss-option disabled={workspace.state.draftDirty || evidenceExpired} onClick={event => {
+                      const button = event.currentTarget, focused = document.activeElement === button;
+                      const buttons = Array.from(button.closest('.travel-search').querySelectorAll('[data-dismiss-option]'));
+                      const next = buttons[buttons.indexOf(button) + 1] || buttons[buttons.indexOf(button) - 1];
+                      workspace.dismiss({ search_id: snapshot.search_id, option_id: item.id, room_id: null });
+                      if (focused) requestAnimationFrame(() => { if (document.activeElement === document.body || document.activeElement === button) (next?.isConnected ? next : resultsHeading.current)?.focus(); });
+                    }}>Dismiss from results</button>}
                     <button
                       className="travel-primary"
                       onClick={() => openDetail(item)}
@@ -1115,7 +1128,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                   </div>
                 </article>
               ))}
-              {results.length > PAGE_SIZE && paging}
+              {results.length > PAGE_SIZE && <Pagination page={currentPage} total={results.length} onChange={changeResultsPage} label="results pages" announce={false}/>}
             </div>
           </div>
           {compared.length > 0 && (
