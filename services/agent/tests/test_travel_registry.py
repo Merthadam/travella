@@ -14,6 +14,29 @@ from services.auth.contracts import ValidatedIdentity
 from services.travel_topics import TravelDiscussion
 
 
+def test_carrier_metadata_survives_public_safe_registry_roundtrip():
+    from services.mcps.tests.test_liteapi import FLIGHT, flight_payload
+    from services.mcps.liteapi import normalize_flights
+    from services.agent.travel_contracts import Flight
+    from services.agent.claude.canvas_travel import FlightSnapshot
+    payload = flight_payload()
+    carrier = payload['data'][0]['journeys'][0]['segments'][0]['carrier']
+    carrier.update(marketingLogo='https://assets.nuitee.flights/airlines/SA.svg', operatingCode='OA', operatingLogo='https://assets.nuitee.flights/airlines/OA.svg')
+    results = normalize_flights(payload, FLIGHT)[0]
+    public = Flight.model_validate(results[0]).model_dump()
+    assert public['outbound']['segments'][0].get('marketing_code') == 'SA'
+    registry, pid = TravelRegistry(), str(uuid4())
+    observed = datetime.now(UTC).isoformat()
+    sid = registry.manual('owner', pid, 'flights/search', FLIGHT, dict(results=[public], searched_at=observed, provider='LiteAPI', sandbox=True, truncated=False, notices=[]))
+    snap = registry.snapshot('owner', pid, sid)
+    restored = FlightSnapshot.model_validate(snap.model_dump())
+    segment = restored.results[0].outbound.segments[0]
+    assert segment.marketing_logo == carrier['marketingLogo']
+    assert segment.operating_code == 'OA'
+    assert segment.operating_logo == carrier['operatingLogo']
+    assert restored.searched_at == observed
+
+
 def test_registry_scope_room_and_expiry():
     registry = TravelRegistry(limit=1)
     pid = str(uuid4())
