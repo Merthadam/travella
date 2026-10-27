@@ -137,6 +137,35 @@ class SandboxFlightConfirm(SandboxHandle):
     confirm_mock: Literal[True]
 
 
+class TestFlightPassenger(TestGuest):
+    date_of_birth: date
+    gender: Literal["M", "F"]
+    nationality: Country
+    document_issue_country: Country
+    document_number: str = Field(pattern=r"^TEST[A-Z0-9]{4,16}$")
+    document_expiry: date
+    _dates = field_validator("date_of_birth", "document_expiry", mode="before")(exact_date)
+    _countries = field_validator("nationality", "document_issue_country")(Destination.country.__func__)
+
+
+class TestFlightContact(TestGuest):
+    # Sandbox contacts cannot address real travelers. Never checkpoint these fields.
+    email: str = Field(max_length=120, pattern=r"^[A-Za-z0-9._%+-]+@example\.(com|test)$")
+    phone_country_code: str = Field(pattern=r"^[1-9][0-9]{0,2}$")
+    phone_number: str = Field(pattern=r"^[0-9]{6,14}$")
+
+
+class SandboxFlightPrebook(SandboxFlightConfirm):
+    passengers: list[TestFlightPassenger] | None = Field(default=None, min_length=1, max_length=9)
+    contact: TestFlightContact | None = None
+
+    @model_validator(mode="after")
+    def complete_party(self):
+        if (self.passengers is None) != (self.contact is None):
+            raise ValueError("Provide passengers and contact together.")
+        return self
+
+
 class TravelInvocation(Strict):
     plan_id: UUID
     action: Literal[
@@ -151,7 +180,7 @@ POST_ACTIONS = {"sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/fl
 
 INPUTS = {
     "sandbox/flights/verify": SandboxHandle,
-    "sandbox/flights/prebook": SandboxFlightConfirm,
+    "sandbox/flights/prebook": SandboxFlightPrebook,
     "sandbox/flights/book": SandboxFlightConfirm,
     "sandbox/flights/status": SandboxHandle,
     "sandbox/prebook": SandboxHandle,
@@ -336,6 +365,8 @@ class SandboxFlightResult(Public):
     token: str
     flight: Flight
     passenger_count: int
+    passenger_ages: list[int] = Field(default_factory=list, max_length=9)
+    country_code: str = "US"
     booking_id: str | None = None
     confirmation_code: str | None = None
 

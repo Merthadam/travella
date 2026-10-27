@@ -233,13 +233,13 @@ test('token-free flight details require explicit search before normal mock check
   render(<TravelSearch {...props} mode="flights" importedSnapshot={s}/>);
   await screen.findByRole('heading',{name:s.search_id});
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
-  expect(screen.queryByRole('button',{name:'Try mock flight booking'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Continue to flight checkout'})).toBeNull();
   expect(travelRequest).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Search again to check current availability'}));
   await waitFor(()=>expect(searchRequest).toHaveBeenCalledTimes(1));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Search flights'}).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
-  expect(screen.getByRole('button',{name:'Try mock flight booking'})).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Continue to flight checkout'})).toBeTruthy();
   expect(searchRequest.mock.calls.map(x=>x[1])).toEqual(['flights/search']);
 });
 

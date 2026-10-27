@@ -18,6 +18,7 @@ class Supplier:
     environment = 'sandbox'
     lose_prebook = False
     lose_book = False
+    environment_shape = 'current'
 
     def __init__(self):
         self.prebooks = 0
@@ -34,6 +35,7 @@ class Supplier:
         if path.endswith('/prebooks'):
             self.prebooks += 1
             body = json.loads(req.content)
+            self.last_prebook = body
             assert body['usePaymentSdk'] is False
             assert body['contact']['email'] == 'sandbox-guest@example.com'
             assert len(body['passengers']) == FLIGHT['adults']
@@ -49,7 +51,8 @@ class Supplier:
                 raise httpx.ReadTimeout('private')
             return httpx.Response(201, json={'data': [{'booking': {'bookingId': 'TEST_FLIGHT', 'status': self.status}}]})
         assert path.endswith('/bookings/TEST_FLIGHT')
-        return httpx.Response(200, json={'data': [{'booking': {'bookingId': 'TEST_FLIGHT', 'status': self.status, 'providerEnvironment': self.environment, 'passengers': 'PRIVATE'}}]})
+        markers = {'ticketData': {'pointOfSale': {'environment': self.environment}}} if self.environment_shape == 'current' else {'providerEnvironment': self.environment} if self.environment_shape == 'legacy' else {'providerEnvironment': 'production', 'ticketData': {'pointOfSale': {'environment': 'sandbox'}}} if self.environment_shape == 'conflicting' else {}
+        return httpx.Response(200, json={'data': [{'booking': {'bookingId': 'TEST_FLIGHT', 'status': self.status, **markers, 'passengers': 'PRIVATE'}}]})
 
 
 @pytest.fixture
@@ -140,3 +143,59 @@ def test_confirmation_and_sandbox_environment_required(setup):
     with pytest.raises(ValidationError): call(api, 'book', prebook)
     supplier.status = 'CONFIRMED'; supplier.environment = 'production'
     with pytest.raises(ProviderUnavailable): call(api, 'book', prebook, True)
+
+
+@pytest.mark.parametrize('shape,accepted', [('current', True), ('legacy', True), ('missing', False), ('conflicting', False)])
+def test_readback_environment_shapes_fail_closed(setup, shape, accepted):
+    api, supplier, token = setup
+    supplier.environment_shape = shape; supplier.status = 'CONFIRMED'
+    review = call(api, 'verify', token)['token']
+    prebook = call(api, 'prebook', review, True)['token']
+    if accepted:
+        result = call(api, 'book', prebook, True)
+        assert result['status'] == 'confirmed'
+        assert 'ticketData' not in result and 'passengers' not in result
+    else:
+        with pytest.raises(ProviderUnavailable, match='provider_response_invalid'):
+            call(api, 'book', prebook, True)
+
+
+def party_data():
+    from services.mcps.flight_checkout import passengers
+    values = [{"first_name": p["firstName"], "last_name": "Example", "date_of_birth": p["birthday"],
+               "gender": p["gender"], "nationality": p["nationality"], "document_issue_country": p["documentIssueCountry"],
+               "document_number": p["documentNumber"], "document_expiry": p["documentExpiry"]} for p in passengers({'children_ages': [], 'infant_ages': [], **FLIGHT})]
+    return {"passengers": values, "contact": {"first_name": "Alex", "last_name": "Example", "email": "sandbox-guest@example.com", "phone_country_code": "1", "phone_number": "2025550123"}}
+
+
+def test_supplied_passengers_reach_provider_but_never_enter_receipt_or_projection(setup):
+    from services.mcps.sandbox_checkout import unseal
+    api, supplier, token = setup
+    verified = call(api, 'verify', token)
+    data = party_data()
+    result = run(api.call('sandbox/flights/prebook', {"token": verified['token'], "confirm_mock": True, **data}))
+    assert supplier.last_prebook['passengers'][0]['lastName'] == 'Example'
+    private_state = unseal(api, result['token'], 'flight-checkout')
+    assert 'Example' not in json.dumps(private_state)
+    assert 'TEST0000' not in json.dumps(private_state)
+    assert 'passengers' not in private_state and 'contact' not in private_state
+    assert 'document_number' not in json.dumps(result)
+    assert verified['passenger_ages'] == [30] * FLIGHT['adults']
+
+
+@pytest.mark.parametrize('invalid', ['count', 'age', 'expiry', 'real_email', 'real_document', 'partial'])
+def test_invalid_passengers_never_claim_or_reserve(setup, invalid):
+    api, supplier, token = setup
+    verified = call(api, 'verify', token)
+    data = party_data()
+    if invalid == 'count': data['passengers'].append(data['passengers'][0])
+    if invalid == 'age': data['passengers'][0]['date_of_birth'] = FLIGHT['departure_date']
+    if invalid == 'expiry': data['passengers'][0]['document_expiry'] = FLIGHT['return_date']
+    if invalid == 'real_email': data['contact']['email'] = 'person@real-domain.com'
+    if invalid == 'real_document': data['passengers'][0]['document_number'] = 'AB1234567'
+    if invalid == 'partial': del data['contact']
+    with pytest.raises((ProviderUnavailable, ValidationError)):
+        run(api.call('sandbox/flights/prebook', {"token": verified['token'], "confirm_mock": True, **data}))
+    assert supplier.prebooks == 0
+    assert call(api, 'prebook', verified['token'], True)['status'] == 'ready_to_book'
+    assert supplier.prebooks == 1
