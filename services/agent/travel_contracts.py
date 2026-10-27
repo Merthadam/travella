@@ -4,6 +4,7 @@ import re
 from datetime import date, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -14,6 +15,21 @@ Currency = Literal["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"]
 HotelId = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,100}$")]
 PlaceId = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,255}$")]
 Iata = Annotated[str, Field(pattern=r"^[A-Z]{3}$")]
+
+
+def carrier_logo(value):
+    """Only the supplier image origin observed in the bounded flight sample."""
+    if not isinstance(value, str) or len(value) > 2000 or re.search(r"[\s\\\x00-\x1f\x7f]", value):
+        return None
+    try:
+        url = urlsplit(value)
+        if (url.scheme == 'https' and url.hostname == 'assets.nuitee.flights'
+                and not url.username and not url.password and not url.query
+                and not url.fragment and url.port in (None, 443)):
+            return value
+    except ValueError:
+        pass
+    return None
 
 
 class Strict(BaseModel):
@@ -289,9 +305,18 @@ class Segment(Public):
     arrival_at: str
     airline: str | None = None
     operating_airline: str | None = None
+    marketing_code: str | None = Field(default=None, max_length=3)
+    marketing_logo: str | None = None
+    operating_code: str | None = Field(default=None, max_length=3)
+    operating_logo: str | None = None
     flight_number: str | None = None
     duration_minutes: int | None = None
     technical_stops: list[str] = Field(default_factory=list, max_length=10)
+
+    @field_validator('marketing_logo', 'operating_logo', mode='before')
+    @classmethod
+    def safe_carrier_logo(cls, value):
+        return carrier_logo(value)
 
 
 class Leg(Public):

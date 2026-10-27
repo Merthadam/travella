@@ -7,11 +7,15 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from services.agent.app import create_app
-from services.agent.tests.test_canvas_travel import Provider, hotels
+from services.agent.tests.test_canvas_travel import Provider, hotels as original_hotels
 from services.agent.tests.test_specialist_worker import STAY
 from services.agent.travel_registry import TravelRegistry, travel_registry
 from services.auth.contracts import ValidatedIdentity
 from services.travel_topics import TravelDiscussion
+
+
+def hotels(*args, **kwargs):
+    return {**original_hotels(*args, **kwargs), 'searched_at': datetime.now(UTC).isoformat()}
 
 
 def test_carrier_metadata_survives_public_safe_registry_roundtrip():
@@ -26,15 +30,16 @@ def test_carrier_metadata_survives_public_safe_registry_roundtrip():
     public = Flight.model_validate(results[0]).model_dump()
     assert public['outbound']['segments'][0].get('marketing_code') == 'SA'
     registry, pid = TravelRegistry(), str(uuid4())
-    observed = datetime.now(UTC).isoformat()
+    observed = (datetime.now(UTC) - timedelta(minutes=3)).isoformat()
     sid = registry.manual('owner', pid, 'flights/search', FLIGHT, dict(results=[public], searched_at=observed, provider='LiteAPI', sandbox=True, truncated=False, notices=[]))
-    snap = registry.snapshot('owner', pid, sid)
+    snap = registry.get('owner', pid, sid)
     restored = FlightSnapshot.model_validate(snap.model_dump())
     segment = restored.results[0].outbound.segments[0]
     assert segment.marketing_logo == carrier['marketingLogo']
     assert segment.operating_code == 'OA'
     assert segment.operating_logo == carrier['operatingLogo']
     assert restored.searched_at == observed
+    assert datetime.fromisoformat(restored.expires_at) == datetime.fromisoformat(observed) + timedelta(minutes=10)
 
 
 def test_registry_scope_room_and_expiry():
@@ -69,6 +74,7 @@ def test_manual_search_and_snapshot_through_authenticated_http_and_runtime(large
     class SearchProvider(Provider):
         async def call(self, *args, **kwargs):
             result = await super().call(*args, **kwargs)
+            result['searched_at'] = datetime.now(UTC).isoformat()
             if large:
                 for option in result['results']:
                     room = option['rooms'][0]

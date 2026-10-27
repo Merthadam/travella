@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from services.shared.traveler_profile import reference_catalog
 
@@ -26,6 +26,7 @@ from ..travel_contracts import (
     Hotel,
     HotelSearch,
     validate_dates,
+    carrier_logo,
 )
 from .research_result import StrictResult, public_https_url
 
@@ -87,9 +88,18 @@ class FlightSegment(StrictResult):
     arrival_at: str = Field(max_length=40, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
     airline: Text | None = None
     operating_airline: Text | None = None
+    marketing_code: str | None = Field(default=None, max_length=3)
+    marketing_logo: str | None = None
+    operating_code: str | None = Field(default=None, max_length=3)
+    operating_logo: str | None = None
     flight_number: Text | None = None
     duration_minutes: int | None = Field(default=None, ge=0, le=10080)
     technical_stops: list[Text] = Field(default_factory=list, max_length=10)
+
+    @field_validator('marketing_logo', 'operating_logo', mode='before')
+    @classmethod
+    def safe_carrier_logo(cls, value):
+        return carrier_logo(value)
 
 
 class FlightLeg(StrictResult):

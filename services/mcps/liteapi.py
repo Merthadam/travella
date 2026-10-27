@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from services.agent.travel_contracts import INPUTS, OUTPUTS
+from services.agent.travel_contracts import INPUTS, OUTPUTS, carrier_logo
 from services.shared.traveler_profile import reference_catalog
 
 BASE = "https://api.liteapi.travel/v3.0"
@@ -308,6 +308,10 @@ def normalize_flights(payload, criteria, api=None):
                         "arrival_at": arr,
                         "airline": airline,
                         "operating_airline": text(carrier.get("operatingName")),
+                        "marketing_code": text(carrier.get("marketingCode"), 3),
+                        "marketing_logo": carrier_logo(carrier.get("marketingLogo")),
+                        "operating_code": text(carrier.get("operatingCode"), 3),
+                        "operating_logo": carrier_logo(carrier.get("operatingLogo")),
                         "flight_number": text(carrier.get("marketingCode"), 3)
                         + " "
                         + str(obj(s.get("flight")).get("marketingNumber", ""))

@@ -60,11 +60,15 @@ class TravelRegistry:
         criteria = (HotelSearch if mode == "stays" else FlightSearch).model_validate(criteria)
         options = [safe_stay(o) if mode == "stays" else safe_flight(o, criteria) for o in result["results"]]
         now = datetime.now(UTC)
+        # Keep supplier observation age; registry insertion is not a new search.
+        observed = datetime.fromisoformat(result.get('searched_at') or now.isoformat())
+        if observed.tzinfo is None or observed > now + timedelta(seconds=5):
+            raise ValueError('invalid_observation_time')
         normalized = criteria.model_dump(mode="json")
         value = (StaySnapshot if mode == "stays" else FlightSnapshot)(
             search_id=uuid4().hex, plan_id=str(plan_id), generation=0, mode=mode, criteria=criteria,
             fingerprint=hashlib.sha256(json.dumps(normalized, sort_keys=True).encode()).hexdigest(),
-            draft_facts={}, searched_at=now.isoformat(), expires_at=(now + timedelta(minutes=10)).isoformat(),
+            draft_facts={}, searched_at=observed.isoformat(), expires_at=(observed + timedelta(minutes=10)).isoformat(),
             provider="LiteAPI", sandbox=result["sandbox"], returned_count=len(options),
             truncated=result["truncated"], notices=result["notices"], results=options)
         while len(value.model_dump_json().encode()) > 130000 and value.results:
