@@ -1,9 +1,9 @@
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { TravelWorkspace } from './TravelWorkspace';
 import { draftTravelFacts } from './CanvasTravel';
-import { initialWorkspace, travelWorkspaceReducer } from './useTravelWorkspace';
+import { initialWorkspace, travelWorkspaceReducer, useTravelWorkspace } from './useTravelWorkspace';
 import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 
 const chat = vi.hoisted(() => ({ active: true, loading: false, historyError: 'History unavailable', messages: [], snapshot: null, stop: vi.fn(() => new Promise(() => {})) }));
@@ -79,4 +79,52 @@ test('opening details and scrolling preserve authority; revisions stay safe at i
   expect(travelWorkspaceReducer(inspected, { type: 'scroll' })).toBe(inspected);
   const wrapped = travelWorkspaceReducer({ ...state, revision: Number.MAX_SAFE_INTEGER }, { type: 'draft', field: 'city', value: 'Paris' });
   expect(wrapped.instanceId).not.toBe(state.instanceId); expect(wrapped.revision).toBe(0); expect(wrapped.authority).toBeNull();
+});
+
+test('manual registry completion loses to typing, and malformed or cross-Plan evidence preserves previous results', async () => {
+  let finishRegistry;
+  const first = workspaceSnapshot(), next = workspaceSnapshot('stays', 'next-search');
+  const { result } = renderHook(() => useTravelWorkspace({ owner: 'owner', planId: 'plan-1', topic: 'stays', initialData }));
+  act(() => result.current.importSnapshot(first, 'first'));
+  fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: next.search_id, results: next.results }) })
+    .mockImplementationOnce(() => new Promise(resolve => { finishRegistry = () => resolve({ ok: true, json: async () => next }); }));
+  let pending;
+  act(() => { pending = result.current.search(first.criteria); });
+  await waitFor(() => expect(finishRegistry).toBeTypeOf('function'));
+  expect(fetch.mock.calls[1][0]).toContain('/research/snapshot?search_id=next-search');
+  act(() => result.current.setDraft('start', '2027-11-14'));
+  await act(async () => { finishRegistry(); await pending; });
+  expect(result.current.state.snapshot.search_id).toBe(first.search_id);
+  for (const invalid of [{ ...next, plan_id: 'another-plan' }, { ...next, checkout_token: 'private' }, { ...next, results: [{ ...next.results[0], id: 'forged' }] }]) {
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: next.search_id }) }).mockResolvedValueOnce({ ok: true, json: async () => invalid });
+    await act(async () => result.current.search(first.criteria));
+    expect(result.current.state.snapshot.search_id).toBe(first.search_id);
+    expect(result.current.state.error).toContain('could not be verified');
+  }
+});
+
+test('manual mutation revokes authority before cancellation callback; private checkout handles never enter shared state', async () => {
+  const onManualChange = vi.fn(() => { expect(result.current.applyWorkspaceUpdate(envelope)).toBe(false); return new Promise(() => {}); });
+  const { result } = renderHook(() => useTravelWorkspace({ owner: 'owner', planId: 'plan-1', topic: 'stays', initialData, onManualChange }));
+  const envelope = { ...update(), instance_id: result.current.state.instanceId };
+  act(() => result.current.onWorkspaceRunStart({ run_id: 'run-1', brief_digest: 'b'.repeat(64) }));
+  act(() => result.current.setDraft('start', '2027-11-14'));
+  expect(onManualChange).toHaveBeenCalledOnce();
+  const snap = workspaceSnapshot();
+  fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: snap.search_id, results: [{ ...snap.results[0], checkout_token: 'private-handle' }] }) }).mockResolvedValueOnce({ ok: true, json: async () => snap });
+  await act(async () => result.current.search(snap.criteria));
+  expect(JSON.stringify(result.current.state)).not.toContain('private-handle');
+  expect(JSON.stringify(result.current.getWorkspaceContext())).not.toContain('private-handle');
+  expect(result.current.getCheckoutToken({ search_id: snap.search_id, option_id: 'option-1' })).toBe('private-handle');
+});
+
+test('saved traveler count prefills bounded rooms and return-flight party; owner changes rotate instance and clear evidence', () => {
+  const many = initialWorkspace({ planId: 'plan-1', topic: 'stays', initialData: { essentials: { travelers: 8 } } });
+  expect(many.draftCriteria.rooms.map(room => room.adults)).toEqual([6, 2]);
+  const { result, rerender } = renderHook(({ owner }) => useTravelWorkspace({ owner, planId: 'plan-1', topic: 'flights', initialData: { essentials: { travelers: 3 } } }), { initialProps: { owner: 'first' } });
+  expect(result.current.state.draftCriteria.adults).toBe(3);
+  const instance = result.current.state.instanceId;
+  act(() => result.current.importSnapshot(workspaceSnapshot('flights'), 'first'));
+  rerender({ owner: 'second' });
+  expect(result.current.state.instanceId).not.toBe(instance); expect(result.current.state.snapshot).toBeNull();
 });

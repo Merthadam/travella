@@ -15,13 +15,20 @@ import { draftTravelFacts, TravelPhoto, safeTravelImage } from './CanvasTravel';
 vi.mock("./travelApi", () => ({ travelRequest: vi.fn() }));
 const searchRequest = vi.fn();
 beforeEach(() => {
-  travelRequest.mockImplementation((plan, action, criteria, signal) =>
-    action === "places"
-      ? Promise.resolve({
+  const registered = new Map();
+  travelRequest.mockImplementation(async (plan, action, criteria, signal) => {
+    if (action === 'research/snapshot') return registered.get(criteria.search_id);
+    if (action === 'places') return {
           places: [{ place_id: "rome-place", name: "Rome", address: "Italy" }],
-        })
-      : searchRequest(plan, action, criteria, signal),
-  );
+        };
+    const result = await searchRequest(plan, action, criteria, signal);
+    if (action.endsWith('/search') && result?.search_id) {
+      const safe = structuredClone(result);
+      safe.results = safe.results.map(({ checkout_token, ...item }) => item);
+      registered.set(result.search_id, safe);
+    }
+    return result;
+  });
 });
 afterEach(() => {
   cleanup();
@@ -31,10 +38,12 @@ const hotel = (name) => ({
   id: name,
   hotel_id: name,
   name,
-  rooms: [{ id: "room", refundable: null }],
-  price: { amount: "100", currency: "EUR" },
+  address: null, image_url: null, stars: null, review_score: null, review_count: null, facilities: [],
+  rooms: [{ id: 'room', name: 'Observed room', refundable: null, board_name: null, cancellation_summary: null, cancellation_deadline: null, total: { amount: '100', currency: 'EUR' }, excluded_taxes: [], occupancy_summary: null }],
+  price: { amount: "100", currency: "EUR", basis: 'stay', estimated: true, excluded_taxes: [] },
 });
 const response = (name) => ({
+  ...imported('accommodation', name),
   results: [hotel(name)],
   sandbox: true,
   searched_at: new Date().toISOString(),
@@ -174,7 +183,7 @@ test.each(['accommodation','flights'])('new %s import defeats an older manual re
   if(mode==='flights') {
     next.criteria.origin='VIE';next.results[0].outbound.segments[0].origin='VIE';next.results[0].inbound.segments[0].destination='VIE';
   }
-  searchRequest.mockImplementationOnce(()=>new Promise(resolve=>{resolveOld=resolve;})).mockResolvedValueOnce({...next,results:[{...next.results[0],id:'manual',name:'Manual current',airlines:['Manual current']}]});
+  searchRequest.mockImplementationOnce(()=>new Promise(resolve=>{resolveOld=resolve;})).mockResolvedValueOnce({...next,preview_ids:['manual'],results:[{...next.results[0],id:'manual',...(mode === 'accommodation' ? {name:'Manual current'} : {airlines:['Manual current']})}]});
   const view=render(<TravelSearch {...props} mode={mode} importedSnapshot={first}/>);
   await screen.findByRole('heading',{name:'import-1'});
   expect(travelRequest).not.toHaveBeenCalled();
@@ -193,18 +202,18 @@ test.each(['accommodation','flights'])('new %s import defeats an older manual re
   }
   fireEvent.submit(screen.getByRole('button',{name:button}).closest('form'));
   expect(searchRequest.mock.calls[0][2]).toEqual(stay ? {...first.criteria,hotel_id:undefined} : first.criteria);
-  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={next}/>);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={next} importRequest={1}/>);
   await screen.findByRole('heading',{name:'import-2'});
   if(!stay)expect(screen.getByLabelText('From airport').value).toBe('VIE');
   expect(searchRequest.mock.calls[0][3].aborted).toBe(true);
   await act(async()=>resolveOld({...first,results:[{...first.results[0],name:'Obsolete',airlines:['Obsolete']}]}));
   expect(screen.queryByRole('heading',{name:'Obsolete'})).toBeNull();
   fireEvent.change(screen.getByLabelText(start),{target:{value:'2027-11-14'}});
-  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...next}}/>);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...next}} importRequest={1}/>);
   expect(screen.getByLabelText(start).value).toBe('2027-11-14');
   fireEvent.submit(screen.getByRole('button',{name:button}).closest('form'));
   await screen.findByRole('heading',{name:'Manual current'});
-  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...next,expires_at:new Date(Date.now()-1).toISOString()}} importReason="These results have expired."/>);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...next,expires_at:new Date(Date.now()-1).toISOString()}} importRequest={1} importReason="These results have expired."/>);
   expect(screen.getByRole('heading',{name:'Manual current'})).toBeTruthy();
   expect(screen.queryByText('These results have expired.')).toBeNull();
   expect(searchRequest).toHaveBeenCalledTimes(2);
@@ -305,7 +314,7 @@ test.each(['accommodation', 'flights'])('%s paginates ten at a time, preserves c
   expect(screen.queryByRole('navigation', {name: 'results pages'})).toBeNull();
   await user.click(screen.getAllByRole('button', {name: 'Reset filters'})[0]);
   await user.click(screen.getAllByRole('button', {name: 'Next results pages'})[0]);
-  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...data, search_id: 'new-search'}} />);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...data, search_id: 'new-search'}} importRequest={1} />);
   expect(cards()[0].dataset.optionId).toBe('option-1');
   expect(screen.queryByText('Your comparison (1/3)')).toBeNull();
   expect(travelRequest).not.toHaveBeenCalled();
@@ -419,4 +428,17 @@ test('view-only filters and sort perform no supplier request and keep unknown fa
   fireEvent.click(screen.getAllByRole('button', { name: 'Reset filters' })[0]);
   expect(screen.getByRole('heading', { name: 'import-1' })).toBeTruthy();
   expect(searchRequest).not.toHaveBeenCalled();
+});
+
+test('delayed Trip import cannot replace a manual search made after its navigation request', async () => {
+  const view = render(<TravelSearch {...props} importRequest={1}/>);
+  searchRequest.mockResolvedValue(response('Newer manual result'));
+  const user = await fill();
+  await user.click(screen.getByRole('button', { name: 'Search stays' }));
+  await screen.findByRole('heading', { name: 'Newer manual result' });
+  view.rerender(<TravelSearch {...props} importRequest={1} importedSnapshot={imported()}/>);
+  expect(screen.getByRole('heading', { name: 'Newer manual result' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'import-1' })).toBeNull();
+  view.rerender(<TravelSearch {...props} importRequest={2} importedSnapshot={imported()}/>);
+  expect(screen.getByRole('heading', { name: 'import-1' })).toBeTruthy();
 });

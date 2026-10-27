@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { travelRequest } from './travelApi';
 import { emptyStayFilters } from './StaySearchFilters';
-import { travelSnapshotSchema, travelState } from './CanvasTravel';
+import { draftTravelFacts, travelSnapshotSchema, travelState } from './CanvasTravel';
 import { emptyWorkspaceView, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 
 export function initialWorkspace({ owner = 'session', planId, topic, initialData, instanceId = requestId() }) {
   const dates = initialData?.essentials?.dates;
+  const travelers = initialData?.essentials?.travelers;
+  const adults = Number.isInteger(travelers) && travelers >= 1 && travelers <= (topic === 'stays' ? 16 : 9) ? travelers : 2;
+  const rooms = Array.from({ length: Math.ceil(adults / 6) }, (_, index) => ({ adults: Math.min(6, adults - index * 6), children_ages: [] }));
   return { owner, planId, topic, instanceId, revision: 0, requestGeneration: 0,
-    draftCriteria: { city: initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms: [{ adults: 2, children_ages: [] }], adults: 2, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters() },
+    draftCriteria: { city: initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms, adults, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters() },
     draftDirty: false, appliedCriteria: null, searchId: null, snapshot: null, view: emptyWorkspaceView(),
     detailsReference: null, loading: false, error: '', imported: false, importIdentity: null, authority: null, inverse: null, appliedActions: [],
   };
@@ -51,28 +54,52 @@ export function travelWorkspaceReducer(state, action) {
 }
 
 export function useTravelWorkspace({ owner = 'session', planId, topic, initialData, active = true, onExpired, onManualChange, enabled = true }) {
-  const ref = useRef(null), pending = useRef(null), callbacks = useRef({});
+  const ref = useRef(null), pending = useRef(null), callbacks = useRef({}), checkout = useRef(new Map());
   const [, render] = useState(0);
   callbacks.current = { onExpired, onManualChange };
   if (!ref.current || ref.current.owner !== owner || ref.current.planId !== planId || ref.current.topic !== topic) {
-    pending.current?.abort(); ref.current = initialWorkspace({ owner, planId, topic, initialData });
+    pending.current?.abort(); checkout.current.clear(); ref.current = initialWorkspace({ owner, planId, topic, initialData });
   }
   function dispatch(action) { const previous = ref.current; ref.current = travelWorkspaceReducer(previous, action); if (previous !== ref.current) render(n => n + 1); return ref.current; }
   function invalidate(action) {
-    pending.current?.abort();
     const hadAuthority = Boolean(ref.current.authority);
     const value = dispatch(action); // Revoke before cancellation can yield or complete.
+    pending.current?.abort();
     if (hadAuthority) void callbacks.current.onManualChange?.();
     return value;
   }
-  useEffect(() => { if (!enabled) return; if (!active) invalidate({ type: 'cancel' }); return () => { pending.current?.abort(); ref.current = travelWorkspaceReducer(ref.current, { type: 'cancel' }); }; }, [owner, planId, topic, active, enabled]);
+  useEffect(() => {
+    if (!enabled) return;
+    const instanceId = ref.current.instanceId;
+    if (!active) invalidate({ type: 'cancel' });
+    return () => {
+      if (ref.current.instanceId === instanceId) {
+        pending.current?.abort();
+        ref.current = travelWorkspaceReducer(ref.current, { type: 'cancel' });
+      }
+    };
+  }, [owner, planId, topic, active, enabled]);
   async function search(criteria) {
     const token = invalidate({ type: 'search-start' });
     // Cancellation is advisory; generation/revision checks remain authoritative.
     const controller = new AbortController(); pending.current = controller;
     try {
       const result = await travelRequest(planId, topic === 'stays' ? 'hotels/search' : 'flights/search', criteria, controller.signal);
-      dispatch({ type: 'search-success', token, snapshot: { ...result, criteria, expires_at: result.expires_at || new Date(Date.parse(result.searched_at) + 600000).toISOString() } });
+      if (!matches(ref.current, token)) return;
+      // The manual endpoint also carries private checkout handles. Resolve its
+      // registered, allowlisted observation before sharing any evidence.
+      if (typeof result.search_id !== 'string' || !result.search_id || result.search_id.length > 100) throw new Error('These results could not be verified. Search again.');
+      const observation = await travelRequest(planId, 'research/snapshot', { search_id: result.search_id }, controller.signal);
+      if (!matches(ref.current, token)) return;
+      const parsed = travelSnapshotSchema.safeParse({ ...observation, draft_facts: draftTravelFacts(initialData) });
+      if (!parsed.success || parsed.data.plan_id !== planId || parsed.data.mode !== topic || parsed.data.search_id !== result.search_id || !fresh(parsed.data, Date.now())) throw new Error('These results could not be verified. Search again.');
+      // Private mock-checkout handles never enter the reducer, agent context or
+      // recovery. Keep only the current search handles and any open detail.
+      const retained = ref.current.detailsReference?.reference;
+      const retainedKey = retained && `${retained.search_id}:${retained.option_id}`;
+      for (const key of checkout.current.keys()) if (key !== retainedKey) checkout.current.delete(key);
+      for (const item of result.results || []) if (typeof item.checkout_token === 'string' && item.checkout_token.length <= 2000 && parsed.data.results.some(option => option.id === item.id)) checkout.current.set(`${result.search_id}:${item.id}`, item.checkout_token);
+      dispatch({ type: 'search-success', token, snapshot: { ...parsed.data, criteria: { ...parsed.data.criteria, ...criteria } } });
     } catch (error) {
       if (matches(ref.current, token) && error.name !== 'AbortError') {
         dispatch({ type: 'search-error', token, error: error.message || 'Unable to connect. Please try again.' });
@@ -80,8 +107,9 @@ export function useTravelWorkspace({ owner = 'session', planId, topic, initialDa
       }
     }
   }
-  function importSnapshot(value, identity, reason) {
+  function importSnapshot(value, identity, reason, expectedRevision = ref.current.revision) {
     if (ref.current.importIdentity === identity) return false;
+    if (expectedRevision !== ref.current.revision) return false;
     const parsed = travelSnapshotSchema.safeParse(value);
     if (!parsed.success || parsed.data.plan_id !== planId || parsed.data.mode !== topic || reason || travelState(parsed.data, initialData)) {
       dispatch({ type: 'error', value: 'These results are no longer available. Return to Plan chat to search again.' }); return false;
@@ -89,6 +117,7 @@ export function useTravelWorkspace({ owner = 'session', planId, topic, initialDa
     invalidate({ type: 'import', snapshot: parsed.data, identity }); return true;
   }
   return { state: ref.current, dispatch, search, importSnapshot,
+    getCheckoutToken: reference => reference && checkout.current.get(`${reference.search_id}:${reference.option_id}`),
     setDraft: (field, value) => invalidate({ type: 'draft', field, value }),
     setView: patch => invalidate({ type: 'view', patch: typeof patch === 'function' ? patch(ref.current.view) : patch }),
     cancel: () => invalidate({ type: 'cancel' }),

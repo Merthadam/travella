@@ -239,12 +239,14 @@ function Room({ room, onCheckout, onDiscuss, onChoose }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, discussionDisabled }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, discussionDisabled, detached, observedAt, expiresAt, checkoutToken }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
   const [rooms, setRooms] = useState(item.rooms || []);
   const [observation, setObservation] = useState({ search_id: searchId, option_id: item.id });
+  const [evidenceExpiry, setEvidenceExpiry] = useState(expiresAt);
+  const evidenceExpired = !Number.isFinite(Date.parse(evidenceExpiry)) || Date.now() >= Date.parse(evidenceExpiry);
   const attach = room => ({ title: stay ? `${item.name}${room ? ` · ${room.name}` : ''}` : item.airlines.join(' / '), reference: { ...observation, room_id: room?.id || null } });
   const [loading, setLoading] = useState(stay);
   const [error, setError] = useState("");
@@ -279,6 +281,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           setHotel(details.hotel);
           setRooms(availability.results[0]?.rooms || []);
           setObservation({ search_id: availability.search_id, option_id: availability.results[0]?.id });
+          setEvidenceExpiry(availability.expires_at || (Number.isFinite(Date.parse(availability.searched_at)) ? new Date(Date.parse(availability.searched_at) + 600000).toISOString() : expiresAt));
         }
       })
       .catch((e) => {
@@ -320,6 +323,9 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
       <p className="travel-note">
         {sandbox ? "LiteAPI sandbox · test inventory" : "LiteAPI results"}
       </p>
+      {detached && <p role="status">Earlier search · inspecting its original observation. The main results have changed.</p>}
+      <p className="travel-note">Observed {new Date(observedAt).toLocaleString()} · {criteria.check_in || criteria.departure_date} – {criteria.check_out || criteria.return_date}</p>
+      {evidenceExpired && <p role="status">This offer has expired. Search again before choosing it.</p>}
       <h2 id="travel-detail-title">
         {stay ? item.name : item.airlines.join(" · ") || "Flight details"}
       </h2>
@@ -351,7 +357,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           )}
           <h3>Room offers for your stay</h3>
           {rooms.map((room) => (
-            <Room key={room.id} room={room} onCheckout={sandbox && !loading ? setCheckout : null} onDiscuss={!loading && !error && !discussionDisabled && observation.search_id && onDiscuss ? () => { onClose(); onDiscuss(attach(room)); } : null} onChoose={!loading && !error && !discussionDisabled && observation.search_id && onChoose ? () => { onClose(); onChoose(attach(room)); } : null} />
+            <Room key={room.id} room={room} onCheckout={sandbox && !loading && !evidenceExpired ? setCheckout : null} onDiscuss={!discussionDisabled && !evidenceExpired && observation.search_id && onDiscuss ? () => { onClose(); onDiscuss(attach(room)); } : null} onChoose={!discussionDisabled && !evidenceExpired && observation.search_id && onChoose ? () => { onClose(); onChoose(attach(room)); } : null} />
           ))}
           {!loading && !rooms.length && (
             <p>No room offers are available for these dates.</p>
@@ -370,9 +376,9 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
               "Detailed fare conditions not supplied."}
           </p>
           <Price price={item.price} />
-          {!discussionDisabled && observation.search_id && <div className="travel-option-actions">{onDiscuss && <button type="button" onClick={() => { onClose(); onDiscuss(attach()); }}>Discuss flight</button>}{onChoose && <button type="button" onClick={() => { onClose(); onChoose(attach()); }}>Choose for trip</button>}</div>}
-          {sandbox && item.checkout_token && <button className="travel-primary" onClick={() => setCheckout(item.checkout_token)}>Try mock flight booking</button>}
-          {!item.checkout_token && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
+          {!discussionDisabled && !evidenceExpired && observation.search_id && <div className="travel-option-actions">{onDiscuss && <button type="button" onClick={() => { onClose(); onDiscuss(attach()); }}>Discuss flight</button>}{onChoose && <button type="button" onClick={() => { onClose(); onChoose(attach()); }}>Choose for trip</button>}</div>}
+          {sandbox && checkoutToken && !evidenceExpired && <button className="travel-primary" onClick={() => setCheckout(checkoutToken)}>Try mock flight booking</button>}
+          {!checkoutToken && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
         </>
       )}
       <p className="travel-note">
@@ -446,28 +452,23 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   const [recovery, setRecovery] = useState(null);
   const [, setImportClock] = useState(0);
   const resultsHeading = useRef(null), heading = useRef(null), form = useRef(null);
+  const importIntent = useRef(null);
+  const importIntentKey = `${planId}:${mode}:${importRequest}`;
+  if (importIntent.current?.key !== importIntentKey) importIntent.current = { key: importIntentKey, revision: workspace.state.revision };
   useEffect(() => {
     if (!snapshot || !active) return;
     const timer = setInterval(() => setImportClock(Date.now()), 10000);
     return () => clearInterval(timer);
   }, [snapshot, active]);
   useEffect(() => {
-    if (importedSnapshot && workspace.importSnapshot(importedSnapshot, `${planId}:${mode}:${importedSnapshot.search_id}:${importRequest}`, importReason)) heading.current?.focus();
+    if (importedSnapshot && workspace.importSnapshot(importedSnapshot, `${planId}:${mode}:${importedSnapshot.search_id}:${importRequest}`, importReason, importIntent.current.revision)) heading.current?.focus();
   }, [importedSnapshot?.search_id, importRequest, planId, mode]);
   const roomChange = (i, patch) =>
     setRooms((prev) =>
       prev.map((room, j) => (i === j ? { ...room, ...patch } : room)),
     );
   function resetFilters() {
-    setStars("");
-    setRating("");
-    setAirline("");
-    setPage(1);
-    setBudget("");
-    setRefundable(false);
-    setDirect(false);
-    setBag(false);
-    setSort("provider");
+    workspace.setView({ stars: '', rating: '', airline: '', page: 1, budget: '', refundable: false, direct: false, bag: false, sort: 'provider' });
   }
   async function search(event) {
     event.preventDefault();
@@ -534,11 +535,18 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
     await workspace.search(criteria);
   }
   const unavailable = imported && (importReason || travelState(snapshot, initialData));
+  const evidenceExpired = snapshot && Date.now() >= Date.parse(snapshot.expires_at);
+  const applied = workspace.state.appliedCriteria;
+  const appliedStart = applied?.check_in || applied?.departure_date, appliedEnd = applied?.check_out || applied?.return_date;
+  const savedDates = initialData?.essentials?.dates;
+  const appliedTravelers = applied && (stay ? applied.rooms.reduce((n, room) => n + room.adults + room.children_ages.length, 0) : applied.adults + applied.children_ages.length + applied.infant_ages.length);
+  const exploratory = applied && (savedDates?.start && (savedDates.start !== appliedStart || savedDates.end !== appliedEnd) || initialData?.essentials?.travelers && initialData.essentials.travelers !== appliedTravelers);
+  function editSearch() { form.current?.querySelector('input')?.focus(); form.current?.scrollIntoView?.({ block: 'start' }); }
   function openDetail(item) {
     if (imported && (importReason || travelState(snapshot, initialData))) { setImportClock(Date.now()); return; }
     setDetail(item);
   }
-  const results = filterResults(unavailable ? [] : snapshot?.results || [], {
+  const results = filterResults(unavailable ? [] : (snapshot?.results || []).filter(item => !view.dismissed_ids.includes(item.id)), {
     stay,
     budget,
     refundable,
@@ -779,9 +787,11 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           </small>
         </details>
       </form>
+      {workspace.state.draftDirty && snapshot && <p className="travel-notice">Your edited fields apply to the next search. Results below still use the applied search.</p>}
+      {exploratory && <p className="travel-notice">Exploratory search · dates or travelers differ from your saved trip. Your trip is unchanged.</p>}
       {loading && (
         <p className="travel-notice" role="status">
-          Finding your options…{" "}
+          {snapshot ? 'Updating results…' : 'Finding your options…'}{" "}
           {stay
             ? "Checking room availability."
             : "Flight search can take up to two minutes."}{" "}
@@ -797,6 +807,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       {error && (
         <p className="travel-error" role="alert">
           {error} {snapshot && "Your last completed results are still shown."}
+          <button type="button" onClick={() => form.current?.requestSubmit()}>Retry search</button>
         </p>
       )}
       {unavailable ? <p role="status" className="travel-notice">{unavailable}</p> : snapshot ? (
@@ -826,6 +837,17 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
               {snapshot.sandbox && " · Test inventory"}
             </small>
           </div>
+          <div className="travel-filter-chips" aria-label="Applied search constraints">
+            {applied?.hotel_type_ids?.map(id => <span key={`type-${id}`}>Property type {id}</span>)}
+            {applied?.facility_ids?.map(id => <span key={`facility-${id}`}>Amenity {id}</span>)}
+            {applied?.facility_ids?.length > 0 && <span>{applied.strict_facility_filtering === false ? 'Any selected amenity' : 'All selected amenities'}</span>}
+            {applied?.refundable_rates_only && <span>Refundable rates only</span>}
+            {budget && <span>Maximum total {snapshot.criteria.currency} {budget}</span>}
+            {stars && <span>{stars}+ stars</span>}{rating && <span>Review score {rating}+</span>}
+            {airline && <span>{airline}</span>}{refundable && <span>Refundable offers</span>}
+            {direct && <span>Direct both ways</span>}{bag && <span>Cabin bag included</span>}
+          </div>
+          {evidenceExpired && <p role="status">These observations have expired. Search again before choosing an option.</p>}
           <div className="travel-results-layout">
             <aside className="travel-filters">
               <h3>Make it your kind of trip</h3>
@@ -949,6 +971,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                   {snapshot.results.length > 0 && (
                     <button onClick={resetFilters}>Reset filters</button>
                   )}
+                  <button type="button" onClick={editSearch}>Edit search</button>
                 </div>
               )}
               {results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((item) => (
@@ -1004,7 +1027,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                       {stay ? "View rooms" : "View flight"} →
                     </button>
                     {onDiscuss && snapshot.search_id && <button type="button" disabled={discussionDisabled} onClick={() => onDiscuss({ title: stay ? item.name : item.airlines.join(' / '), reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } })}>{stay ? 'Ask about this stay' : 'Ask about this flight'}</button>}
-                    {!stay && onChoose && snapshot.search_id && <button type="button" disabled={discussionDisabled} onClick={() => onChoose({ title: item.airlines.join(' / '), reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } })}>Choose for trip</button>}
+                    {!stay && onChoose && snapshot.search_id && <button type="button" disabled={discussionDisabled || evidenceExpired} onClick={() => onChoose({ title: item.airlines.join(' / '), reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } })}>Choose for trip</button>}
                     <label className="travel-check">
                       <input
                         type="checkbox"
@@ -1083,18 +1106,22 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       <p className="travel-note">
         Search results are not saved to your Plan. Sandbox flights and stays support test-only mock checkout. For flight testing, choose Nuitée Air when available.
       </p>
-      {detail && !unavailable && (
+      {detail && (
         <Detail
-          key={detail.id}
+          key={`${detailsReference.snapshot.search_id}:${detail.id}`}
           item={detail}
           stay={stay}
           planId={planId}
-          criteria={snapshot.criteria}
-          searchId={snapshot.search_id}
+          criteria={detailsReference.snapshot.criteria}
+          searchId={detailsReference.snapshot.search_id}
+          observedAt={detailsReference.snapshot.searched_at}
+          expiresAt={detailsReference.snapshot.expires_at}
+          detached={detailsReference.snapshot.search_id !== snapshot?.search_id}
+          checkoutToken={workspace.getCheckoutToken(detailsReference.reference)}
           onDiscuss={onDiscuss}
           onChoose={onChoose}
           discussionDisabled={discussionDisabled}
-          sandbox={snapshot.sandbox}
+          sandbox={detailsReference.snapshot.sandbox}
           onClose={() => setDetail(null)}
           onExpired={onExpired}
           onBookingResult={onBookingResult}
