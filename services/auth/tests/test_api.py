@@ -77,6 +77,40 @@ def test_login_cookie_is_opaque_and_tokens_are_encrypted(system):
     assert client.get("/auth/session").status_code == 200
 
 
+def test_recovery_scope_is_random_session_partition_stable_on_refresh_and_rotated_on_login(system):
+    client, provider, verifier, store, now = system
+    client.post('/auth/sign-in', json=CREDENTIALS)
+    sid = client.cookies.get('__Host-travella')
+    first = client.get('/auth/session').json().get('recovery_scope')
+    assert isinstance(first, str) and len(first) == 32
+    assert first != sid and first != store.digest(sid)
+    assert store.get(sid, now[0])['recovery_scope'] == first
+    assert client.get('/auth/session').json()['recovery_scope'] == first
+    provider.refresh.return_value = {'AuthenticationResult': {'AccessToken': 'rotated-access', 'RefreshToken': 'rotated-refresh'}}
+    assert client.post('/auth/refresh', json={}).status_code == 200
+    assert client.get('/auth/session').json()['recovery_scope'] == first
+    client.post('/auth/sign-in', json=CREDENTIALS)
+    assert client.get('/auth/session').json()['recovery_scope'] != first
+    body = client.get('/auth/session').text
+    assert all(secret not in body for secret in [sid, 'secret-access', 'secret-refresh', 'ada@example.com', 'traveler-one'])
+    client.post('/auth/sign-out', json={})
+    assert client.get('/auth/session').status_code == 401
+    assert 'recovery_scope' not in client.get('/auth/session').json()
+
+
+def test_existing_session_get_backfills_recovery_scope_once_without_extending_lifetime(system):
+    client, provider, verifier, store, now = system
+    client.post('/auth/sign-in', json=CREDENTIALS)
+    sid = client.cookies.get('__Host-travella')
+    value = store.get(sid, now[0]); value.pop('recovery_scope', None); store.update(sid, value)
+    expiry = store.expiry(sid)
+    first = client.get('/auth/session').json().get('recovery_scope')
+    assert isinstance(first, str) and len(first) == 32
+    assert store.get(sid, now[0])['recovery_scope'] == first
+    assert client.get('/auth/session').json()['recovery_scope'] == first
+    assert store.expiry(sid) == expiry
+
+
 def test_agent_proxy_uses_server_session_and_never_forwards_browser_headers(system):
     _, provider, verifier, store, now = system
     captured = []

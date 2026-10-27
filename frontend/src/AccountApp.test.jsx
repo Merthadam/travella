@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountApp } from './AccountApp';
+import { writeCanvasView, readCanvasView } from './features/plans/canvasViewState';
+const realSessionStorage = window.sessionStorage;
 
 const response = (status, body) => ({ ok: status < 400, status, json: async () => body });
 
@@ -19,6 +21,23 @@ async function open() {
   await screen.findByRole('heading', { name: 'Welcome back.' });
   return userEvent.setup();
 }
+
+test('focus session expiry clears actual recovery before the next account signs in', async () => {
+  vi.stubGlobal('sessionStorage', realSessionStorage); realSessionStorage.clear();
+  let expired = false;
+  fetch.mockImplementation(async path => {
+    if (path === '/auth/session') return response(expired ? 401 : 200, expired ? {} : { state: 'signed_in', recovery_scope: 'a'.repeat(32) });
+    if (path === '/v1/traveler-profile') return response(200, { exists: true, onboarding: { completed_version: 2 } });
+    return response(200, { plans: [] });
+  });
+  render(<AccountApp/>); await screen.findByRole('heading', { name: 'My plans' });
+  writeCanvasView('private-plan', { filter: 'previous owner' });
+  expect(readCanvasView('private-plan').filter).toBe('previous owner');
+  expired = true; window.dispatchEvent(new Event('focus'));
+  await screen.findByRole('heading', { name: 'Welcome back.' });
+  expect(readCanvasView('private-plan')).toEqual({});
+  expect(Object.values(realSessionStorage).join('')).not.toContain('previous owner');
+});
 
 test('rejected sign-in stays private and clears the submitted password', async () => {
   const user = await open();
