@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
+import { getTravelRecoveryScope, subscribeTravelRecovery } from '../canvasViewState';
 
 // Each mounted workspace owns its transcript and draft. A stopped run remains
 // locked until the server acknowledges cancellation, including a pending commit.
@@ -11,6 +12,7 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
   const [error, setError] = useState('');
   const [active, setActive] = useState(false);
   const run = useRef(null), epoch = useRef(0), callbacks = useRef({});
+  const owner = getTravelRecoveryScope() || selected.owner_id || selected.subject || 'session';
   callbacks.current = { onExpired, onBusyChange, getWorkspaceContext, onWorkspaceRunStart, onWorkspaceRunEnd, onWorkspaceUpdate };
   const refresh = useCallback(async () => {
     const version = epoch.current;
@@ -19,18 +21,27 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     if (result.plan_id !== selected.plan_id || result.topic !== topic) throw new Error('This discussion could not be loaded safely.');
     setSnapshot(result); setMessages(result.messages || []); setHistoryError('');
     return result;
-  }, [api, selected.plan_id, topic]);
+  }, [api, selected.plan_id, topic, owner]);
   const load = useCallback(async () => {
+    const version = epoch.current;
     setLoading(true); setHistoryError('');
     try { await refresh(); }
-    catch (err) { if (err.status === 401) callbacks.current.onExpired?.(); setHistoryError('Your discussion could not load. Retry to continue.'); }
-    finally { setLoading(false); }
+    catch (err) { if (version === epoch.current) { if (err.status === 401) callbacks.current.onExpired?.(); setHistoryError('Your discussion could not load. Retry to continue.'); } }
+    finally { if (version === epoch.current) setLoading(false); }
   }, [refresh]);
   useEffect(() => {
-    epoch.current++; void load();
+    epoch.current++; setSnapshot(null); setMessages([]); setActive(false); setError(''); void load();
     return () => { epoch.current++; const current = run.current; run.current = null; if (current) { callbacks.current.onWorkspaceRunEnd?.(current.id); current.controller.abort(); api.cancelAgentTurn(selected, current.id).catch(() => {}); } callbacks.current.onBusyChange?.(topic, false); };
   }, [load]);
-  useEffect(() => { if (visible && snapshot && !run.current) void refresh().catch(err => { if (err.status === 401) callbacks.current.onExpired?.(); setHistoryError('Refresh this discussion before continuing.'); }); }, [visible]);
+  useEffect(() => subscribeTravelRecovery(() => {
+    epoch.current++; const current = run.current; run.current = null;
+    if (current) { callbacks.current.onWorkspaceRunEnd?.(current.id); current.controller.abort(); void api.cancelAgentTurn(selected, current.id).catch(() => {}); }
+    setSnapshot(null); setMessages([]); setActive(false); callbacks.current.onBusyChange?.(topic, false);
+  }), [api, selected.plan_id, topic]);
+  useEffect(() => {
+    const version = epoch.current;
+    if (visible && snapshot && !run.current) void refresh().catch(err => { if (version !== epoch.current) return; if (err.status === 401) callbacks.current.onExpired?.(); setHistoryError('Refresh this discussion before continuing.'); });
+  }, [visible]);
 
   function finish(current) {
     if (run.current !== current) return;
@@ -44,15 +55,18 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     current.stopping = (async () => {
       try {
         await api.cancelAgentTurn(selected, current.id);
+        if (run.current !== current || current.epoch !== epoch.current) return false;
         let latest;
         for (let attempt = 0; attempt < 20; attempt++) {
           latest = await refresh();
+          if (run.current !== current || current.epoch !== epoch.current) return false;
           if (!latest?.locked) break;
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         if (latest?.locked) throw new Error('The server is still finishing the reply.');
         finish(current); return true;
       } catch (err) {
+        if (run.current !== current || current.epoch !== epoch.current) return false;
         if (err.status === 401) callbacks.current.onExpired?.();
         setError('Cancellation could not be confirmed. Retry Stop before leaving or sending another message.'); return false;
       } finally { current.stopping = null; }
@@ -79,6 +93,7 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
       });
       if (current.cancelled || run.current !== current) return false;
       const latest = await refresh();
+      if (current.cancelled || run.current !== current || current.epoch !== epoch.current) return false;
       if (!current.cancelled && run.current === current && current.epoch === epoch.current &&
           ['complete', 'needs your input', 'shortlist_ready'].includes(terminal.status) && latest?.brief?.digest === current.briefDigest) {
         const update = terminal.workspace_update || current.pendingUpdate;

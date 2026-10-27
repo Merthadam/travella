@@ -16,7 +16,7 @@ vi.mock('./useTravelConversation', async importOriginal => {
   const actual = await importOriginal();
   return { useTravelConversation: props => chat.real ? actual.useTravelConversation(props) : chat };
 });
-vi.mock('./TravelConversation', () => ({ TravelConversation: ({ onClose, chat: conversation, renderReferences }) => <><input aria-label="Unsent message"/><button onClick={onClose}>Close chat</button>{conversation.messages?.map(message => <div key={message.message_id}>{renderReferences?.(message)}</div>)}{chat.real && <button onClick={() => conversation.send('Find stays')}>Send workspace search</button>}</> }));
+vi.mock('./TravelConversation', () => ({ TravelConversation: ({ onClose, chat: conversation, renderReferences }) => <><input aria-label="Unsent message"/><button onClick={onClose}>Close chat</button>{conversation.messages?.map(message => <div key={message.message_id}>{renderReferences?.(message)}</div>)}{chat.real && <button disabled={conversation.loading} onClick={() => conversation.send('Find stays')}>Send workspace search</button>}</> }));
 const initialData = { map: { destination: 'Rome' } };
 export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   const price = { amount: '100', currency: 'EUR', basis: topic === 'stays' ? 'stay' : 'party_return', estimated: true, excluded_taxes: [] };
@@ -48,6 +48,35 @@ test('scope switch revokes a run and late cancellation without leaving the next 
   await waitFor(() => expect(result.current.snapshot?.topic).toBe('flights'));
   expect(result.current.active).toBe(false);
   await act(async () => cancel({})); expect(result.current.snapshot.topic).toBe('flights');
+});
+
+test('changed saved trip facts revoke pending effects while retaining manual results and draft', () => {
+  const stop = vi.fn();
+  const { result, rerender } = renderHook(({ data }) => useTravelWorkspace({ planId: 'plan-1', topic: 'stays', initialData: data, onManualChange: stop }), { initialProps: { data: initialData } });
+  act(() => result.current.importSnapshot(workspaceSnapshot(), 'first', ''));
+  act(() => result.current.onWorkspaceRunStart({ run_id: 'run-1', brief_digest: 'b'.repeat(64) }));
+  const before = result.current.state;
+  const batch = { ...update(), instance_id: before.instanceId, base_revision: before.revision };
+  rerender({ data: { map: { destination: 'Paris' } } });
+  expect(stop).toHaveBeenCalledTimes(1); expect(result.current.state.snapshot).toBe(before.snapshot);
+  expect(result.current.state.draftCriteria).toEqual(before.draftCriteria);
+  act(() => expect(result.current.applyWorkspaceUpdate(batch)).toBe(false));
+});
+
+test('failed Stop preserves manual control and commit-wins history without replaying a revoked batch', async () => {
+  chat.real = true; let finish;
+  const updateWorkspace = vi.fn(), end = vi.fn();
+  let committed = false;
+  const api = { travelTopic: vi.fn(async () => ({ plan_id: 'plan-1', topic: 'stays', brief: { digest: 'b'.repeat(64) }, revision: committed ? 2 : 1, messages: committed ? [{ role: 'assistant', content: 'Committed reply' }] : [], locked: false })),
+    travelTurn: vi.fn(() => new Promise(resolve => { finish = resolve; })), cancelAgentTurn: vi.fn().mockRejectedValueOnce(Error('offline')).mockResolvedValue({}) };
+  const { result } = renderHook(() => useTravelConversation({ api, selected: { plan_id: 'plan-1' }, topic: 'stays', visible: true, onWorkspaceUpdate: updateWorkspace, onWorkspaceRunEnd: end }));
+  await waitFor(() => expect(result.current.loading).toBe(false)); act(() => { void result.current.send('sort'); });
+  await act(async () => expect(await result.current.stop()).toBe(false));
+  expect(end).toHaveBeenCalled(); expect(result.current.active).toBe(true);
+  committed = true; await act(async () => finish({ status: 'complete', workspace_update: update() }));
+  expect(updateWorkspace).not.toHaveBeenCalled();
+  await act(async () => expect(await result.current.stop()).toBe(true));
+  expect(result.current.messages[0].content).toBe('Committed reply'); expect(result.current.active).toBe(false);
 });
 
 test.each(['fresh', 'expired', 'edited', 'owner-change', 'foreign', 'detail'])('reload uses authorized references and never searches: %s', async outcome => {
@@ -209,7 +238,7 @@ test.each(['stays', 'flights'])('manual %s filters retain labeled unknowns and s
   expect(unknown.price.amount).toBeNull();
 });
 
-test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 'compare', 'manual', 'brief', 'failed', 'stop'])('real conversation delivers one committed batch and rejects %s races', async race => {
+test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 'compare', 'dismiss', 'manual', 'brief', 'failed', 'stop'])('real conversation delivers one committed batch and rejects %s races', async race => {
   chat.real = true;
   let finish, stream, eventId;
   const saved = { plan_id: 'plan-1', topic: 'stays', revision: 1, brief: { digest: 'b'.repeat(64) }, messages: [], notes: { items: [] }, shortlist: [], locked: false };
@@ -218,7 +247,7 @@ test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 
   let stop;
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData}
     importedSnapshot={workspaceSnapshot('stays', 'old-search')} registerStop={(topic, fn) => { stop = fn; }}/>);
-  await waitFor(() => expect(api.travelTopic).toHaveBeenCalled());
+  await waitFor(() => expect(screen.getByText('Send workspace search').disabled).toBe(false));
   fireEvent.click(screen.getByText('Send workspace search'));
   await waitFor(() => expect(stream).toBeTruthy());
   expect(stream.workspaceContext).toMatchObject({ revision: 1, draft_dirty: false, search_id: 'old-search' });
@@ -229,6 +258,7 @@ test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 
   if (race === 'sort') fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'price' } });
   if (race === 'filter') fireEvent.change(screen.getByLabelText('Minimum stars'), { target: { value: '5' } });
   if (race === 'compare') fireEvent.click(screen.getByLabelText('Compare'));
+  if (race === 'dismiss') fireEvent.click(screen.getByRole('button', { name: 'Dismiss from results' }));
   if (race === 'manual') {
     fetch.mockResolvedValue({ ok: true, json: async () => workspaceSnapshot('stays', 'manual-search') });
     fireEvent.click(screen.getByRole('button', { name: 'Search stays' }));

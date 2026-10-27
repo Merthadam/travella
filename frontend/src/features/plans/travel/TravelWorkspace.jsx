@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { comparisonEntry } from './TravelComparison';
-import { travelSnapshotSchema } from './CanvasTravel';
+import { draftTravelFacts, travelSnapshotSchema } from './CanvasTravel';
 import { reviewExactTravelOption, travelRequest } from './travelApi';
 import { TravelSearch } from './TravelSearch';
 import { TravelConversation } from './TravelConversation';
@@ -35,6 +35,13 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
   }, [scope, active]);
   useEffect(() => { setReceipt(null); setReview(null); setChoiceError(''); }, [scope]);
   const snapshot = receipt?.scope === scope && receipt.value.revision >= (chat.snapshot?.revision ?? -1) ? receipt.value : chat.snapshot;
+  const relevantBrief = `${JSON.stringify(draftTravelFacts(initialData))}:${snapshot?.brief?.digest || ''}`;
+  const previousBrief = useRef(relevantBrief);
+  useEffect(() => {
+    if (previousBrief.current === relevantBrief) return;
+    previousBrief.current = relevantBrief; operationEpoch.current++;
+    setReview(null); setSaving(false);
+  }, [relevantBrief]);
   function acceptReceipt(value) { setReceipt({ scope, value }); chat.acceptReceipt?.(value); }
   const unavailable = blocked || chat.active || chat.loading || snapshot?.locked || Boolean(chat.historyError);
   stop.current = chat.stop;

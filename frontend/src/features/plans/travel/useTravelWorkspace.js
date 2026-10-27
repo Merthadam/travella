@@ -74,6 +74,7 @@ export function travelWorkspaceReducer(state, action) {
 export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initialData, active = true, onExpired, onManualChange, enabled = true }) {
   const owner = getTravelRecoveryScope() || suppliedOwner || 'session';
   const ref = useRef(null), pending = useRef(null), callbacks = useRef({}), checkout = useRef(new Map());
+  const savedFacts = JSON.stringify(draftTravelFacts(initialData)), previousFacts = useRef(savedFacts);
   const [, render] = useState(0);
   callbacks.current = { onExpired, onManualChange };
   if (!ref.current || ref.current.owner !== owner || ref.current.planId !== planId || ref.current.topic !== topic) {
@@ -108,6 +109,11 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
     ref.current = initialWorkspace({ owner: 'revoked', planId, topic, initialData });
     void callbacks.current.onManualChange?.(); render(n => n + 1);
   }), [planId, topic]);
+  useEffect(() => {
+    if (previousFacts.current === savedFacts) return;
+    previousFacts.current = savedFacts;
+    invalidate({ type: 'cancel' });
+  }, [savedFacts]);
   useEffect(() => {
     if (enabled) writeTravelWorkspace(owner, planId, topic, ref.current);
   });
