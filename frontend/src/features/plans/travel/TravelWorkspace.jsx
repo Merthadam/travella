@@ -38,8 +38,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
     setContextOptions(items.filter(item => item.reference)); openChat();
   }
   async function compare(items) {
-    openChat();
-    await chat.send('Compare these options for my trip.', { intent: 'compare', options: items.map(item => item.reference) });
+    return await chat.send('Compare these options for my trip.', { intent: 'compare', options: items.map(item => item.reference) }, { explicitComparison: true });
   }
   async function browse(searchId) {
     setChoiceError('');

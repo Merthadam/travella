@@ -7,6 +7,7 @@ import { initialWorkspace, travelWorkspaceReducer, useTravelWorkspace } from './
 import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 import { plansApi } from '../../../plansApi';
 import { filterResults, unknownFilterFacts } from './TravelSearch';
+import { TravelComparison, comparisonEntry } from './TravelComparison';
 
 const chat = vi.hoisted(() => ({ active: true, loading: false, historyError: 'History unavailable', messages: [], snapshot: null, stop: vi.fn(() => new Promise(() => {})) }));
 vi.mock('./useTravelConversation', async importOriginal => {
@@ -48,6 +49,22 @@ test('main comparison preserves selection order and facts when discussion fails 
   view.rerender(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="flights" active initialData={initialData} importedSnapshot={workspaceSnapshot('flights', 'new-search')} importRequest={1}/>);
   expect(within(screen.getByRole('region', { name: 'Option comparison' })).getByText('Earlier search · historical comparison')).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Option comparison' }).textContent).toContain('Carrier 2');
+});
+
+test('comparison keeps exact room price and reference distinct from unlike property evidence', () => {
+  const first = workspaceSnapshot('stays', 'room-search'), second = workspaceSnapshot('stays', 'property-search');
+  const room = { id: 'apartment-rate', name: 'Private apartment', total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true };
+  first.results[0].rooms = [room];
+  second.criteria.check_in = '2027-11-14'; second.criteria.currency = 'USD'; second.results[0].price.currency = 'USD';
+  const exact = { search_id: first.search_id, option_id: 'option-1', room_id: room.id };
+  const choose = vi.fn();
+  render(<TravelComparison entries={[comparisonEntry(first, exact), comparisonEntry(second, { search_id: second.search_id, option_id: 'option-1', room_id: null })]} currentSearchId={second.search_id} onDetails={vi.fn()} onChoose={choose} onClose={vi.fn()}/>);
+  expect(screen.getByText('EUR 950')).toBeTruthy();
+  expect(screen.getByText('Property comparison · no room selected')).toBeTruthy();
+  expect(screen.getByText(/These totals are not directly comparable/)).toBeTruthy();
+  expect(screen.getAllByRole('button', { name: 'Choose for trip' })).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Choose for trip' }));
+  expect(choose).toHaveBeenCalledWith({ title: 'Private apartment', reference: exact });
 });
 
 test.each(['stays', 'flights'])('manual %s filters retain labeled unknowns and sort missing prices last like host operations', topic => {

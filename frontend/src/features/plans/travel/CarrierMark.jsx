@@ -22,7 +22,7 @@ export function flightCarriers(item) {
   return [...carriers.values()];
 }
 
-export function CarrierMark({ name, code, logo }) {
+export function CarrierMark({ name, code, logo, showName = true }) {
   const source = safeCarrierLogo(logo), [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [source]);
   const label = name || code || 'Carrier unavailable';
@@ -31,13 +31,13 @@ export function CarrierMark({ name, code, logo }) {
     {source && !failed
       ? <img src={source} alt={`${label} logo`} width="32" height="32" style={size} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)}/>
       : <span aria-hidden="true" style={{ ...size, display: 'inline-grid', placeItems: 'center' }}><svg width="24" height="24" viewBox="0 0 48 48" focusable="false"><path d="m43 21-15-8V5a4 4 0 0 0-8 0v8L5 21v6l15-4v13l-5 4v4l9-2 9 2v-4l-5-4V23l15 4z" fill="currentColor"/></svg></span>}
-    <span>{label}</span>
+    <span hidden={!showName}>{label}</span>
   </span>;
 }
 
-export function CarrierMarks({ item }) {
+export function CarrierMarks({ item, showName = true }) {
   const carriers = flightCarriers(item);
   return <div aria-label="Airlines" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-    {carriers.length ? carriers.map(carrier => <CarrierMark key={JSON.stringify([carrier.code, carrier.name])} {...carrier}/>) : <CarrierMark/>}
+    {carriers.length ? carriers.map(carrier => <CarrierMark key={JSON.stringify([carrier.code, carrier.name])} {...carrier} showName={showName}/>) : <CarrierMark showName={showName}/>}
   </div>;
 }

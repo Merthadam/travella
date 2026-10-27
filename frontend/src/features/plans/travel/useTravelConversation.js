@@ -59,9 +59,10 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     })();
     return current.stopping;
   }
-  async function send(text, travelDiscussion) {
+  async function send(text, travelDiscussion, options = {}) {
     const message = text.trim();
-    if (!message || blocked || loading || historyError || run.current || !visible) return false;
+    const explicitComparison = options.explicitComparison === true && travelDiscussion?.intent === 'compare' && travelDiscussion.options?.length >= 2 && travelDiscussion.options.length <= 3;
+    if (!message || blocked || loading || historyError || run.current || (!visible && !explicitComparison)) return false;
     const current = { id: requestId(), controller: new AbortController(), epoch: epoch.current, cancelled: false,
       workspaceContext: callbacks.current.getWorkspaceContext?.(), briefDigest: snapshot?.brief?.digest, pendingUpdate: null };
     callbacks.current.onWorkspaceRunStart?.({ run_id: current.id, brief_digest: current.briefDigest });

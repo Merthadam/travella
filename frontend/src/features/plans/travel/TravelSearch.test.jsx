@@ -330,17 +330,18 @@ test("manual results can prepare a discussion without replacing browsing or expo
   const data = response("Courtyard apartment");
   data.search_id = "manual-search-1";
   data.results[0].checkout_token = "private-offer-token";
-  searchRequest.mockResolvedValue(data);
+  searchRequest.mockImplementation(async (_plan, action) => action === 'hotels/detail' ? { hotel: { facilities: [] } } : data);
   render(<TravelSearch {...props} onDiscuss={onDiscuss} />);
   const user = await fill();
   await user.click(screen.getByRole("button", { name: "Search stays" }));
-  await user.click(await screen.findByRole("button", { name: "Ask about this stay" }));
+  await user.click(await screen.findByRole("button", { name: 'View rooms →' }));
+  await user.click(await screen.findByRole('button', { name: 'Discuss room' }));
   expect(onDiscuss).toHaveBeenCalledTimes(1);
   const message = onDiscuss.mock.calls[0][0];
-  expect(message).toEqual({ title: "Courtyard apartment", reference: { search_id: "manual-search-1", option_id: data.results[0].id, room_id: null } });
+  expect(message).toEqual({ title: "Courtyard apartment · Observed room", reference: { search_id: "manual-search-1", option_id: data.results[0].id, room_id: 'room' } });
   expect(JSON.stringify(message)).not.toContain("private-offer-token");
   expect(screen.getByRole("button", { name: /View rooms/ })).toBeTruthy();
-  expect(searchRequest).toHaveBeenCalledTimes(1);
+  expect(searchRequest.mock.calls.map(call => call[1])).toEqual(['hotels/search', 'hotels/detail', 'hotels/search']);
 });
 
 test('provider-backed apartment and amenity filters apply to new searches and can be cleared', async () => {
