@@ -481,11 +481,11 @@ Plans:
 
 ### Phase 18: Focused Flights and Accommodation Agents
 
-**Goal:** Travelers work out the most suitable accommodation and return flight in Flights/Stays substages of their existing trip, with separate persistent specialist conversations, a compact shared brief and grounded provider evidence.
-**Requirements:** FOCUS-01, FOCUS-02, FOCUS-03, FOCUS-04, FOCUS-05, FOCUS-06, FOCUS-07, FOCUS-08, FOCUS-09, FOCUS-10
+**Goal:** Travelers narrow, compare and explicitly choose accommodation and return flights in manual-first Flights/Stays substages, where bounded specialists and manual controls operate the same search/results workspace, with separate persistent conversations and grounded trip context.
+**Requirements:** FOCUS-01, FOCUS-02, FOCUS-03, FOCUS-04, FOCUS-05, FOCUS-06, FOCUS-07, FOCUS-08, FOCUS-09, FOCUS-10, FOCUS-11, FOCUS-12, FOCUS-13, FOCUS-14, FOCUS-15, FOCUS-16
 **Depends on:** Existing Phase 16/17 Canvas and Agent implementation; LiteAPI tools in caf905b. Earlier acceptance gaps remain independently open.
 **UI hint:** yes
-**Status:** Implemented locally; authenticated browser, actual HTTP/PostgreSQL persistence and a bounded live SDK/provider sample exercised. Full agent-quality matrix and user UAT remain pending. See 18-VERIFICATION.md.
+**Status:** Shared-workspace follow-up planning complete; plans18-06 through18-12 ready to execute. Independent review: zero blockers and five nonblocking scope warnings with recorded rationale. Earlier implementation and evidence remain valid for their historical scope; new frontend-first behavior is not implemented. Full agent-quality matrix and user UAT remain pending. See 18-VERIFICATION.md and 18-WORKSPACE-PLAN-INDEX.md.
 
 **Success Criteria:**
 1. Trip, Flights and Stays histories remain separate across reload/session boundaries, with topic-specific tools enforced by the host.
@@ -493,8 +493,10 @@ Plans:
 3. Accommodation comparisons investigate property/room/review evidence; flight comparisons verify fares and explain timing/baggage tradeoffs with honest unknowns.
 4. Explicit shortlisted/preferred research choices persist through authorized CRUD and remain visibly unbooked; preferred-option choice marks a substage ready and relevant shared changes require review.
 5. HTTP/database, migration, browser and grounded-agent evaluations establish behavior, with source/evidence links and any live limits recorded.
+6. Manual search remains usable with chat closed or busy; agent updates automatically reach the same results only while current, with user edits winning races and reversible narrowing.
+7. Main-pane comparison, exact room/fare choice, actual airline identity/logos and source/freshness facts work across desktop/mobile; missing evidence remains honest.
 
-**Plans:** Four implementation plans delivered; integrated evidence recorded in plan05, with full live-quality/user acceptance still open. These development waves are not traveler-facing stages.
+**Plans:** Four original implementation plans delivered; integrated evidence recorded in plan05, with full live-quality/user acceptance still open. Seven follow-up plans implement the approved shared workspace. These development waves are not traveler-facing stages.
 
 - [x] 18-01-PLAN.md — Stays conversation end to end and compact versioned brief
 - [x] 18-02-PLAN.md — Accommodation matching and grounded comparison
@@ -502,4 +504,29 @@ Plans:
 - [x] 18-04-PLAN.md — Durable research memory and explicit trip choices
 - [ ] 18-05-PLAN.md — Integrated browser, persistence and agent acceptance
 
-**Cross-cutting constraints:** One Plan graph and Agent service; Claude SDK workers with application-owned history; CRUD authority; exact confirmation; bounded topic context/tools; no booking/payment expansion; implementation explicitly authorized. See phase CONTEXT, REQUIREMENTS, UI-SPEC, AI-SPEC and VALIDATION.
+**Wave 6 — shared manual workspace tracer** *(depends on delivered18-04; does not wait for historical18-05 user UAT)*
+
+- [ ] 18-06-PLAN.md — Shared manual controller, actual search/results and user-input precedence
+
+**Wave 7 — agent integration and carrier evidence** *(blocked on18-06; disjoint file ownership)*
+
+- [ ] 18-07-PLAN.md — Final validated agent workspace protocol and post-completion delivery
+- [ ] 18-09-PLAN.md — Airline identity/logos, source and price-scope presentation
+
+**Wave 8 — bounded refinement** *(blocked on18-07)*
+
+- [ ] 18-08-PLAN.md — Specialist filters, sorting, dismissal/restore and Undo
+
+**Wave 9 — comparison and selection** *(blocked on18-08 and18-09)*
+
+- [ ] 18-10-PLAN.md — Main comparison, exact choice and contextual side chat
+
+**Wave 10 — recovery and accessibility** *(blocked on18-10)*
+
+- [ ] 18-11-PLAN.md — Scoped tab recovery, lifecycle races and responsive keyboard access
+
+**Wave 11 — integrated acceptance** *(blocked on18-11)*
+
+- [ ] 18-12-PLAN.md — HTTP/database, authenticated browser and bounded live-quality evidence
+
+**Cross-cutting constraints:** One Plan graph and Agent service; Claude SDK workers with application-owned history; CRUD authority; exact confirmation; bounded topic context/tools; no booking/payment expansion; one shared temporary workspace; manual edits win; one validated final batch with Undo; no historic effect replay; safe supplier-observed carrier images; explicit unbooked choice. This session is planning only with no auto-execution. See phase CONTEXT, WORKSPACE-SPEC, WORKSPACE-PLAN-INDEX, REQUIREMENTS, UI-SPEC, AI-SPEC and VALIDATION.

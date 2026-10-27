@@ -1,5 +1,11 @@
 # Phase 18 implementation research
 
+## Current shared-workspace amendment —2026-10-27
+
+The authoritative implementation supplement is [18-WORKSPACE-RESEARCH.md](18-WORKSPACE-RESEARCH.md), reconciled with current D18-01–D18-10, WORKSPACE-SPEC and UI-SPEC. Use one manual-first controller, optional strict workspace input, request-local graph projection and a host-authored final batch after signed CRUD completion; no new service/table/package. Supplier marketingLogo/operatingLogo fields exist and must survive all normalization boundaries; use actual documented observed sources with per-image fallback. No speculative licensing approval gate is added. Preserve existing scoped tools, exact research-choice confirmation and Trip import compatibility. New plans18-06–18-12 cover the correction; their checks are not executed. API coverage/opt-outs are inCOVERAGE.md. Earlier research below records the original implementation and is superseded where it describes separate specialist result browsing/import or manual search as fallback.
+
+## Historical research — original18-01–18-05
+
 Inspected 2026-10-25 at `d0e3bbe`; recommendations below are proposed implementation, not shipped behavior.
 
 ## Existing seams

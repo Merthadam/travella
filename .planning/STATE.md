@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 17
-current_phase_name: Research phase cleanup
-status: human_needed
-stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-27T17:55:01.397482+00:00"
+current_phase: 18
+current_phase_name: Focused Flights and Accommodation Agents
+status: ready_to_execute
+stopped_at: Phase 18 shared-workspace plans 18-06–18-12 ready; implementation not started
+last_updated: "2026-10-27T20:05:49.274Z"
 last_activity: 2026-10-27
-last_activity_desc: Implemented Phase 18 focused travel substages; runtime evidence recorded, user UAT and full live-quality matrix pending
-state_head: a11bf00
+last_activity_desc: Completed shared-workspace planning; seven plans reviewed with zero blockers and five nonblocking scope warnings
+state_head: 4b6f4ab7df42622b10ea7b46222e8ef463f21efe
 progress:
-  total_phases: 17
+  total_phases: 19
   completed_phases: 1
-  total_plans: 59
+  total_plans: 71
   completed_plans: 50
-  percent: 85
+  percent: 70
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 17 — User approved merge; integrating with Phase 16 travel previews
+**Current focus:** Phase 18 — Shared manual Flights/Stays workspace and supporting sidechat; follow-up planning complete
 
 ## Current Position
 
-Phase: 17 — Research phase cleanup
-Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
-Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-27 — Quick261026-ksg completed: reply-attached travel suggestions, exact context and shared manual/chat choice confirmation. Authentication recovered; 48 backend and 45 frontend checks, build, authenticated desktop/mobile journeys and two live specialist samples passed. Full Phase18 live-quality matrix/user UAT and Phase15/17 acceptance remain unchanged.
+Phase: 18 (Focused Flights and Accommodation Agents) — READY TO EXECUTE
+Plan: 18-06 through18-12 planned and reviewed; none of these seven follow-up plans executed.
+Status: Ready to execute. Planning review found zero blockers and five nonblocking scope warnings, retained with bounded coordination rationale. This planning-only request does not start implementation.
+Last activity: 2026-10-27 — Completed shared-workspace specification, research, seven plans, coverage and inspected desktop/mobile planning sketches. Static checks cover16 requirements and10 decisions. See18-WORKSPACE-PLAN-INDEX.md and18-WORKSPACE-PLAN-REVIEW.md in the Phase18 directory.
 
-Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
+Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -399,4 +399,3 @@ Resume file: None
 - User requested a redesigned login with existing functionality. Built A split welcome, B quiet centered form and C workspace navigation rail on dev-only account-access prototype query. Original auth handlers unchanged.
 - Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
 - Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.
-

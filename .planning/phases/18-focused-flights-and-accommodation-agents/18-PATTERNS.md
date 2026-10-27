@@ -1,5 +1,21 @@
 # Reuse map
 
+## Current shared-workspace patterns —2026-10-27
+
+| New/changed seam | Reuse | Required adaptation / owner |
+| --- | --- | --- |
+| useTravelWorkspace/travelWorkspaceSchema | TravelSearch request epoch, current schemas | One controller; draft/applied separation, synchronous revision fence, strict final effect method;18-06 |
+| WorkspaceContext/Update and digest binding | AgentRequest/Response, TopicRun input_digest, signed completion | Strict optional context, registry authorization, matching begin/complete digest;18-07 |
+| Private input/output collector | request_context ContextVars and graph/builder post-invocation projection | Finally-reset private input and final result, never parent state/checkpoints;18-07 |
+| update_workspace_view | SpecialistTravelTools registration plus host dispatch | Typed bounded local operations; same manual vocabulary;18-08 |
+| CarrierMark and fields | LiteAPI normalize_flights, Segment, FlightSegment, CanvasTravel strict schema | Actual marketing/operating metadata, observed safe images and fallback;18-09 |
+| TravelComparison/reviewExactTravelOption | Existing reference and deterministic intent review plus challenge/commit | Main factual comparison; review independent of chat.send/history/model;18-10 |
+| Tab recovery/session cleanup | canvasViewState, AccountApp clear path | Bounded references, opaque owner-session scope; fix direct401 sign-in bypass;18-11 |
+
+No new dependency, service, database table or migration is expected. Current final contracts live inWORKSPACE-SPEC/RESEARCH and follow-up plans; historical rows below remain records of original implementation, not new schema tasks.
+
+## Historical reuse map — original18-01–18-05
+
 | Planned artifact | Closest existing pattern | Required adaptation |
 | --- | --- | --- |
 | `services/crud/topic_conversations.py`, `topic_schemas.py` | `research_context.py` begin/complete/cancel and `repository.py` history | Topic binding, atomic writes and replay mismatch checks; no shared context changes from specialist answer. |

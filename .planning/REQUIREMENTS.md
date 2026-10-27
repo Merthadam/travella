@@ -323,5 +323,11 @@ The user approved dedicated Flights and Accommodation agents on 2026-10-25. The 
 | FOCUS-08 | 18 | Planned — evidence and capability honesty |
 | FOCUS-09 | 18 | Planned — ownership, tool scope and retention |
 | FOCUS-10 | 18 | Planned — attributed topic memory |
+| FOCUS-11 | 18 | Planned — shared manual workspace and user-input precedence |
+| FOCUS-12 | 18 | Planned — bounded validated automatic workspace effects |
+| FOCUS-13 | 18 | Planned — main factual comparison and exact unbooked choice |
+| FOCUS-14 | 18 | Planned — airline identity/logos and source/price evidence |
+| FOCUS-15 | 18 | Planned — scoped recovery and accessible responsive controls |
+| FOCUS-16 | 18 | Planned — integrated workspace evidence and honest acceptance |
 
 No implementation or acceptance is claimed by this extension.

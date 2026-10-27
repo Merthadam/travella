@@ -1,5 +1,29 @@
 # Specialist agent contract
 
+## Current shared-workspace amendment —2026-10-27
+
+Status: planned, unexecuted. Existing specialist implementation and historic evaluation below remain evidence for the old interaction. Current authority is18-WORKSPACE-SPEC.md and18-WORKSPACE-RESEARCH.md; plans18-07/18-08 deliver this amendment and18-12 verifies it. The main workspace is primary; chat no longer owns full option browsers or an explicit import step.
+
+Input adds strict optional workspace_context (instance_id/revision/search_id/view/draft_dirty). Resolve owner/Plan/topic/expiry and exact room references from the authorized registry; current applied facts are authoritative, incomplete form strings remain local. Private context/output stay outside parent graph channels and durable topic snapshots. Workspace revision is not authorization or Plan revision. Binding a digest into begin/complete preserves idempotency without storing inventory.
+
+Add one host-enforced update_workspace_view tool for supported local filters/sort/dismiss/restore/compare references, bounded to12 local operations. Keep ten provider calls, at mostthree rate searches/six inspections,96KiB evidence and finite turn deadline; General Trip retains its current policy. Search tools handle inventory criteria. Dirty form permits discussion but prohibits workspace-mutating effects. Hard requirements are never silently relaxed; uncertain exclusions stay visible. No durable choice/booking/payment tool is added.
+
+The host authors one final workspace_update from observed registered evidence and releases it only after successful signed CRUD completion plus generation check. The frontend validates full current identity/source/revision/run and applies it atomically once; manual edits invalidate authority before awaiting Stop. History reload never applies effects. Undo is one bounded version-safe temporary inverse. Main comparison remains factual with chat unavailable; exact manual review bypasses the model/history dependency and uses the existing lease/challenge/confirmation path.
+
+| Added evaluation | Required result / owning plan |
+| --- | --- |
+| Dirty unsubmitted form, manual search/sort/dismiss/compare while agent runs | User state survives late or duplicated effects; manual controls remain usable during failed cancellation;18-07/08/11 |
+| “Second one, but cheaper” after ordered comparison changes | Bind current ordered full references, retain old evidence as historical, preserve exact room/rate;18-08/10 |
+| Invalid topic/owner/ID/view patch and prompt injection | Reject before evidence access/application; no new tool authority;18-07/08 |
+| View-tool and provider exhaustion | Local12 and provider10/3/6 ceilings share finite turn; stop without background loop;18-08 |
+| Compare discussion fails / model or history unavailable during Choose | Main facts remain usable; deterministic review works once actual lease clears;18-10 |
+| Commit wins Stop, reload/registry restart, relevant brief changes | Truthful saved history, no obsolete effect/replay, explicit Search again/current review;18-11 |
+| Mixed airline/logo error; unlike price scopes; property versus room kitchen | Ground identity/observed images, neutral per-image fallback, scope labels and unknown facts;18-09/10 |
+
+All deterministic safety cases must pass; no scope/ownership/durable-mutation failure is acceptable. Bounded actual SDK/provider samples need factual traceability, a relevant priority and material tradeoff where present. Record actual live cases separately from fixtures; full earlier live/UAT gaps remain pending until actually tested. Telemetry is sanitized topic/count/latency/failure only. Approved API surface and opt-outs are inCOVERAGE.md.
+
+## Historical specialist contract and evaluation — original implementation
+
 Status: implemented. Deterministic invariants and a bounded live Claude SDK/LiteAPI sandbox sample executed; full live evaluation matrix and user acceptance pending. See artifacts/testing/2026-10-25-focused-travel/agent-evaluation.md.
 
 ## Input and authority

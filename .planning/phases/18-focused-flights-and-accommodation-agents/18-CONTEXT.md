@@ -1,6 +1,25 @@
 # Phase 18: Focused Flights and Accommodation Agents
 
-Captured 2026-10-25 from the traveler/product-owner discussion. Status: scope agreed; implementation planning in progress; visual evidence pending. Planning only, with no auto-execution.
+Captured 2026-10-25; updated 2026-10-27 after the user requested completion of planning for the shared search workspace. Earlier implementation and evidence remain historical. The new workspace correction is planning only, with no auto-execution.
+
+## Current decision authority — 2026-10-27
+
+The user explicitly approved the frontend/manual search area as the primary experience, with a separate Canvas-consistent side chat operating on the same search. This supersedes quick261026-ksg's reply-attached option browser and explicit “View all results” import workflow. Preserve completed plans 18-01 through 18-05 and their historical evidence; add follow-up plans. The specialist architecture, trip context, explicit preferred choice and bounded research decisions below remain in force.
+
+Current contract: `18-WORKSPACE-SPEC.md`. The user chose discussion without prototypes earlier in this session; retain that choice. A single rendered planning sketch records the agreed direction, not a new alternatives-selection exercise.
+
+<decisions>
+- **D18-01:** Flights and Stays remain substages of one trip, with independent persistent topic histories and compact saved trip context.
+- **D18-02:** The main frontend owns one shared search/results view per topic. Manual search, filters, details, comparison and choosing must all work with chat closed.
+- **D18-03:** The specialist can search, refine, sort and dismiss temporary results within the agreed budget; validated results update the same main view automatically. No separate import action or duplicate full results browser in chat.
+- **D18-04:** Manual input wins over in-flight agent actions. Dismiss is reversible and does not delete saved choices. Agent actions never silently relax hard requirements or mutate saved trip facts.
+- **D18-05:** Compare two or three exact options in the main workspace and discuss their evidence in side chat. Typing, pane toggles and selection do not send messages; explicit Compare may send structured context while preserving the composer's draft.
+- **D18-06:** The result list has Details, Compare and Dismiss controls. Choose for trip lives in details/comparison and uses exact confirmation of the actual room/return fare; choosing marks ready and remains unbooked.
+- **D18-07:** Flight cards show the real airline logo/name where reliably identified, both carriers for mixed flights, and a neutral airplane fallback. Provider/source identity remains distinct from carrier identity.
+- **D18-08:** Cards expose total-price scope, source, observation time, sandbox/expiry/unknown states; source links exist only when verified and available.
+- **D18-09:** Match the existing Canvas sidechat, keep browsing primary on mobile, preserve unsent drafts and user focus, and offer Stop/Undo without exposing internal tool machinery.
+- **D18-10:** Finish planning now. No production implementation, deployment, booking expansion or acceptance claim follows automatically.
+</decisions>
 
 ## Agreed experience
 
