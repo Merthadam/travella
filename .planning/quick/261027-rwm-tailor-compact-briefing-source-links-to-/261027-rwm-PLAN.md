@@ -1,0 +1,7 @@
+# Tailored sources for the compact briefing
+
+User wants basic destination information and useful links selected for the actual trip: public transport, matching sights, or a local rental supplier for a ski trip. Preserve the compact summary and contextual links. Update the Lisbon sample with direct official transport and attraction pages; keep five distinct sources across collapsed and expanded content. Do not add a generic directory, pretend a ski destination was selected, or implement live generation in this prototype task.
+
+Accepted future content rule: select sources from confirmed destination, trip purpose, interests, saved places and relevant constraints/dates. Include a short reason each resource fits. City trips may need transport and matching sights; ski trips may need the specific resort, lift/piste information and local equipment rental. Categories are optional and adapt to relevance. Prefer official tourism/operators/venues and direct suppliers; the resource should help the traveler understand or do something. Verify source identity and useful page content, keeping time-sensitive availability distinct from background facts.
+
+Verify browsed primary sources, source hrefs and new-tab behavior in the real authenticated preview, compact desktop/mobile layout, disclosure, no mutation/model requests, console/network and build. Save evidence under artifacts/testing/2026-10-27-tailored-sources/plan. Use existing isolated Chrome CDP workflow. Capture on the current prototype branch and record that runtime personalization is still pending.
