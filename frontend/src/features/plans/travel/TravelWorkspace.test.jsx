@@ -6,6 +6,7 @@ import { draftTravelFacts } from './CanvasTravel';
 import { initialWorkspace, travelWorkspaceReducer, useTravelWorkspace } from './useTravelWorkspace';
 import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 import { plansApi } from '../../../plansApi';
+import { filterResults, unknownFilterFacts } from './TravelSearch';
 
 const chat = vi.hoisted(() => ({ active: true, loading: false, historyError: 'History unavailable', messages: [], snapshot: null, stop: vi.fn(() => new Promise(() => {})) }));
 vi.mock('./useTravelConversation', async importOriginal => {
@@ -23,6 +24,18 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
 }
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn(); });
 afterEach(() => { cleanup(); chat.real = false; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+
+test.each(['stays', 'flights'])('manual %s filters retain labeled unknowns and sort missing prices last like host operations', topic => {
+  const known = workspaceSnapshot(topic).results[0];
+  const unknown = structuredClone(known); unknown.id = 'unknown'; unknown.price.amount = null;
+  if (topic === 'stays') { known.rooms = [{ refundable: true }]; unknown.stars = null; unknown.review_score = null; unknown.rooms = [{ refundable: null }]; }
+  else { known.refundable = true; known.cabin_bag_included = true; unknown.refundable = null; unknown.cabin_bag_included = null; unknown.outbound.stops = null; }
+  const filters = { ...emptyWorkspaceView(), stay: topic === 'stays', budget: '100', refundable: true, sort: 'price', ...(topic === 'stays' ? { stars: '4', rating: '8' } : { direct: true, bag: true }) };
+  expect(filterResults([unknown, known], filters).map(item => item.id)).toEqual(['option-1', 'unknown']);
+  expect(unknownFilterFacts(unknown, filters)).toContain('total price');
+  expect(unknownFilterFacts(known, filters)).toEqual([]);
+  expect(unknown.price.amount).toBeNull();
+});
 
 test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 'compare', 'manual', 'brief', 'failed', 'stop'])('real conversation delivers one committed batch and rejects %s races', async race => {
   chat.real = true;

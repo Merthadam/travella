@@ -147,9 +147,12 @@ test("editing a selected city or its country requires selecting a destination ag
   await user.click(screen.getByRole("button", { name: "Search stays" }));
   expect(searchRequest).not.toHaveBeenCalled();
 });
-test("filters exclude unknowns and sort missing prices last without mutating the response", () => {
+test("filters retain unknowns and sort missing prices last without mutating the response", () => {
   const unknown = hotel("Unknown");
   unknown.price.amount = null;
+  unknown.rooms[0].refundable = null;
+  unknown.stars = null;
+  unknown.review_score = null;
   const known = hotel("Known");
   known.rooms[0].refundable = true;
   known.stars = 4;
@@ -164,8 +167,9 @@ test("filters exclude unknowns and sort missing prices last without mutating the
       refundable: true,
       stars: "4",
       rating: "8",
+      sort: "provider",
     }).map((x) => x.id),
-  ).toEqual(["Known"]);
+  ).toEqual(["Unknown", "Known"]);
   expect(data[0]).toBe(unknown);
 });
 
@@ -447,7 +451,7 @@ test('new results retain open detail original full identity and mark detached ev
   expect(onChoose).toHaveBeenCalledWith(expect.objectContaining({ reference: { search_id: first.search_id, option_id: first.results[0].id, room_id: null } }));
 });
 
-test('view-only filters and sort perform no supplier request and keep unknown facts excluded', async () => {
+test('view-only filters and sort perform no supplier request and exclude confirmed violations', async () => {
   render(<TravelSearch {...props} importedSnapshot={imported()}/>);
   fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'price' } });
   fireEvent.change(screen.getByLabelText('Minimum stars'), { target: { value: '5' } });

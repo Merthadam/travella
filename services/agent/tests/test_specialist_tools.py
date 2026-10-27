@@ -271,3 +271,59 @@ def test_dirty_workspace_denies_search_and_local_changes_before_provider_calls()
         assert result.get("is_error") and "pending" in str(result)
         assert not observer.client.calls
     asyncio.run(run())
+
+
+def test_workspace_dismiss_restore_compare_refinement_and_scope_fail_closed():
+    from services.agent.travel_workspace import finalize_workspace_view
+    from services.agent.travel_registry import travel_registry
+    from datetime import UTC, datetime, timedelta
+    async def run():
+        observer = workspace_specialist()
+        first = value(await observer.invoke("search_stays", args()))
+        sid = first["search_id"]
+        ref = {"search_id": sid, "option_id": "stay-1", "room_id": "room-1"}
+        def op(operation, **extra):
+            return {"search_id": sid, "operation": operation, **extra}
+        assert value(await observer.invoke("update_workspace_view", op("dismiss", references=[ref])))["visible_count"] == 3
+        assert value(await observer.invoke("update_workspace_view", op("restore", references=[ref])))["visible_count"] == 4
+        value(await observer.invoke("update_workspace_view", op("compare", references=[ref])))
+        assert finalize_workspace_view(observer.workspace)["view"]["comparison_refs"] == [ref]
+        before = finalize_workspace_view(observer.workspace)
+        for invalid in [op("compare", references=[{**ref, "room_id": "room-2"}]), op("dismiss", references=[{**ref, "option_id": "unknown"}]),
+                        op("filter", filters={"direct": True}), op("book", references=[ref]), {**op("sort", sort="price"), "plan_id": "foreign"}]:
+            assert (await observer.invoke("update_workspace_view", invalid))["is_error"]
+            assert finalize_workspace_view(observer.workspace) == before
+        second = value(await observer.invoke("search_stays", args("USD")))
+        assert finalize_workspace_view(observer.workspace)["view"]["comparison_refs"] == []
+        assert (await observer.invoke("update_workspace_view", op("restore", references=[ref])))["is_error"]
+        current = second["search_id"]
+        travel_registry.entries[current][2].expires_at = (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
+        assert (await observer.invoke("update_workspace_view", {"search_id": current, "operation": "sort", "sort": "price"}))["is_error"]
+    asyncio.run(run())
+
+
+def test_workspace_filters_keep_unknowns_visible_and_sort_missing_prices_last():
+    from services.agent.travel_workspace import visible_workspace_options
+    class UnknownProvider(Provider):
+        async def call(self, name, arguments, **scope):
+            result = await super().call(name, arguments, **scope)
+            if arguments["action"] == "hotels/search":
+                result["results"][0]["rooms"][0]["refundable"] = True
+                unknown = result["results"][1]
+                unknown["price"]["amount"] = None
+                unknown["rooms"][0]["refundable"] = None
+                unknown["stars"] = unknown["review_score"] = None
+            return result
+    async def run():
+        observer = workspace_specialist(provider=UnknownProvider())
+        found = value(await observer.invoke("search_stays", args()))
+        sid = found["search_id"]
+        result = value(await observer.invoke("update_workspace_view", {"search_id": sid, "operation": "filter", "filters": {"budget": "700", "refundable": True, "stars": "4", "rating": "8"}}))
+        assert result["visible_count"] == 2 and result["unknown_count"] == 1
+        value(await observer.invoke("update_workspace_view", {"search_id": sid, "operation": "sort", "sort": "price"}))
+        visible, unknown = visible_workspace_options(observer.workspace.current(sid), observer.workspace.view)
+        assert [item.id for item in visible] == ["stay-0", "stay-1"] and unknown == ["stay-1"]
+        assert observer.calls == 2
+        observer.deadline = 0
+        assert (await observer.invoke("update_workspace_view", {"search_id": sid, "operation": "sort", "sort": "quality"}))["is_error"]
+    asyncio.run(run())

@@ -15,7 +15,7 @@ from claude_agent_sdk import HookMatcher
 from pydantic import Field
 
 from services.crud.canvas import CanvasSnapshot
-from services.travel_topics import Comparison, ResearchOption, TopicNote, TopicNotes, WorkspaceView
+from services.travel_topics import Comparison, ResearchOption, TopicNote, TopicNotes
 
 from ..request_context import collect_travel_results, collect_workspace_update
 from ..travel_client import TravelClient
@@ -45,21 +45,6 @@ class SpecialistAnswer(StrictResult):
     needs_input: bool
     comparisons: list[ComparisonReference] = Field(default_factory=list, max_length=3)
     notes: list[NoteQuote] = Field(default_factory=list, max_length=6)
-    workspace_view: WorkspaceView | None = Field(default=None,
-        description="Optional complete final temporary view of observed results. Use only this topic's filters and observed exact references. Never changes saved choices.")
-
-
-class WorkspaceTravelTools(SpecialistTravelTools):
-    """Track the successful search returned to this worker, including zero matches."""
-    final_search_id = None
-
-    async def _invoke(self, name, arguments):
-        response = await super()._invoke(name, arguments)
-        if name in {"search_stays", "search_flights"} and not response.get("is_error"):
-            payload = json.loads(response["content"][0]["text"])
-            if payload.get("search_id") in self.snapshots:
-                self.final_search_id = payload["search_id"]
-        return response
 
 
 def _selected_room(option, room_id):
@@ -193,7 +178,7 @@ class ClaudeSdkTravelSpecialist:
                 essentials["travelers"] = brief["travelers"]
             if isinstance(brief.get("destination"), str):
                 draft.components.setdefault("map", {})["destination"] = brief["destination"]
-        travel = WorkspaceTravelTools(self.travel_client or TravelClient(), bounded,
+        travel = SpecialistTravelTools(self.travel_client or TravelClient(), bounded,
             authorization_token, draft, message, time.monotonic() + min(120, self.config.timeout_seconds), topic=topic)
         if not saved_canvas:
             travel.names = set()
@@ -245,7 +230,7 @@ class ClaudeSdkTravelSpecialist:
                    "inventory_tools_available": bool(saved_canvas), "previous_research": historical}
         if workspace_context:
             payload["workspace"] = workspace_context
-            payload["workspace_instruction"] = "This is temporary applied research, not saved trip facts. Pending draft edits prohibit workspace changes. After a successful search the host replaces the main list once. workspace_view may filter/sort/dismiss/compare only observed members; never weaken a hard requirement."
+            payload["workspace_instruction"] = "This is temporary applied research, not saved trip facts. Pending draft edits prohibit workspace changes. After successful completion the host applies the final search and update_workspace_view operations once. Never weaken a hard requirement."
             if current_snapshot:
                 payload["workspace_options"] = travel._preview_options(current_snapshot)
         if attached:
@@ -288,14 +273,10 @@ class ClaudeSdkTravelSpecialist:
                     from ..travel_registry import travel_registry
                     for snap in travel.snapshots.values():
                         travel_registry.put(context.traveler_scope, context.plan_id, snap)
-                    if workspace_context and not workspace_context.get("draft_dirty"):
-                        final_id = travel.final_search_id or (current_snapshot.search_id if current_snapshot and reply.workspace_view else None)
-                        if final_id:
-                            final = travel.snapshots[final_id]
-                            view = reply.workspace_view or WorkspaceView()
-                            view.validate_topic(topic)
-                            view.validate_members(final)
-                            collect_workspace_update({"search_id": final_id, "view": view.model_dump()})
+                    from ..travel_workspace import finalize_workspace_view
+                    final_view = finalize_workspace_view(travel.workspace)
+                    if final_view:
+                        collect_workspace_update(final_view)
                     # The ephemeral option previews must display that same rate,
                     # too. Keep the observer's complete evidence registry intact.
                     for ref in reply.comparisons:

@@ -49,9 +49,10 @@ def real_handler(system, monkeypatch, pid, *, topic="stays", count=4):
     monkeypatch.setattr("services.agent.claude.travel_specialist.TravelClient", lambda: Provider(count))
     config = ResearchWorkerConfig(api_key="test-only-no-network")
     async def query(*, prompt, options, transport):
-        found = await sdk_call(options.mcp_servers["travel"]["instance"], f"search_{topic}",
-            {"criteria": STAY if topic == "stays" else FLIGHT, "dates": {"source": "canvas"}})
-        assert "search_id" in found, found
+        if not json.loads(prompt).get("workspace", {}).get("draft_dirty"):
+            found = await sdk_call(options.mcp_servers["travel"]["instance"], f"search_{topic}",
+                {"criteria": STAY if topic == "stays" else FLIGHT, "dates": {"source": "canvas"}})
+            assert "search_id" in found, found
         yield ResultMessage(subtype="success", duration_ms=1, duration_api_ms=1, is_error=False,
             num_turns=1, session_id="scripted", total_cost_usd=0.01,
             structured_output={"answer": "Search completed; nothing booked.", "needs_input": False,

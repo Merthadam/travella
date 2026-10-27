@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from typing import Literal
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
@@ -31,6 +32,7 @@ from ..travel_contracts import (
 )
 from .canvas_travel import CanvasTravelObserver, draft_facts, safe_flight, safe_stay
 from .research_result import StrictResult
+from ..travel_workspace import WorkspaceOperation, WorkspaceSession, apply_workspace_view
 
 
 class DateEvidence(StrictResult):
@@ -319,6 +321,10 @@ class CanvasTravelTools(CanvasTravelObserver):
             )
 
     def server(self):
+        @tool("update_workspace_view", "Temporarily filter/sort observed results, dismiss/restore exact references, or set up to three comparison references. No saved choices change. Unknown matches stay visible. At most twelve local operations per turn; never call while form edits are pending.", WorkspaceOperation.model_json_schema())
+        async def workspace_view(args):
+            return await self.invoke("update_workspace_view", args)
+
         @tool("get_stay_filter_catalog", "Read actual provider hotel_types or facilities IDs before filtering. Optional q matches names (e.g. apartment or kitchen), up to100 entries. Property facilities do not guarantee a specific room amenity.", StayCatalogQuery.model_json_schema())
         async def catalog(args):
             return await self.invoke("get_stay_filter_catalog", args)
@@ -399,6 +405,7 @@ class CanvasTravelTools(CanvasTravelObserver):
             name="travel",
             version="3.0.0",
             tools=[item for item in [
+                workspace_view,
                 catalog,
                 capabilities,
                 destinations,
@@ -436,6 +443,12 @@ class SpecialistTravelTools(CanvasTravelTools):
         self.observed_flight_ids = set()
         self.observation_times = {}
         self.failed_calls = set()
+        from ..request_context import current_workspace_context
+        workspace_context = current_workspace_context()
+        self.workspace = WorkspaceSession(self.context.traveler_scope, self.context.plan_id, topic, workspace_context) if workspace_context else None
+        if self.workspace is not None:
+            self.names.add("update_workspace_view")
+        self.final_search_id = None
 
     def _preview_options(self, snapshot):
         options = super()._preview_options(snapshot)
@@ -505,6 +518,17 @@ class SpecialistTravelTools(CanvasTravelTools):
     async def _invoke(self, name, arguments):
         if name not in self.names:
             return self._error("tool_not_allowed", "Use only this discussion's read-only tools.")
+        if self.workspace and self.workspace.dirty and name in {"search_stays", "search_flights", "update_workspace_view"}:
+            return self._error("workspace_pending_edits", "Submit or discard pending form edits before changing the workspace. You can still discuss observed evidence.")
+        if name == "update_workspace_view":
+            if time.monotonic() >= self.deadline:
+                return self._error("workspace_deadline", "The turn deadline ended. Keep checked evidence; do not continue automatically.")
+            if self.tool_bytes > self.evidence_limit - 1024:
+                return self._error("travel_text_limit", "Evidence limit reached. Keep checked evidence; do not continue automatically.")
+            try:
+                return self._evidence(apply_workspace_view(self.workspace, arguments))
+            except Exception:
+                return self._error("workspace_view_invalid", "The operation is unavailable, expired, outside this workspace, or the twelve-action limit was reached.")
         if name in {"get_stay_details", "get_stay_reviews", "get_stay_rates"}:
             hotel_id = arguments.get("criteria", {}).get("hotel_id") if name == "get_stay_rates" else arguments.get("hotel_id")
             if hotel_id not in self.observed_hotel_ids:
@@ -540,6 +564,13 @@ class SpecialistTravelTools(CanvasTravelTools):
             raise
         else:
             self.snapshots = {**older, **self.snapshots}
+            if name in {"search_stays", "search_flights"} and not response.get("is_error"):
+                payload = json.loads(response["content"][0]["text"])
+                found = self.snapshots.get(payload.get("search_id"))
+                if found:
+                    self.final_search_id = found.search_id
+                    if self.workspace:
+                        self.workspace.observed(found)
             for snap in self.snapshots.values():
                 for option in snap.results[:self.preview_limit]:
                     if snap.mode == "stays":

@@ -418,19 +418,18 @@ export function filterResults(
 ) {
   const list = results.filter(
     (item) =>
-      (!stars || (item.stars != null && item.stars >= Number(stars))) &&
+      (!stars || item.stars == null || item.stars >= Number(stars)) &&
       (!rating ||
-        (item.review_score != null && item.review_score >= Number(rating))) &&
-      (!airline || item.airlines?.includes(airline)) &&
+        item.review_score == null || item.review_score >= Number(rating)) &&
+      (!airline || !item.airlines?.length || item.airlines.includes(airline)) &&
       (!budget ||
-        (item.price.amount != null &&
-          Number(item.price.amount) <= Number(budget))) &&
+        item.price.amount == null || Number(item.price.amount) <= Number(budget)) &&
       (!refundable ||
         (stay
-          ? item.rooms.some((r) => r.refundable === true)
-          : item.refundable === true)) &&
-      (!direct || (item.outbound?.stops === 0 && item.inbound?.stops === 0)) &&
-      (!bag || item.cabin_bag_included === true),
+          ? !item.rooms.length || item.rooms.some((r) => r.refundable !== false)
+          : item.refundable !== false)) &&
+      (!direct || !(item.outbound?.stops > 0 || item.inbound?.stops > 0)) &&
+      (!bag || item.cabin_bag_included !== false),
   );
   const metric = (item) =>
     sort === "price"
@@ -442,6 +441,14 @@ export function filterResults(
   return sort === "provider"
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
+}
+export function unknownFilterFacts(item, { stay, budget, refundable, direct, bag, stars, rating, airline }) {
+  return [budget && item.price.amount == null && 'total price',
+    stay && stars && item.stars == null && 'star rating', stay && rating && item.review_score == null && 'guest rating',
+    refundable && (stay ? !item.rooms.length || !item.rooms.some(r => r.refundable === true) && item.rooms.some(r => r.refundable == null) : item.refundable == null) && 'refundability',
+    !stay && direct && (item.outbound?.stops == null || item.inbound?.stops == null) && 'stops',
+    !stay && bag && item.cabin_bag_included == null && 'cabin baggage',
+    !stay && airline && !item.airlines?.length && 'airline'].filter(Boolean);
 }
 export function TravelSearch(props) {
   return props.workspace ? <ControlledTravelSearch {...props}/> : <StandaloneTravelSearch {...props}/>;
@@ -947,7 +954,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
               )}
               <button onClick={resetFilters}>Reset filters</button>
               <small>
-                Unknown terms are excluded when a filter is selected.
+                Unknown terms remain visible and are labeled; they are not confirmed matches.
               </small>
             </aside>
             <div className="travel-results">
@@ -1007,6 +1014,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                             : "YOUR STAY"}
                         </small>
                         <h3>{item.name}</h3>
+                        {unknownFilterFacts(item, { stay, ...view }).length > 0 && <p className="travel-note">Not confirmed for your filters: {unknownFilterFacts(item, { stay, ...view }).join(', ')}.</p>}
                         <p>{item.address || "Address unavailable"}</p>
                         <small>Property type unavailable · Distance unavailable</small>
                         {item.review_score != null && (
@@ -1028,6 +1036,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                     </>
                   ) : (
                     <div className="travel-result-body">
+                      {unknownFilterFacts(item, { stay, ...view }).length > 0 && <p className="travel-note">Not confirmed for your filters: {unknownFilterFacts(item, { stay, ...view }).join(', ')}.</p>}
                       <h3>
                         {item.airlines.join(" · ") || "Airline unavailable"}
                       </h3>
