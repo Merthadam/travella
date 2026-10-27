@@ -74,6 +74,26 @@ def test_topic_history_persistence_and_trip_generation_isolation(system):
         assert len(db.scalars(select(ConversationMessage)).all()) == 2
 
 
+def test_workspace_digest_binds_begin_complete_without_persisting_context(system):
+    plan = create(system)
+    data = {"action": "begin", "event_id": str(uuid4()), "message": "Find stays", "generation": 1,
+            "workspace_input_digest": "a" * 64}
+    response = system.client.post(url(plan) + "/run", json=data)
+    assert response.status_code == 200, response.text
+    snapshot = response.json()
+    changed = complete(system, plan, data, snapshot, workspace_input_digest="b" * 64)
+    assert changed.status_code == 409
+    assert complete(system, plan, data, snapshot).status_code == 200
+    readback = system.client.get(url(plan)).json()
+    assert len(readback["messages"]) == 2
+    assert "workspace" not in str(readback)
+    with system.factory() as db:
+        row = db.scalar(select(TravelTopicRun))
+        assert row.status == "complete"
+        assert len(row.input_digest) == 64
+        assert "workspace" not in str(db.scalar(select(TravelTopicState)).payload)
+
+
 def test_shared_lease_cancel_and_event_topic_replay(system):
     plan = create(system)
     data, snapshot = begin(system, plan)
