@@ -1054,6 +1054,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                   )}
                   <div className="travel-result-actions">
                     <Price price={item.price} stay={stay} />
+                    {workspace.dismiss && snapshot.search_id && <button type="button" disabled={workspace.state.draftDirty || evidenceExpired} onClick={() => workspace.dismiss({ search_id: snapshot.search_id, option_id: item.id, room_id: null })}>Dismiss from results</button>}
                     <button
                       className="travel-primary"
                       onClick={() => openDetail(item)}

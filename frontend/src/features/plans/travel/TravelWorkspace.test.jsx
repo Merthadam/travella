@@ -13,7 +13,7 @@ vi.mock('./useTravelConversation', async importOriginal => {
   const actual = await importOriginal();
   return { useTravelConversation: props => chat.real ? actual.useTravelConversation(props) : chat };
 });
-vi.mock('./TravelConversation', () => ({ TravelConversation: ({ onClose, chat: conversation }) => <><button onClick={onClose}>Close chat</button>{chat.real && <button onClick={() => conversation.send('Find stays')}>Send workspace search</button>}</> }));
+vi.mock('./TravelConversation', () => ({ TravelConversation: ({ onClose, chat: conversation }) => <><input aria-label="Unsent message"/><button onClick={onClose}>Close chat</button>{chat.real && <button onClick={() => conversation.send('Find stays')}>Send workspace search</button>}</> }));
 const initialData = { map: { destination: 'Rome' } };
 export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   const price = { amount: '100', currency: 'EUR', basis: topic === 'stays' ? 'stay' : 'party_return', estimated: true, excluded_taxes: [] };
@@ -63,10 +63,13 @@ test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 
   }
   if (race === 'brief') saved.brief = { digest: 'c'.repeat(64) };
   if (race === 'stop') await act(async () => stop());
+  const composer = screen.getByLabelText('Unsent message');
+  fireEvent.change(composer, { target: { value: 'Keep my draft' } }); composer.focus();
   const terminal = { type: 'TERMINAL', status: race === 'failed' ? 'error' : 'complete', ...(race !== 'state-only' ? { workspace_update: batch } : {}) };
   await act(async () => { stream.onEvent(terminal); finish(terminal); });
   if (['current', 'state-only', 'terminal-only'].includes(race)) {
     expect(await screen.findByRole('heading', { name: 'search-1' })).toBeTruthy();
+    expect(document.activeElement).toBe(composer); expect(composer.value).toBe('Keep my draft');
     // Late duplicate delivery after the run ended cannot apply again.
     await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
     expect(screen.getAllByRole('heading', { name: 'search-1' })).toHaveLength(1);

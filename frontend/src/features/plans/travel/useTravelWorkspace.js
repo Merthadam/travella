@@ -3,7 +3,7 @@ import { requestId } from '../../../plansApi';
 import { travelRequest } from './travelApi';
 import { emptyStayFilters } from './StaySearchFilters';
 import { draftTravelFacts, travelSnapshotSchema, travelState } from './CanvasTravel';
-import { emptyWorkspaceView, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
+import { emptyWorkspaceView, travelReferenceSchema, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 
 export function initialWorkspace({ owner = 'session', planId, topic, initialData, instanceId = requestId() }) {
   const dates = initialData?.essentials?.dates;
@@ -13,20 +13,35 @@ export function initialWorkspace({ owner = 'session', planId, topic, initialData
   return { owner, planId, topic, instanceId, revision: 0, requestGeneration: 0,
     draftCriteria: { city: initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms, adults, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters() },
     draftDirty: false, appliedCriteria: null, searchId: null, snapshot: null, view: emptyWorkspaceView(),
-    detailsReference: null, loading: false, error: '', imported: false, importIdentity: null, authority: null, inverse: null, appliedActions: [],
+    detailsReference: null, loading: false, error: '', imported: false, importIdentity: null, authority: null, inverse: null, inverseRevision: null, notice: '', appliedActions: [],
   };
 }
 export function draftFromCriteria(c, topic) {
   return topic === 'stays' ? { city: c.destination.city, place: { name: c.destination.city, place_id: c.destination.place_id }, country: c.destination.country_code, nationality: c.guest_nationality, start: c.check_in, end: c.check_out, rooms: c.rooms, currency: c.currency, stayFilters: { hotel_type_ids: c.hotel_type_ids || [], facility_ids: c.facility_ids || [], strict_facility_filtering: c.strict_facility_filtering ?? true, refundable_rates_only: c.refundable_rates_only || false } } : { origin: { iata: c.origin, label: c.origin }, destination: { iata: c.destination, label: c.destination }, start: c.departure_date, end: c.return_date, adults: c.adults, children: c.children_ages, infants: c.infant_ages, cabin: c.cabin_class, country: c.country_code, currency: c.currency };
 }
 const fresh = (snapshot, now) => snapshot && Number.isFinite(Date.parse(snapshot.expires_at)) && now < Date.parse(snapshot.expires_at) && Date.parse(snapshot.searched_at) <= now;
-const advanced = state => state.revision < Number.MAX_SAFE_INTEGER ? { ...state, revision: state.revision + 1, authority: null, inverse: null } : { ...state, instanceId: requestId(), revision: 0, authority: null, inverse: null, appliedActions: [] };
+const advanced = state => state.revision < Number.MAX_SAFE_INTEGER ? { ...state, revision: state.revision + 1, authority: null, inverse: null, inverseRevision: null, notice: '' } : { ...state, instanceId: requestId(), revision: 0, authority: null, inverse: null, inverseRevision: null, notice: '', appliedActions: [] };
+const inverseOf = state => ({ snapshot: state.snapshot, searchId: state.searchId, appliedCriteria: state.appliedCriteria, draftCriteria: state.draftCriteria, draftDirty: state.draftDirty, imported: state.imported, view: state.view });
 const matches = (state, token) => token && ['owner', 'planId', 'topic', 'instanceId', 'revision', 'requestGeneration'].every(key => state[key] === token[key]);
 
 export function travelWorkspaceReducer(state, action) {
   switch (action.type) {
     case 'draft': return { ...advanced(state), draftCriteria: { ...state.draftCriteria, [action.field]: typeof action.value === 'function' ? action.value(state.draftCriteria[action.field]) : action.value }, draftDirty: true, loading: false, requestGeneration: state.requestGeneration + 1 };
     case 'view': return { ...advanced(state), view: { ...state.view, ...action.patch }, loading: false, requestGeneration: state.requestGeneration + 1 };
+    case 'dismiss':
+    case 'restore': {
+      const parsed = travelReferenceSchema.safeParse(action.reference);
+      if (!parsed.success || state.draftDirty || !fresh(state.snapshot, action.now ?? Date.now())) return state;
+      const ref = parsed.data;
+      const item = state.snapshot.results.find(item => item.id === ref.option_id);
+      if (ref.search_id !== state.searchId || !item || ref.room_id && (state.topic !== 'stays' || !item.rooms.some(room => room.id === ref.room_id))) return state;
+      const dismissed = state.view.dismissed_ids.includes(ref.option_id);
+      if (dismissed === (action.type === 'dismiss')) return state;
+      const next = advanced(state);
+      return { ...next, view: { ...state.view, page: 1, dismissed_ids: action.type === 'dismiss' ? [...state.view.dismissed_ids, ref.option_id] : state.view.dismissed_ids.filter(id => id !== ref.option_id) },
+        loading: false, requestGeneration: state.requestGeneration + 1, inverse: inverseOf(state), inverseRevision: next.revision,
+        notice: action.type === 'dismiss' ? 'Option dismissed from these results. Your saved choices have not changed.' : 'Option restored to these results. Your saved choices have not changed.' };
+    }
     case 'details': return { ...state, detailsReference: action.value };
     case 'error': return { ...state, error: action.value };
     case 'cancel': return { ...advanced(state), loading: false, requestGeneration: state.requestGeneration + 1 };
@@ -41,13 +56,13 @@ export function travelWorkspaceReducer(state, action) {
       if (!parsed.success || action.hydrating || !state.authority || state.draftDirty) return state;
       const u = parsed.data, a = state.authority;
       if (state.appliedActions.includes(u.action_id) || u.plan_id !== state.planId || u.topic !== state.topic || u.instance_id !== state.instanceId || u.base_revision !== state.revision || a.owner !== state.owner || a.instanceId !== state.instanceId || a.revision !== state.revision || u.run_id !== a.run_id || u.brief_digest !== a.brief_digest || !fresh(u.snapshot, action.now ?? Date.now())) return state;
-      const inverse = { snapshot: state.snapshot, searchId: state.searchId, appliedCriteria: state.appliedCriteria, draftCriteria: state.draftCriteria, draftDirty: state.draftDirty, imported: state.imported, view: state.view };
-      return { ...advanced(state), snapshot: u.snapshot, searchId: u.search_id, appliedCriteria: u.snapshot.criteria, draftCriteria: { ...state.draftCriteria, ...draftFromCriteria(u.snapshot.criteria, state.topic) }, draftDirty: false, imported: false, view: u.view, loading: false, error: '', requestGeneration: state.requestGeneration + 1, inverse, appliedActions: [...state.appliedActions.slice(-99), u.action_id] };
+      const next = advanced(state);
+      return { ...next, snapshot: u.snapshot, searchId: u.search_id, appliedCriteria: u.snapshot.criteria, draftCriteria: { ...state.draftCriteria, ...draftFromCriteria(u.snapshot.criteria, state.topic) }, draftDirty: false, imported: false, view: u.view, loading: false, error: '', requestGeneration: state.requestGeneration + 1, inverse: inverseOf(state), inverseRevision: next.revision, notice: 'Results updated. Your saved choices have not changed.', appliedActions: [...state.appliedActions.slice(-99), u.action_id] };
     }
     case 'undo': {
-      if (!state.inverse) return state;
-      if (state.inverse.snapshot && !fresh(state.inverse.snapshot, action.now ?? Date.now())) return { ...state, error: 'Previous results expired. Search again for current options.', inverse: null };
-      return { ...advanced(state), ...state.inverse, inverse: null, loading: false, requestGeneration: state.requestGeneration + 1 };
+      if (!state.inverse || state.inverseRevision !== state.revision) return state;
+      if (state.inverse.snapshot && !fresh(state.inverse.snapshot, action.now ?? Date.now())) return { ...state, error: 'Previous results expired. Search again for current options.', inverse: null, inverseRevision: null, notice: '' };
+      return { ...advanced(state), ...state.inverse, inverse: null, loading: false, requestGeneration: state.requestGeneration + 1, notice: 'Workspace change undone. Your saved choices have not changed.' };
     }
     default: return state;
   }
@@ -62,8 +77,10 @@ export function useTravelWorkspace({ owner = 'session', planId, topic, initialDa
   }
   function dispatch(action) { const previous = ref.current; ref.current = travelWorkspaceReducer(previous, action); if (previous !== ref.current) render(n => n + 1); return ref.current; }
   function invalidate(action) {
+    const previous = ref.current;
     const hadAuthority = Boolean(ref.current.authority);
     const value = dispatch(action); // Revoke before cancellation can yield or complete.
+    if (value === previous) return value;
     pending.current?.abort();
     if (hadAuthority) void callbacks.current.onManualChange?.();
     return value;
@@ -122,6 +139,8 @@ export function useTravelWorkspace({ owner = 'session', planId, topic, initialDa
     setView: patch => invalidate({ type: 'view', patch: typeof patch === 'function' ? patch(ref.current.view) : patch }),
     cancel: () => invalidate({ type: 'cancel' }),
     undo: () => invalidate({ type: 'undo' }),
+    dismiss: reference => invalidate({ type: 'dismiss', reference }),
+    restore: reference => invalidate({ type: 'restore', reference }),
     getWorkspaceContext: () => travelWorkspaceContextSchema.parse({ instance_id: ref.current.instanceId, revision: ref.current.revision, search_id: ref.current.searchId, view: ref.current.view, draft_dirty: ref.current.draftDirty }),
     onWorkspaceRunStart: authority => dispatch({ type: 'run-start', authority }),
     onWorkspaceRunEnd: runId => dispatch({ type: 'run-end', runId }),

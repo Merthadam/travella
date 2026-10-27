@@ -106,6 +106,10 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
     <div className="travel-workspace-panes">
       <section className="travel-options-pane" aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} options`}>
         <div className="travel-substage-status" role="status">{readiness}</div>
+        {workspace.state.notice && <div className="canvas-notice"><p role="status">{workspace.state.notice}</p>{workspace.state.inverse && <button type="button" className="ds-text-button" aria-label="Undo workspace change" onClick={workspace.undo}>Undo</button>}</div>}
+        {workspace.state.view.dismissed_ids.length > 0 && <details className="travel-saved-options" open><summary>Dismissed from these results ({workspace.state.view.dismissed_ids.length})</summary>
+          {workspace.state.snapshot?.results.filter(item => workspace.state.view.dismissed_ids.includes(item.id)).map(item => <div key={item.id}><span>{topic === 'stays' ? item.name : item.airlines.join(' / ') || 'Flight'}</span>{' '}<button type="button" className="ds-text-button" disabled={workspace.state.draftDirty} onClick={() => workspace.restore({ search_id: workspace.state.searchId, option_id: item.id, room_id: null })}>Restore {topic === 'stays' ? item.name : item.airlines.join(' / ') || 'flight'}</button></div>)}
+        </details>}
         <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={handoff?.snapshot || importedSnapshot} importRequest={handoff?.nonce || importRequest} importReason={handoff ? '' : importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onCompare={compare} discussionDisabled={unavailable || saving}/>
 
       </section>
