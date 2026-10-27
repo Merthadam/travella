@@ -182,3 +182,30 @@ def test_chosen_room_binds_comparison_and_preview_price_terms(selection):
     else:
         with pytest.raises(ResearchWorkerError):
             asyncio.run(run())
+
+
+def test_attached_manual_option_is_inspectable_without_searching_or_losing_exact_rate():
+    from services.agent.travel_registry import TravelRegistry
+    from services.travel_topics import TravelDiscussion
+    from services.agent.tests.test_canvas_travel import hotels
+    registry = TravelRegistry()
+    ctx = context([])
+    sid = registry.manual(ctx.traveler_scope, ctx.plan_id, 'hotels/search', STAY, hotels(15))
+    discussion = TravelDiscussion(options=[dict(search_id=sid, option_id='stay-14', room_id='room-14')])
+    selected = {'snapshots': registry.resolve(ctx.traveler_scope, ctx.plan_id, 'stays', discussion), 'discussion':discussion}
+    config = ResearchWorkerConfig(api_key='test-only-no-network')
+    provider = Provider()
+    async def query(*, prompt, options, transport):
+        payload = json.loads(prompt)
+        attached = payload['selected_options'][0]
+        assert attached['reference']['option_id'] == 'stay-14'
+        assert attached['criteria']['check_in'] == STAY['check_in']
+        assert 'PRIVATE' not in json.dumps(attached)
+        yield ResultMessage(subtype='success',duration_ms=1,duration_api_ms=1,is_error=False,num_turns=1,session_id='scripted',total_cost_usd=0.01,
+            structured_output={'answer':'This is the exact attached room.','needs_input':False,'comparisons':[discussion.options[0].model_dump()],'notes':[]})
+    worker = ClaudeSdkTravelSpecialist(config, worker=ClaudeSdkRuntime(config, query_fn=query, transport_factory=Transport), travel_client=provider)
+    result = asyncio.run(worker.complete(message='Tell me about this room',context=ctx,topic='stays',brief={},saved_canvas={'components':components()},selected_context=selected))
+    comparison = result['travel_specialist_result']['comparison']['options'][0]
+    assert comparison['reference']['room_id'] == 'room-14'
+    assert comparison['price_label'] == '714 EUR · stay total'
+    assert provider.calls == []

@@ -287,3 +287,33 @@ def test_shared_accepted_facts_remain_bounded_with_large_multilingual_trip(syste
         assert accepted["unbooked"] is True
     trip = system.client.get(f"/v1/plans/{plan['plan_id']}/agent-context").json()
     assert trip["accepted_travel_choices"] == brief["accepted_choices"]
+
+
+def test_reply_comparison_survives_later_reply_and_expires_at_confirmation(system, monkeypatch):
+    plan = create(system)
+    first = researched(system, plan, monkeypatch)
+    earlier = first['messages'][-1]['comparison']['options'][0]
+    later = researched(system, plan, monkeypatch, identifier='another-rate')
+    assert later['messages'][1]['comparison']['options'][0] == earlier
+    assert later['messages'][-1]['comparison']['options'][0]['id'] != earlier['id']
+    chosen, _, _ = choose(system, plan, later, 'shortlist', earlier['id'])
+    assert chosen['shortlist'][0]['title'] == earlier['title']
+    system.current[0] += timedelta(minutes=11)
+    body = {'action':'prefer','evidence_id':earlier['id']}
+    expired = system.client.post(url(plan)+'/choices/challenge', headers=write_headers(system,chosen['revision']), json=body)
+    assert expired.status_code == 409
+    assert system.client.get(url(plan)).json()['preferred'] is None
+
+
+def test_run_idempotency_binds_exact_attached_option(system):
+    plan = create(system)
+    discussion = {'intent':'discuss','options':[{'search_id':'search-1','option_id':'hotel-1','room_id':'room-1'}]}
+    data = {'action':'begin','event_id':str(uuid4()),'message':'Is it refundable?','generation':1,'discussion':discussion}
+    started = system.client.post(url(plan)+'/run',json=data)
+    assert started.status_code == 200
+    changed = {**data,'discussion':{'intent':'discuss','options':[{'search_id':'search-1','option_id':'hotel-1','room_id':'room-2'}]}}
+    assert complete(system,plan,changed,started.json()).status_code == 409
+    assert complete(system,plan,data,started.json()).status_code == 200
+    readback = system.client.get(url(plan)).json()
+    assert readback['messages'][0]['content'] == 'Is it refundable?'
+    assert readback['messages'][0]['status'] == 'complete' and not readback['locked']

@@ -115,3 +115,34 @@ def test_stream_projects_authoritative_topic_snapshot(system, monkeypatch):
 def test_focused_request_rejects_invalid_or_mixed_actions(extra):
     with pytest.raises(ValidationError):
         AgentRequest.model_validate({'plan_id':str(uuid4()),'event_id':'e','message':'hello',**extra})
+
+
+def test_manual_exact_room_review_persists_with_reply_and_requires_confirmation(system, monkeypatch):
+    from services.agent.tests.test_canvas_travel import hotels
+    from services.agent.tests.test_specialist_worker import STAY
+    from services.agent.travel_registry import travel_registry
+    from services.crud.tests.test_topic_conversations import choose
+    monkeypatch.setenv('CANVAS_EVIDENCE_SIGNING_KEY', 'test-only-signing-key-that-is-over-32-characters')
+    plan = create(system); pid = plan['plan_id']
+    raw = hotels(1)
+    raw['results'][0]['rooms'].append({**raw['results'][0]['rooms'][0], 'id':'apartment-rate', 'name':'Private apartment', 'total':{'amount':'950','currency':'EUR'}, 'refundable':True})
+    sid = travel_registry.manual('traveler-one', pid, 'hotels/search', STAY, raw)
+    async def unused(state):
+        pytest.fail('Manual review must not invoke a model')
+    handler = setup_turn(system, monkeypatch, unused)
+    discussion = {'intent':'review','options':[{'search_id':sid,'option_id':'stay-0','room_id':'apartment-rate'}]}
+    request = AgentRequest(plan_id=pid,event_id=str(uuid4()),message='Review this option for my trip.',topic='stays', travel_discussion=discussion)
+    response = asyncio.run(handler.handle(request,'traveler-one',f'Bearer {system.token}'))
+    assert response.status == 'in_progress', response
+    saved = system.client.get(f'/v1/plans/{pid}/travel/stays').json()
+    option = saved['messages'][-1]['comparison']['options'][0]
+    assert option['reference'] == discussion['options'][0]
+    assert option['price_label'] == '950 EUR · stay total'
+    assert 'Room: Private apartment' in option['facts'] and 'Shown room is refundable' in option['facts']
+    assert saved['preferred'] is None and saved['readiness'] == 'researching'
+    chosen, _, _ = choose(system, plan, saved, 'prefer', option['id'])
+    assert chosen['preferred']['reference']['room_id'] == 'apartment-rate'
+    assert chosen['readiness'] == 'ready'
+    readback = system.client.get(f'/v1/plans/{pid}/travel/stays').json()
+    assert readback['messages'][-1]['comparison']['options'][0] == option
+    assert readback['preferred']['price_label'] == option['price_label']

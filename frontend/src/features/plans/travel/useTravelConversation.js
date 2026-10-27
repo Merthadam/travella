@@ -58,7 +58,7 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     })();
     return current.stopping;
   }
-  async function send(text) {
+  async function send(text, travelDiscussion) {
     const message = text.trim();
     if (!message || blocked || loading || historyError || run.current || !visible) return false;
     const current = { id: requestId(), controller: new AbortController(), epoch: epoch.current, cancelled: false };
@@ -66,16 +66,16 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     setMessages(items => [...items, { message_id: `${current.id}-user`, role: 'user', content: message }, { message_id: current.id, role: 'assistant', content: '', status: 'streaming' }]);
     try {
       const terminal = await api.travelTurn(selected, topic, message, current.id, {
-        signal: current.controller.signal,
+        signal: current.controller.signal, travelDiscussion,
         onEvent(event) {
           if (run.current !== current || current.cancelled || current.epoch !== epoch.current) return;
           if (event.type === 'TEXT_MESSAGE_CONTENT') setMessages(items => items.map(item => item.message_id === current.id ? { ...item, content: item.content + event.delta } : item));
         },
       });
       if (current.cancelled || run.current !== current) return false;
-      await refresh();
+      const latest = await refresh();
       if (['error', 'interrupted'].includes(terminal.status)) setError(terminal.message || 'The reply was interrupted. Your saved choices are safe.');
-      return !['error', 'interrupted', 'stopped'].includes(terminal.status);
+      return !['error', 'interrupted', 'stopped'].includes(terminal.status) && latest;
     } catch (err) {
       if (current.cancelled || current.epoch !== epoch.current) return false;
       if (err.status === 401) callbacks.current.onExpired?.();

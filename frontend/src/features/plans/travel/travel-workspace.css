@@ -68,3 +68,19 @@
 .travel-chat-suggestions .travel-option-actions{gap:6px}
 .travel-chat-suggestions .travel-option-actions .ds-button{font-size:12px;min-height:40px;flex:1}
 .travel-chat-suggestions .travel-option-actions .ds-text-button{width:100%;text-align:left}
+
+/* Reply-attached explorer; compact Canvas-style choices with one detail card. */
+.travel-suggestion-list { display: grid; gap: 6px; margin: 12px 0; }
+.travel-suggestion-row { display: flex; align-items: center; gap: 8px; }
+.travel-suggestion-row > button { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 10px; text-align: left; border: 1px solid var(--ds-line); border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
+.travel-suggestion-row > button[aria-pressed="true"] { background: var(--ds-soft); border-color: var(--ds-green); }
+.travel-suggestion-row > button > span:nth-child(2) { flex: 1; min-width: 0; }
+.travel-suggestion-row strong, .travel-suggestion-row small { display: block; overflow-wrap: anywhere; }
+.travel-suggestion-row small { margin-top: 4px; color: var(--ds-muted); }
+.travel-discussion-context { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; margin-bottom: 8px; border-radius: 10px; background: var(--ds-soft); color: var(--ds-ink); font-size: 13px; }
+.travel-discussion-context span { min-width: 0; overflow-wrap: anywhere; }
+.travel-discussion-context button { flex: none; min-width: 32px; min-height: 32px; }
+.travel-saved-options { padding: 12px 0; border-top: 1px solid var(--ds-line); }
+.travel-saved-options > summary { cursor: pointer; font-size: 13px; }
+.canvas-chat-message .travel-chat-suggestions { padding: 0; }
+.travel-chat-suggestions .travel-option-actions > .ds-button { flex: 1 1 calc(50% - 8px); min-width: 120px; }

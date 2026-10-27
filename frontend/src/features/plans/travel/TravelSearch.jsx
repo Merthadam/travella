@@ -214,7 +214,7 @@ function Leg({ leg, label, expanded = false }) {
     </div>
   );
 }
-function Room({ room, onCheckout }) {
+function Room({ room, onCheckout, onDiscuss, onChoose }) {
   return (
     <article className="travel-room">
       <div>
@@ -229,6 +229,7 @@ function Room({ room, onCheckout }) {
             "Cancellation deadline and penalties not supplied."}
         </p>
       </div>
+      {(onDiscuss || onChoose) && <div className="travel-option-actions">{onDiscuss && <button type="button" onClick={onDiscuss}>Discuss room</button>}{onChoose && <button type="button" onClick={onChoose}>Choose for trip</button>}</div>}
       {onCheckout && room.checkout_token && <button type="button" onClick={() => onCheckout(room.checkout_token)}>Try mock booking</button>}
       <Price
         price={{ ...room.total, excluded_taxes: room.excluded_taxes }}
@@ -237,11 +238,13 @@ function Room({ room, onCheckout }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, discussionDisabled }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
   const [rooms, setRooms] = useState(item.rooms || []);
+  const [observation, setObservation] = useState({ search_id: searchId, option_id: item.id });
+  const attach = room => ({ title: stay ? `${item.name}${room ? ` · ${room.name}` : ''}` : item.airlines.join(' / '), reference: { ...observation, room_id: room?.id || null } });
   const [loading, setLoading] = useState(stay);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -274,6 +277,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
         if (live) {
           setHotel(details.hotel);
           setRooms(availability.results[0]?.rooms || []);
+          setObservation({ search_id: availability.search_id, option_id: availability.results[0]?.id });
         }
       })
       .catch((e) => {
@@ -346,7 +350,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           )}
           <h3>Room offers for your stay</h3>
           {rooms.map((room) => (
-            <Room key={room.id} room={room} onCheckout={sandbox && !loading ? setCheckout : null} />
+            <Room key={room.id} room={room} onCheckout={sandbox && !loading ? setCheckout : null} onDiscuss={!loading && !error && !discussionDisabled && observation.search_id && onDiscuss ? () => { onClose(); onDiscuss(attach(room)); } : null} onChoose={!loading && !error && !discussionDisabled && observation.search_id && onChoose ? () => { onClose(); onChoose(attach(room)); } : null} />
           ))}
           {!loading && !rooms.length && (
             <p>No room offers are available for these dates.</p>
@@ -365,6 +369,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
               "Detailed fare conditions not supplied."}
           </p>
           <Price price={item.price} />
+          {!discussionDisabled && observation.search_id && <div className="travel-option-actions">{onDiscuss && <button type="button" onClick={() => { onClose(); onDiscuss(attach()); }}>Discuss flight</button>}{onChoose && <button type="button" onClick={() => { onClose(); onChoose(attach()); }}>Choose for trip</button>}</div>}
           {sandbox && item.checkout_token && <button className="travel-primary" onClick={() => setCheckout(item.checkout_token)}>Try mock flight booking</button>}
           {!item.checkout_token && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
         </>
@@ -416,7 +421,7 @@ export function filterResults(
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
 }
-export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = '', onDiscuss }) {
+export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = '', onDiscuss, onChoose, onCompare, discussionDisabled }) {
   const stay = mode === "accommodation";
   const dates = initialData?.essentials?.dates;
   const [stayFilters, setStayFilters] = useState(emptyStayFilters);
@@ -1078,7 +1083,8 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                     >
                       {stay ? "View rooms" : "View flight"} →
                     </button>
-                    {onDiscuss && <button type="button" onClick={() => onDiscuss(`Help me assess this ${stay ? 'stay' : 'return flight'} from my manual search: ${stay ? item.name : item.airlines.join(' / ')}. ${stay ? `${snapshot.criteria.check_in} to ${snapshot.criteria.check_out}` : `${snapshot.criteria.origin} to ${snapshot.criteria.destination}, ${snapshot.criteria.departure_date} to ${snapshot.criteria.return_date}`}. Shown total: ${priceLabel(item.price)}. Please check how it fits my trip and verify current details before recommending it.`.slice(0, 1800))}>{stay ? 'Ask about this stay' : 'Ask about this flight'}</button>}
+                    {onDiscuss && snapshot.search_id && <button type="button" disabled={discussionDisabled} onClick={() => onDiscuss({ title: stay ? item.name : item.airlines.join(' / '), reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } })}>{stay ? 'Ask about this stay' : 'Ask about this flight'}</button>}
+                    {!stay && onChoose && snapshot.search_id && <button type="button" disabled={discussionDisabled} onClick={() => onChoose({ title: item.airlines.join(' / '), reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } })}>Choose for trip</button>}
                     <label className="travel-check">
                       <input
                         type="checkbox"
@@ -1106,6 +1112,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
             <section className="travel-comparison">
               <div className="travel-results-heading">
                 <h3>Your comparison ({compared.length}/3)</h3>
+                {onCompare && snapshot.search_id && <button type="button" disabled={discussionDisabled || compared.length < 2} onClick={() => onCompare(snapshot.results.filter(item => compared.includes(item.id)).map(item => ({ title: stay ? item.name : item.airlines.join(' / '), reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } })))}>Compare in chat</button>}
                 <button onClick={() => setCompared([])}>
                   Clear comparison
                 </button>
@@ -1163,6 +1170,10 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
           stay={stay}
           planId={planId}
           criteria={snapshot.criteria}
+          searchId={snapshot.search_id}
+          onDiscuss={onDiscuss}
+          onChoose={onChoose}
+          discussionDisabled={discussionDisabled}
           sandbox={snapshot.sandbox}
           onClose={() => setDetail(null)}
           onExpired={onExpired}

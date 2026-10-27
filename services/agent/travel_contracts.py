@@ -170,9 +170,14 @@ class SandboxFlightConfirm(SandboxHandle):
     confirm_mock: Literal[True]
 
 
+class ResearchSnapshotQuery(Strict):
+    search_id: str = Field(min_length=1, max_length=100)
+
+
 class TravelInvocation(Strict):
     plan_id: UUID
     action: Literal[
+        "research/snapshot",
         "capabilities",
         "airports",
         "places",
@@ -207,6 +212,7 @@ POST_ACTIONS = {
 }
 
 INPUTS = {
+    "research/snapshot": ResearchSnapshotQuery,
     "sandbox/flights/verify": SandboxHandle,
     "sandbox/flights/prebook": SandboxFlightConfirm,
     "sandbox/flights/book": SandboxFlightConfirm,
@@ -314,6 +320,7 @@ class Envelope(Public):
 
 
 class SearchResult(Envelope):
+    search_id: str | None = Field(default=None, min_length=1, max_length=100)
     searched_at: str
     results: list[Hotel] | list[Flight] = Field(max_length=100)
     returned_count: int

@@ -20,6 +20,7 @@ class SpecialistState(TypedDict):
     notes: Any
     saved_canvas: dict | None
     saved_research: dict
+    selected_context: Any
     result: dict
 
 
@@ -39,6 +40,7 @@ class TravelSpecialistNode:
             message=state["message"], topic=state["topic"], context=state["context"],
             brief=state["brief"], notes=state["notes"], saved_canvas=state["saved_canvas"],
             saved_research=state["saved_research"],
+            selected_context=state.get("selected_context"),
             authorization_token=current_authorization_token() or "",
             on_text_delta=current_text_delta_callback(),
         )
@@ -59,6 +61,7 @@ class TravelSpecialistNode:
             "brief": private.get("brief", {}), "notes": private.get("notes", []),
             "saved_canvas": private.get("saved_canvas"),
             "saved_research": {name: private.get(name) for name in ("comparison", "shortlist", "preferred")},
+            "selected_context": private.get("selected_context"),
         }))["result"]
         # Never return the child state, private transcript or SDK session to Trip.
         return {name: result[name] for name in ("status", "assistant_text", "question", "error", "travel_specialist_result") if name in result}

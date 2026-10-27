@@ -17,6 +17,24 @@ class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class TravelReference(Strict):
+    search_id: str = Field(min_length=1, max_length=100)
+    option_id: str = Field(min_length=1, max_length=100)
+    room_id: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class TravelDiscussion(Strict):
+    intent: Literal["discuss", "compare", "review"] = "discuss"
+    options: list[TravelReference] = Field(min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def cardinality(self):
+        keys = [(r.search_id, r.option_id, r.room_id) for r in self.options]
+        if len(set(keys)) != len(keys) or (self.intent == "compare" and len(keys) < 2) or (self.intent == "review" and len(keys) != 1):
+            raise ValueError("Invalid option selection")
+        return self
+
+
 class ResearchOption(Strict):
     id: str = Field(min_length=1, max_length=100)
     title: str = Field(min_length=1, max_length=160)
@@ -27,6 +45,7 @@ class ResearchOption(Strict):
     observed_at: str = Field(max_length=40)
     provider: str = Field(min_length=1, max_length=50)
     criteria: dict[str, str | int | bool | None] = Field(default_factory=dict, max_length=16)
+    reference: TravelReference | None = None
 
     @model_validator(mode="after")
     def bounded(self):
@@ -76,6 +95,7 @@ class TopicRun(Strict):
     comparison: Comparison | None = None
     comparison_proof: str = Field(default="", max_length=64)
     notes: TopicNotes | None = None
+    discussion: TravelDiscussion | None = None
 
 
 class ChoiceMutation(Strict):

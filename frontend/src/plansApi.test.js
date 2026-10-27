@@ -95,3 +95,11 @@ test('initial generation carries the reviewed receipt and typed offer events exc
   expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ canvas_action: 'generate_plan', context_revision: 4, research_entry_receipt: 'receipt' });
   expect(events[0].snapshot).toEqual({ research_offer: offer, assistant_message_id: 'm1' });
 });
+
+test('topic context sends only references alongside unchanged traveler text', async () => {
+  const fetchMock = vi.fn(async () => new Response('data: {"type":"TERMINAL","status":"complete"}\n\n', { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+  const travelDiscussion = { intent:'discuss', options:[{ search_id:'search-1', option_id:'hotel-1', room_id:'room-1' }] };
+  await plansApi.travelTurn({ plan_id:'plan-1' },'stays','Is the kitchen private?','event-1',{ onEvent() {}, travelDiscussion });
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ plan_id:'plan-1',event_id:'event-1',topic:'stays',message:'Is the kitchen private?',travel_discussion:travelDiscussion });
+});

@@ -19,13 +19,13 @@ export function researchOfferProjection(value) {
   return { id: value.id, status: value.status, revision: value.revision, message_id: value.message_id };
 }
 
-async function agentTurnStream(plan, message, eventId, { signal, onEvent, topic, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit, researchEntryReceipt }) {
+async function agentTurnStream(plan, message, eventId, { signal, onEvent, topic, travelDiscussion, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit, researchEntryReceipt }) {
   let response;
   try {
     response = await fetch(`${agentPath(plan)}/stream`, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json', 'X-Travella-Request': '1', Accept: 'text/event-stream' },
-      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(topic ? { topic } : {}), ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
+      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(topic ? { topic } : {}), ...(travelDiscussion ? { travel_discussion: travelDiscussion } : {}), ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;

@@ -102,8 +102,15 @@ class TopicRepository:
         comparison = state.get("comparison")
         # Keep historical prices, explicitly mark applicability rather than delete evidence.
         readiness = "researching" if not preferred else "ready" if preferred["facts_digest"] == brief["facts_digest"] else "needs_review"
+        messages = self.plans.conversation_messages(subject, plan_id, 12, topic)
+        replies = state.get("replies", {})
+        for message in messages:
+            attached = replies.get(message["message_id"])
+            if attached:
+                message["comparison"] = attached["comparison"]
+                message["comparison_stale"] = attached["facts_digest"] != brief["facts_digest"]
         return {"plan_id": str(plan_id), "topic": topic, "revision": plan.revision,
-                "brief": brief, "messages": self.plans.conversation_messages(subject, plan_id, 12, topic),
+                "brief": brief, "messages": messages,
                 "notes": state.get("notes", TopicNotes().model_dump()), "comparison": comparison,
                 "comparison_stale": bool(comparison and state.get("comparison_digest") != brief["facts_digest"]),
                 "shortlist": shortlist, "preferred": preferred, "readiness": readiness,
@@ -114,7 +121,8 @@ class TopicRepository:
         lease = self.contexts._row(subject, plan_id)
         now = self.plans.clock()
         run = self.session.get(TravelTopicRun, (plan_id, data.event_id))
-        input_digest = digest({"topic": topic, "message": data.message, "generation": data.generation})
+        input_digest = digest({"topic": topic, "message": data.message, "generation": data.generation,
+                               **({"discussion": data.discussion.model_dump()} if data.discussion else {})})
         if run and (run.topic != topic or (data.action != "cancel" and run.input_digest != input_digest)):
             raise LifecycleProblem("request_reused")
         if data.action == "begin":
@@ -173,8 +181,12 @@ class TopicRepository:
                            or sources[i].sequence > data.notes.covered_through_sequence for i in note.source_message_ids):
                         raise LifecycleProblem("invalid_request")
                 state["notes"] = data.notes.model_dump()
-            self.plans.append_conversation_message(subject, plan_id, data.event_id + ":assistant", "assistant", data.assistant_text,
+            reply = self.plans.append_conversation_message(subject, plan_id, data.event_id + ":assistant", "assistant", data.assistant_text,
                 topic=topic, generation=data.generation, commit=False)
+            if data.comparison:
+                replies = state.setdefault("replies", {})
+                replies[reply["message_id"]] = {"comparison": state["comparison"], "facts_digest": brief["facts_digest"]}
+                state["replies"] = dict(list(replies.items())[-12:])
             self.session.get(ConversationMessage, run.message_id).status = "complete"
             self._save(plan_id, topic, state)
             run.status = "complete"
@@ -192,8 +204,12 @@ class TopicRepository:
         state = self._state(plan_id, topic)
         brief = self.brief(subject, plan_id)
         options = (state.get("comparison") or {}).get("options", [])
+        history = {o["id"]: (o, reply["facts_digest"]) for reply in state.get("replies", {}).values() for o in reply["comparison"]["options"]}
         stored = state.get("shortlist", [])
         option = next((x for x in options if x["id"] == mutation.evidence_id), None)
+        historical = history.get(mutation.evidence_id)
+        if not option and historical:
+            option = historical[0]
         saved = next((x for x in stored if x["id"] == mutation.evidence_id), None)
         if mutation.action == "remove":
             if not saved:
@@ -201,7 +217,12 @@ class TopicRepository:
             return state, saved, brief
         if not option and not saved:
             raise LifecycleProblem("not_found")
-        facts_digest = state.get("comparison_digest") if option else saved["facts_digest"]
+        from datetime import datetime
+        observed = datetime.fromisoformat((option or saved)["observed_at"].replace("Z", "+00:00"))
+        age = self.plans.clock() - observed
+        if age > timedelta(minutes=10) or age < -timedelta(minutes=1):
+            raise LifecycleProblem("revision_conflict")
+        facts_digest = (historical[1] if historical else state.get("comparison_digest")) if option else saved["facts_digest"]
         if facts_digest != brief["facts_digest"]:
             raise LifecycleProblem("revision_conflict")
         criteria = (option or saved)["criteria"]

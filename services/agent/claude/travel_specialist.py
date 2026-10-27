@@ -116,7 +116,8 @@ def _comparison(snapshot, option, observed_at=None, *, room_id=None):
         facts.append("Sandbox result; not a live booking")
     return ResearchOption(id=option.id, title=title, summary="Research option; nothing booked.",
                           price_label=price_label[:120], facts=facts[:8], unknowns=unknowns[:6],
-                          observed_at=observed_at or snapshot.searched_at, provider=snapshot.provider, criteria=projected)
+                          observed_at=observed_at or snapshot.searched_at, provider=snapshot.provider, criteria=projected,
+                          reference={"search_id": snapshot.search_id, "option_id": option.id, "room_id": room.id if room else None})
 
 
 def _notes(previous, proposed, messages):
@@ -150,7 +151,8 @@ class ClaudeSdkTravelSpecialist:
 
     async def complete(self, *, message: str, context: TurnContext, topic: str, brief: dict,
                        notes=None, saved_canvas: dict | None = None,
-                       saved_research: dict | None = None, authorization_token: str = "", on_text_delta=None):
+                       saved_research: dict | None = None, authorization_token: str = "", on_text_delta=None,
+                       selected_context=None):
         if topic not in {"stays", "flights"}:
             raise ValueError("invalid_specialist_topic")
         if len(json.dumps(brief, ensure_ascii=False).encode()) > 8192:
@@ -180,6 +182,26 @@ class ClaudeSdkTravelSpecialist:
             authorization_token, draft, message, time.monotonic() + min(120, self.config.timeout_seconds), topic=topic)
         if not saved_canvas:
             travel.names = set()
+        attached = []
+        if selected_context:
+            from .canvas_travel import draft_facts
+            for snap in selected_context["snapshots"]:
+                snap = snap.model_copy(deep=True)
+                snap.draft_facts = draft_facts(draft)
+                snap.generation = context.generation
+                travel.snapshots[snap.search_id] = snap
+                for option in snap.results:
+                    if topic == "stays":
+                        travel.observed_hotel_ids.add(option.hotel_id)
+                    else:
+                        travel.observed_flight_ids.add(option.id)
+            for ref in selected_context["discussion"].options:
+                snap = travel.snapshots[ref.search_id]
+                option = next(o for o in snap.results if o.id == ref.option_id)
+                # The selected item can be beyond the ordinary ten-option preview.
+                snap.results.remove(option); snap.results.insert(0, option)
+                attached.append({"reference": ref.model_dump(), "criteria": snap.criteria.model_dump(mode="json"),
+                                 "observed_at": snap.searched_at, "option": option.model_dump(mode="json")})
         observer = SimpleNamespace(evidence={})
         answer_stream = ChatAnswerStream(on_text_delta, observer)
         skill = "stay-specialist" if topic == "stays" else "flight-specialist"
@@ -196,6 +218,9 @@ class ClaudeSdkTravelSpecialist:
                    "current_message": message[:2000], "trip_brief": brief,
                    "conversation_history": list(bounded.recent_messages), "attributed_notes": prior_notes.model_dump(),
                    "inventory_tools_available": bool(saved_canvas), "previous_research": historical}
+        if attached:
+            payload["selected_options"] = attached
+            payload["selection_intent"] = selected_context["discussion"].intent
         current = next((item for item in reversed(scoped) if item.get("status") == "pending" and item.get("role") == "user" and item.get("content") == message), None)
         if current:
             payload["current_message_id"] = str(current.get("message_id", current.get("id", "")))
@@ -229,6 +254,10 @@ class ClaudeSdkTravelSpecialist:
                     selections = [TravelSelection(search_id=key, mode=topic, option_ids=ids) for key, ids in grouped.items()]
                     bundles = travel.selected(selections)
                     comparison = Comparison(options=[_comparison(travel.snapshots[ref.search_id], next(item for item in travel.snapshots[ref.search_id].results if item.id == ref.option_id), travel.observation_times.get(ref.option_id), room_id=ref.room_id) for ref in reply.comparisons])
+                    # Keep the original full search for an explicit manual handoff.
+                    from ..travel_registry import travel_registry
+                    for snap in travel.snapshots.values():
+                        travel_registry.put(context.traveler_scope, context.plan_id, snap)
                     # The ephemeral option previews must display that same rate,
                     # too. Keep the observer's complete evidence registry intact.
                     for ref in reply.comparisons:

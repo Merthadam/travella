@@ -40,17 +40,39 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
                 await result
 
     try:
+        from .travel_registry import travel_registry
+        discussion = request.travel_discussion
+        selected_snapshots = travel_registry.resolve(subject, plan_id, request.topic, discussion) if discussion else []
         snapshot = await service.context_reader.travel_run(
             request.plan_id, token, topic=request.topic, action="begin", event_id=request.event_id,
             message=request.message.strip(), generation=generation,
+            discussion=discussion.model_dump() if discussion else None,
         )
         begun = True
-        result = await service.graph.invoke(
-            {**base, "traveler_scope": subject, "plan_revision": plan.get("revision", 1),
-             "topic": request.topic, "message": request.message.strip()},
-            authorization_token=token, specialist_context=snapshot, on_text_delta=emit,
-        )
-        projection = result.get("projection", {})
+        if selected_snapshots:
+            from types import SimpleNamespace
+            from .claude.canvas_travel import draft_facts
+            for selected_snapshot in selected_snapshots:
+                if not selected_snapshot.draft_facts:
+                    selected_snapshot.draft_facts = draft_facts(SimpleNamespace(components=(snapshot.get("saved_canvas") or {}).get("components", {})))
+                travel_registry.put(subject, plan_id, selected_snapshot)
+        if discussion and discussion.intent == "review":
+            from .claude.travel_specialist import _comparison
+            ref = discussion.options[0]
+            snap = selected_snapshots[0]
+            option = next(o for o in snap.results if o.id == ref.option_id)
+            comparison = _comparison(snap, option, room_id=ref.room_id)
+            projection = {"status": "in_progress", "assistant_text": "Review the exact offer below before confirming your choice. Nothing is booked or held.",
+                          "travel_specialist_result": {"comparison": {"options": [comparison.model_dump()]}}}
+        else:
+            if discussion:
+                snapshot["selected_context"] = {"snapshots": selected_snapshots, "discussion": discussion}
+            result = await service.graph.invoke(
+                {**base, "traveler_scope": subject, "plan_revision": plan.get("revision", 1),
+                 "topic": request.topic, "message": request.message.strip()},
+                authorization_token=token, specialist_context=snapshot, on_text_delta=emit,
+            )
+            projection = result.get("projection", {})
         if not await service.runs.generation_current(subject, plan_id, generation):
             return await finish({"status": "interrupted"})
         text = projection.get("assistant_text") or projection.get("question")
@@ -66,6 +88,7 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
         payload = dict(action="complete", event_id=request.event_id, message=request.message.strip(),
                        assistant_text=text[:2000], generation=generation, brief_digest=brief_digest,
                        notes=output.get("notes"))
+        payload["discussion"] = discussion.model_dump() if discussion else None
         if comparison:
             payload.update(comparison=comparison, comparison_proof=proof)
         active = service._active_streams.get((subject, plan_id, request.event_id))

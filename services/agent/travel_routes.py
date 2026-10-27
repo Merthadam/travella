@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from .travel_client import TravelClient
 from .travel_contracts import INPUTS, OUTPUTS, POST_ACTIONS, TravelInvocation
+from .travel_registry import travel_registry
 
 ERRORS = {
     "offer_expired": (409, "This flight option is no longer available to verify. Search again for fresh options."),
@@ -45,6 +46,8 @@ def register_travel_routes(app, identity_dependency, read_plan, client=None):
                 },
                 status_code=422,
             )
+        if invocation.action == "research/snapshot":
+            return travel_registry.get(identity.subject, invocation.plan_id, criteria["search_id"]).model_dump(mode="json")
         now = time.monotonic()
         for key in list(attempts):
             if not attempts[key] or attempts[key][-1] < now - 60:
@@ -73,7 +76,15 @@ def register_travel_routes(app, identity_dependency, read_plan, client=None):
                 code = raw.get("code") if raw.get("code") in ERRORS else "provider_unavailable"
                 status, message = ERRORS[code]
                 return JSONResponse({"code": code, "message": message}, status_code=status)
-            return OUTPUTS[invocation.action].model_validate(raw).model_dump(mode="json")
+            result = OUTPUTS[invocation.action].model_validate(raw).model_dump(mode="json")
+            if invocation.action in {"hotels/search", "flights/search"}:
+                result["search_id"] = travel_registry.manual(identity.subject, invocation.plan_id, invocation.action, criteria, result)
+                observed = travel_registry.get(identity.subject, invocation.plan_id, result["search_id"])
+                retained = {option.id for option in observed.results}
+                result["results"] = [option for option in result["results"] if option["id"] in retained]
+                result["returned_count"] = len(result["results"])
+                result["truncated"] = observed.truncated
+            return result
         except TimeoutError:
             return JSONResponse(
                 {"code": "provider_timeout", "message": ERRORS["provider_timeout"][1]},
