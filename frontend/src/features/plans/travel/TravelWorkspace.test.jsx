@@ -7,6 +7,7 @@ import { initialWorkspace, travelWorkspaceReducer, useTravelWorkspace } from './
 import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 import { plansApi } from '../../../plansApi';
 import { filterResults, unknownFilterFacts } from './TravelSearch';
+import { useTravelConversation } from './useTravelConversation';
 import { bindTravelRecoveryScope, clearCanvasViews, readTravelWorkspace, writeTravelWorkspace } from '../canvasViewState';
 import { TravelComparison, comparisonEntry } from './TravelComparison';
 
@@ -26,6 +27,28 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
 }
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(function () { this.removeAttribute("open"); }); HTMLDialogElement.prototype.showModal = vi.fn(function () { this.setAttribute("open", ""); }); });
 afterEach(() => { cleanup(); clearCanvasViews(); chat.real = false; chat.active = true; chat.snapshot = null; chat.messages = []; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+
+test('late history failure from a previous scope cannot expire or poison the current discussion', async () => {
+  chat.real = true; let rejectOld;
+  const onExpired = vi.fn();
+  const api = { travelTopic: vi.fn(({ plan_id }, topic) => plan_id === 'old' ? new Promise((_, reject) => { rejectOld = reject; }) : Promise.resolve({ plan_id, topic, revision: 1, messages: [{ role: 'assistant', content: 'Current history' }] })), cancelAgentTurn: vi.fn(async () => ({})) };
+  const { result, rerender } = renderHook(({ planId }) => useTravelConversation({ api, selected: { plan_id: planId }, topic: 'stays', visible: true, onExpired }), { initialProps: { planId: 'old' } });
+  await waitFor(() => expect(rejectOld).toBeTruthy()); rerender({ planId: 'new' });
+  await waitFor(() => expect(result.current.messages[0]?.content).toBe('Current history'));
+  await act(async () => rejectOld(Object.assign(Error('expired previous owner'), { status: 401 })));
+  expect(onExpired).not.toHaveBeenCalled(); expect(result.current.historyError).toBe(''); expect(result.current.loading).toBe(false);
+});
+
+test('scope switch revokes a run and late cancellation without leaving the next discussion active', async () => {
+  chat.real = true; let cancel;
+  const api = { travelTopic: vi.fn(async ({ plan_id }, topic) => ({ plan_id, topic, revision: 1, messages: [] })), travelTurn: vi.fn(() => new Promise(() => {})), cancelAgentTurn: vi.fn(() => new Promise(resolve => { cancel = resolve; })) };
+  const { result, rerender } = renderHook(({ topic }) => useTravelConversation({ api, selected: { plan_id: 'plan-1' }, topic, visible: true }), { initialProps: { topic: 'stays' } });
+  await waitFor(() => expect(result.current.loading).toBe(false)); act(() => { void result.current.send('Find stays'); });
+  expect(result.current.active).toBe(true); rerender({ topic: 'flights' });
+  await waitFor(() => expect(result.current.snapshot?.topic).toBe('flights'));
+  expect(result.current.active).toBe(false);
+  await act(async () => cancel({})); expect(result.current.snapshot.topic).toBe('flights');
+});
 
 test.each(['fresh', 'expired', 'edited', 'owner-change', 'foreign', 'detail'])('reload uses authorized references and never searches: %s', async outcome => {
   const owner = 'a'.repeat(32); bindTravelRecoveryScope(owner);
