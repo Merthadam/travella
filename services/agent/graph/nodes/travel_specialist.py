@@ -8,7 +8,7 @@ from typing import Any, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from ...request_context import (current_authorization_token, current_specialist_input,
-                                current_text_delta_callback)
+                                current_text_delta_callback, current_workspace_context)
 from ...turn import TurnContext
 
 
@@ -41,6 +41,7 @@ class TravelSpecialistNode:
             brief=state["brief"], notes=state["notes"], saved_canvas=state["saved_canvas"],
             saved_research=state["saved_research"],
             selected_context=state.get("selected_context"),
+            workspace_context=current_workspace_context(),
             authorization_token=current_authorization_token() or "",
             on_text_delta=current_text_delta_callback(),
         )

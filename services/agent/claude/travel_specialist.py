@@ -15,9 +15,9 @@ from claude_agent_sdk import HookMatcher
 from pydantic import Field
 
 from services.crud.canvas import CanvasSnapshot
-from services.travel_topics import Comparison, ResearchOption, TopicNote, TopicNotes
+from services.travel_topics import Comparison, ResearchOption, TopicNote, TopicNotes, WorkspaceView
 
-from ..request_context import collect_travel_results
+from ..request_context import collect_travel_results, collect_workspace_update
 from ..travel_client import TravelClient
 from ..turn import TurnContext
 from .canvas_travel import TravelSelection
@@ -45,6 +45,21 @@ class SpecialistAnswer(StrictResult):
     needs_input: bool
     comparisons: list[ComparisonReference] = Field(default_factory=list, max_length=3)
     notes: list[NoteQuote] = Field(default_factory=list, max_length=6)
+    workspace_view: WorkspaceView | None = Field(default=None,
+        description="Optional complete final temporary view of observed results. Use only this topic's filters and observed exact references. Never changes saved choices.")
+
+
+class WorkspaceTravelTools(SpecialistTravelTools):
+    """Track the successful search returned to this worker, including zero matches."""
+    final_search_id = None
+
+    async def _invoke(self, name, arguments):
+        response = await super()._invoke(name, arguments)
+        if name in {"search_stays", "search_flights"} and not response.get("is_error"):
+            payload = json.loads(response["content"][0]["text"])
+            if payload.get("search_id") in self.snapshots:
+                self.final_search_id = payload["search_id"]
+        return response
 
 
 def _selected_room(option, room_id):
@@ -152,7 +167,7 @@ class ClaudeSdkTravelSpecialist:
     async def complete(self, *, message: str, context: TurnContext, topic: str, brief: dict,
                        notes=None, saved_canvas: dict | None = None,
                        saved_research: dict | None = None, authorization_token: str = "", on_text_delta=None,
-                       selected_context=None):
+                       selected_context=None, workspace_context=None):
         if topic not in {"stays", "flights"}:
             raise ValueError("invalid_specialist_topic")
         if len(json.dumps(brief, ensure_ascii=False).encode()) > 8192:
@@ -178,11 +193,21 @@ class ClaudeSdkTravelSpecialist:
                 essentials["travelers"] = brief["travelers"]
             if isinstance(brief.get("destination"), str):
                 draft.components.setdefault("map", {})["destination"] = brief["destination"]
-        travel = SpecialistTravelTools(self.travel_client or TravelClient(), bounded,
+        travel = WorkspaceTravelTools(self.travel_client or TravelClient(), bounded,
             authorization_token, draft, message, time.monotonic() + min(120, self.config.timeout_seconds), topic=topic)
         if not saved_canvas:
             travel.names = set()
         attached = []
+        current_snapshot = None
+        if workspace_context and workspace_context.get("search_id"):
+            from ..travel_registry import travel_registry
+            current_snapshot = travel_registry.get(context.traveler_scope, context.plan_id, workspace_context["search_id"], topic)
+            travel.snapshots[current_snapshot.search_id] = current_snapshot
+            for option in current_snapshot.results:
+                if topic == "stays":
+                    travel.observed_hotel_ids.add(option.hotel_id)
+                else:
+                    travel.observed_flight_ids.add(option.id)
         if selected_context:
             from .canvas_travel import draft_facts
             for snap in selected_context["snapshots"]:
@@ -218,6 +243,11 @@ class ClaudeSdkTravelSpecialist:
                    "current_message": message[:2000], "trip_brief": brief,
                    "conversation_history": list(bounded.recent_messages), "attributed_notes": prior_notes.model_dump(),
                    "inventory_tools_available": bool(saved_canvas), "previous_research": historical}
+        if workspace_context:
+            payload["workspace"] = workspace_context
+            payload["workspace_instruction"] = "This is temporary applied research, not saved trip facts. Pending draft edits prohibit workspace changes. After a successful search the host replaces the main list once. workspace_view may filter/sort/dismiss/compare only observed members; never weaken a hard requirement."
+            if current_snapshot:
+                payload["workspace_options"] = travel._preview_options(current_snapshot)
         if attached:
             payload["selected_options"] = attached
             payload["selection_intent"] = selected_context["discussion"].intent
@@ -258,6 +288,14 @@ class ClaudeSdkTravelSpecialist:
                     from ..travel_registry import travel_registry
                     for snap in travel.snapshots.values():
                         travel_registry.put(context.traveler_scope, context.plan_id, snap)
+                    if workspace_context and not workspace_context.get("draft_dirty"):
+                        final_id = travel.final_search_id or (current_snapshot.search_id if current_snapshot and reply.workspace_view else None)
+                        if final_id:
+                            final = travel.snapshots[final_id]
+                            view = reply.workspace_view or WorkspaceView()
+                            view.validate_topic(topic)
+                            view.validate_members(final)
+                            collect_workspace_update({"search_id": final_id, "view": view.model_dump()})
                     # The ephemeral option previews must display that same rate,
                     # too. Keep the observer's complete evidence registry intact.
                     for ref in reply.comparisons:

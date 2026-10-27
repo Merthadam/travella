@@ -20,6 +20,34 @@ _TRAVELER_PROFILE: ContextVar[dict[str, Any] | None] = ContextVar(
 
 _TRAVEL_RESULTS: ContextVar[list | None] = ContextVar("travella_travel_results", default=None)
 _SPECIALIST_INPUT: ContextVar[dict | None] = ContextVar("travella_specialist_input", default=None)
+_WORKSPACE_CONTEXT: ContextVar[dict | None] = ContextVar("travella_workspace_context", default=None)
+_WORKSPACE_UPDATE: ContextVar[list | None] = ContextVar("travella_workspace_update", default=None)
+
+
+def bind_workspace_context(value):
+    return _WORKSPACE_CONTEXT.set(value)
+
+
+def reset_workspace_context(token):
+    _WORKSPACE_CONTEXT.reset(token)
+
+
+def current_workspace_context():
+    return _WORKSPACE_CONTEXT.get()
+
+
+def bind_workspace_update(value):
+    return _WORKSPACE_UPDATE.set(value)
+
+
+def reset_workspace_update(token):
+    _WORKSPACE_UPDATE.reset(token)
+
+
+def collect_workspace_update(value):
+    collector = _WORKSPACE_UPDATE.get()
+    if collector is not None:
+        collector[:] = [value]
 
 def bind_specialist_input(value):
     return _SPECIALIST_INPUT.set(value)

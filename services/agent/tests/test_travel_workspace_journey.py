@@ -35,6 +35,7 @@ def workspace(**extra):
 
 def real_handler(system, monkeypatch, pid, *, topic="stays", count=4):
     from services.trip_context import TripContext
+    from langgraph.checkpoint.memory import InMemorySaver
     with system.factory() as db:
         db.add(PlanningCanvas(plan_id=UUID(pid), payload={"components": components()}, context_revision=1, updated_at=system.current[0]))
         db.add(ResearchContext(plan_id=UUID(pid), revision=1, updated_at=system.current[0],
@@ -55,13 +56,18 @@ def real_handler(system, monkeypatch, pid, *, topic="stays", count=4):
             num_turns=1, session_id="scripted", total_cost_usd=0.01,
             structured_output={"answer": "Search completed; nothing booked.", "needs_input": False,
                                "comparisons": [], "notes": []})
+    saver = InMemorySaver()
     graph = AgentGraph(SimpleNamespace(config=config,
-        worker=ClaudeSdkRuntime(config, query_fn=query, transport_factory=Transport)))
+        worker=ClaudeSdkRuntime(config, query_fn=query, transport_factory=Transport)), checkpointer=saver)
     captured = []
     invoke = graph.compiled.ainvoke
-    async def capture(*args, **kwargs):
-        result = await invoke(*args, **kwargs)
+    async def capture(state, config):
+        config = {**config, "configurable": {"thread_id": pid}}
+        result = await invoke(state, config=config)
         captured.append(json.dumps(result, default=str))
+        checkpoint = await saver.aget_tuple(config)
+        captured.append(json.dumps(checkpoint.checkpoint, default=str))
+        captured.append(repr(saver.storage))
         return result
     monkeypatch.setattr(graph.compiled, "ainvoke", capture)
     return AgentTurnService(plan_reader=CrudPlanReader("http://crud"), context_reader=CrudContextReader("http://crud"),
@@ -118,3 +124,68 @@ def test_foreign_or_expired_workspace_is_rejected_before_worker(system, monkeypa
         asyncio.run(handler.handle(req, "traveler-one", f"Bearer {system.token}"))
     assert exc.value.status_code == 409
     assert system.client.get(f"/v1/plans/{pid}/travel/stays").json()["messages"] == []
+
+
+@pytest.mark.parametrize("failure", ["dirty", "commit", "canceled"])
+def test_failed_dirty_or_revoked_turn_never_releases_workspace(system, monkeypatch, failure):
+    pid = create(system)["plan_id"]
+    handler, _ = real_handler(system, monkeypatch, pid)
+    original = handler.context_reader.travel_run
+    async def completion(*args, **kwargs):
+        if kwargs.get("action") == "complete" and failure == "commit":
+            raise HTTPException(409, "Changed saved brief")
+        value = await original(*args, **kwargs)
+        if kwargs.get("action") == "complete" and failure == "canceled":
+            await handler.runs.reserve("traveler-one", pid, "newer-event")
+        return value
+    monkeypatch.setattr(handler.context_reader, "travel_run", completion)
+    async def run():
+        from services.agent.request_context import current_workspace_context, _WORKSPACE_UPDATE
+        req = AgentRequest(plan_id=pid, event_id=str(uuid4()), topic="stays", message=MESSAGE,
+            workspace_context=workspace(draft_dirty=failure == "dirty"))
+        if failure == "commit":
+            with pytest.raises(HTTPException):
+                await handler.handle(req, "traveler-one", f"Bearer {system.token}")
+        else:
+            response = await handler.handle(req, "traveler-one", f"Bearer {system.token}")
+            assert response.status == "in_progress"
+            assert response.workspace_update is None
+        assert current_workspace_context() is None and _WORKSPACE_UPDATE.get() is None
+    asyncio.run(run())
+    saved = system.client.get(f"/v1/plans/{pid}/travel/stays").json()
+    assert saved["locked"] is False
+    assert len(saved["messages"]) == (1 if failure == "commit" else 2)
+
+
+def test_concurrent_graph_contexts_reset_after_success_and_exception(monkeypatch):
+    from services.agent.graph.nodes.travel_specialist import TravelSpecialistNode
+    from services.agent.request_context import current_workspace_context, collect_workspace_update, _WORKSPACE_UPDATE
+    async def run():
+        both = asyncio.Event()
+        arrived = 0
+        async def research(self, state):
+            nonlocal arrived
+            before = current_workspace_context()
+            arrived += 1
+            if arrived == 2:
+                both.set()
+            await both.wait()
+            assert current_workspace_context() == before
+            assert before["instance_id"] == state["context"].plan_id
+            if before["revision"] == 1:
+                raise ValueError("test failure")
+            collect_workspace_update({"search_id": state["context"].plan_id})
+            return {"result": {"status": "in_progress", "assistant_text": "done"}}
+        monkeypatch.setattr(TravelSpecialistNode, "_research", research)
+        graph = AgentGraph(SimpleNamespace(config=object()))
+        async def invoke(index):
+            pid = f"plan-{index}"
+            try:
+                return await graph.invoke({"plan_id": pid, "traveler_scope": f"owner-{index}", "event_id": "e", "topic": "stays", "message": "help"},
+                    specialist_context={"workspace_context": workspace(instance_id=pid, revision=index)})
+            finally:
+                assert current_workspace_context() is None and _WORKSPACE_UPDATE.get() is None
+        results = await asyncio.gather(invoke(0), invoke(1), return_exceptions=True)
+        assert results[0]["projection"]["workspace_update"]["search_id"] == "plan-0"
+        assert isinstance(results[1], ValueError)
+    asyncio.run(run())

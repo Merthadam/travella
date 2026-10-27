@@ -7,6 +7,8 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 
 from ..request_context import (
+    bind_workspace_context, reset_workspace_context,
+    bind_workspace_update, reset_workspace_update,
     bind_specialist_input,
     reset_specialist_input,
     bind_travel_results,
@@ -65,9 +67,14 @@ class AgentGraph:
         travel_results = []
         travel_token = bind_travel_results(travel_results)
         specialist_token = bind_specialist_input(specialist_context)
+        workspace_token = bind_workspace_context((specialist_context or {}).get("workspace_context"))
+        workspace_updates = []
+        workspace_output_token = bind_workspace_update(workspace_updates)
         try:
             result = await self.compiled.ainvoke(state, config={"recursion_limit": 12})
         finally:
+            reset_workspace_update(workspace_output_token)
+            reset_workspace_context(workspace_token)
             reset_specialist_input(specialist_token)
             reset_travel_results(travel_token)
             reset_canvas_callback(canvas_token)
@@ -115,6 +122,8 @@ class AgentGraph:
             if result.get(field):
                 projection[field] = result[field]
         # Ephemeral provider snapshots never enter any compiled graph channel.
+        if workspace_updates and state.get("topic") in {"stays", "flights"} and status in {"in_progress", "needs your input"}:
+            projection["workspace_update"] = workspace_updates[-1]
         if travel_results and result.get("canvas_edit_result") and status in {"in_progress", "needs your input"}:
             projection["canvas_edit_result"] = {**result["canvas_edit_result"], "travel": travel_results}
         elif travel_results and result.get("research_flights") and status in {"in_progress", "needs your input"}:
