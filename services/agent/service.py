@@ -164,6 +164,7 @@ class AgentTurnService:
         context_snapshot = None
         context_attempted = False
         context_committed = False
+        saved_map = None
         try:
             if self.context_reader and hasattr(self.context_reader, "context_run"):
                 context_attempted = True
@@ -182,6 +183,11 @@ class AgentTurnService:
                 if request.context_revision is not None and context_snapshot and request.context_revision != context_snapshot["revision"]:
                     raise HTTPException(409, "Trip details changed. Reload the canvas before generating.")
                 context = await self.context_reader.generation_context(request.plan_id, token)
+                if hasattr(self.context_reader, "saved_canvas"):
+                    saved = await self.context_reader.saved_canvas(request.plan_id, token)
+                    if saved.get("revision") != context.get("revision"):
+                        raise HTTPException(409, "Saved trip details changed. Please retry.")
+                    saved_map = (saved.get("snapshot") or {}).get("components", {}).get("map")
                 if request.research_entry_receipt is not None:
                     if (not context_snapshot or not hasattr(self.context_reader, "consume_research_entry")
                             or request.context_revision != context_snapshot["revision"]):
@@ -211,6 +217,7 @@ class AgentTurnService:
                 "message": query,
                 "canvas_action": request.canvas_action,
                 "canvas_edit": edit_input,
+                "saved_map": saved_map,
                 "research_flights": False,
                 "canvas_draft": {"components": {"themes": request.canvas_themes.model_dump()}} if request.canvas_themes else None,
                 "reusable_evidence": self._evidence_cache.get((subject, plan_id), (0, []))[1] if self._evidence_cache.get((subject, plan_id), (0, []))[0] > time.monotonic() else [],

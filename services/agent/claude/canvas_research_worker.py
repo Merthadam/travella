@@ -1,4 +1,4 @@
-"""Two canvas components, one observed evidence registry and one bounded review."""
+"""Trip briefing research, using observed sources and one bounded review."""
 from __future__ import annotations
 
 import asyncio
@@ -30,6 +30,12 @@ def research_projection(raw: dict, observer: _EvidenceObserver) -> dict:
     # destination research. Let the bounded repair run try, then surface Retry.
     if not candidate.links or not any(item.sources for item in candidate.findings):
         raise ResearchWorkerError("canvas_research_incomplete")
+    # One general city page repeated across every highlight is not a useful
+    # trip briefing. Allow a clearly labelled partial result when reads failed.
+    selected_urls = {observer.evidence[link.evidence_id].url for link in candidate.links
+                     if link.evidence_id in observer.evidence}
+    if len(selected_urls) < 2 and not observer.unavailable:
+        raise ResearchWorkerError("canvas_research_needs_distinct_resources")
     known_urls = {item.url for item in observer.evidence.values()}
     for text in ([item.summary for item in candidate.findings]
                  + [item.title for item in candidate.findings]
@@ -94,6 +100,7 @@ class ClaudeCanvasResearchWorker:
         self.worker = worker if worker is not None else ClaudeSdkRuntime(self.config)
 
     async def run(self, *, destination: str, themes: dict, trip_context: dict,
+                  saved_places: list[dict] | None = None,
                   reusable_evidence: list[dict] | None = None, usage: dict | None = None,
                   evidence_sink: list[dict] | None = None) -> dict:
         if not destination.strip():
@@ -130,7 +137,8 @@ class ClaudeCanvasResearchWorker:
                         return result.structured_output, result.total_cost_usd
                     result = await reviewed_candidate(
                         invoke=invoke, payload={"destination": destination,
-                                               "themes": themes, "trip_context": trip_context},
+                                               "themes": themes, "trip_context": trip_context,
+                                               "saved_places": saved_places or []},
                         schema=CanvasResearchSummary.model_json_schema(),
                         validate=lambda raw: research_projection(raw, observer), budget=budget,
                         review_sources=evidence,
