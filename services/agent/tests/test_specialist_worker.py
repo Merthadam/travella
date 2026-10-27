@@ -21,6 +21,52 @@ FLIGHT = {"origin": "BUD", "destination": "LIS", "departure_date": START,
           "return_date": END, "adults": 2, "country_code": "HU"}
 
 
+def test_workspace_comparison_order_and_exact_room_evidence_drive_local_only_turn():
+    from services.agent.travel_registry import travel_registry
+    from services.travel_topics import WorkspaceView
+    from services.agent.tests.test_canvas_travel import hotels
+    from services.agent.request_context import bind_workspace_update, reset_workspace_update
+    ctx, provider, seen, updates = context([]), Provider(), {}, []
+    sid = travel_registry.manual(ctx.traveler_scope, ctx.plan_id, 'hotels/search', STAY, hotels(15))
+    refs = [dict(search_id=sid, option_id=f'stay-{i}', room_id=f'room-{i}') for i in (14, 2)]
+    workspace = dict(search_id=sid, draft_dirty=False, view=WorkspaceView(comparison_refs=refs).model_dump())
+    config = ResearchWorkerConfig(api_key='test-only-no-network')
+    async def query(*, prompt, options, transport):
+        seen.update(json.loads(prompt))
+        if seen.get('workspace_comparison'):
+            changed = await sdk_call(options.mcp_servers['travel']['instance'], 'update_workspace_view', {'search_id': sid, 'operation': 'sort', 'sort': 'price'})
+            assert changed['changed']
+        yield ResultMessage(subtype='success', duration_ms=1, duration_api_ms=1, is_error=False,
+            num_turns=1, session_id='scripted', total_cost_usd=0.01,
+            structured_output={'answer': 'Compared the current selected rates.', 'needs_input': False,
+                               'comparisons': refs if seen.get('workspace_comparison') else []})
+    worker = ClaudeSdkTravelSpecialist(config, worker=ClaudeSdkRuntime(config, query_fn=query, transport_factory=Transport), travel_client=provider)
+    async def run():
+        token = bind_workspace_update(updates)
+        try:
+            result = await worker.complete(message='Compare the second with the first and sort by price.', context=ctx, topic='stays', brief={}, saved_canvas={'components': components()}, workspace_context=workspace)
+        finally:
+            reset_workspace_update(token)
+        assert [item['reference'] for item in seen.get('workspace_comparison', [])] == refs
+        assert [item['room']['id'] for item in seen['workspace_comparison']] == ['room-14', 'room-2']
+        assert len(json.dumps(seen['workspace_comparison']).encode()) <= 12288
+        assert [item['reference']['option_id'] for item in result['travel_specialist_result']['comparison']['options']] == ['stay-14', 'stay-2']
+        assert updates == [{'search_id': sid, 'view': {**workspace['view'], 'sort': 'price'}}]
+        assert provider.calls == []
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('rule', [
+    'Unknown checked-bag allowance is neither included nor excluded',
+    'A property kitchen does not establish a kitchen in the selected room',
+    'workspace_comparison preserves the current visible comparison order',
+    'An explicit request for a new search requires a search tool',
+])
+def test_specialist_prompt_keeps_unknowns_and_current_workspace_authority_explicit(rule):
+    prompt = (Path(__file__).parents[1] / 'prompts/travel-specialist-v1.md').read_text()
+    assert rule in prompt
+
+
 @pytest.mark.parametrize("topic", ["stays", "flights"])
 def test_dedicated_sdk_worker_scopes_history_tools_and_grounded_comparison(topic):
     source_id = str(uuid4())
