@@ -4,6 +4,23 @@ import * as recovery from './canvasViewState';
 import { initialWorkspace } from './travel/useTravelWorkspace';
 beforeEach(()=>{sessionStorage.clear();clearCanvasViews();});
 afterEach(()=>vi.restoreAllMocks());
+test('untrusted records fail closed, bounded storage and memory fallback remain usable', () => {
+  const scope = 'a'.repeat(32); recovery.bindTravelRecoveryScope(scope);
+  const state = initialWorkspace({ planId: 'one', topic: 'stays' });
+  recovery.writeTravelWorkspace(scope, 'one', 'stays', state);
+  const key = Object.keys(sessionStorage).find(key => key.startsWith('travella.travel-view.'));
+  const original = JSON.parse(sessionStorage.getItem(key));
+  for (const changed of [{ ...original, raw_payload: 'private' }, { ...original, version: 2 }, { ...original, owner: 'b'.repeat(32) }, { ...original, draftCriteria: { ...original.draftCriteria, city: 'x'.repeat(33000) } }]) {
+    sessionStorage.setItem(key, JSON.stringify(changed)); expect(recovery.readTravelWorkspace(scope, 'one', 'stays')).toBeNull();
+  }
+  for (let i = 0; i < 70; i++) { writeCanvasView(`canvas-${i}`, { chatOpen: false }); recovery.writeTravelWorkspace(scope, `plan-${i}`, 'stays', state); }
+  expect(Object.keys(sessionStorage).filter(key => key.includes('-view.')).length).toBeLessThanOrEqual(60);
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw Error('blocked'); });
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw Error('blocked'); });
+  recovery.writeTravelWorkspace(scope, 'memory', 'stays', state);
+  expect(recovery.readTravelWorkspace(scope, 'memory', 'stays').draftDirty).toBe(false);
+  clearCanvasViews(); expect(recovery.readTravelWorkspace(scope, 'memory', 'stays')).toBeNull();
+});
 test('travel recovery stores only bounded typed references under a verified opaque session scope', () => {
   expect(typeof recovery.bindTravelRecoveryScope).toBe('function');
   const scope = 'a'.repeat(32);

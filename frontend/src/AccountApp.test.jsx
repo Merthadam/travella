@@ -1,10 +1,28 @@
 import React from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountApp } from './AccountApp';
 import { writeCanvasView, readCanvasView } from './features/plans/canvasViewState';
 const realSessionStorage = window.sessionStorage;
+
+test('focus200 changed scope revokes private view before next profile resolves', async () => {
+  vi.stubGlobal('sessionStorage', realSessionStorage); realSessionStorage.clear();
+  let scope = 'a'.repeat(32), finishProfile;
+  fetch.mockImplementation(async path => {
+    if (path === '/auth/session') return response(200, { state: 'signed_in', recovery_scope: scope });
+    if (path === '/v1/traveler-profile') return scope[0] === 'a' ? response(200, { exists: true, onboarding: { completed_version: 2 } }) : new Promise(resolve => { finishProfile = resolve; });
+    return response(200, { plans: [] });
+  });
+  render(<AccountApp/>); await screen.findByRole('heading', { name: 'My plans' });
+  const previous = document.querySelector('.plans-app'); writeCanvasView('private-plan', { filter: 'previous owner' });
+  scope = 'b'.repeat(32); window.dispatchEvent(new Event('focus'));
+  await waitFor(() => expect(finishProfile).toBeTruthy());
+  expect(previous.isConnected).toBe(false); expect(readCanvasView('private-plan')).toEqual({});
+  await act(async () => finishProfile(response(200, { exists: true, onboarding: { completed_version: 2 } })));
+  await screen.findByRole('heading', { name: 'My plans' });
+  expect(document.querySelector('.plans-app')).not.toBe(previous);
+});
 
 const response = (status, body) => ({ ok: status < 400, status, json: async () => body });
 
@@ -37,6 +55,10 @@ test('focus session expiry clears actual recovery before the next account signs 
   await screen.findByRole('heading', { name: 'Welcome back.' });
   expect(readCanvasView('private-plan')).toEqual({});
   expect(Object.values(realSessionStorage).join('')).not.toContain('previous owner');
+  fetch.mockImplementation(async path => response(200, path === '/auth/session' ? { state: 'signed_in', recovery_scope: 'b'.repeat(32) } : path === '/auth/sign-in' ? { state: 'signed_in' } : path === '/v1/traveler-profile' ? { exists: true, onboarding: { completed_version: 2 } } : { plans: [] }));
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText('Email address'), 'next@example.com'); await user.type(screen.getByLabelText('Password'), 'next-password'); await user.click(screen.getByRole('button', { name: 'Sign in', exact: true }));
+  await screen.findByRole('heading', { name: 'My plans' }); expect(readCanvasView('private-plan')).toEqual({});
 });
 
 test('rejected sign-in stays private and clears the submitted password', async () => {

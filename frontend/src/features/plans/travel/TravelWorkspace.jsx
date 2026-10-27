@@ -147,6 +147,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
     <div className="travel-workspace-panes">
       <section className="travel-options-pane" aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} options`}>
         <div className="travel-substage-status" role="status">{readiness}</div>
+        {workspace.state.recoveredDetails && <button type="button" className="ds-text-button" onClick={() => workspace.dispatch({ type: 'details', value: workspace.state.recoveredDetails })}>Reopen previous details</button>}
         {saving && !review && <p role="status">Preparing your exact choice…</p>}
         {workspace.state.notice && <div className="canvas-notice"><p role="status">{workspace.state.notice}</p>{workspace.state.inverse && <button type="button" className="ds-text-button" aria-label="Undo workspace change" onClick={workspace.undo}>Undo</button>}</div>}
         {workspace.state.view.dismissed_ids.length > 0 && <details className="travel-saved-options" open><summary>Dismissed from these results ({workspace.state.view.dismissed_ids.length})</summary>

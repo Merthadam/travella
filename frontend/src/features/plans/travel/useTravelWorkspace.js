@@ -4,6 +4,7 @@ import { travelRequest } from './travelApi';
 import { emptyStayFilters } from './StaySearchFilters';
 import { draftTravelFacts, travelSnapshotSchema, travelState } from './CanvasTravel';
 import { emptyWorkspaceView, travelReferenceSchema, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
+import { getTravelRecoveryScope, readTravelWorkspace, writeTravelWorkspace, subscribeTravelRecovery } from '../canvasViewState';
 
 export function initialWorkspace({ owner = 'session', planId, topic, initialData, instanceId = requestId() }) {
   const dates = initialData?.essentials?.dates;
@@ -42,12 +43,14 @@ export function travelWorkspaceReducer(state, action) {
         loading: false, requestGeneration: state.requestGeneration + 1, inverse: inverseOf(state), inverseRevision: next.revision,
         notice: action.type === 'dismiss' ? 'Option dismissed from these results. Your saved choices have not changed.' : 'Option restored to these results. Your saved choices have not changed.' };
     }
-    case 'details': return { ...state, detailsReference: action.value };
+    case 'details': return { ...state, detailsReference: action.value, recoveredDetails: null };
     case 'error': return { ...state, error: action.value };
     case 'cancel': return { ...advanced(state), loading: false, requestGeneration: state.requestGeneration + 1 };
     case 'search-start': return { ...advanced(state), loading: true, error: '', requestGeneration: state.requestGeneration + 1 };
     case 'search-success': return matches(state, action.token) ? { ...state, loading: false, error: '', imported: false, draftDirty: false, snapshot: action.snapshot, searchId: action.snapshot.search_id || null, appliedCriteria: action.snapshot.criteria, view: emptyWorkspaceView() } : state;
     case 'search-error': return matches(state, action.token) ? { ...state, loading: false, error: action.error } : state;
+    case 'recover-success': return matches(state, action.token) ? { ...advanced(state), snapshot: action.snapshot, appliedCriteria: action.snapshot.criteria, loading: false, error: '', recovery: null, recoveredDetails: action.details } : state;
+    case 'recover-error': return matches(state, action.token) ? { ...advanced(state), snapshot: null, searchId: null, view: emptyWorkspaceView(), detailsReference: null, recovery: null, loading: false, error: 'Previous results are no longer available. Search again for current options.' } : state;
     case 'import': return { ...advanced(state), loading: false, requestGeneration: state.requestGeneration + 1, error: '', imported: true, importIdentity: action.identity, snapshot: action.snapshot, searchId: action.snapshot.search_id, appliedCriteria: action.snapshot.criteria, draftCriteria: { ...state.draftCriteria, ...draftFromCriteria(action.snapshot.criteria, state.topic) }, draftDirty: false, view: emptyWorkspaceView() };
     case 'run-start': return { ...state, authority: { ...action.authority, owner: state.owner, instanceId: state.instanceId, revision: state.revision } };
     case 'run-end': return state.authority?.run_id === action.runId ? { ...state, authority: null } : state;
@@ -68,12 +71,15 @@ export function travelWorkspaceReducer(state, action) {
   }
 }
 
-export function useTravelWorkspace({ owner = 'session', planId, topic, initialData, active = true, onExpired, onManualChange, enabled = true }) {
+export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initialData, active = true, onExpired, onManualChange, enabled = true }) {
+  const owner = getTravelRecoveryScope() || suppliedOwner || 'session';
   const ref = useRef(null), pending = useRef(null), callbacks = useRef({}), checkout = useRef(new Map());
   const [, render] = useState(0);
   callbacks.current = { onExpired, onManualChange };
   if (!ref.current || ref.current.owner !== owner || ref.current.planId !== planId || ref.current.topic !== topic) {
-    pending.current?.abort(); checkout.current.clear(); ref.current = initialWorkspace({ owner, planId, topic, initialData });
+    pending.current?.abort(); checkout.current.clear();
+    const saved = enabled && readTravelWorkspace(owner, planId, topic);
+    ref.current = { ...initialWorkspace({ owner, planId, topic, initialData }), ...(saved ? { draftCriteria: saved.draftCriteria, draftDirty: saved.draftDirty, appliedCriteria: saved.appliedCriteria, searchId: saved.searchId, view: saved.view, recovery: saved } : {}) };
   }
   function dispatch(action) { const previous = ref.current; ref.current = travelWorkspaceReducer(previous, action); if (previous !== ref.current) render(n => n + 1); return ref.current; }
   function invalidate(action) {
@@ -81,6 +87,7 @@ export function useTravelWorkspace({ owner = 'session', planId, topic, initialDa
     const hadAuthority = Boolean(ref.current.authority);
     const value = dispatch(action); // Revoke before cancellation can yield or complete.
     if (value === previous) return value;
+    if (action.type !== 'cancel') value.recovery = null;
     pending.current?.abort();
     if (hadAuthority) void callbacks.current.onManualChange?.();
     return value;
@@ -95,6 +102,43 @@ export function useTravelWorkspace({ owner = 'session', planId, topic, initialDa
         ref.current = travelWorkspaceReducer(ref.current, { type: 'cancel' });
       }
     };
+  }, [owner, planId, topic, active, enabled]);
+  useEffect(() => subscribeTravelRecovery(() => {
+    pending.current?.abort(); checkout.current.clear();
+    ref.current = initialWorkspace({ owner: 'revoked', planId, topic, initialData });
+    void callbacks.current.onManualChange?.(); render(n => n + 1);
+  }), [planId, topic]);
+  useEffect(() => {
+    if (enabled) writeTravelWorkspace(owner, planId, topic, ref.current);
+  });
+  useEffect(() => {
+    const saved = ref.current.recovery;
+    if (!enabled || !active || !saved?.searchId) return;
+    const token = ref.current, controller = new AbortController(); pending.current = controller;
+    async function recover() {
+      try {
+        const raw = await travelRequest(planId, 'research/snapshot', { search_id: saved.searchId }, controller.signal);
+        if (!matches(ref.current, token)) return;
+        const snapshot = travelSnapshotSchema.parse({ ...raw, draft_facts: draftTravelFacts(initialData) });
+        const member = reference => reference.search_id === snapshot.search_id && snapshot.results.some(item => item.id === reference.option_id && (!reference.room_id || topic === 'stays' && item.rooms.some(room => room.id === reference.room_id)));
+        if (snapshot.plan_id !== planId || snapshot.mode !== topic || snapshot.search_id !== saved.searchId || !fresh(snapshot, Date.now()) || saved.view.dismissed_ids.some(id => !snapshot.results.some(item => item.id === id)) || saved.view.comparison_refs.some(ref => !member(ref))) throw new Error('Recovery unavailable');
+        let details = null;
+        if (saved.detailsReference) {
+          const reference = saved.detailsReference;
+          const detailSnapshot = reference.search_id === snapshot.search_id ? snapshot : travelSnapshotSchema.parse({ ...await travelRequest(planId, 'research/snapshot', { search_id: reference.search_id }, controller.signal), draft_facts: draftTravelFacts(initialData) });
+          if (!matches(ref.current, token)) return;
+          const item = detailSnapshot.results.find(item => item.id === reference.option_id && (!reference.room_id || topic === 'stays' && item.rooms.some(room => room.id === reference.room_id)));
+          if (detailSnapshot.plan_id === planId && detailSnapshot.mode === topic && detailSnapshot.search_id === reference.search_id && item && fresh(detailSnapshot, Date.now())) details = { item, snapshot: detailSnapshot, reference, historical: detailSnapshot.search_id !== snapshot.search_id };
+        }
+        dispatch({ type: 'recover-success', token, snapshot, details });
+      } catch (error) {
+        if (!matches(ref.current, token) || error.name === 'AbortError') return;
+        dispatch({ type: 'recover-error', token });
+        if (error.status === 401) callbacks.current.onExpired?.();
+      }
+    }
+    void recover();
+    return () => controller.abort();
   }, [owner, planId, topic, active, enabled]);
   async function search(criteria) {
     const token = invalidate({ type: 'search-start' });

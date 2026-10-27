@@ -93,6 +93,7 @@ def test_recovery_scope_is_random_session_partition_stable_on_refresh_and_rotate
     assert client.get('/auth/session').json()['recovery_scope'] != first
     body = client.get('/auth/session').text
     assert all(secret not in body for secret in [sid, 'secret-access', 'secret-refresh', 'ada@example.com', 'traveler-one'])
+    assert client.get('/auth/session', headers={'cookie': f'__Host-travella={first}'}).status_code == 401
     client.post('/auth/sign-out', json={})
     assert client.get('/auth/session').status_code == 401
     assert 'recovery_scope' not in client.get('/auth/session').json()
@@ -109,6 +110,14 @@ def test_existing_session_get_backfills_recovery_scope_once_without_extending_li
     assert store.get(sid, now[0])['recovery_scope'] == first
     assert client.get('/auth/session').json()['recovery_scope'] == first
     assert store.expiry(sid) == expiry
+
+
+def test_expired_session_does_not_reveal_recovery_scope(system):
+    client, provider, verifier, store, now = system
+    client.post('/auth/sign-in', json=CREDENTIALS)
+    now[0] += 301
+    response = client.get('/auth/session')
+    assert response.status_code == 401 and response.json() == {'state': 'refresh_required'}
 
 
 def test_agent_proxy_uses_server_session_and_never_forwards_browser_headers(system):

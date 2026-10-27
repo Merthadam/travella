@@ -7,6 +7,7 @@ import { initialWorkspace, travelWorkspaceReducer, useTravelWorkspace } from './
 import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 import { plansApi } from '../../../plansApi';
 import { filterResults, unknownFilterFacts } from './TravelSearch';
+import { bindTravelRecoveryScope, clearCanvasViews, readTravelWorkspace, writeTravelWorkspace } from '../canvasViewState';
 import { TravelComparison, comparisonEntry } from './TravelComparison';
 
 const chat = vi.hoisted(() => ({ active: true, loading: false, historyError: 'History unavailable', messages: [], snapshot: null, stop: vi.fn(() => new Promise(() => {})) }));
@@ -24,7 +25,27 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   return { search_id: searchId, plan_id: 'plan-1', mode: topic, generation: 1, fingerprint: 'a'.repeat(64), draft_facts: draftTravelFacts(initialData), searched_at: new Date().toISOString(), expires_at: new Date(Date.now() + 600000).toISOString(), provider: 'LiteAPI', sandbox: true, returned_count: 1, truncated: false, notices: [], preview_ids: [item.id], search_only_dates: false, criteria, results: [item] };
 }
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(function () { this.removeAttribute("open"); }); HTMLDialogElement.prototype.showModal = vi.fn(function () { this.setAttribute("open", ""); }); });
-afterEach(() => { cleanup(); chat.real = false; chat.active = true; chat.snapshot = null; chat.messages = []; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); clearCanvasViews(); chat.real = false; chat.active = true; chat.snapshot = null; chat.messages = []; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+
+test.each(['fresh', 'expired', 'edited', 'owner-change', 'foreign', 'detail'])('reload uses authorized references and never searches: %s', async outcome => {
+  const owner = 'a'.repeat(32); bindTravelRecoveryScope(owner);
+  const state = { ...initialWorkspace({ owner, planId: 'plan-1', topic: 'stays', initialData }), searchId: 'search-1', appliedCriteria: workspaceSnapshot().criteria, view: { ...emptyWorkspaceView(), sort: 'price' } };
+  state.draftCriteria.city = 'Unsubmitted destination'; state.draftDirty = true;
+  if (outcome === 'detail') state.detailsReference = { reference: { search_id: 'search-1', option_id: 'option-1', room_id: null } };
+  expect(writeTravelWorkspace(owner, 'plan-1', 'stays', state)).toBe(true);
+  let finish; fetch.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const { result } = renderHook(() => useTravelWorkspace({ planId: 'plan-1', topic: 'stays', initialData }));
+  expect(result.current.state.instanceId).not.toBe(state.instanceId);
+  expect(result.current.state.snapshot).toBeNull(); expect(result.current.state.draftCriteria.city).toBe('Unsubmitted destination');
+  await waitFor(() => expect(finish).toBeTruthy());
+  if (outcome === 'edited') act(() => result.current.setDraft('city', 'Newer edit'));
+  if (outcome === 'owner-change') act(() => bindTravelRecoveryScope('b'.repeat(32)));
+  await act(async () => finish({ ok: outcome !== 'expired', status: outcome === 'expired' ? 409 : 200, json: async () => ({ ...workspaceSnapshot(), ...(outcome === 'foreign' ? { plan_id: 'other' } : {}) }) }));
+  expect(fetch).toHaveBeenCalledTimes(1); expect(fetch.mock.calls[0][0]).toContain('research/snapshot?'); expect(fetch.mock.calls[0][1].method).toBe('GET');
+  if (['fresh', 'detail'].includes(outcome)) { expect(result.current.state.snapshot.search_id).toBe('search-1'); expect(result.current.state.view.sort).toBe('price'); expect(result.current.state.draftCriteria.city).toBe('Unsubmitted destination'); expect(result.current.state.inverse).toBeNull(); expect(result.current.state.detailsReference).toBeNull(); if (outcome === 'detail') expect(result.current.state.recoveredDetails.reference.option_id).toBe('option-1'); }
+  else { expect(result.current.state.snapshot).toBeNull(); if (outcome === 'expired') expect(result.current.state.error).toMatch(/Search again/); if (outcome === 'edited') expect(result.current.state.draftCriteria.city).toBe('Newer edit'); }
+  if (outcome === 'owner-change') expect(readTravelWorkspace(owner, 'plan-1', 'stays')).toBeNull();
+});
 
 test('manual exact fare review and confirmed receipt survive unavailable chat history', async () => {
   chat.active = false; chat.send = vi.fn(); chat.refresh = vi.fn(async () => { throw new Error('History unavailable'); });
