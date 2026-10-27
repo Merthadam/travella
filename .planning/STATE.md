@@ -5,8 +5,8 @@ current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-25T10:13:10.715Z"
-last_activity: 2026-10-25
-last_activity_desc: Removed Check again from missing place descriptions; verified locally
+last_activity: 2026-10-27
+last_activity_desc: Flight checkout prototypes verified; user design selection pending
 state_head: 2d78e061dfef5dac2e08fc354e1968500a7d5d5a
 progress:
   total_phases: 17
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-26 — Completed quick task 261026-bob: latest main started locally; health, authentication and source hashes verified.
+Last activity: 2026-10-27 — Completed quick task 261027-tzw: three flight checkout prototypes verified; design selection pending.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,6 +128,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261027-tzw | Three flight checkout prototypes | 2026-10-27 | prototype/flight-checkout-20261027 | Build/browser passed; user design selection pending | [Task](quick/261027-tzw-prototype-three-separate-page-flight-che/) |
 | 261026-bob | Start latest main locally | 2026-10-26 | c7d8906 (runtime source) | Health/auth/hashes passed; container migration compatibility applied | [Task](quick/261026-bob-start-latest-main-locally-and-verify-aut/) |
 | 261024-m71 | Persist Google place descriptions | 2026-10-24 | a11bf00 | 65 tests/build passed; reload uses saved descriptions with zero detail requests | [Task](quick/261024-m71-persist-google-place-descriptions-in-sav/) |
 | 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; running at localhost:5175 | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
@@ -407,3 +408,10 @@ Resume file: None
 - User approved the verified map reset icon and whole-card flight navigation and explicitly authorized merge. PR #19: https://github.com/Merthadam/travella/pull/19 (highly-rook → main).
 - Application source 73676b0; base c7d8906. 35 focused tests, build, authenticated desktop/mobile pointer/keyboard checks and runtime comparisons passed. Scoped security review: zero open threats.
 - Shipping record: .planning/quick/261026-canvas-controls-ship/VERIFICATION.md. Preview remains http://localhost:5190 because a concurrent checkout owns port 5174. Preserve dirty primary main checkout, database volumes and running stacks. This shipment does not close broader Phase 17 acceptance.
+
+### Flight checkout design exploration — 2026-10-27
+
+- User requested prototypes: flights first, dedicated in-app checkout from Flights, one booking per Plan, sandbox payment, no reusable passenger profiles. Useful downloadable test itinerary now and complete Plan export later.
+- Three structures: A guided steps, B expandable worksheet, C itinerary document and editor. Memory-only fixtures; no real provider/payment/Plan writes. Build and authenticated Chrome DevTools desktop/mobile journeys passed, including decline/pending states and offline receipt download.
+- Preview: http://localhost:5196/plans?prototype=flight-checkout&variant=A. Primary source: prototype/flight-checkout-20261027. User selection and production integration pending.
+- Evidence: artifacts/testing/2026-10-27-flight-checkout-prototypes/verification.md. GSD summary: .planning/quick/261027-tzw-prototype-three-separate-page-flight-che/261027-tzw-SUMMARY.md.
