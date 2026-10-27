@@ -1,0 +1,32 @@
+[
+  {
+    "file": "frontend/src/features/plans/travel/FlightCheckout.jsx",
+    "matches": true,
+    "sha256": "e4284f76ba2f7c24c541197ed2c69d61a4ecf0f2b7cd838818845083fe74b05a"
+  },
+  {
+    "file": "frontend/src/features/plans/travel/useFlightCheckout.js",
+    "matches": true,
+    "sha256": "4f95dfe360ac2c32c99dbfacd0b33febdb9dd3b6249854cca3ac0d63df81a762"
+  },
+  {
+    "file": "frontend/src/features/plans/components/PlanningCanvas.jsx",
+    "matches": true,
+    "sha256": "3ca2a04be7fe627955deac9ac64b401f8f0fe4b9004101f215947ceddca38d22"
+  },
+  {
+    "file": "services/agent/travel_contracts.py",
+    "matches": true,
+    "sha256": "e4b0f585bbc529441bbb17a1a583f24369f9a882b9928741b714c453dc52be07"
+  },
+  {
+    "file": "services/mock_booking.py",
+    "matches": true,
+    "sha256": "0bf26d5b78f1300c21a139fb74d78939dab116bf773afcee02779e11032d8783"
+  },
+  {
+    "file": "services/mcps/flight_checkout.py",
+    "matches": true,
+    "sha256": "f27270ccfbfa75f3e2e35ba3690fe3cda0d54a3bf07251430efd379d7b739465"
+  }
+]

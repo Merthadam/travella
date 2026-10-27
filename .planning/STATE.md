@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
 last_updated: "2026-10-25T10:13:10.715Z"
 last_activity: 2026-10-27
-last_activity_desc: Flight checkout prototypes verified; user design selection pending
+last_activity_desc: Replaced old flight booking with approved guided checkout and saved itinerary; sandbox flow verified
 state_head: 2d78e061dfef5dac2e08fc354e1968500a7d5d5a
 progress:
   total_phases: 17
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-27 — Completed quick task 261027-tzw: three flight checkout prototypes verified; design selection pending.
+Last activity: 2026-10-27 — Completed quick task 261027-uhp: guided flight checkout, real sandbox confirmation and saved itinerary verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -128,7 +128,8 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
-| 261027-tzw | Three flight checkout prototypes | 2026-10-27 | prototype/flight-checkout-20261027 | Build/browser passed; user design selection pending | [Task](quick/261027-tzw-prototype-three-separate-page-flight-che/) |
+| 261027-uhp | Replace legacy flight booking with guided checkout and saved itinerary | 2026-10-27 | f9a0eaa | 148 tests passed; build and real sandbox browser flow passed; 12 external fixture tests skipped | [Task](quick/261027-uhp-replace-legacy-flight-booking-with-guide/) |
+| 261027-tzw | Three flight checkout prototypes | 2026-10-27 | prototype/flight-checkout-20261027 | Build/browser passed; user selected A guided flow plus C confirmation | [Task](quick/261027-tzw-prototype-three-separate-page-flight-che/) |
 | 261026-bob | Start latest main locally | 2026-10-26 | c7d8906 (runtime source) | Health/auth/hashes passed; container migration compatibility applied | [Task](quick/261026-bob-start-latest-main-locally-and-verify-aut/) |
 | 261024-m71 | Persist Google place descriptions | 2026-10-24 | a11bf00 | 65 tests/build passed; reload uses saved descriptions with zero detail requests | [Task](quick/261024-m71-persist-google-place-descriptions-in-sav/) |
 | 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; running at localhost:5175 | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
