@@ -146,3 +146,14 @@ def test_manual_exact_room_review_persists_with_reply_and_requires_confirmation(
     readback = system.client.get(f'/v1/plans/{pid}/travel/stays').json()
     assert readback['messages'][-1]['comparison']['options'][0] == option
     assert readback['preferred']['price_label'] == option['price_label']
+    # Reopen a database session: the exact observed rate, not the property's
+    # cheaper headline price, is the durable choice.
+    from sqlalchemy import select
+    from services.crud.models import TravelTopicState
+    with system.factory() as db:
+        state = db.scalar(select(TravelTopicState))
+        assert state.payload['shortlist'][0]['reference']['room_id'] == 'apartment-rate'
+        assert state.payload['shortlist'][0]['price_label'] == option['price_label']
+    removed, _, _ = choose(system, plan, readback, 'remove', option['id'])
+    assert removed['readiness'] == 'researching'
+    assert system.client.get(f'/v1/plans/{pid}/travel/stays').json()['preferred'] is None

@@ -1,3 +1,20 @@
+import { requestId } from '../../../plansApi';
+
+export async function reviewExactTravelOption(api, selected, topic, reference, signal) {
+  if (!reference?.search_id || !reference.option_id || (topic === 'stays' && !reference.room_id)) throw new Error('Choose an exact room or fare before reviewing.');
+  const terminal = await api.travelTurn(selected, topic, 'Review this option for my trip.', requestId(), {
+    signal, onEvent() {}, travelDiscussion: { intent: 'review', options: [reference] },
+  });
+  const receipt = terminal.travel_specialist_result;
+  const options = receipt?.comparison?.options;
+  const observed = options?.[0]?.reference;
+  if (terminal.status !== 'complete' || receipt?.plan_id !== selected.plan_id || receipt.topic !== topic || !Number.isSafeInteger(receipt.revision) || options?.length !== 1 ||
+      observed?.search_id !== reference.search_id || observed?.option_id !== reference.option_id || (observed?.room_id ?? null) !== (reference.room_id ?? null)) {
+    throw new Error(terminal.message || 'This exact option could not be reviewed. Search again and retry.');
+  }
+  return receipt;
+}
+
 export async function travelRequest(planId, action, criteria, signal) {
   // The connector validates selected IDs against its scoped, expiring catalog.
   // Refresh it explicitly before every filtered rate request, including room details.

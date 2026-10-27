@@ -23,7 +23,7 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   const criteria = topic === 'stays' ? { destination: { city: 'Rome', country_code: 'IT', place_id: 'rome' }, check_in: '2027-11-13', check_out: '2027-11-16', rooms: [{ adults: 2, children_ages: [] }], guest_nationality: 'HU', currency: 'EUR', hotel_id: null } : { origin: 'BUD', destination: 'FCO', departure_date: '2027-11-13', return_date: '2027-11-16', adults: 2, children_ages: [], infant_ages: [], cabin_class: 'ECONOMY', country_code: 'HU', currency: 'EUR' };
   return { search_id: searchId, plan_id: 'plan-1', mode: topic, generation: 1, fingerprint: 'a'.repeat(64), draft_facts: draftTravelFacts(initialData), searched_at: new Date().toISOString(), expires_at: new Date(Date.now() + 600000).toISOString(), provider: 'LiteAPI', sandbox: true, returned_count: 1, truncated: false, notices: [], preview_ids: [item.id], search_only_dates: false, criteria, results: [item] };
 }
-beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn(); });
+beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(function () { this.removeAttribute("open"); }); HTMLDialogElement.prototype.showModal = vi.fn(function () { this.setAttribute("open", ""); }); });
 afterEach(() => { cleanup(); chat.real = false; chat.active = true; chat.snapshot = null; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 test('manual exact fare review and confirmed receipt survive unavailable chat history', async () => {
@@ -84,6 +84,25 @@ test('comparison keeps exact room price and reference distinct from unlike prope
   expect(screen.getAllByRole('button', { name: 'Choose for trip' })).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Choose for trip' }));
   expect(choose).toHaveBeenCalledWith({ title: 'Private apartment', reference: exact });
+});
+
+test.each(['origin', 'actual currency'])('comparison flags different %s even when requested destination and currency match', difference => {
+  const first = workspaceSnapshot('flights', 'first'), second = workspaceSnapshot('flights', 'second');
+  if (difference === 'origin') second.criteria.origin = 'VIE';
+  else second.results[0].price.currency = 'USD';
+  render(<TravelComparison entries={[first, second].map(value => comparisonEntry(value, { search_id: value.search_id, option_id: 'option-1', room_id: null }))} currentSearchId="second" onClose={vi.fn()}/>);
+  expect(screen.getByText(/These totals are not directly comparable/)).toBeTruthy();
+});
+
+test('manual review reports an actual lease rejection without preparing or saving a choice', async () => {
+  chat.active = true; chat.stop.mockResolvedValueOnce(false); chat.send = vi.fn();
+  const api = { travelTurn: vi.fn(async () => ({ status: 'error', message: 'Another reply is still finishing. Retry after it stops.' })), prepareTravelChoice: vi.fn(), commitTravelChoice: vi.fn() };
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={workspaceSnapshot('flights')}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  expect(await screen.findByText('Another reply is still finishing. Retry after it stops.')).toBeTruthy();
+  expect(chat.stop).toHaveBeenCalled();
+  expect(api.prepareTravelChoice).not.toHaveBeenCalled(); expect(api.commitTravelChoice).not.toHaveBeenCalled(); expect(chat.send).not.toHaveBeenCalled();
 });
 
 test.each(['stays', 'flights'])('manual %s filters retain labeled unknowns and sort missing prices last like host operations', topic => {

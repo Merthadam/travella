@@ -253,7 +253,7 @@ function Room({ room, onCheckout, onDiscuss, onChoose, onCompare }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, detached, observedAt, expiresAt, checkoutToken }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, choiceDisabled, detached, observedAt, expiresAt, checkoutToken }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
@@ -374,7 +374,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           )}
           <h3>Room offers for your stay</h3>
           {rooms.map((room) => (
-            <Room key={room.id} room={room} onCheckout={sandbox && !loading && !evidenceExpired ? setCheckout : null} onCompare={!loading && observation.search_id && onCompareRoom ? () => { onClose(); onCompareRoom(attach(room)); } : null} onDiscuss={!discussionDisabled && !evidenceExpired && observation.search_id && onDiscuss ? () => { onClose(); onDiscuss(attach(room)); } : null} onChoose={!discussionDisabled && !evidenceExpired && observation.search_id && onChoose ? () => { onClose(); onChoose(attach(room)); } : null} />
+            <Room key={room.id} room={room} onCheckout={sandbox && !loading && !evidenceExpired ? setCheckout : null} onCompare={!loading && observation.search_id && onCompareRoom ? () => { onClose(); onCompareRoom(attach(room)); } : null} onDiscuss={!discussionDisabled && !evidenceExpired && observation.search_id && onDiscuss ? () => { onClose(); onDiscuss(attach(room)); } : null} onChoose={!choiceDisabled && !evidenceExpired && observation.search_id && onChoose ? () => { onClose(); onChoose(attach(room)); } : null} />
           ))}
           {!loading && !rooms.length && (
             <p>No room offers are available for these dates.</p>
@@ -393,7 +393,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
               "Detailed fare conditions not supplied."}
           </p>
           <Price price={item.price} />
-          {!discussionDisabled && !evidenceExpired && observation.search_id && <div className="travel-option-actions">{onDiscuss && <button type="button" onClick={() => { onClose(); onDiscuss(attach()); }}>Discuss flight</button>}{onChoose && <button type="button" onClick={() => { onClose(); onChoose(attach()); }}>Choose for trip</button>}</div>}
+          {!evidenceExpired && observation.search_id && <div className="travel-option-actions">{!discussionDisabled && onDiscuss && <button type="button" onClick={() => { onClose(); onDiscuss(attach()); }}>Discuss flight</button>}{!choiceDisabled && onChoose && <button type="button" onClick={() => { onClose(); onChoose(attach()); }}>Choose for trip</button>}</div>}
           {sandbox && checkoutToken && !evidenceExpired && <button className="travel-primary" onClick={() => setCheckout(checkoutToken)}>Try mock flight booking</button>}
           {!checkoutToken && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
         </>
@@ -1189,6 +1189,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           onChoose={onChoose}
           onCompareRoom={compareRoom}
           discussionDisabled={discussionDisabled}
+          choiceDisabled={choiceDisabled}
           sandbox={detailsReference.snapshot.sandbox}
           onClose={() => setDetail(null)}
           onExpired={onExpired}

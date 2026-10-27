@@ -93,5 +93,12 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
       await stop(); return false;
     } finally { if (!current.cancelled && current.epoch === epoch.current) finish(current); }
   }
-  return { snapshot, messages, loading, historyError, error, active, send, stop, refresh, retryHistory: load };
+  function acceptReceipt(value) {
+    if (value?.plan_id !== selected.plan_id || value.topic !== topic) return;
+    setSnapshot(previous => !previous || value.revision >= previous.revision ? value : previous);
+    // Only a successfully completed host operation can reconcile an interrupted
+    // local run. Its receipt proves the server accepted the operation's lease.
+    if (run.current?.cancelled && !value.locked) finish(run.current);
+  }
+  return { snapshot, messages, loading, historyError, error, active, send, stop, refresh, acceptReceipt, retryHistory: load };
 }

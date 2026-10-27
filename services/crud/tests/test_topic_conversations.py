@@ -110,6 +110,24 @@ def test_shared_lease_cancel_and_event_topic_replay(system):
     assert complete(system, plan, next_data, next_snapshot, "flights").status_code == 200
 
 
+def test_exact_choice_waits_for_actual_shared_lease_then_uses_fresh_revision(system, monkeypatch):
+    plan = create(system)
+    evidence = researched(system, plan, monkeypatch)
+    data, _ = begin(system, plan, 'flights')
+    locked = system.client.get(url(plan)).json()
+    body = {'action': 'prefer', 'evidence_id': evidence['comparison']['options'][0]['id']}
+    denied = system.client.post(url(plan) + '/choices/challenge', headers=write_headers(system, locked['revision']), json=body)
+    assert denied.status_code == 409
+    with system.factory() as db:
+        assert db.scalar(select(TravelTopicState).where(TravelTopicState.topic == 'stays')).payload.get('preferred_id') is None
+    released = system.client.post(url(plan, 'flights') + '/run', json={'action': 'cancel', 'event_id': data['event_id']})
+    assert released.status_code == 200 and not released.json()['locked']
+    fresh = system.client.get(url(plan)).json()
+    chosen, _, _ = choose(system, plan, fresh, 'prefer', body['evidence_id'])
+    assert chosen['readiness'] == 'ready'
+    assert system.client.get(url(plan)).json()['preferred']['id'] == body['evidence_id']
+
+
 def test_invalid_input_missing_and_ownership(system):
     plan = create(system)
     assert system.client.get(url(plan, "buses")).status_code == 422

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { TravelSuggestions } from './TravelSuggestions';
-import { travelRequest } from './travelApi';
+import { reviewExactTravelOption, travelRequest } from './travelApi';
 import { TravelSearch } from './TravelSearch';
 import { TravelConversation } from './TravelConversation';
 import { useTravelConversation } from './useTravelConversation';
@@ -23,7 +23,12 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
   const [review, setReview] = useState(null), [saving, setSaving] = useState(false), [choiceError, setChoiceError] = useState('');
   const [clock, setClock] = useState(Date.now());
   const dialog = useRef(null), returnFocus = useRef(null);
-  const snapshot = chat.snapshot;
+  const [receipt, setReceipt] = useState(null);
+  const scope = `${selected.owner_id || selected.subject || 'session'}:${selected.plan_id}:${topic}`;
+  const currentScope = useRef(scope); currentScope.current = scope;
+  useEffect(() => { setReceipt(null); setReview(null); setChoiceError(''); }, [scope]);
+  const snapshot = receipt?.scope === scope && receipt.value.revision >= (chat.snapshot?.revision ?? -1) ? receipt.value : chat.snapshot;
+  function acceptReceipt(value) { setReceipt({ scope, value }); chat.acceptReceipt?.(value); }
   const unavailable = blocked || chat.active || chat.loading || snapshot?.locked || Boolean(chat.historyError);
   stop.current = chat.stop;
   useEffect(() => { registerStop?.(mode, () => stop.current()); return () => registerStop?.(mode, null); }, [mode, registerStop]);
@@ -47,20 +52,31 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
       setHandoff({ snapshot: value, nonce: Date.now() }); setPane('options');
     } catch (err) { if (err.status === 401) onExpired?.(); setChoiceError('These results have expired. Ask for a new search to browse current options.'); }
   }
-  async function chooseManual(item) {
-    if (unavailable || saving) return;
-    const latest = await chat.send('Review this option for my trip.', { intent: 'review', options: [item.reference] });
-    const observed = latest?.comparison?.options?.[0];
-    if (observed) await prepare('prefer', observed, latest.revision);
-    else openChat();
+  async function chooseManual(item, action = 'prefer') {
+    if (blocked || saving) return;
+    setSaving(true); setChoiceError('');
+    try {
+      // Stop an owned reply first. The authenticated review endpoint remains the
+      // authority on its durable lease even when history refresh is unavailable.
+      if (chat.active) await chat.stop();
+      if (currentScope.current !== scope) return;
+      const latest = await reviewExactTravelOption(api, selected, topic, item.reference);
+      if (currentScope.current !== scope) return;
+      acceptReceipt(latest);
+      await prepareChallenge(action, latest.comparison.options[0], latest.revision);
+    } catch (err) { if (currentScope.current === scope) { if (err.status === 401) onExpired?.(); setChoiceError(err.message || 'This exact option could not be reviewed. Try again.'); } }
+    finally { if (currentScope.current === scope) setSaving(false); }
+  }
+  async function prepareChallenge(action, option, revision) {
+    const body = { action, evidence_id: optionId(option) };
+    const challenge = await api.prepareTravelChoice(selected, topic, body, revision);
+    if (currentScope.current === scope) setReview({ body, option, revision: challenge.revision, challenge: challenge.challenge, id: requestId() });
   }
   async function prepare(action, option, revision = snapshot.revision) {
     if (unavailable || saving) return;
     setSaving(true); setChoiceError('');
     try {
-      const body = { action, evidence_id: optionId(option) };
-      const challenge = await api.prepareTravelChoice(selected, topic, body, revision);
-      setReview({ body, option, revision: challenge.revision, challenge: challenge.challenge, id: requestId() });
+      await prepareChallenge(action, option, revision);
     } catch (err) { if (err.status === 401) onExpired?.(); setChoiceError(err.message || 'This option changed. Refresh your research and try again.'); await chat.refresh().catch(() => {}); }
     finally { setSaving(false); }
   }
@@ -69,8 +85,11 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
     setSaving(true); setChoiceError('');
     try {
       const result = await api.commitTravelChoice(selected, topic, review.body, review.revision, review.challenge, review.id);
+      if (currentScope.current !== scope) return;
+      acceptReceipt(result); setReview(null);
       onChoiceSaved?.(review.revision, result.revision);
-      await chat.refresh(); setReview(null);
+      // A committed receipt is authoritative; transcript hydration is optional.
+      await chat.refresh().catch(() => {});
     } catch (err) { if (err.status === 401) onExpired?.(); setChoiceError(err.message || 'Your choice could not be saved. Retry or cancel.'); }
     finally { setSaving(false); }
   }
@@ -109,7 +128,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
         {workspace.state.view.dismissed_ids.length > 0 && <details className="travel-saved-options" open><summary>Dismissed from these results ({workspace.state.view.dismissed_ids.length})</summary>
           {workspace.state.snapshot?.results.filter(item => workspace.state.view.dismissed_ids.includes(item.id)).map(item => <div key={item.id}><span>{topic === 'stays' ? item.name : item.airlines.join(' / ') || 'Flight'}</span>{' '}<button type="button" className="ds-text-button" disabled={workspace.state.draftDirty} onClick={() => workspace.restore({ search_id: workspace.state.searchId, option_id: item.id, room_id: null })}>Restore {topic === 'stays' ? item.name : item.airlines.join(' / ') || 'flight'}</button></div>)}
         </details>}
-        <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={handoff?.snapshot || importedSnapshot} importRequest={handoff?.nonce || importRequest} importReason={handoff ? '' : importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onCompare={compare} discussionDisabled={unavailable || saving}/>
+        <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={handoff?.snapshot || importedSnapshot} importRequest={handoff?.nonce || importRequest} importReason={handoff ? '' : importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onShortlist={item => chooseManual(item, 'shortlist')} onCompare={compare} discussionDisabled={unavailable || saving} choiceDisabled={blocked || saving}/>
 
       </section>
       <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatOpen}><TravelConversation chat={chat} topic={topic} visible={active && chatOpen} disabled={blocked || snapshot?.locked && !chat.active} contextOptions={contextOptions} onClearContext={() => setContextOptions([])} onClose={closeChat} brief={snapshot?.brief} pendingEdits={pendingEdits} renderSuggestions={renderSuggestions} savedSuggestions={savedSuggestions}/></div>
