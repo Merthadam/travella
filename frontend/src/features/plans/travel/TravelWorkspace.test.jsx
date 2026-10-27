@@ -70,6 +70,11 @@ test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 
     // Late duplicate delivery after the run ended cannot apply again.
     await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
     expect(screen.getAllByRole('heading', { name: 'search-1' })).toHaveLength(1);
+    expect(screen.getByText('Results updated. Your saved choices have not changed.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo workspace change' }));
+    expect(screen.getByRole('heading', { name: 'old-search' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Undo workspace change' })).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
   } else expect(screen.queryByRole('heading', { name: 'search-1' })).toBeNull();
 });
 
@@ -120,6 +125,34 @@ function authorized() {
   return travelWorkspaceReducer(state, { type: 'run-start', authority: { run_id: 'run-1', brief_digest: 'b'.repeat(64) } });
 }
 function update() { return { action_id: 'action-1', plan_id: 'plan-1', topic: 'stays', instance_id: 'instance-1', base_revision: 0, run_id: 'run-1', brief_digest: 'b'.repeat(64), search_id: 'search-1', snapshot: workspaceSnapshot(), view: emptyWorkspaceView() }; }
+test('dismiss and restore are exact local mutations with a fresh version-bound inverse', () => {
+  const loaded = travelWorkspaceReducer(authorized(), { type: 'workspace-update', update: update() });
+  const reference = { search_id: 'search-1', option_id: 'option-1', room_id: null };
+  for (const invalid of [{ ...reference, option_id: 'foreign' }, { ...reference, search_id: 'old' }, { ...reference, room_id: 'invented' }])
+    expect(travelWorkspaceReducer(loaded, { type: 'dismiss', reference: invalid })).toBe(loaded);
+  const hidden = travelWorkspaceReducer(loaded, { type: 'dismiss', reference });
+  expect(hidden.view.dismissed_ids).toEqual(['option-1']);
+  expect(hidden.snapshot).toBe(loaded.snapshot);
+  expect(travelWorkspaceReducer({ ...hidden, revision: hidden.revision + 1 }, { type: 'undo' }).view.dismissed_ids).toEqual(['option-1']);
+  const restored = travelWorkspaceReducer(hidden, { type: 'restore', reference });
+  expect(restored.view.dismissed_ids).toEqual([]);
+  expect(restored.snapshot.searched_at).toBe(loaded.snapshot.searched_at);
+  expect(travelWorkspaceReducer(hidden, { type: 'undo' }).view.dismissed_ids).toEqual([]);
+  expect(travelWorkspaceReducer(hidden, { type: 'undo', now: Date.parse(hidden.snapshot.expires_at) + 1 }).inverse).toBeNull();
+  const edited = travelWorkspaceReducer(hidden, { type: 'view', patch: { sort: 'price' } });
+  expect(edited.inverse).toBeNull();
+});
+
+test('mounted dismissal and restore leave durable choices alone and make no requests', async () => {
+  const api = { prepareTravelChoice: vi.fn(), commitTravelChoice: vi.fn() };
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData} importedSnapshot={workspaceSnapshot()}/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Dismiss from results' }));
+  expect(screen.queryByRole('heading', { name: 'search-1' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Restore search-1' }));
+  expect(screen.getByRole('heading', { name: 'search-1' })).toBeTruthy();
+  expect(api.prepareTravelChoice).not.toHaveBeenCalled(); expect(api.commitTravelChoice).not.toHaveBeenCalled();
+  expect(fetch).not.toHaveBeenCalled();
+});
 test('atomic agent batch applies evidence and clean draft once with one inverse; never applies during hydration', () => {
   const state = authorized(), envelope = update();
   expect(travelWorkspaceUpdateSchema.safeParse(envelope).success).toBe(true);
