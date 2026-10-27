@@ -135,6 +135,23 @@ def test_fabricated_references_and_unattributed_notes_fail_closed(tamper):
         asyncio.run(worker.complete(message="help", context=context(), topic="stays", brief={}, saved_canvas={"components": components()}))
 
 
+@pytest.mark.parametrize('reason', ['travel_selection_unknown', 'unclassified'])
+def test_specialist_failure_logs_only_allowlisted_reason_without_exception_text(reason, caplog):
+    config = ResearchWorkerConfig(api_key='test-only-no-network')
+    async def query(*, prompt, options, transport):
+        if reason == 'unclassified':
+            raise ValueError('PRIVATE_MODEL_OR_PROVIDER_CONTENT')
+        yield ResultMessage(subtype='success', duration_ms=1, duration_api_ms=1, is_error=False,
+            num_turns=1, session_id='scripted', total_cost_usd=0.01,
+            structured_output={'answer': 'Untrusted output', 'needs_input': False,
+                'comparisons': [{'search_id': 'invented', 'option_id': 'invented', 'room_id': 'invented'}]})
+    worker = ClaudeSdkTravelSpecialist(config, worker=ClaudeSdkRuntime(config, query_fn=query, transport_factory=Transport))
+    with pytest.raises(ResearchWorkerError, match='travel_specialist_unavailable'):
+        asyncio.run(worker.complete(message='help', context=context(), topic='stays', brief={}, saved_canvas={'components': components()}))
+    assert f'reason={reason}' in caplog.text
+    assert 'PRIVATE_MODEL_OR_PROVIDER_CONTENT' not in caplog.text
+
+
 def test_missing_saved_canvas_still_allows_preferences_without_inventory():
     config = ResearchWorkerConfig(api_key="test-only-no-network")
     async def query(*, prompt, options, transport):
