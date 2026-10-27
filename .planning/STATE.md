@@ -4,8 +4,8 @@ current_phase: 17
 current_phase_name: Research phase cleanup
 status: human_needed
 stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-24T13:24:25.756742+00:00"
-last_activity: 2026-10-26
+last_updated: "2026-10-27T17:55:01.397482+00:00"
+last_activity: 2026-10-27
 last_activity_desc: Implemented Phase 18 focused travel substages; runtime evidence recorded, user UAT and full live-quality matrix pending
 state_head: a11bf00
 progress:
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-26 — Quick261026-d92 implemented: chat suggestions and manual property/amenity filters; automated checks pass, required browser verification awaits example-account sign-in recovery (401). Phase18 implemented with separate Claude SDK specialists inside a private LangGraph subflow, CRUD-owned topic histories/choices and dedicated Canvas discussions. Real browser/API/PostgreSQL checks and a bounded live SDK sample are recorded in Phase18 verification. Full live-quality matrix and user UAT remain open. Phase17 and Phase15 acceptance status is unchanged.
+Last activity: 2026-10-27 — Quick261026-ksg completed: reply-attached travel suggestions, exact context and shared manual/chat choice confirmation. Authentication recovered; 48 backend and 45 frontend checks, build, authenticated desktop/mobile journeys and two live specialist samples passed. Full Phase18 live-quality matrix/user UAT and Phase15/17 acceptance remain unchanged.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -398,3 +398,5 @@ Resume file: None
 - User requested a redesigned login with existing functionality. Built A split welcome, B quiet centered form and C workspace navigation rail on dev-only account-access prototype query. Original auth handlers unchanged.
 - Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
 - Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.
+
+| 261026-ksg | Connected reply suggestions, exact context and manual/chat choices; browser auth recovered | 2026-10-27 | b0182f1 | Verified — sandbox desktop/mobile; phase UAT unchanged | [261026-ksg](./quick/261026-ksg-connect-topic-chat-suggestions-and-exact/) |
