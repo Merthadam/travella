@@ -119,30 +119,28 @@ test('starter prompts prepare editable drafts without starting research, using t
   expect(api.travelTurn).not.toHaveBeenCalled();
 });
 
-test('reply suggestions expand locally, attach exact context without replacing a draft, and compare without pasting', async () => {
+test('reply references stay compact and attach exact context without replacing a draft', async () => {
   const user = userEvent.setup();
   const first = { ...option, reference: { search_id: 'search-1', option_id: 'hotel-1', room_id: 'apartment-rate' } };
   const other = { ...option, id: 'other', title: 'Station hotel', reference: { search_id: 'search-1', option_id: 'hotel-2', room_id: 'room-2' } };
   const reply = { message_id: 'reply-1', role: 'assistant', content: 'These fit your trip.', comparison: { options: [first, other] } };
   const api = { travelTopic: vi.fn(async () => ({ ...snapshot('stays'), messages: [reply] })), travelTurn: vi.fn(async () => ({ status: 'complete' })) };
   render(<TravelWorkspace api={api} selected={selected} mode="accommodation" active/>);
-  const suggestions = await screen.findByRole('region', { name: 'Travel suggestions' });
+  const suggestions = await screen.findByRole('region', { name: 'Referenced options' });
   expect(suggestions.closest('.canvas-chat-message').textContent).toContain('These fit your trip.');
   const composer = screen.getByRole('textbox', { name: 'Message accommodation assistant' });
   await user.type(composer, 'Is the kitchen private?');
-  await user.click(within(suggestions).getByRole('button', { name: /2 Station hotel/ }));
-  expect(within(suggestions).getByRole('heading', { name: 'Station hotel' })).toBeTruthy();
-  await user.click(within(suggestions).getByRole('button', { name: 'Discuss this option' }));
+  expect(within(suggestions).queryByRole('heading')).toBeNull();
+  expect(within(suggestions).queryByRole('checkbox')).toBeNull();
+  expect(within(suggestions).getByRole('button', { name: 'View Station hotel' })).toBeTruthy();
+  expect(within(suggestions).queryByText('Kitchen listed for the property')).toBeNull();
+  await user.click(within(suggestions).getByRole('button', { name: 'Discuss Station hotel' }));
   expect(composer.value).toBe('Is the kitchen private?');
   expect(screen.getByText('Discussing Station hotel')).toBeTruthy();
   expect(api.travelTurn).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Remove discussion context' }));
   expect(composer.value).toBe('Is the kitchen private?');
-  await user.click(within(suggestions).getByRole('checkbox', { name: 'Compare Courtyard apartment' }));
-  await user.click(within(suggestions).getByRole('checkbox', { name: 'Compare Station hotel' }));
-  await user.click(within(suggestions).getByRole('button', { name: 'Compare selected (2)' }));
-  await waitFor(() => expect(api.travelTurn).toHaveBeenCalledTimes(1));
-  expect(api.travelTurn.mock.calls[0][4].travelDiscussion).toEqual({ intent: 'compare', options: [first.reference, other.reference] });
+  expect(api.travelTurn).not.toHaveBeenCalled();
   expect(composer.value).toBe('Is the kitchen private?');
   expect(screen.queryByRole('searchbox', { name: 'Filter suggestions' })).toBeNull();
 });
@@ -152,7 +150,7 @@ test('a message sends exact attached references separately from the typed text',
   const first = { ...option, reference: { search_id: 'search-1', option_id: 'hotel-1', room_id: 'room-1' } };
   const api = { travelTopic: vi.fn(async () => ({ ...snapshot('stays'), messages: [{ message_id: 'reply', role: 'assistant', content: 'Here is the room.', comparison: { options: [first] } }] })), travelTurn: vi.fn(async () => ({ status: 'complete' })) };
   render(<TravelWorkspace api={api} selected={selected} mode="accommodation" active/>);
-  await user.click(await screen.findByRole('button', { name: 'Discuss this option' }));
+  await user.click(await screen.findByRole('button', { name: 'Discuss Courtyard apartment' }));
   const composer = screen.getByRole('textbox', { name: 'Message accommodation assistant' });
   expect(composer.value).toBe('');
   await user.type(composer, 'What are its cancellation terms?');
@@ -162,4 +160,20 @@ test('a message sends exact attached references separately from the typed text',
   expect(api.travelTurn.mock.calls[0][4].travelDiscussion).toEqual({ intent:'discuss', options:[first.reference] });
   await waitFor(() => expect(composer.value).toBe(''));
   expect(screen.queryByRole('button', { name:'Remove discussion context' })).toBeNull();
+});
+
+test('typing the next draft while a reply runs survives asynchronous completion', async () => {
+  const user = userEvent.setup(); let finish;
+  const api = { travelTopic: vi.fn(async () => snapshot('stays')), travelTurn: vi.fn(() => new Promise(resolve => { finish = resolve; })), cancelAgentTurn: vi.fn(async () => ({})) };
+  render(<TravelWorkspace api={api} selected={selected} mode="accommodation" active/>);
+  await screen.findByRole('button', { name: 'Help me choose an area' });
+  const composer = screen.getByRole('textbox', { name: 'Message accommodation assistant' });
+  await user.type(composer, 'Find a quiet stay'); await user.click(screen.getByRole('button', { name: 'Send message' }));
+  await screen.findByRole('button', { name: 'Stop' });
+  expect(composer.disabled).toBe(false);
+  await user.clear(composer); await user.type(composer, 'My next unsent question');
+  await act(async () => finish({ status: 'complete' }));
+  await screen.findByRole('button', { name: 'Send message' });
+  expect(composer.value).toBe('My next unsent question');
+  expect(api.travelTurn).toHaveBeenCalledTimes(1);
 });

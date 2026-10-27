@@ -45,6 +45,25 @@ test('manual exact fare review and confirmed receipt survive unavailable chat hi
   expect(api.commitTravelChoice).toHaveBeenCalledTimes(1);
 });
 
+test.each(['review', 'challenge'])('switching away fences a delayed manual %s response', async stage => {
+  chat.active = false;
+  let resolveReview, resolveChallenge;
+  const reference = { search_id: 'search-1', option_id: 'option-1', room_id: null };
+  const receipt = { plan_id: 'plan-1', topic: 'flights', revision: 8, comparison: { options: [{ id: 'exact', title: 'Exact fare', reference }] } };
+  const terminal = { status: 'complete', travel_specialist_result: receipt };
+  const api = { travelTurn: vi.fn(() => stage === 'review' ? new Promise(resolve => { resolveReview = resolve; }) : Promise.resolve(terminal)), prepareTravelChoice: vi.fn(() => new Promise(resolve => { resolveChallenge = resolve; })), commitTravelChoice: vi.fn() };
+  const props = { selected: { plan_id: 'plan-1' }, api, mode: 'flights', initialData, importedSnapshot: workspaceSnapshot('flights') };
+  const view = render(<TravelWorkspace {...props} active/>);
+  fireEvent.click(screen.getByRole('button', { name: 'View flight →' })); fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  await waitFor(() => expect(stage === 'review' ? resolveReview : resolveChallenge).toBeTypeOf('function'));
+  view.rerender(<TravelWorkspace {...props} active={false}/>);
+  await act(async () => stage === 'review' ? resolveReview(terminal) : resolveChallenge({ revision: 8, challenge: 'late' }));
+  view.rerender(<TravelWorkspace {...props} active/>);
+  expect(screen.queryByRole('button', { name: 'Confirm choice · not booked' })).toBeNull();
+  expect(api.commitTravelChoice).not.toHaveBeenCalled();
+  if (stage === 'review') expect(api.prepareTravelChoice).not.toHaveBeenCalled();
+});
+
 test('main comparison preserves selection order and facts when discussion fails or search changes', async () => {
   chat.send = vi.fn(async () => false);
   const data = workspaceSnapshot('flights');
