@@ -15,6 +15,20 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+test('reply completion preserves focus moved to a manual control', async () => {
+  const user = userEvent.setup(); let finish;
+  const api = { travelTopic: vi.fn(async () => snapshot('stays')), travelTurn: vi.fn(() => new Promise(resolve => { finish = resolve; })), cancelAgentTurn: vi.fn(async () => ({})) };
+  render(<><label>Manual budget<input aria-label="Manual budget"/></label><TravelWorkspace selected={selected} api={api} mode="accommodation" active/></>);
+  const composer = await screen.findByRole('textbox', { name: 'Message accommodation assistant' });
+  await waitFor(() => expect(composer.disabled).toBe(false)); await user.type(composer, 'Help compare stays');
+  await user.click(screen.getByRole('button', { name: 'Send message' }));
+  await waitFor(() => expect(finish).toBeTruthy());
+  const manual = screen.getByLabelText('Manual budget'); await user.click(manual); await user.type(manual, '700');
+  await act(async () => { finish({ status: 'complete' }); });
+  await act(async () => new Promise(resolve => requestAnimationFrame(resolve)));
+  expect(document.activeElement).toBe(manual); expect(manual.value).toBe('700');
+});
+
 test('topic discussions restore separately, preserve unsent drafts, and keep manual search available alongside collapsible chat', async () => {
   const user = userEvent.setup();
   const api = { travelTopic: vi.fn(async (_, topic) => ({ ...snapshot(topic), messages: [{ message_id: topic, role: 'assistant', content: topic === 'stays' ? 'A quiet apartment matters.' : 'Prefer a morning flight.' }] })), travelTurn: vi.fn(), cancelAgentTurn: vi.fn() };

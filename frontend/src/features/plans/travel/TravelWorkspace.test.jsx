@@ -28,6 +28,30 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(function () { this.removeAttribute("open"); }); HTMLDialogElement.prototype.showModal = vi.fn(function () { this.setAttribute("open", ""); }); });
 afterEach(() => { cleanup(); clearCanvasViews(); chat.real = false; chat.active = true; chat.snapshot = null; chat.messages = []; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
+test('result pagination announces once and manual dismissal focuses the next card', async () => {
+  const snapshot = workspaceSnapshot();
+  snapshot.results = Array.from({ length: 25 }, (_, i) => ({ ...snapshot.results[0], id: `option-${i}`, name: `Stay ${i}` }));
+  snapshot.returned_count = 25; snapshot.preview_ids = snapshot.results.slice(0, 3).map(item => item.id);
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="accommodation" active initialData={initialData} importedSnapshot={snapshot}/>);
+  const dismiss = await screen.findAllByRole('button', { name: 'Dismiss from results' });
+  expect(screen.getAllByRole('status').filter(el => el.textContent === '1–10 of 25')).toHaveLength(1);
+  dismiss[0].focus(); fireEvent.click(dismiss[0]);
+  await act(async () => new Promise(resolve => requestAnimationFrame(resolve)));
+  expect(document.activeElement).toBe(dismiss[1]);
+});
+
+test('comparison uses compact airport-local times while retaining overnight dates and observed stops', () => {
+  const snapshot = workspaceSnapshot('flights'); const item = snapshot.results[0];
+  item.outbound.segments[0].departure_at = '2027-11-13T23:45:00+02:00'; item.outbound.segments[0].arrival_at = '2027-11-14T01:12:00+03:00';
+  item.outbound.duration_minutes = 87; item.outbound.stops = 1;
+  render(<TravelComparison entries={[{ snapshot, item, reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } }]} currentSearchId={snapshot.search_id} onClose={() => {}} onDetails={() => {}}/>);
+  expect(screen.getByText(/1h 27m · 1 stop/)).toBeTruthy();
+  expect(screen.getByText(/Direct · Local airport times/)).toBeTruthy();
+  const region = screen.getByRole('region', { name: 'Option comparison' });
+  expect(region.textContent).toContain('23:45'); expect(region.textContent).toContain('01:12'); expect(region.textContent).toContain('2027-11-14');
+  expect(region.textContent).not.toContain('23:45:00'); expect(region.textContent).not.toContain('0 children'); expect(region.textContent).not.toContain('0 infants');
+});
+
 test('late history failure from a previous scope cannot expire or poison the current discussion', async () => {
   chat.real = true; let rejectOld;
   const onExpired = vi.fn();
@@ -121,6 +145,28 @@ test('manual exact fare review and confirmed receipt survive unavailable chat hi
   expect(within(saved).getByRole('button', { name: 'Remove choice' }).disabled).toBe(false);
   fireEvent.click(within(saved).getByRole('button', { name: 'Remove choice' }));
   await waitFor(() => expect(api.prepareTravelChoice).toHaveBeenLastCalledWith({ plan_id: 'plan-1' }, 'flights', { action: 'remove', evidence_id: 'observed-fare' }, 9));
+});
+
+test.each(['filter', 'inactive', 'same-property'])('exact room comparison respects %s changes', async change => {
+  const snapshot = workspaceSnapshot('stays', 'original');
+  snapshot.results[0].rooms = ['room-a', 'room-b'].map(id => ({ id, name: id, total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }));
+  chat.messages = [{ message_id: 'historical', comparison: { options: snapshot.results[0].rooms.map(room => ({ id: room.id, title: room.name, reference: { search_id: 'original', option_id: 'option-1', room_id: room.id } })) } }];
+  fetch.mockResolvedValue({ ok: true, json: async () => snapshot });
+  const props = { selected: { plan_id: 'plan-1' }, api: {}, mode: 'accommodation', active: true, initialData, importedSnapshot: snapshot };
+  const rendered = render(<TravelWorkspace {...props}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'View room-a' }));
+  const details = await screen.findByRole('dialog');
+  let finish;
+  fetch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  fireEvent.click(within(details).getByRole('button', { name: 'Compare room' }));
+  if (change === 'filter') fireEvent.change(screen.getByPlaceholderText('Any budget'), { target: { value: '700' } });
+  if (change === 'inactive') rendered.rerender(<TravelWorkspace {...props} active={false}/>);
+  await act(async () => finish({ ok: true, json: async () => snapshot }));
+  if (change !== 'same-property') { expect(screen.queryByRole('region', { name: 'Option comparison' })).toBeNull(); return; }
+  fireEvent.click(screen.getByRole('button', { name: 'View room-b' }));
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Compare room' }));
+  await waitFor(() => expect(within(screen.getByRole('region', { name: 'Option comparison' })).getAllByRole('article')).toHaveLength(2));
+  expect(screen.getByText('Exact room: room-a')).toBeTruthy(); expect(screen.getByText('Exact room: room-b')).toBeTruthy();
 });
 
 test('opening a historical exact room keeps current inventory and never starts a supplier search', async () => {
