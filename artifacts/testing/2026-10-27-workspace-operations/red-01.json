@@ -1,0 +1,10 @@
+{
+  "command": "uv run --locked pytest -q services/agent/tests/test_specialist_tools.py -k 'registered_workspace or dirty_workspace' --tb=short",
+  "exitCode": 1,
+  "targetTest": "test_registered_workspace_operations_are_local_bounded_and_reference_checked",
+  "targetFile": "services/agent/tests/test_specialist_tools.py",
+  "output": "TAP version 13\nnot ok 1 - test_registered_workspace_operations_are_local_bounded_and_reference_checked\nnot ok 2 - test_dirty_workspace_denies_search_and_local_changes_before_provider_calls\n1..2\n# tests 2\n# pass 0\n# fail 2\n",
+  "normalization": "Actual pytest named assertion failures normalized to the GSD checker's TAP summary format; no fixture errors.",
+  "expected": "Focused SDK catalog includes update_workspace_view; dirty workspace rejects search without provider calls.",
+  "actual": "AssertionError: update_workspace_view absent from registered tools; dirty search returns successful search_id instead of is_error."
+}

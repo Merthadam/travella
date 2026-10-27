@@ -231,3 +231,43 @@ def test_specialist_evidence_budget_supports_rich_refinements_and_inspection():
         ordinary.tool_bytes = 24576
         assert ordinary._evidence({"evidence": "bounded"})["is_error"]
     asyncio.run(run())
+
+
+def workspace_specialist(topic="stays", *, dirty=False, provider=None):
+    from services.agent.request_context import bind_workspace_context, reset_workspace_context
+    from services.travel_topics import WorkspaceView
+    token = bind_workspace_context({"instance_id": "test-instance", "revision": 0, "search_id": None,
+                                   "view": WorkspaceView().model_dump(), "draft_dirty": dirty})
+    try:
+        return specialist(topic, provider=provider)
+    finally:
+        reset_workspace_context(token)
+
+
+def test_registered_workspace_operations_are_local_bounded_and_reference_checked():
+    async def run():
+        observer = workspace_specialist()
+        server = observer.server()["instance"]
+        listed = await server.request_handlers[ListToolsRequest](ListToolsRequest(method="tools/list"))
+        assert "update_workspace_view" in {item.name for item in listed.root.tools}
+        found = await sdk_call(server, "search_stays", args())
+        sid = found["search_id"]
+        calls = observer.calls
+        request = {"search_id": sid, "operation": "sort", "sort": "price"}
+        for _ in range(12):
+            changed = await sdk_call(server, "update_workspace_view", request)
+            assert changed["visible_count"] == 4
+        assert (await observer.invoke("update_workspace_view", request))["is_error"]
+        assert observer.calls == calls
+        other = workspace_specialist()
+        assert (await other.invoke("update_workspace_view", request))["is_error"]
+    asyncio.run(run())
+
+
+def test_dirty_workspace_denies_search_and_local_changes_before_provider_calls():
+    async def run():
+        observer = workspace_specialist(dirty=True)
+        result = await observer.invoke("search_stays", args())
+        assert result.get("is_error") and "pending" in str(result)
+        assert not observer.client.calls
+    asyncio.run(run())
