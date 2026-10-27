@@ -1,0 +1,47 @@
+{
+  "checks": [
+    "Keyboard Read more exposes details and preferences",
+    "Preference edit saved through real API and survived reload",
+    "Source opens its exact official URL in a new tab",
+    "Refresh replacement can be cancelled",
+    "390px mobile disclosure works without horizontal overflow",
+    "Empty saved briefing shown honestly; original generated snapshot restored",
+    "Network-failed refresh preserves saved highlights and offers retry"
+  ],
+  "errors": [],
+  "failed": [
+    {
+      "status": 404,
+      "path": "/favicon.ico"
+    },
+    {
+      "status": 401,
+      "path": "/auth/session"
+    },
+    {
+      "status": 503,
+      "path": "/v1/agent/plans/ec345f34-0687-4e7c-9af1-3169105fe155/travel/capabilities"
+    },
+    {
+      "status": 503,
+      "path": "/v1/agent/plans/ec345f34-0687-4e7c-9af1-3169105fe155/travel/capabilities"
+    },
+    {
+      "status": 503,
+      "path": "/v1/agent/plans/ec345f34-0687-4e7c-9af1-3169105fe155/travel/capabilities"
+    },
+    {
+      "status": 503,
+      "path": "/v1/agent/plans/ec345f34-0687-4e7c-9af1-3169105fe155/travel/capabilities"
+    },
+    {
+      "status": 503,
+      "path": "/v1/agent/plans/ec345f34-0687-4e7c-9af1-3169105fe155/travel/capabilities"
+    },
+    {
+      "status": 503,
+      "path": "/v1/agent/plans/ec345f34-0687-4e7c-9af1-3169105fe155/travel/capabilities"
+    }
+  ],
+  "plan_id": "ec345f34-0687-4e7c-9af1-3169105fe155"
+}

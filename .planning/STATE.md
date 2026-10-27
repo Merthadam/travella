@@ -18,7 +18,7 @@ progress:
 
 # Project State
 
-Prototype update (2026-10-27): User rejected Trip essentials variants A/B/C and agreed to one compact whole-trip briefing with useful sources tailored to the destination and trip purpose. Revised D is the default preview at port 5192 on `prototype/trip-essentials-20261026` (source `ea0dee8`). Lisbon now includes official transport and matching attraction sources. Browser/build evidence: `artifacts/testing/2026-10-27-tailored-sources/verification.md`. Sources remain manually selected in the prototype; production generation and automatic source selection remain pending. No phase acceptance status changed.
+Briefing update (2026-10-27): User approved compact prototype D and requested implementation. Production TripBriefing now replaces the three canvas cards on `feat/trip-briefing` (research c8bf67c, UI ec205d0), with evidence-backed tailored research and real persistence. Original prototypes remain on `prototype/trip-essentials-20261026` at d30d672. Local implementation: port 5193. Browser/live generation/build evidence: `artifacts/testing/2026-10-27-trip-briefing/verification.md`. 123 focused tests passed. Local travel capabilities are unavailable (503); no main merge or phase acceptance change.
 
 ### Quick Tasks Completed
 
@@ -26,6 +26,7 @@ Prototype update (2026-10-27): User rejected Trip essentials variants A/B/C and 
 |---|-------------|------|--------|-----------|
 | 261027-rif | Refine trip essentials into one compact whole-trip briefing prototype | 2026-10-27 | 3871fc4 | [261027-rif](./quick/261027-rif-refine-trip-essentials-into-one-compact-/) |
 | 261027-rwm | Tailor compact briefing sources to city transport and matching sights | 2026-10-27 | ea0dee8 | [261027-rwm](./quick/261027-rwm-tailor-compact-briefing-source-links-to-/) |
+| 261027-sl1 | Implement compact trip briefing with tailored observed sources | 2026-10-27 | ec205d0 | [261027-sl1](./quick/261027-sl1-implement-approved-compact-trip-briefing/) |
 
 ## Project Reference
 
@@ -39,7 +40,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-27 — Completed quick task 261027-rwm: tailored city sources in the compact briefing prototype; browser and build verified.
+Last activity: 2026-10-27 — Completed quick task 261027-sl1: production compact briefing, tailored research and live save/reload verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
