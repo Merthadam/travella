@@ -428,7 +428,7 @@ class SpecialistTravelTools(CanvasTravelTools):
     evidence_limit = 96 * 1024
     category_limits = {"lookup": 2, "inspection": 6, "stays": 3, "flights": 3}
 
-    def __init__(self, *args, topic, **kwargs):
+    def __init__(self, *args, topic, workspace_context=None, **kwargs):
         if topic not in {"stays", "flights"}:
             raise ValueError("invalid_specialist_topic")
         super().__init__(*args, **kwargs)
@@ -444,7 +444,7 @@ class SpecialistTravelTools(CanvasTravelTools):
         self.observation_times = {}
         self.failed_calls = set()
         from ..request_context import current_workspace_context
-        workspace_context = current_workspace_context()
+        workspace_context = workspace_context if workspace_context is not None else current_workspace_context()
         self.workspace = WorkspaceSession(self.context.traveler_scope, self.context.plan_id, topic, workspace_context) if workspace_context else None
         if self.workspace is not None:
             self.names.add("update_workspace_view")
@@ -490,6 +490,11 @@ class SpecialistTravelTools(CanvasTravelTools):
                                 self.observation_times[option.id] = payload["searched_at"]
         elif name == "verify_flight_offer":
             self.observation_times[arguments["option_id"]] = payload["checked_at"]
+        if self.workspace and self.workspace.search_id in self.snapshots:
+            # Room-rate inspection can replace a property's observed rate IDs.
+            # Subsequent local operations must validate against those same facts.
+            from ..travel_registry import travel_registry
+            travel_registry.put(self.context.traveler_scope, self.context.plan_id, self.snapshots[self.workspace.search_id])
         return response
 
     async def _call(self, action, criteria, category):
@@ -590,6 +595,8 @@ class SpecialistTravelTools(CanvasTravelTools):
             if not snapshot or selection.mode != self.mode or snapshot.search_id in seen or datetime.fromisoformat(snapshot.expires_at) <= datetime.now(UTC):
                 raise ValueError("travel_selection_unknown")
             valid = {item.id for item in snapshot.results[:self.preview_limit]}
+            if self.workspace and self.workspace.search_id == snapshot.search_id:
+                valid.update(ref.option_id for ref in self.workspace.view.comparison_refs)
             if not set(selection.option_ids).issubset(valid) or len(set(selection.option_ids)) != len(selection.option_ids) or option_ids.intersection(selection.option_ids):
                 raise ValueError("travel_option_unknown")
             seen.add(snapshot.search_id)

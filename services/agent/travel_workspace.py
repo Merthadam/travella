@@ -1,4 +1,5 @@
 """Bounded temporary view operations over authorized, observed travel results."""
+import json
 from decimal import Decimal
 from typing import Literal
 
@@ -152,3 +153,37 @@ def finalize_workspace_view(session):
         return None
     session.current(session.search_id)
     return {"search_id": session.search_id, "view": session.view.model_dump()}
+
+
+def workspace_comparison_evidence(session):
+    """Ordered exact references, with bounded facts and no implied room choice."""
+    if not session or not session.search_id:
+        return []
+    snapshot = session.current(session.search_id)
+    evidence = []
+    for ref in session.view.comparison_refs:
+        option = next(item for item in snapshot.results if item.id == ref.option_id)
+        raw = option.model_dump(mode="json")
+        if snapshot.mode == "stays":
+            facts = {key: raw[key] for key in ("id", "hotel_id", "name", "stars", "review_score")}
+            room = next((item for item in option.rooms if item.id == ref.room_id), None)
+            rate = room.model_dump(mode="json", exclude={"excluded_taxes"}) if room else None
+            if rate is not None:
+                rate["excluded_taxes_omitted"] = len(room.excluded_taxes)
+        else:
+            facts = {key: raw[key] for key in ("id", "baggage_summary", "cabin_bag_included", "refundable", "cancellation_summary")}
+            facts["price"] = {key: raw["price"][key] for key in ("amount", "currency", "basis", "estimated")}
+            for leg in ("outbound", "inbound"):
+                facts[leg] = {key: raw[leg][key] for key in ("stops", "duration_minutes")}
+            rate = None
+        evidence.append({"reference": ref.model_dump(), "observed_at": snapshot.searched_at,
+                         "option": facts, "room": rate,
+                         "detail_notice": "Bounded evidence; inspect for omitted facilities, segments and taxes. A null room is not a selected rate."})
+    if len(json.dumps(evidence, ensure_ascii=False).encode()) > 12288:
+        # Preserve exact identity and ordinal authority; never silently truncate
+        # cancellation/occupancy text into a different factual claim.
+        return [{"reference": item["reference"], "observed_at": item["observed_at"],
+                 "option": {"id": item["option"]["id"]}, "room": {"id": item["room"]["id"]} if item["room"] else None,
+                 "evidence_omitted": True, "detail_notice": "Inspect exact references; detailed comparison evidence exceeded the input budget."}
+                for item in evidence]
+    return evidence

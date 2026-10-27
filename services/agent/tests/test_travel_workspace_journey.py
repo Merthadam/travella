@@ -33,7 +33,7 @@ def workspace(**extra):
             "view": WorkspaceView().model_dump(), "draft_dirty": False, **extra}
 
 
-def real_handler(system, monkeypatch, pid, *, topic="stays", count=4):
+def real_handler(system, monkeypatch, pid, *, topic="stays", count=4, view_only=False):
     from services.trip_context import TripContext
     from langgraph.checkpoint.memory import InMemorySaver
     with system.factory() as db:
@@ -49,7 +49,12 @@ def real_handler(system, monkeypatch, pid, *, topic="stays", count=4):
     monkeypatch.setattr("services.agent.claude.travel_specialist.TravelClient", lambda: Provider(count))
     config = ResearchWorkerConfig(api_key="test-only-no-network")
     async def query(*, prompt, options, transport):
-        if not json.loads(prompt).get("workspace", {}).get("draft_dirty"):
+        if view_only:
+            assert json.loads(prompt)['workspace']['search_id']
+            changed = await sdk_call(options.mcp_servers['travel']['instance'], 'update_workspace_view',
+                {'search_id': json.loads(prompt)['workspace']['search_id'], 'operation': 'sort', 'sort': 'price'})
+            assert changed['changed']
+        elif not json.loads(prompt).get("workspace", {}).get("draft_dirty"):
             found = await sdk_call(options.mcp_servers["travel"]["instance"], f"search_{topic}",
                 {"criteria": STAY if topic == "stays" else FLIGHT, "dates": {"source": "canvas"}})
             assert "search_id" in found, found
@@ -73,6 +78,24 @@ def real_handler(system, monkeypatch, pid, *, topic="stays", count=4):
     monkeypatch.setattr(graph.compiled, "ainvoke", capture)
     return AgentTurnService(plan_reader=CrudPlanReader("http://crud"), context_reader=CrudContextReader("http://crud"),
         graph=graph, runs=PlanRunStore(), receipts=ProcessReceiptCache()), captured
+
+
+def test_view_only_turn_releases_original_search_after_signed_commit(system, monkeypatch):
+    from services.agent.tests.test_canvas_travel import hotels
+    pid = create(system)['plan_id']
+    sid = travel_registry.manual('traveler-one', pid, 'hotels/search', STAY, hotels(3))
+    before = travel_registry.get('traveler-one', pid, sid, 'stays')
+    handler, captured = real_handler(system, monkeypatch, pid, view_only=True)
+    req = AgentRequest(plan_id=pid, event_id=str(uuid4()), topic='stays', message='Sort current results by price', workspace_context=workspace(search_id=sid))
+    response = asyncio.run(handler.handle(req, 'traveler-one', f'Bearer {system.token}'))
+    assert response.workspace_update.search_id == sid
+    assert response.workspace_update.view.sort == 'price'
+    assert response.workspace_update.snapshot['searched_at'] == before.searched_at
+    saved = system.client.get(f'/v1/plans/{pid}/travel/stays').json()
+    assert len(saved['messages']) == 2 and saved['shortlist'] == [] and saved['preferred'] is None
+    assert all('workspace' not in item for item in captured)
+    with system.factory() as db:
+        assert db.scalar(select(TravelTopicRun)).status == 'complete'
 
 
 @pytest.mark.parametrize("topic,count", [("stays", 4), ("flights", 4), ("stays", 0)])

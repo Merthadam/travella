@@ -179,7 +179,7 @@ class ClaudeSdkTravelSpecialist:
             if isinstance(brief.get("destination"), str):
                 draft.components.setdefault("map", {})["destination"] = brief["destination"]
         travel = SpecialistTravelTools(self.travel_client or TravelClient(), bounded,
-            authorization_token, draft, message, time.monotonic() + min(120, self.config.timeout_seconds), topic=topic)
+            authorization_token, draft, message, time.monotonic() + min(120, self.config.timeout_seconds), topic=topic, workspace_context=workspace_context)
         if not saved_canvas:
             travel.names = set()
         attached = []
@@ -233,6 +233,8 @@ class ClaudeSdkTravelSpecialist:
             payload["workspace_instruction"] = "This is temporary applied research, not saved trip facts. Pending draft edits prohibit workspace changes. After successful completion the host applies the final search and update_workspace_view operations once. Never weaken a hard requirement."
             if current_snapshot:
                 payload["workspace_options"] = travel._preview_options(current_snapshot)
+                from ..travel_workspace import workspace_comparison_evidence
+                payload["workspace_comparison"] = workspace_comparison_evidence(travel.workspace)
         if attached:
             payload["selected_options"] = attached
             payload["selection_intent"] = selected_context["discussion"].intent
