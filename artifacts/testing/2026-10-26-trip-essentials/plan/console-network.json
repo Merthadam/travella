@@ -1,0 +1,24 @@
+{
+  "failed": [
+    {
+      "status": 404,
+      "path": "/favicon.ico"
+    },
+    {
+      "status": 401,
+      "path": "/auth/session"
+    },
+    {
+      "status": 503,
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    }
+  ],
+  "warnings": [
+    "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "<gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener."
+  ],
+  "errors": []
+}
