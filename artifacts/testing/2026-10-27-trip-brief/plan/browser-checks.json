@@ -1,0 +1,220 @@
+{
+  "tool": "Chrome DevTools protocol, isolated Chrome with --disable-gpu (existing MCP capture timeout workaround)",
+  "results": [
+    "Captured brief-desktop",
+    "Captured brief-expanded",
+    {
+      "check": "Desktop compact briefing",
+      "height": 301,
+      "words": 95
+    },
+    "Disclosure click/Enter/Space, aria-expanded, focus and reload reset passed",
+    "Source opens official tourism page in separate tab",
+    "Captured brief-generating",
+    "Captured brief-empty",
+    "Captured brief-mobile",
+    "Captured brief-mobile-expanded",
+    "Captured brief-light",
+    "Mobile expand/collapse, no horizontal overflow, dark/light and loading/empty passed",
+    "Default route now shows compact briefing; no Plan writes or model calls"
+  ],
+  "errors": [],
+  "failed": [
+    {
+      "status": 404,
+      "path": "/favicon.ico"
+    },
+    {
+      "status": 401,
+      "path": "/auth/session"
+    }
+  ],
+  "warnings": [
+    "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "<gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener.",
+    "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.",
+    "<gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener.",
+    "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.",
+    "<gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener.",
+    "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.",
+    "<gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener.",
+    "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.",
+    "<gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener."
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/places/ChIJO_PkYRozGQ0R0DaQ5L3rAAQ/photos/[reference]/media"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/places/ChIJO_PkYRozGQ0R0DaQ5L3rAAQ/photos/[reference]/media"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/places/ChIJO_PkYRozGQ0R0DaQ5L3rAAQ/photos/[reference]/media"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    }
+  ]
+}

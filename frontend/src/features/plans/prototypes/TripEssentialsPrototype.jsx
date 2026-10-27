@@ -2,6 +2,7 @@
 // Sample content and all actions are local to this component; no API/model calls.
 import React, { useEffect, useRef, useState } from 'react';
 import { TripEssentialsPrototypeSwitcher } from '../../../design-system/components/TripEssentialsPrototypeSwitcher';
+import { TripBriefPrototype } from './TripBriefPrototype';
 import './trip-essentials-prototype.css';
 
 export const directions = { A: 'At a glance', B: 'Field guide', C: 'Before you go' };
@@ -52,7 +53,7 @@ function LocalDialog({ ui }) {
 }
 
 export function TripEssentialsPrototype({ destination }) {
-  const readVariant=()=>{const v=new URLSearchParams(location.search).get('variant');return directions[v]?v:'A';};
+  const readVariant=()=>{const v=new URLSearchParams(location.search).get('variant');return directions[v]?v:'D';};
   const [variant,setVariant]=useState(readVariant),[prefs,setPrefs]=useState(preferences.slice(0,3)),[transport,setTransport]=useState(null),[kept,setKept]=useState([]),[expanded,setExpanded]=useState(null),[topic,setTopic]=useState('entry'),[dialog,setDialog]=useState(null),[notice,setNotice]=useState(''),[phase,setPhase]=useState('ready');
   const root=useRef(null);
   function changeVariant(v){setVariant(v);const url=new URL(location.href);url.searchParams.set('variant',v);history.replaceState(history.state,'',url);setNotice('');}
@@ -62,5 +63,6 @@ export function TripEssentialsPrototype({ destination }) {
   const toggleKeep=id=>{setKept(previous=>previous.includes(id)?previous.filter(x=>x!==id):[...previous,id]);setNotice('Your kept notes changed in this preview only.');};
   const ui={city:destination?.split(',')[0]||'your destination',prefs,setPrefs,transport,choose,kept,toggleKeep,expanded,setExpanded,topic,setTopic,dialog,setDialog,setNotice};
   const state={variant,phase,preferences:prefs,transport,keptNotes:kept,expandedNote:expanded,topic,dialog,source:'illustrative sample',persistence:'none',modelCalls:0};
+  if (variant === 'D') return <TripBriefPrototype/>;
   return <div className="te-prototype" ref={root} data-trip-essentials-prototype><div className="te-preview-label"><span>DESIGN PREVIEW</span><p>One component, three directions. Sample advice; these actions don’t change your plan.</p></div>{phase==='ready' ? variant==='A'?<VariantA ui={ui}/>:variant==='B'?<VariantB ui={ui}/>:<VariantC ui={ui}/> : <section className="te-component te-placeholder" aria-label="Trip essentials sample state"><Glyph name="spark" size={32}/><span className="te-kicker">TRIP ESSENTIALS</span><h2>{phase==='generating'?'Finding the useful little details…':'A little room for discovery.'}</h2><p>{phase==='generating'?'Looking at your places, your pace, and what could make the trip easier.':'Useful advice will collect here as your trip takes shape. There’s nothing extra to work through yet.'}</p>{phase==='generating'&&<div className="te-loading-lines"><span/><span/><span/></div>}</section>}<div className="te-review-controls"><label>Preview state<select value={phase} onChange={e=>setPhase(e.target.value)}><option value="ready">Ready</option><option value="generating">Generating</option><option value="empty">Empty</option></select></label><button onClick={()=>{setPrefs(preferences.slice(0,3));setKept([]);setTransport(null);setExpanded(null);setTopic('entry');setPhase('ready');setNotice('Sample choices reset.');}}>Reset sample choices</button><span>Simulated interactions · no live research</span></div><p className="te-live-status" role="status">{notice}</p><details className="te-state"><summary>Prototype state · {directions[variant]} · {kept.length} kept · {transport?'choice made':'choice open'}</summary><pre>{JSON.stringify(state,null,2)}</pre></details><TripEssentialsPrototypeSwitcher variants={directions} value={variant} onChange={changeVariant} blocked={Boolean(dialog)}/>{dialog&&<LocalDialog ui={ui}/>}</div>;
 }
