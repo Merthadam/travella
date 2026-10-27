@@ -7,8 +7,11 @@ import { initialWorkspace, travelWorkspaceReducer, useTravelWorkspace } from './
 import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 
 const chat = vi.hoisted(() => ({ active: true, loading: false, historyError: 'History unavailable', messages: [], snapshot: null, stop: vi.fn(() => new Promise(() => {})) }));
-vi.mock('./useTravelConversation', () => ({ useTravelConversation: () => chat }));
-vi.mock('./TravelConversation', () => ({ TravelConversation: ({ onClose }) => <button onClick={onClose}>Close chat</button> }));
+vi.mock('./useTravelConversation', async importOriginal => {
+  const actual = await importOriginal();
+  return { useTravelConversation: props => chat.real ? actual.useTravelConversation(props) : chat };
+});
+vi.mock('./TravelConversation', () => ({ TravelConversation: ({ onClose, chat: conversation }) => <><button onClick={onClose}>Close chat</button>{chat.real && <button onClick={() => conversation.send('Find stays')}>Send workspace search</button>}</> }));
 const initialData = { map: { destination: 'Rome' } };
 export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   const price = { amount: '100', currency: 'EUR', basis: topic === 'stays' ? 'stay' : 'party_return', estimated: true, excluded_taxes: [] };
@@ -18,7 +21,35 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   return { search_id: searchId, plan_id: 'plan-1', mode: topic, generation: 1, fingerprint: 'a'.repeat(64), draft_facts: draftTravelFacts(initialData), searched_at: new Date().toISOString(), expires_at: new Date(Date.now() + 600000).toISOString(), provider: 'LiteAPI', sandbox: true, returned_count: 1, truncated: false, notices: [], preview_ids: [item.id], search_only_dates: false, criteria, results: [item] };
 }
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn(); });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); chat.real = false; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+
+test.each(['current', 'draft', 'sort', 'stop'])('real conversation delivers one committed batch and rejects %s races', async race => {
+  chat.real = true;
+  let finish, stream, eventId;
+  const saved = { plan_id: 'plan-1', topic: 'stays', revision: 1, brief: { digest: 'b'.repeat(64) }, messages: [], notes: { items: [] }, shortlist: [], locked: false };
+  const api = { travelTopic: vi.fn(async () => saved), cancelAgentTurn: vi.fn(async () => ({})),
+    travelTurn: vi.fn((plan, topic, message, id, options) => { eventId = id; stream = options; return new Promise(resolve => { finish = resolve; }); }) };
+  let stop;
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData}
+    registerStop={(topic, fn) => { stop = fn; }}/ >);
+  await waitFor(() => expect(api.travelTopic).toHaveBeenCalled());
+  fireEvent.click(screen.getByText('Send workspace search'));
+  await waitFor(() => expect(stream).toBeTruthy());
+  expect(stream.workspaceContext).toMatchObject({ revision: 0, draft_dirty: false, search_id: null });
+  const batch = { ...update(), run_id: eventId, instance_id: stream.workspaceContext.instance_id };
+  await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
+  expect(screen.queryByRole('heading', { name: 'search-1' })).toBeNull();
+  if (race === 'draft') fireEvent.change(screen.getByLabelText('Destination city'), { target: { value: 'Paris' } });
+  if (race === 'sort') fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'price' } });
+  if (race === 'stop') await act(async () => stop());
+  await act(async () => { stream.onEvent({ type: 'TERMINAL', status: 'complete', workspace_update: batch }); finish({ status: 'complete', workspace_update: batch }); });
+  if (race === 'current') {
+    expect(await screen.findByRole('heading', { name: 'search-1' })).toBeTruthy();
+    // Late duplicate delivery after the run ended cannot apply again.
+    await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
+    expect(screen.getAllByRole('heading', { name: 'search-1' })).toHaveLength(1);
+  } else expect(screen.queryByRole('heading', { name: 'search-1' })).toBeNull();
+});
 
 test.each(['stays', 'flights'])('mounted %s manual HTTP search works with chat closed and unresolved cancellation; typing rejects late completion', async topic => {
   let finish;
