@@ -130,6 +130,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261026-ksg | Connected reply suggestions, exact context and manual/chat choices; browser auth recovered | 2026-10-27 | b0182f1 | Verified — sandbox desktop/mobile; phase UAT unchanged | [261026-ksg](./quick/261026-ksg-connect-topic-chat-suggestions-and-exact/) |
 | 261025-g4x | Add LiteAPI stay details/reviews/rates and flight verification tools | 2026-10-25 | caf905b | 29 targeted tests passed; 387 broad passes with 8 baseline UI failures; no live calls/deployment | [Task](quick/261025-g4x-add-read-only-hotel-details-reviews-and-/) |
 | 261025-fzw | Research LiteAPI tools and scoped Claude SDK conversations | 2026-10-25 | 877b5b5 | Documentation/source review complete; no implementation or live capability verification | [Task](quick/261025-fzw-research-liteapi-tools-and-scoped-claude/) |
 | 261024-m71 | Persist Google place descriptions | 2026-10-24 | a11bf00 | 65 tests/build passed; reload uses saved descriptions with zero detail requests | [Task](quick/261024-m71-persist-google-place-descriptions-in-sav/) |
@@ -399,4 +400,3 @@ Resume file: None
 - Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
 - Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.
 
-| 261026-ksg | Connected reply suggestions, exact context and manual/chat choices; browser auth recovered | 2026-10-27 | b0182f1 | Verified — sandbox desktop/mobile; phase UAT unchanged | [261026-ksg](./quick/261026-ksg-connect-topic-chat-suggestions-and-exact/) |
