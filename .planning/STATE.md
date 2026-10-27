@@ -18,7 +18,13 @@ progress:
 
 # Project State
 
-Prototype update (2026-10-27): Combined Trip essentials variants A/B/C captured on `prototype/trip-essentials-20261026`; interactive preview at port 5192. Browser/build evidence: `artifacts/testing/2026-10-26-trip-essentials/verification.md`. User design selection and production/subagent integration remain pending; no phase acceptance status changed.
+Prototype update (2026-10-27): User rejected Trip essentials variants A/B/C and agreed to one compact whole-trip briefing. Revised D is the default preview at port 5192 on `prototype/trip-essentials-20261026` (source `3871fc4`). Browser/build evidence: `artifacts/testing/2026-10-27-trip-brief/verification.md`. Revised visual review and production/subagent integration remain pending; no phase acceptance status changed.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261027-rif | Refine trip essentials into one compact whole-trip briefing prototype | 2026-10-27 | 3871fc4 | [261027-rif](./quick/261027-rif-refine-trip-essentials-into-one-compact-/) |
 
 ## Project Reference
 
@@ -32,7 +38,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-26 — Completed quick task 261026-bob: latest main started locally; health, authentication and source hashes verified.
+Last activity: 2026-10-27 — Completed quick task 261027-rif: compact whole-trip briefing prototype; browser and build verified.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
