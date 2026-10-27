@@ -14,7 +14,7 @@ vi.mock('./useTravelConversation', async importOriginal => {
   const actual = await importOriginal();
   return { useTravelConversation: props => chat.real ? actual.useTravelConversation(props) : chat };
 });
-vi.mock('./TravelConversation', () => ({ TravelConversation: ({ onClose, chat: conversation }) => <><input aria-label="Unsent message"/><button onClick={onClose}>Close chat</button>{chat.real && <button onClick={() => conversation.send('Find stays')}>Send workspace search</button>}</> }));
+vi.mock('./TravelConversation', () => ({ TravelConversation: ({ onClose, chat: conversation, renderReferences }) => <><input aria-label="Unsent message"/><button onClick={onClose}>Close chat</button>{conversation.messages?.map(message => <div key={message.message_id}>{renderReferences?.(message)}</div>)}{chat.real && <button onClick={() => conversation.send('Find stays')}>Send workspace search</button>}</> }));
 const initialData = { map: { destination: 'Rome' } };
 export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   const price = { amount: '100', currency: 'EUR', basis: topic === 'stays' ? 'stay' : 'party_return', estimated: true, excluded_taxes: [] };
@@ -24,7 +24,7 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   return { search_id: searchId, plan_id: 'plan-1', mode: topic, generation: 1, fingerprint: 'a'.repeat(64), draft_facts: draftTravelFacts(initialData), searched_at: new Date().toISOString(), expires_at: new Date(Date.now() + 600000).toISOString(), provider: 'LiteAPI', sandbox: true, returned_count: 1, truncated: false, notices: [], preview_ids: [item.id], search_only_dates: false, criteria, results: [item] };
 }
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(function () { this.removeAttribute("open"); }); HTMLDialogElement.prototype.showModal = vi.fn(function () { this.setAttribute("open", ""); }); });
-afterEach(() => { cleanup(); chat.real = false; chat.active = true; chat.snapshot = null; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); chat.real = false; chat.active = true; chat.snapshot = null; chat.messages = []; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 test('manual exact fare review and confirmed receipt survive unavailable chat history', async () => {
   chat.active = false; chat.send = vi.fn(); chat.refresh = vi.fn(async () => { throw new Error('History unavailable'); });
@@ -43,6 +43,35 @@ test('manual exact fare review and confirmed receipt survive unavailable chat hi
   expect(await screen.findByText('Ready · selected, not booked')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Confirm choice · not booked' })).toBeNull();
   expect(api.commitTravelChoice).toHaveBeenCalledTimes(1);
+  const saved = screen.getByRole('region', { name: 'Preferred option' });
+  expect(saved.closest('.travel-options-pane')).toBeTruthy();
+  expect(within(saved).getByRole('button', { name: 'Remove choice' }).disabled).toBe(false);
+  fireEvent.click(within(saved).getByRole('button', { name: 'Remove choice' }));
+  await waitFor(() => expect(api.prepareTravelChoice).toHaveBeenLastCalledWith({ plan_id: 'plan-1' }, 'flights', { action: 'remove', evidence_id: 'observed-fare' }, 9));
+});
+
+test('opening a historical exact room keeps current inventory and never starts a supplier search', async () => {
+  const original = workspaceSnapshot('stays', 'original'), present = workspaceSnapshot('stays', 'current');
+  const room = { id: 'exact-room', name: 'Private apartment', total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults, 0 children' };
+  original.results[0].rooms = [room, { ...room, id: 'other-room', name: 'Other room', total: { amount: '100', currency: 'EUR' } }];
+  chat.messages = [{ message_id: 'historical', comparison: { options: [{ id: 'old', title: 'Earlier private apartment', reference: { search_id: 'original', option_id: 'option-1', room_id: 'exact-room' } }] } }];
+  fetch.mockResolvedValue({ ok: true, json: async () => original });
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="accommodation" active initialData={initialData} importedSnapshot={present}/>);
+  fireEvent.change(screen.getByLabelText('Unsent message'), { target: { value: 'Keep this draft' } });
+  fireEvent.click(screen.getByRole('button', { name: 'View Earlier private apartment' }));
+  const details = await screen.findByRole('dialog', { name: 'original' });
+  expect(within(details).getByText('Private apartment')).toBeTruthy();
+  expect(within(details).queryByText('Other room')).toBeNull();
+  expect(within(details).getByText('Original observed offer · no availability refresh requested.')).toBeTruthy();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls[0][0]).toContain('research/snapshot?search_id=original');
+  expect(screen.getByLabelText('Unsent message').value).toBe('Keep this draft');
+  expect(screen.getByRole('heading', { name: 'current' })).toBeTruthy();
+  fireEvent.click(within(details).getByRole('button', { name: 'Close details' }));
+  fetch.mockResolvedValue({ ok: false, status: 404 });
+  fireEvent.click(screen.getByRole('button', { name: 'View Earlier private apartment' }));
+  expect(await screen.findByText(/This earlier observation is no longer available/)).toBeTruthy();
+  expect(fetch.mock.calls.every(([url]) => url.includes('research/snapshot?'))).toBe(true);
 });
 
 test.each(['review', 'challenge'])('switching away fences a delayed manual %s response', async stage => {

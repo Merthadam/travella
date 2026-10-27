@@ -82,5 +82,9 @@
 .travel-discussion-context button { flex: none; min-width: 32px; min-height: 32px; }
 .travel-saved-options { padding: 12px 0; border-top: 1px solid var(--ds-line); }
 .travel-saved-options > summary { cursor: pointer; font-size: 13px; }
+.travel-reply-references{font-size:12px;margin:10px 0;color:var(--ds-muted)}
+.travel-reply-references p{margin:0 0 6px}.travel-reply-references ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.travel-reply-references li{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;overflow-wrap:anywhere}
+.travel-reply-references li>button:first-child{text-align:left;color:var(--ds-green)}
 .canvas-chat-message .travel-chat-suggestions { padding: 0; }
 .travel-chat-suggestions .travel-option-actions > .ds-button { flex: 1 1 calc(50% - 8px); min-width: 120px; }

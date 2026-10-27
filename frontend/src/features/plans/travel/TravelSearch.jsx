@@ -253,17 +253,18 @@ function Room({ room, onCheckout, onDiscuss, onChoose, onCompare }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, choiceDisabled, detached, observedAt, expiresAt, checkoutToken }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, choiceDisabled, detached, historical, roomId, observedAt, expiresAt, checkoutToken }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
-  const [rooms, setRooms] = useState(item.rooms || []);
+  const [rooms, setRooms] = useState(roomId ? (item.rooms || []).filter(room => room.id === roomId) : item.rooms || []);
   const [observation, setObservation] = useState({ search_id: searchId, option_id: item.id });
   const [evidenceExpiry, setEvidenceExpiry] = useState(expiresAt);
   const [roomObservedAt, setRoomObservedAt] = useState(null);
   const evidenceExpired = !Number.isFinite(Date.parse(evidenceExpiry)) || Date.now() >= Date.parse(evidenceExpiry);
   const attach = room => ({ title: stay ? `${item.name}${room ? ` · ${room.name}` : ''}` : item.airlines.join(' / '), reference: { ...observation, room_id: room?.id || null } });
-  const [loading, setLoading] = useState(stay);
+  const observedOnly = historical || Boolean(roomId);
+  const [loading, setLoading] = useState(stay && !observedOnly);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   useEffect(() => {
@@ -272,7 +273,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
     return () => focus?.focus?.();
   }, []);
   useEffect(() => {
-    if (!stay) return;
+    if (!stay || observedOnly) return;
     const controller = new AbortController();
     let live = true;
     setLoading(true);
@@ -340,6 +341,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
         {sandbox ? "LiteAPI sandbox · test inventory" : "LiteAPI results"}
       </p>
       {detached && <p role="status">Earlier search · inspecting its original observation. The main results have changed.</p>}
+      {observedOnly && <p role="status">Original observed offer · no availability refresh requested.</p>}
       <p className="travel-note">Observed {new Date(observedAt).toLocaleString()} · {criteria.check_in || criteria.departure_date} – {criteria.check_out || criteria.return_date}</p>
       {roomObservedAt && <p className="travel-note">Room availability checked {new Date(roomObservedAt).toLocaleString()}. The original search observation above is unchanged.</p>}
       {evidenceExpired && <p role="status">This offer has expired. Search again before choosing it.</p>}
@@ -1175,7 +1177,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       <TravelComparison entries={comparison} currentSearchId={snapshot?.search_id} onChoose={onChoose} onShortlist={onShortlist} choiceDisabled={choiceDisabled} onClose={() => { setComparison([]); comparisonRun.current++; setDiscussing(false); }} onDetails={entry => workspace.dispatch({ type: 'details', value: entry })} onDiscuss={onCompare ? () => discussComparison(comparison) : null} discussionError={comparisonError} discussing={discussing}/>
       {detail && (
         <Detail
-          key={`${detailsReference.snapshot.search_id}:${detail.id}`}
+          key={`${detailsReference.snapshot.search_id}:${detail.id}:${detailsReference.reference?.room_id || ''}:${Boolean(detailsReference.historical)}`}
           item={detail}
           stay={stay}
           planId={planId}
@@ -1184,6 +1186,8 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           observedAt={detailsReference.snapshot.searched_at}
           expiresAt={detailsReference.snapshot.expires_at}
           detached={detailsReference.snapshot.search_id !== snapshot?.search_id}
+          historical={detailsReference.historical}
+          roomId={detailsReference.reference?.room_id}
           checkoutToken={workspace.getCheckoutToken(detailsReference.reference)}
           onDiscuss={onDiscuss}
           onChoose={onChoose}

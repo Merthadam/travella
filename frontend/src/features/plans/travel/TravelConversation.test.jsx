@@ -177,3 +177,15 @@ test('typing the next draft while a reply runs survives asynchronous completion'
   expect(composer.value).toBe('My next unsent question');
   expect(api.travelTurn).toHaveBeenCalledTimes(1);
 });
+
+test('only explicit structured comparison can send while the topic pane is hidden', async () => {
+  const api = { travelTopic: vi.fn(async () => snapshot('flights')), travelTurn: vi.fn(async () => ({ status: 'complete' })), cancelAgentTurn: vi.fn(async () => ({})) };
+  const { result } = renderHook(() => useTravelConversation({ api, selected, topic: 'flights', visible: false }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  const references = [{ search_id: 'one', option_id: 'flight-2', room_id: null }, { search_id: 'one', option_id: 'flight-1', room_id: null }];
+  await act(async () => expect(await result.current.send('Normal send')).toBe(false));
+  await act(async () => expect(await result.current.send('Discuss', { intent: 'discuss', options: references }, { explicitComparison: true })).toBe(false));
+  await act(async () => expect(await result.current.send('Compare', { intent: 'compare', options: references }, { explicitComparison: true })).toBeTruthy());
+  expect(api.travelTurn).toHaveBeenCalledTimes(1);
+  expect(api.travelTurn.mock.calls[0][4].travelDiscussion.options).toEqual(references);
+});
