@@ -24,7 +24,26 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   return { search_id: searchId, plan_id: 'plan-1', mode: topic, generation: 1, fingerprint: 'a'.repeat(64), draft_facts: draftTravelFacts(initialData), searched_at: new Date().toISOString(), expires_at: new Date(Date.now() + 600000).toISOString(), provider: 'LiteAPI', sandbox: true, returned_count: 1, truncated: false, notices: [], preview_ids: [item.id], search_only_dates: false, criteria, results: [item] };
 }
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn(); });
-afterEach(() => { cleanup(); chat.real = false; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); chat.real = false; chat.active = true; chat.snapshot = null; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
+
+test('manual exact fare review and confirmed receipt survive unavailable chat history', async () => {
+  chat.active = false; chat.send = vi.fn(); chat.refresh = vi.fn(async () => { throw new Error('History unavailable'); });
+  const data = workspaceSnapshot('flights'), reference = { search_id: data.search_id, option_id: 'option-1', room_id: null };
+  const option = { id: 'observed-fare', title: 'Exact return fare', reference, price_label: 'EUR 100', observed_at: new Date().toISOString(), facts: ['Return fare for 2 adults'], unknowns: [], provider: 'LiteAPI' };
+  const receipt = { plan_id: 'plan-1', topic: 'flights', revision: 8, comparison: { options: [option] }, shortlist: [], preferred: null, readiness: 'researching' };
+  const committed = { ...receipt, revision: 9, preferred: option, shortlist: [option], readiness: 'ready' };
+  const api = { travelTurn: vi.fn(async () => ({ status: 'complete', travel_specialist_result: receipt })), prepareTravelChoice: vi.fn(async () => ({ revision: 8, challenge: 'exact-review' })), commitTravelChoice: vi.fn(async () => committed) };
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={data}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  await waitFor(() => expect(api.prepareTravelChoice).toHaveBeenCalledWith({ plan_id: 'plan-1' }, 'flights', { action: 'prefer', evidence_id: 'observed-fare' }, 8));
+  expect(chat.send).not.toHaveBeenCalled();
+  expect(api.commitTravelChoice).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm choice · not booked' }));
+  expect(await screen.findByText('Ready · selected, not booked')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Confirm choice · not booked' })).toBeNull();
+  expect(api.commitTravelChoice).toHaveBeenCalledTimes(1);
+});
 
 test('main comparison preserves selection order and facts when discussion fails or search changes', async () => {
   chat.send = vi.fn(async () => false);
