@@ -47,11 +47,19 @@ def first(raw):
     return rows[0]
 
 
-def flight_for(journey, criteria):
+def flight_for(journey, criteria, selected=None):
     # Verify/prebook use a single journey with pricing, not search's offers list.
     normalized, _ = normalize_flights({"data": [{"journeys": [{**journey, "cheapestOffer": journey}]}]}, criteria)
     if len(normalized) != 1 or normalized[0]["price"]["amount"] is None:
         raise ProviderUnavailable("provider_response_invalid")
+    if selected:
+        # A city-wide search may return different airports. Once an offer is
+        # selected, verification must retain its actual airports in both legs.
+        for direction in ("outbound", "inbound"):
+            before = selected[direction]["segments"]
+            after = normalized[0][direction]["segments"]
+            if before[0]["origin"] != after[0]["origin"] or before[-1]["destination"] != after[-1]["destination"]:
+                raise ProviderUnavailable("provider_response_invalid")
     return normalized[0]
 
 
@@ -82,7 +90,7 @@ async def checkout(api, action, data):
     if action == "verify":
         state = unseal(api, token, "flight-offer")
         raw = first(await api.request("POST", "/flights/verify", json={"offerId": state["offer"]}))
-        state["flight"] = flight_for(obj(raw.get("journey")), state["criteria"])
+        state["flight"] = flight_for(obj(raw.get("journey")), state["criteria"], state["flight"])
         token = seal(api, "flight-review", state)
         return project(state, token, "review")
 
@@ -106,7 +114,7 @@ async def checkout(api, action, data):
                 state.update(prebook=raw["prebookId"], eligible=False)
                 token = seal(api, "flight-checkout", state)
                 remember(api, state, token)
-                state["flight"] = flight_for(obj(obj(raw.get("booking")).get("journey")), state["criteria"])
+                state["flight"] = flight_for(obj(obj(raw.get("booking")).get("journey")), state["criteria"], state["flight"])
                 total = money({"amount": raw.get("price"), "currency": raw.get("currency")})
                 if total["amount"] is None or not total["currency"]:
                     raise ProviderUnavailable("provider_response_invalid")

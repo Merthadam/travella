@@ -66,6 +66,23 @@ def call(api, action, token, consent=False):
     return run(api.call('sandbox/flights/'+action, {'token': token, **({'confirm_mock': True} if consent else {})}))
 
 
+def test_city_search_verify_preserves_selected_airports():
+    payload = flight_payload()
+    journey = payload['data'][0]['journeys'][0]
+    journey['segments'][0]['destinationCode'] = 'MXP'
+    journey['segments'][1]['originCode'] = 'LIN'
+    verified = journey | journey['cheapestOffer']
+    def respond(request):
+        return httpx.Response(200, json=payload if request.url.path.endswith('/rates') else {'data': [{'journey': verified}]})
+    api = LiteApi('sand_TEST', scope=('owner', 'plan'), transport=httpx.MockTransport(respond))
+    result = run(api.call('flights/search', FLIGHT | {'destination': 'MIL'}))
+    token = result['results'][0]['checkout_token']
+    assert call(api, 'verify', token)['status'] == 'review'
+    verified['segments'][0]['destinationCode'] = 'BGY'
+    with pytest.raises(ProviderUnavailable, match='provider_response_invalid'):
+        call(api, 'verify', token)
+
+
 def test_verified_prebook_repriced_confirmed_readback_and_recovery(setup):
     api, supplier, token = setup
     verified = call(api, 'verify', token)
