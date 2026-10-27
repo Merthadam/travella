@@ -375,3 +375,48 @@ test('manual continuation preserves property and amenity filters imported from a
   await screen.findByText('Apartment continuation');
   expect(searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2]).toMatchObject({ hotel_type_ids: [201], facility_ids: [7], strict_facility_filtering: false, refundable_rates_only: true });
 });
+
+test('refresh keeps applied criteria and observation time visible; empty success preserves exact constraints', async () => {
+  let complete;
+  const first = imported();
+  searchRequest.mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }));
+  render(<TravelSearch {...props} importedSnapshot={first}/>);
+  fireEvent.change(screen.getByLabelText('Check-in'), { target: { value: '2027-11-14' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search stays' }));
+  expect(screen.getByText(/Updating results/)).toBeTruthy();
+  expect(screen.getByText(/2027-11-13/)).toBeTruthy();
+  const checked = screen.getByText(/Checked /).textContent;
+  await act(async () => complete({ ...first, results: [], preview_ids: [], returned_count: 0 }));
+  expect(screen.getByText('No availability for this search.')).toBeTruthy();
+  expect(screen.getByLabelText('Check-in').value).toBe('2027-11-14');
+  expect(screen.getByText(/Checked /).textContent).toBe(checked);
+  expect(screen.getByRole('button', { name: 'Edit search' })).toBeTruthy();
+});
+
+test('new results retain open detail original full identity and mark detached evidence', async () => {
+  HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn();
+  const first = imported('flights'), next = imported('flights', 'new-search');
+  next.results[0].id = first.results[0].id; next.preview_ids = [first.results[0].id];
+  next.criteria.origin = 'VIE';
+  const onChoose = vi.fn();
+  searchRequest.mockResolvedValue(next);
+  render(<TravelSearch {...props} mode="flights" importedSnapshot={first} onChoose={onChoose}/>);
+  fireEvent.click(screen.getByRole('button', { name: /View flight/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Search flights' }));
+  await screen.findByRole('heading', { name: 'new-search' });
+  expect(screen.getByText(/Earlier search.*original observation/)).toBeTruthy();
+  const dialog = document.querySelector('dialog');
+  expect(dialog.textContent).toContain('import-1');
+  fireEvent.click([...dialog.querySelectorAll('button')].find(button => button.textContent === 'Choose for trip'));
+  expect(onChoose).toHaveBeenCalledWith(expect.objectContaining({ reference: { search_id: first.search_id, option_id: first.results[0].id, room_id: null } }));
+});
+
+test('view-only filters and sort perform no supplier request and keep unknown facts excluded', async () => {
+  render(<TravelSearch {...props} importedSnapshot={imported()}/>);
+  fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'price' } });
+  fireEvent.change(screen.getByLabelText('Minimum stars'), { target: { value: '5' } });
+  expect(screen.getByText('No options match these filters.')).toBeTruthy();
+  fireEvent.click(screen.getAllByRole('button', { name: 'Reset filters' })[0]);
+  expect(screen.getByRole('heading', { name: 'import-1' })).toBeTruthy();
+  expect(searchRequest).not.toHaveBeenCalled();
+});
