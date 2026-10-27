@@ -5,6 +5,7 @@ import { TravelWorkspace } from './TravelWorkspace';
 import { draftTravelFacts } from './CanvasTravel';
 import { initialWorkspace, travelWorkspaceReducer, useTravelWorkspace } from './useTravelWorkspace';
 import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
+import { plansApi } from '../../../plansApi';
 
 const chat = vi.hoisted(() => ({ active: true, loading: false, historyError: 'History unavailable', messages: [], snapshot: null, stop: vi.fn(() => new Promise(() => {})) }));
 vi.mock('./useTravelConversation', async importOriginal => {
@@ -23,7 +24,7 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn(); });
 afterEach(() => { cleanup(); chat.real = false; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
-test.each(['current', 'draft', 'sort', 'stop'])('real conversation delivers one committed batch and rejects %s races', async race => {
+test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 'compare', 'manual', 'brief', 'failed', 'stop'])('real conversation delivers one committed batch and rejects %s races', async race => {
   chat.real = true;
   let finish, stream, eventId;
   const saved = { plan_id: 'plan-1', topic: 'stays', revision: 1, brief: { digest: 'b'.repeat(64) }, messages: [], notes: { items: [] }, shortlist: [], locked: false };
@@ -31,24 +32,53 @@ test.each(['current', 'draft', 'sort', 'stop'])('real conversation delivers one 
     travelTurn: vi.fn((plan, topic, message, id, options) => { eventId = id; stream = options; return new Promise(resolve => { finish = resolve; }); }) };
   let stop;
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData}
-    registerStop={(topic, fn) => { stop = fn; }}/ >);
+    importedSnapshot={workspaceSnapshot('stays', 'old-search')} registerStop={(topic, fn) => { stop = fn; }}/>);
   await waitFor(() => expect(api.travelTopic).toHaveBeenCalled());
   fireEvent.click(screen.getByText('Send workspace search'));
   await waitFor(() => expect(stream).toBeTruthy());
-  expect(stream.workspaceContext).toMatchObject({ revision: 0, draft_dirty: false, search_id: null });
-  const batch = { ...update(), run_id: eventId, instance_id: stream.workspaceContext.instance_id };
-  await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
+  expect(stream.workspaceContext).toMatchObject({ revision: 1, draft_dirty: false, search_id: 'old-search' });
+  const batch = { ...update(), run_id: eventId, base_revision: stream.workspaceContext.revision, instance_id: stream.workspaceContext.instance_id };
+  if (race !== 'terminal-only') await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
   expect(screen.queryByRole('heading', { name: 'search-1' })).toBeNull();
-  if (race === 'draft') fireEvent.change(screen.getByLabelText('Destination city'), { target: { value: 'Paris' } });
-  if (race === 'sort') fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'price' } });
+  if (race === 'draft') fireEvent.change(screen.getByLabelText('Destination or ski area'), { target: { value: 'Paris' } });
+  if (race === 'sort') fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'price' } });
+  if (race === 'filter') fireEvent.change(screen.getByLabelText('Minimum stars'), { target: { value: '5' } });
+  if (race === 'compare') fireEvent.click(screen.getByLabelText('Compare'));
+  if (race === 'manual') {
+    fetch.mockResolvedValue({ ok: true, json: async () => workspaceSnapshot('stays', 'manual-search') });
+    fireEvent.click(screen.getByRole('button', { name: 'Search stays' }));
+  }
+  if (race === 'brief') saved.brief = { digest: 'c'.repeat(64) };
   if (race === 'stop') await act(async () => stop());
-  await act(async () => { stream.onEvent({ type: 'TERMINAL', status: 'complete', workspace_update: batch }); finish({ status: 'complete', workspace_update: batch }); });
-  if (race === 'current') {
+  const terminal = { type: 'TERMINAL', status: race === 'failed' ? 'error' : 'complete', ...(race !== 'state-only' ? { workspace_update: batch } : {}) };
+  await act(async () => { stream.onEvent(terminal); finish(terminal); });
+  if (['current', 'state-only', 'terminal-only'].includes(race)) {
     expect(await screen.findByRole('heading', { name: 'search-1' })).toBeTruthy();
     // Late duplicate delivery after the run ended cannot apply again.
     await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
     expect(screen.getAllByRole('heading', { name: 'search-1' })).toHaveLength(1);
   } else expect(screen.queryByRole('heading', { name: 'search-1' })).toBeNull();
+});
+
+test('HTTP stream parser preserves the same strict workspace envelope in state and terminal and rejects foreign or extra data', async () => {
+  const batch = update(), events = [];
+  const context = { instance_id: 'instance-1', revision: 0, search_id: null, view: emptyWorkspaceView(), draft_dirty: false };
+  const stream = value => ({ ok: true, body: new ReadableStream({ start(controller) {
+    controller.enqueue(new TextEncoder().encode([
+      { type: 'STATE_SNAPSHOT', snapshot: { workspace_update: value } },
+      { type: 'TERMINAL', status: 'complete', workspace_update: value },
+    ].map(event => `data: ${JSON.stringify(event)}\n\n`).join(''))); controller.close();
+  } }) });
+  for (const value of [batch, { ...batch, plan_id: 'foreign' }, { ...batch, raw_payload: 'private' }, { ...batch, run_id: 'old' }]) {
+    fetch.mockResolvedValueOnce(stream(value)); events.length = 0;
+    const terminal = await plansApi.travelTurn({ plan_id: 'plan-1' }, 'stays', 'search', 'run-1', { workspaceContext: context, onEvent: event => events.push(event) });
+    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body).workspace_context).toEqual(context);
+    expect(terminal.workspace_update).toEqual(value === batch ? batch : undefined);
+    expect(events[0].snapshot.workspace_update).toEqual(terminal.workspace_update);
+  }
+  const calls = fetch.mock.calls.length;
+  await expect(plansApi.travelTurn({ plan_id: 'plan-1' }, 'stays', 'search', 'run-1', { workspaceContext: { ...context, revision: Infinity }, onEvent: () => {} })).rejects.toThrow();
+  expect(fetch).toHaveBeenCalledTimes(calls);
 });
 
 test.each(['stays', 'flights'])('mounted %s manual HTTP search works with chat closed and unresolved cancellation; typing rejects late completion', async topic => {

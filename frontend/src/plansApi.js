@@ -1,5 +1,6 @@
 import { ApiError, request } from './api';
 import { travelTopicProjection } from './features/plans/travel/travelTopicSchema';
+import { travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './features/plans/travel/travelWorkspaceSchema';
 
 export const requestId = () => `${Date.now()}.${crypto.randomUUID()}`;
 export function normalizeTitle(value) {
@@ -19,13 +20,20 @@ export function researchOfferProjection(value) {
   return { id: value.id, status: value.status, revision: value.revision, message_id: value.message_id };
 }
 
-async function agentTurnStream(plan, message, eventId, { signal, onEvent, topic, travelDiscussion, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit, researchEntryReceipt }) {
+function workspaceProjection(value, planId, topic, runId) {
+  const parsed = travelWorkspaceUpdateSchema.safeParse(value);
+  return parsed.success && parsed.data.plan_id === planId && parsed.data.topic === topic && parsed.data.run_id === runId ? parsed.data : undefined;
+}
+
+async function agentTurnStream(plan, message, eventId, { signal, onEvent, topic, travelDiscussion, workspaceContext, forwardedProps, canvasAction, contextRevision, canvasThemes, canvasEdit, researchEntryReceipt }) {
+  const workspace = workspaceContext === undefined ? undefined : travelWorkspaceContextSchema.parse(workspaceContext);
+  if (workspace && !['stays', 'flights'].includes(topic)) throw new ApiError('Workspace context requires a focused discussion.', 422);
   let response;
   try {
     response = await fetch(`${agentPath(plan)}/stream`, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json', 'X-Travella-Request': '1', Accept: 'text/event-stream' },
-      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(topic ? { topic } : {}), ...(travelDiscussion ? { travel_discussion: travelDiscussion } : {}), ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
+      body: JSON.stringify({ plan_id: plan.plan_id, event_id: eventId, message, ...(workspace ? { workspace_context: workspace } : {}), ...(topic ? { topic } : {}), ...(travelDiscussion ? { travel_discussion: travelDiscussion } : {}), ...(forwardedProps ? { forwardedProps } : {}), ...(canvasEdit ? { canvas_edit: canvasEdit } : {}), ...(canvasAction ? { canvas_action: canvasAction, context_revision: contextRevision, ...(researchEntryReceipt ? { research_entry_receipt: researchEntryReceipt } : {}), ...(canvasThemes ? { canvas_themes: canvasThemes } : {}) } : {}) }),
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
@@ -52,9 +60,9 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, topic,
       onEvent({ type: event.type, messageId: String(event.messageId || '') });
     } else if (event.type === 'CUSTOM' && event.name === 'a2ui' && event.value && typeof event.value === 'object') {
       onEvent({ type: 'CUSTOM', name: 'a2ui', value: event.value });
-    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result || event.snapshot.research_offer || event.snapshot.flight_preview || event.snapshot.travel_specialist_result)) {
+    } else if (event.type === 'STATE_SNAPSHOT' && event.snapshot && (event.snapshot.trip_context || event.snapshot.canvas_draft || event.snapshot.canvas_edit_result || event.snapshot.research_offer || event.snapshot.flight_preview || event.snapshot.travel_specialist_result || event.snapshot.workspace_update)) {
       const specialist = travelTopicProjection(event.snapshot.travel_specialist_result, plan.plan_id, topic);
-      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(specialist ? { travel_specialist_result: specialist } : {}), ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}), ...(event.snapshot.flight_preview ? { flight_preview: event.snapshot.flight_preview } : {}), research_offer: researchOfferProjection(event.snapshot.research_offer), assistant_message_id: typeof event.snapshot.assistant_message_id === 'string' ? event.snapshot.assistant_message_id.slice(0, 100) : undefined } });
+      onEvent({ type: 'STATE_SNAPSHOT', snapshot: { ...(specialist ? { travel_specialist_result: specialist } : {}), workspace_update: workspaceProjection(event.snapshot.workspace_update, plan.plan_id, topic, eventId), ...(event.snapshot.trip_context ? { trip_context: event.snapshot.trip_context } : {}), ...(event.snapshot.canvas_draft ? { canvas_draft: event.snapshot.canvas_draft } : {}), ...(event.snapshot.canvas_edit_result ? { canvas_edit_result: event.snapshot.canvas_edit_result } : {}), ...(event.snapshot.flight_preview ? { flight_preview: event.snapshot.flight_preview } : {}), research_offer: researchOfferProjection(event.snapshot.research_offer), assistant_message_id: typeof event.snapshot.assistant_message_id === 'string' ? event.snapshot.assistant_message_id.slice(0, 100) : undefined } });
     } else if (event.type === 'TERMINAL') {
       terminal = {
         type: 'TERMINAL',
@@ -63,6 +71,7 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, topic,
         sources: Array.isArray(event.sources) ? event.sources.slice(0, 5).map(source => ({ title: String(source?.title || '').slice(0, 120), url: String(source?.url || '').slice(0, 320) })) : [],
         message: typeof event.message === 'string' ? event.message.slice(0, 240) : undefined,
         research_offer: researchOfferProjection(event.research_offer),
+        workspace_update: workspaceProjection(event.workspace_update, plan.plan_id, topic, eventId),
         ...(travelTopicProjection(event.travel_specialist_result, plan.plan_id, topic) ? { travel_specialist_result: travelTopicProjection(event.travel_specialist_result, plan.plan_id, topic) } : {}),
         assistant_message_id: typeof event.assistant_message_id === 'string' ? event.assistant_message_id.slice(0, 100) : undefined,
       };

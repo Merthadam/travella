@@ -126,6 +126,10 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
                 from types import SimpleNamespace
                 from .claude.canvas_travel import draft_facts
                 final.draft_facts = draft_facts(SimpleNamespace(components=(snapshot.get("saved_canvas") or {}).get("components", {})))
+                # Saved ResearchContext overrides an older saved Canvas baseline.
+                brief = snapshot["brief"]
+                final.draft_facts.update({key: brief["dates"][key] for key in ("start", "end", "flexible") if key in brief.get("dates", {})})
+                final.draft_facts.update({key: brief[key] for key in ("travelers", "destination") if key in brief})
                 view = WorkspaceView.model_validate(final_search.get("view") or {})
                 update = WorkspaceUpdate(action_id=input_digest({"event": request.event_id, "generation": generation}),
                     plan_id=plan_id, topic=request.topic, instance_id=workspace.instance_id,

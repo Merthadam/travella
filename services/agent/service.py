@@ -454,6 +454,7 @@ class AgentTurnService:
                                                "assistant_message_id": final.get("assistant_message_id"),
                                                "flight_preview": final.get("flight_preview"),
                                                "travel_specialist_result": final.get("travel_specialist_result"),
+                                               "workspace_update": final.get("workspace_update"),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"
@@ -491,7 +492,7 @@ class AgentTurnService:
                     public_snapshot.update({name: item for name, item in value.items() if item is not None})
                     yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})
                 else:
-                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result", "research_offer", "assistant_message_id", "flight_preview", "travel_specialist_result") if value.get(name) is not None}
+                    snapshot = {name: value[name] for name in ("canvas_draft", "trip_context", "canvas_edit_result", "research_offer", "assistant_message_id", "flight_preview", "travel_specialist_result", "workspace_update") if value.get(name) is not None}
                     if snapshot:
                         public_snapshot.update(snapshot)
                         yield self._sse({"type": "STATE_SNAPSHOT", "snapshot": public_snapshot})

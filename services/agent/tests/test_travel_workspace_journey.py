@@ -90,6 +90,10 @@ def test_final_search_crosses_graph_and_commit_without_durable_inventory(system,
     assert update.snapshot["draft_facts"]["destination"] == "Lisbon, Portugal"
     assert "PRIVATE_" not in update.model_dump_json()
     assert all("workspace" not in state and "search_id" not in state for state in captured)
+    from services.agent.checkpoint import safe_checkpoint_state
+    projected_checkpoint = safe_checkpoint_state({"plan_id": pid,
+        "projection": response.model_dump(mode="json"), "workspace_context": workspace()})
+    assert "workspace" not in json.dumps(projected_checkpoint)
     readback = system.client.get(f"/v1/plans/{pid}/travel/{topic}").json()
     assert [m["role"] for m in readback["messages"]] == ["user", "assistant"]
     assert "workspace" not in json.dumps(readback)
@@ -104,6 +108,15 @@ def test_final_search_crosses_graph_and_commit_without_durable_inventory(system,
 def test_invalid_workspace_context_rejected(changes):
     with pytest.raises(ValidationError):
         AgentRequest(plan_id=uuid4(), event_id="e", topic="stays", message="search", workspace_context=workspace(**changes))
+
+
+def test_workspace_context_rejects_oversized_unicode_and_trip_scope():
+    from services.travel_topics import WorkspaceContext
+    with pytest.raises(ValidationError, match="too large"):
+        WorkspaceContext.model_validate(workspace(search_id="search", view={**WorkspaceView().model_dump(),
+            "dismissed_ids": [str(i) + "🧳" * 98 for i in range(100)]}))
+    with pytest.raises(ValidationError):
+        AgentRequest(plan_id=uuid4(), event_id="e", message="hello", workspace_context=workspace())
 
 
 @pytest.mark.parametrize("scope", ["owner", "plan", "topic", "expired"])
@@ -189,3 +202,19 @@ def test_concurrent_graph_contexts_reset_after_success_and_exception(monkeypatch
         assert results[0]["projection"]["workspace_update"]["search_id"] == "plan-0"
         assert isinstance(results[1], ValueError)
     asyncio.run(run())
+
+
+def test_successful_stream_has_identical_workspace_state_and_terminal(system, monkeypatch):
+    pid = create(system)["plan_id"]
+    handler, _ = real_handler(system, monkeypatch, pid)
+    request = AgentRequest(plan_id=pid, event_id=str(uuid4()), topic="stays", message=MESSAGE, workspace_context=workspace())
+    async def run():
+        async def connected():
+            return False
+        return "".join([item async for item in handler.stream(request, "traveler-one", f"Bearer {system.token}", is_disconnected=connected)])
+    wire = asyncio.run(run())
+    events = [json.loads(frame.removeprefix("data: ")) for frame in wire.strip().split("\n\n")]
+    state = next(e["snapshot"]["workspace_update"] for e in events if e["type"] == "STATE_SNAPSHOT")
+    terminal = next(e for e in events if e["type"] == "TERMINAL")
+    assert terminal["status"] == "complete" and terminal["workspace_update"] == state
+    assert "PRIVATE_" not in wire and "workspace_context" not in wire

@@ -87,6 +87,14 @@ class WorkspaceContext(Strict):
         return self
 
 
+class WorkspaceDraftFacts(Strict):
+    start: str = Field(max_length=10)
+    end: str = Field(max_length=10)
+    flexible: bool = Field(strict=True)
+    travelers: int | None = Field(ge=1, le=50, strict=True)
+    destination: str = Field(max_length=240)
+
+
 class WorkspaceUpdate(Strict):
     action_id: Identifier
     plan_id: Identifier
@@ -105,6 +113,7 @@ class WorkspaceUpdate(Strict):
         snapshot = (StaySnapshot if self.topic == "stays" else FlightSnapshot).model_validate(self.snapshot)
         if snapshot.plan_id != self.plan_id or snapshot.search_id != self.search_id:
             raise ValueError("Workspace snapshot scope mismatch")
+        WorkspaceDraftFacts.model_validate(snapshot.draft_facts)
         self.view.validate_topic(self.topic)
         self.view.validate_members(snapshot)
         self.snapshot = snapshot.model_dump(mode="json")
