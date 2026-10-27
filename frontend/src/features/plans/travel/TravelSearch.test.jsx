@@ -11,7 +11,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { TravelSearch, filterResults } from "./TravelSearch";
 import { travelRequest } from "./travelApi";
-import { draftTravelFacts, TravelPhoto, safeTravelImage } from './CanvasTravel';
+import { draftTravelFacts, TravelPhoto, safeTravelImage, travelSnapshotSchema } from './CanvasTravel';
 vi.mock("./travelApi", () => ({ travelRequest: vi.fn() }));
 const searchRequest = vi.fn();
 beforeEach(() => {
@@ -356,12 +356,39 @@ test('provider-backed apartment and amenity filters apply to new searches and ca
   await user.click(screen.getByLabelText('Search refundable rates only'));
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
   await screen.findByText('Filtered apartment');
+  expect(screen.queryByText('Property type 201')).toBeNull();
+  expect(screen.getByText('Apartments')).toBeTruthy();
   const request = searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2];
   expect(request).toMatchObject({ hotel_type_ids: [201], facility_ids: [7, 8], strict_facility_filtering: false, refundable_rates_only: true });
   await user.click(screen.getByRole('button', { name: 'Clear search filters' }));
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
   const last = searchRequest.mock.calls.filter(call => call[1] === 'hotels/search').at(-1)[2];
   expect(last.hotel_type_ids).toBeUndefined(); expect(last.facility_ids).toBeUndefined(); expect(last.refundable_rates_only).toBeUndefined();
+});
+
+test('flight metadata survives strict browser projection and cards show carrier and evidence scope', () => {
+  const data = imported('flights');
+  Object.assign(data.results[0].outbound.segments[0], { marketing_code: 'OA', marketing_logo: 'https://assets.nuitee.flights/airlines/OA.svg', operating_code: 'OP', operating_logo: null, operating_airline: 'Operating Air' });
+  Object.assign(data.results[0].inbound.segments[0], { airline: 'Return Air', marketing_code: 'RA', marketing_logo: null });
+  expect(travelSnapshotSchema.safeParse(data).success).toBe(true);
+  render(<TravelSearch {...props} mode="flights" importedSnapshot={data}/>);
+  expect(screen.getByRole('img', { name: 'Observed Air logo' })).toBeTruthy();
+  expect(screen.getByText('Return Air')).toBeTruthy();
+  const card = document.querySelector('.travel-result');
+  expect(card.textContent).toContain('2 adults · 1 children · 1 infants');
+  expect(card.textContent).toContain('Source: LiteAPI');
+  expect(card.textContent).toContain('Cancellation terms unavailable');
+  expect(card.textContent).toContain('Local airport times');
+});
+
+test('stay cards distinguish property amenities and unknown room or distance evidence', () => {
+  render(<TravelSearch {...props} importedSnapshot={imported()}/>);
+  const card = document.querySelector('.travel-result');
+  expect(card.textContent).toContain('3 nights · 1 room · 2 adults · 1 children');
+  expect(card.textContent).toContain('Property amenities: Wi-Fi');
+  expect(card.textContent).toContain('Room amenities not supplied');
+  expect(card.textContent).toContain('Distance unavailable');
+  expect(card.textContent).toContain('Source: LiteAPI');
 });
 
 test('catalog failure offers retry and keeps ordinary manual search available', async () => {
