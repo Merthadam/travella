@@ -4,18 +4,19 @@ import { travelRequest } from './travelApi';
 
 export const emptyStayFilters = () => ({ hotel_type_ids: [], facility_ids: [], strict_facility_filtering: true, refundable_rates_only: false });
 
-export function StaySearchFilters({ planId, active, value, onChange, onExpired }) {
+export function StaySearchFilters({ planId, active, value, onChange, onExpired, onCatalogs, applied }) {
   const [open, setOpen] = useState(false), [catalogs, setCatalogs] = useState(null), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!open || !active) return;
+    if (!active || (!open && !applied?.hotel_type_ids?.length && !applied?.facility_ids?.length)) return;
+    if (catalogs) return;
     const controller = new AbortController();
     let live = true;
     setError(''); setCatalogs(null);
     Promise.all(['hotel_types', 'facilities'].map(kind => travelRequest(planId, 'hotels/catalog', { kind }, controller.signal)))
-      .then(([types, facilities]) => { if (live) { if (!Array.isArray(types.items) || !Array.isArray(facilities.items)) throw new Error('Invalid catalog'); setCatalogs({ hotel_type_ids: types.items, facility_ids: facilities.items }); } })
+      .then(([types, facilities]) => { if (live) { if (!Array.isArray(types.items) || !Array.isArray(facilities.items)) throw new Error('Invalid catalog'); const next = { hotel_type_ids: types.items, facility_ids: facilities.items }; setCatalogs(next); onCatalogs?.(next); } })
       .catch(err => { if (live && err.name !== 'AbortError') { if (err.status === 401) onExpired?.(); setError('Property types and amenities could not load. Retry to choose filters.'); } });
     return () => { live = false; controller.abort(); };
-  }, [open, active, planId, retry]);
+  }, [open, active, planId, retry, Boolean(applied?.hotel_type_ids?.length || applied?.facility_ids?.length)]);
   const count = value.hotel_type_ids.length + value.facility_ids.length + Number(value.refundable_rates_only);
   function picker(field, label, placeholder) {
     const chosen = value[field];

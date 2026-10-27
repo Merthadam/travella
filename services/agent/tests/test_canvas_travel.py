@@ -1,7 +1,7 @@
 """Deterministic provider/SDK edges around the real HTTP → graph → SSE → React path."""
 import asyncio
 from copy import deepcopy
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 import json
 import os
 from pathlib import Path
@@ -41,7 +41,7 @@ def components():
 
 
 def hotels(count=4):
-    return {'provider':'LiteAPI','sandbox':True,'status':'ready' if count else 'empty','searched_at':'2026-10-16T12:00:00Z', 'returned_count':count,'truncated':False,'notices':[],
+    return {'provider':'LiteAPI','sandbox':True,'status':'ready' if count else 'empty','searched_at':datetime.now(UTC).isoformat(), 'returned_count':count,'truncated':False,'notices':[],
         'results':[{'id':f'stay-{i}','hotel_id':f'property-{i}','name':f'Observed stay {i}', 'address':'Lisbon',
                     'image_url':f'https://photos.example.com/hotel-{i}.jpg','stars':4,'review_score':8.5,'review_count':120,'facilities':['Wi-Fi'],
                     'price':{'amount':str(700+i), 'currency':'EUR', 'basis':'stay','estimated':i==1,'excluded_taxes':[{'name':'City tax','amount':'14','currency':'EUR'}]},
@@ -52,7 +52,7 @@ def hotels(count=4):
 def flights(count=4,unknown=False):
     def leg(origin,destination,departure,arrival):
         return {'stops':0,'duration_minutes':150,'segments':[{'origin':origin,'destination':destination,'departure_at':departure,'arrival_at':arrival,'airline':'Observed Air','operating_airline':'Operating Air','flight_number':'OA 42','duration_minutes':150,'technical_stops':[],'raw_payload':'PRIVATE_SEGMENT'}]}
-    return {'provider':'LiteAPI','sandbox':True,'status':'ready' if count else 'empty','searched_at':'2026-10-16T12:00:00Z','returned_count':count,'truncated':False,'notices':[],
+    return {'provider':'LiteAPI','sandbox':True,'status':'ready' if count else 'empty','searched_at':datetime.now(UTC).isoformat(),'returned_count':count,'truncated':False,'notices':[],
         'results':[{'id':f'flight-{i}','checkout_token':'PRIVATE_FLIGHT_CHECKOUT','price':{'amount':None if unknown else '824.50','currency':'EUR','basis':'party_return','estimated':True,'excluded_taxes':[{'name':'Airport tax','amount':'10','currency':'EUR'}]},'airlines':[f'Observed Air {i}'],
             'outbound':leg('BUD','LIS',START+'T23:30:00+02:00',(date.fromisoformat(START)+timedelta(days=1)).isoformat()+'T01:00:00+01:00'),
             'inbound':leg('LIS','BUD',END+'T08:00:00+01:00',END+'T11:30:00+02:00'),

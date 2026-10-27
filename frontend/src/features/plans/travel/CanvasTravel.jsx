@@ -4,6 +4,7 @@ import { Catalog, MessageProcessor } from '@a2ui/web_core/v0_9';
 import { A2uiSurface, createBinderlessComponentImplementation } from '@a2ui/react/v0_9';
 import { canvasEditResultSchema as activities } from '../../../design-system/a2ui/ActivitySuggestions';
 import './travel-results.css';
+import { CarrierMarks, safeCarrierLogo } from './CarrierMark';
 
 const text = z.string().max(240), id = z.string().min(1).max(100);
 export function safeTravelImage(value) {
@@ -28,7 +29,7 @@ const option = z.object({ id, hotel_id:id, name: text, address: text.nullable(),
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const criteria = z.object({ destination: z.object({ city: z.string().min(2).max(120), country_code: z.string().regex(/^[A-Z]{2}$/), place_id: z.string().max(255).nullable() }).strict(), check_in: date, check_out: date, rooms: z.array(z.object({ adults: z.number().int().min(1).max(6), children_ages: z.array(z.number().int().min(0).max(17)).max(4) }).strict()).min(1).max(4), guest_nationality: z.string().regex(/^[A-Z]{2}$/), currency: z.enum(['EUR','USD','GBP','HUF','CAD','AUD','JPY','CHF']), hotel_id: z.string().max(100).nullable(), hotel_type_ids: z.array(z.number().int().positive()).max(10).optional(), facility_ids: z.array(z.number().int().positive()).max(10).optional(), strict_facility_filtering: z.boolean().optional(), refundable_rates_only: z.boolean().optional() }).strict();
 const flightCriteria = z.object({ origin:z.string().regex(/^[A-Z]{3}$/),destination:z.string().regex(/^[A-Z]{3}$/),departure_date:date,return_date:date,adults:z.number().int().min(1).max(9),children_ages:z.array(z.number().int().min(2).max(11)).max(8),infant_ages:z.array(z.number().int().min(0).max(1)).max(8),cabin_class:z.enum(['ECONOMY','PREMIUM_ECONOMY','BUSINESS','FIRST']),currency:z.enum(['EUR','USD','GBP','HUF','CAD','AUD','JPY','CHF']),country_code:z.string().regex(/^[A-Z]{2}$/) }).strict();
-const segment = z.object({origin:z.string().regex(/^[A-Z]{3}$/),destination:z.string().regex(/^[A-Z]{3}$/),departure_at:z.string().max(40).regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/),arrival_at:z.string().max(40).regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/),airline:text.nullable(),operating_airline:text.nullable(),flight_number:text.nullable(),duration_minutes:z.number().int().min(0).max(10080).nullable(),technical_stops:z.array(text).max(10)}).strict();
+const segment = z.object({origin:z.string().regex(/^[A-Z]{3}$/),destination:z.string().regex(/^[A-Z]{3}$/),departure_at:z.string().max(40).regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/),arrival_at:z.string().max(40).regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/),airline:text.nullable(),operating_airline:text.nullable(),marketing_code:z.string().max(3).nullish(),marketing_logo:z.string().nullish().transform(safeCarrierLogo),operating_code:z.string().max(3).nullish(),operating_logo:z.string().nullish().transform(safeCarrierLogo),flight_number:text.nullable(),duration_minutes:z.number().int().min(0).max(10080).nullable(),technical_stops:z.array(text).max(10)}).strict();
 const leg = z.object({duration_minutes:z.number().int().min(0).max(10080).nullable(),stops:z.number().int().min(0).max(30).nullable(),segments:z.array(segment).min(1).max(12)}).strict();
 const flight = z.object({id,price:price.extend({basis:z.literal('party_return')}),airlines:z.array(text).max(12),outbound:leg,inbound:leg,baggage_summary:text.nullable(),cabin_bag_included:z.boolean().nullable(),refundable:z.boolean().nullable(),cancellation_summary:text.nullable()}).strict();
 const common = {
@@ -90,7 +91,17 @@ function FlightLeg({value,label}) {
 }
 function FlightCard({item,snapshot}) {
   const c=snapshot.criteria;
-  return <article className="canvas-travel-option" data-option-id={item.id}><svg className="canvas-travel-plane" viewBox="0 0 48 48" role="img" aria-label="Flight illustration"><path d="m43 21-15-8V5a4 4 0 0 0-8 0v8L5 21v6l15-4v13l-5 4v4l9-2 9 2v-4l-5-4V23l15 4z" fill="currentColor"/></svg><h3>{item.airlines.length ? item.airlines.join(', ') : 'Return flight'}</h3><p>{c.origin} ↔ {c.destination} · {c.departure_date} – {c.return_date}</p><strong className="canvas-travel-price">{amount(item.price)}</strong><p>Return total for the party · {c.adults} adults{c.children_ages.length ? ` · ${c.children_ages.length} children` : ''}{c.infant_ages.length ? ` · ${c.infant_ages.length} infants` : ''}</p><Taxes items={item.price.excluded_taxes}/><p>{item.baggage_summary || 'Baggage information unavailable'}</p><p>{item.cancellation_summary || (item.refundable===false ? 'Non-refundable' : item.refundable===true ? 'Refundable; detailed cancellation terms unavailable' : 'Cancellation terms unavailable')}</p><details><summary>Flight and fare details</summary><FlightLeg value={item.outbound} label="Outbound"/><FlightLeg value={item.inbound} label="Return"/><p>All times are local to each airport.</p><p>{item.cabin_bag_included===true ? 'Cabin bag included' : item.cabin_bag_included===false ? 'Cabin bag not included' : 'Cabin bag allowance unavailable'}</p></details></article>;
+  return <article className="canvas-travel-option" data-option-id={item.id}>
+    <CarrierMarks item={item}/>
+    <h3>{item.airlines.length ? item.airlines.join(', ') : 'Return flight'}</h3>
+    <p>{c.origin} ↔ {c.destination} · {c.departure_date} – {c.return_date}</p>
+    <strong className="canvas-travel-price">{amount(item.price)}</strong>
+    <p>Return total for the party · {c.adults} adults{c.children_ages.length ? ` · ${c.children_ages.length} children` : ''}{c.infant_ages.length ? ` · ${c.infant_ages.length} infants` : ''}</p>
+    <Taxes items={item.price.excluded_taxes}/>
+    <p>{item.baggage_summary || 'Baggage information unavailable'}</p>
+    <p>{item.cancellation_summary || (item.refundable===false ? 'Non-refundable' : item.refundable===true ? 'Refundable; detailed cancellation terms unavailable' : 'Cancellation terms unavailable')}</p>
+    <details><summary>Flight and fare details</summary><FlightLeg value={item.outbound} label="Outbound"/><FlightLeg value={item.inbound} label="Return"/><p>All times are local to each airport.</p><p>{item.cabin_bag_included===true ? 'Cabin bag included' : item.cabin_bag_included===false ? 'Cabin bag not included' : 'Cabin bag allowance unavailable'}</p></details>
+  </article>;
 }
 function OptionCard(props) {return props.snapshot.mode==='flights' ? <FlightCard {...props}/> : <StayCard {...props}/>;}
 const Options = createContext({});

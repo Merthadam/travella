@@ -28,6 +28,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   HTMLDialogElement.prototype.showModal=function(){this.open=true;};
   HTMLDialogElement.prototype.close=function(){this.open=false;};
   const requests=[];
+  const registered = new Map();
   const turns=fixture.turns || [{message:fixture.message,sse:fixture.sse}]; let turnIndex=0;
   vi.stubGlobal('fetch',vi.fn(async(url,options={})=>{
     requests.push(String(url));
@@ -36,11 +37,18 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
       return new Response(turns[turnIndex++].sse,{status:200,headers:{'Content-Type':'text/event-stream'}});
     }
     if(String(url).endsWith('/travel/capabilities'))return new Response(JSON.stringify({provider:'LiteAPI',sandbox:true,hotels:true,flights:true}),{status:200});
-    if(String(url).endsWith('/travel/hotels/detail'))return new Response(JSON.stringify({hotel:{images:[],address:'Observed address'}}),{status:200});
+    if(String(url).includes('/travel/hotels/detail?'))return new Response(JSON.stringify({hotel:{images:[],address:'Observed address'}}),{status:200});
+    if(String(url).includes('/travel/research/snapshot?')) {
+      const searchId = new URL(String(url), 'http://localhost').searchParams.get('search_id');
+      expect(registered.has(searchId)).toBe(true);
+      return new Response(JSON.stringify(registered.get(searchId)), { status: 200 });
+    }
     if(/\/travel\/(hotels|flights)\/search$/.test(String(url))) {
       const selectedMode=String(url).includes('/flights/')?'flights':'stays';
       const source=fixture.sse.split('\n').filter(line=>line.startsWith('data:')).map(line=>JSON.parse(line.slice(5))).find(event=>event.snapshot?.canvas_edit_result?.travel?.some(s=>s.mode===selectedMode)).snapshot.canvas_edit_result.travel.find(s=>s.mode===selectedMode);
-      return new Response(JSON.stringify({...source,results:[{...source.results[0],id:'manual-b',name:'Manual B',airlines:['Manual B']}]}),{status:200});
+      const manual = {...source, search_id: `manual-${selectedMode}`, returned_count: 1, preview_ids: ['manual-b'], results:[{...source.results[0],id:'manual-b',...(selectedMode === 'stays' ? { name:'Manual B' } : { airlines:['Manual B'] })}]};
+      registered.set(manual.search_id, manual);
+      return new Response(JSON.stringify(manual),{status:200});
     }
     throw new Error(`Unexpected network boundary: ${url}`);
   }));
@@ -88,7 +96,12 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
     expect(within(previews).getAllByRole('img')[0].getAttribute('src')).toBe('https://photos.example.com/hotel-0.jpg');
   }
   else {
-    expect(within(previews).getAllByRole('img',{name:'Flight illustration'})).toHaveLength(Math.min(3,resultCount));
+    expect(within(previews).getAllByLabelText('Airlines')).toHaveLength(Math.min(3,resultCount));
+    for (const carriers of within(previews).getAllByLabelText('Airlines')) {
+      expect(carriers.textContent).toContain('Observed Air');
+      expect(carriers.querySelector('svg')).toBeTruthy();
+      expect(carriers.querySelector('img')).toBeNull();
+    }
     expect(previews.textContent).toContain('Return total for the party · 2 adults');
     expect(previews.textContent).toContain(`${fixture.components.essentials.dates.start} 23:30:00+02:00`);
     expect(previews.textContent).toContain('ECONOMY · EUR');
@@ -117,7 +130,8 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   await user.click(within(results).getByRole('button',{name:mode==='stays'?'Search stays':'Search flights'}));
   await within(results).findByRole('heading',{name:'Manual B'});
   expect(within(results).getAllByRole('article')).toHaveLength(1);
-  expect(requests).toHaveLength(++count);
+  count += 2; // Authenticated manual search, then its authorized registry snapshot.
+  expect(requests).toHaveLength(count);
   await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   expect(screen.getByRole('textbox',{name:'Preference'}).value).toBe('Unfinished editor');

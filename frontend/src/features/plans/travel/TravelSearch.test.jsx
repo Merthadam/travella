@@ -357,7 +357,7 @@ test('provider-backed apartment and amenity filters apply to new searches and ca
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
   await screen.findByText('Filtered apartment');
   expect(screen.queryByText('Property type 201')).toBeNull();
-  expect(screen.getByText('Apartments')).toBeTruthy();
+  expect(screen.getByLabelText('Applied search constraints').textContent).toContain('Apartments');
   const request = searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2];
   expect(request).toMatchObject({ hotel_type_ids: [201], facility_ids: [7, 8], strict_facility_filtering: false, refundable_rates_only: true });
   await user.click(screen.getByRole('button', { name: 'Clear search filters' }));
@@ -375,7 +375,7 @@ test('flight metadata survives strict browser projection and cards show carrier 
   expect(screen.getByRole('img', { name: 'Observed Air logo' })).toBeTruthy();
   expect(screen.getByText('Return Air')).toBeTruthy();
   const card = document.querySelector('.travel-result');
-  expect(card.textContent).toContain('2 adults · 1 children · 1 infants');
+  expect(card.textContent).toContain('2 adults · 1 child · 1 infant');
   expect(card.textContent).toContain('Source: LiteAPI');
   expect(card.textContent).toContain('Cancellation terms unavailable');
   expect(card.textContent).toContain('Local airport times');
@@ -384,7 +384,7 @@ test('flight metadata survives strict browser projection and cards show carrier 
 test('stay cards distinguish property amenities and unknown room or distance evidence', () => {
   render(<TravelSearch {...props} importedSnapshot={imported()}/>);
   const card = document.querySelector('.travel-result');
-  expect(card.textContent).toContain('3 nights · 1 room · 2 adults · 1 children');
+  expect(card.textContent).toContain('3 nights · 1 room · 2 adults · 1 child');
   expect(card.textContent).toContain('Property amenities: Wi-Fi');
   expect(card.textContent).toContain('Room amenities not supplied');
   expect(card.textContent).toContain('Distance unavailable');

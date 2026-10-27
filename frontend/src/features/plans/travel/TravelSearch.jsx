@@ -8,6 +8,7 @@ import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
 import { StaySearchFilters } from "./StaySearchFilters";
 import { StayDestination } from "./StayDestination";
 import { travelState, TravelPhoto } from "./CanvasTravel";
+import { CarrierMarks } from "./CarrierMark";
 import "./travel-search.css";
 
 const currencies = ["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"];
@@ -163,7 +164,7 @@ function Price({ price, stay }) {
     <div className="travel-price">
       <strong>{price?.estimated ? 'Estimated ' : ''}{priceLabel(price)}</strong>
       <small>
-        {stay ? "Total for all rooms & nights" : "Return total · all travelers"}
+        {stay ? "Total for all rooms & nights" : "Return total · all travelers"}{price?.currency && ` · ${price.currency}`}
       </small>
       {price?.excluded_taxes?.map((tax, i) => (
         <small key={i}>
@@ -207,13 +208,24 @@ function Leg({ leg, label, expanded = false }) {
             {s.origin} → {s.destination} · {localTime(s.departure_at)}–
             {localTime(s.arrival_at)} ·{" "}
             {s.flight_number || s.airline || "Airline unavailable"}
-            {s.operating_airline && ` · Operated by ${s.operating_airline}`}
+            {(s.operating_airline || s.operating_code) && ` · Operated by ${s.operating_airline || s.operating_code}`}
             {s.technical_stops.length > 0 &&
               ` · Technical stops: ${s.technical_stops.join(", ")}`}
           </p>
         ))}
     </div>
   );
+}
+function CardEvidence({ snapshot, stay }) {
+  const c = snapshot.criteria;
+  const adults = stay ? c.rooms.reduce((sum, room) => sum + room.adults, 0) : c.adults;
+  const children = stay ? c.rooms.reduce((sum, room) => sum + room.children_ages.length, 0) : c.children_ages.length;
+  const nights = stay ? Math.round((Date.parse(c.check_out) - Date.parse(c.check_in)) / 86400000) : null;
+  return <div className="travel-card-evidence" style={{ display: 'grid', gap: 4, marginTop: 8 }}>
+    <small>{stay && `${nights} ${nights === 1 ? 'night' : 'nights'} · ${c.rooms.length} ${c.rooms.length === 1 ? 'room' : 'rooms'} · `}{adults} {adults === 1 ? 'adult' : 'adults'}{children > 0 && ` · ${children} ${children === 1 ? 'child' : 'children'}`}{!stay && c.infant_ages.length > 0 && ` · ${c.infant_ages.length} ${c.infant_ages.length === 1 ? 'infant' : 'infants'}`}</small>
+    <small>Source: {snapshot.provider}{snapshot.sandbox && ' · Sandbox test inventory'}</small>
+    <small>Observed {new Date(snapshot.searched_at).toLocaleString()} · Expires {new Date(snapshot.expires_at).toLocaleString()}</small>
+  </div>;
 }
 function Room({ room, onCheckout, onDiscuss, onChoose }) {
   return (
@@ -246,6 +258,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
   const [rooms, setRooms] = useState(item.rooms || []);
   const [observation, setObservation] = useState({ search_id: searchId, option_id: item.id });
   const [evidenceExpiry, setEvidenceExpiry] = useState(expiresAt);
+  const [roomObservedAt, setRoomObservedAt] = useState(null);
   const evidenceExpired = !Number.isFinite(Date.parse(evidenceExpiry)) || Date.now() >= Date.parse(evidenceExpiry);
   const attach = room => ({ title: stay ? `${item.name}${room ? ` · ${room.name}` : ''}` : item.airlines.join(' / '), reference: { ...observation, room_id: room?.id || null } });
   const [loading, setLoading] = useState(stay);
@@ -280,6 +293,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
         if (live) {
           setHotel(details.hotel);
           setRooms(availability.results[0]?.rooms || []);
+          setRoomObservedAt(availability.searched_at || null);
           setObservation({ search_id: availability.search_id, option_id: availability.results[0]?.id });
           setEvidenceExpiry(availability.expires_at || (Number.isFinite(Date.parse(availability.searched_at)) ? new Date(Date.parse(availability.searched_at) + 600000).toISOString() : expiresAt));
         }
@@ -325,6 +339,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
       </p>
       {detached && <p role="status">Earlier search · inspecting its original observation. The main results have changed.</p>}
       <p className="travel-note">Observed {new Date(observedAt).toLocaleString()} · {criteria.check_in || criteria.departure_date} – {criteria.check_out || criteria.return_date}</p>
+      {roomObservedAt && <p className="travel-note">Room availability checked {new Date(roomObservedAt).toLocaleString()}. The original search observation above is unchanged.</p>}
       {evidenceExpired && <p role="status">This offer has expired. Search again before choosing it.</p>}
       <h2 id="travel-detail-title">
         {stay ? item.name : item.airlines.join(" · ") || "Flight details"}
@@ -450,6 +465,8 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   const detail = detailsReference?.item;
   const setDetail = item => workspace.dispatch({ type: "details", value: item ? { item, snapshot, reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } } : null });
   const [recovery, setRecovery] = useState(null);
+  const [stayCatalogs, setStayCatalogs] = useState(null);
+  useEffect(() => setStayCatalogs(null), [planId]);
   const [, setImportClock] = useState(0);
   const resultsHeading = useRef(null), heading = useRef(null), form = useRef(null);
   const importIntent = useRef(null);
@@ -696,7 +713,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
             </label>
           )}
         </div>
-        {stay && <StaySearchFilters planId={planId} active={active} value={stayFilters} onChange={setStayFilters} onExpired={onExpired}/>}
+        {stay && <StaySearchFilters key={planId} planId={planId} active={active} value={stayFilters} onChange={setStayFilters} onExpired={onExpired} onCatalogs={setStayCatalogs} applied={applied}/>}
         <details className="travel-party">
           <summary>
             {stay
@@ -838,8 +855,8 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
             </small>
           </div>
           <div className="travel-filter-chips" aria-label="Applied search constraints">
-            {applied?.hotel_type_ids?.map(id => <span key={`type-${id}`}>Property type {id}</span>)}
-            {applied?.facility_ids?.map(id => <span key={`facility-${id}`}>Amenity {id}</span>)}
+            {applied?.hotel_type_ids?.map(id => <span key={`type-${id}`}>{stayCatalogs?.hotel_type_ids.find(item => item.id === id)?.name || 'Selected property type'}</span>)}
+            {applied?.facility_ids?.map(id => <span key={`facility-${id}`}>{stayCatalogs?.facility_ids.find(item => item.id === id)?.name || 'Selected amenity'}</span>)}
             {applied?.facility_ids?.length > 0 && <span>{applied.strict_facility_filtering === false ? 'Any selected amenity' : 'All selected amenities'}</span>}
             {applied?.refundable_rates_only && <span>Refundable rates only</span>}
             {budget && <span>Maximum total {snapshot.criteria.currency} {budget}</span>}
@@ -991,6 +1008,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                         </small>
                         <h3>{item.name}</h3>
                         <p>{item.address || "Address unavailable"}</p>
+                        <small>Property type unavailable · Distance unavailable</small>
                         {item.review_score != null && (
                           <p>
                             <b className="travel-rating">{item.review_score}</b>{" "}
@@ -1003,6 +1021,9 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                           {item.rooms[0]?.board_name || "Meal plan unavailable"}{" "}
                           · {refund(item.rooms[0]?.refundable)}
                         </small>
+                        <p>Property amenities: {item.facilities?.length ? item.facilities.slice(0, 5).join(', ') : 'Not supplied'}</p>
+                        <small>Room amenities not supplied; check the exact room details.</small>
+                        <CardEvidence snapshot={snapshot} stay/>
                       </div>
                     </>
                   ) : (
@@ -1010,12 +1031,16 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                       <h3>
                         {item.airlines.join(" · ") || "Airline unavailable"}
                       </h3>
+                      <CarrierMarks item={item}/>
                       <Leg leg={item.outbound} label="Outbound" />
                       <Leg leg={item.inbound} label="Return" />
                       <small>
                         {item.baggage_summary ||
                           "Baggage allowance unavailable"}
                       </small>
+                      <p>{item.cancellation_summary || refund(item.refundable)}</p>
+                      <small>Local airport times</small>
+                      <CardEvidence snapshot={snapshot}/>
                     </div>
                   )}
                   <div className="travel-result-actions">
