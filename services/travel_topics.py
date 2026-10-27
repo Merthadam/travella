@@ -35,6 +35,82 @@ class TravelDiscussion(Strict):
         return self
 
 
+Identifier = Annotated[str, Field(min_length=1, max_length=100)]
+
+
+class WorkspaceView(Strict):
+    budget: str = Field(default="", max_length=16, pattern=r"^(?:\d+(?:\.\d+)?)?$")
+    refundable: bool = Field(default=False, strict=True)
+    direct: bool = Field(default=False, strict=True)
+    bag: bool = Field(default=False, strict=True)
+    sort: Literal["provider", "price", "quality"] = "provider"
+    stars: Literal["", "3", "4", "5"] = ""
+    rating: Literal["", "7", "8", "9"] = ""
+    airline: str = Field(default="", max_length=240)
+    page: int = Field(default=1, ge=1, le=100, strict=True)
+    dismissed_ids: list[Identifier] = Field(default_factory=list, max_length=100)
+    comparison_refs: list[TravelReference] = Field(default_factory=list, max_length=3)
+
+    @model_validator(mode="after")
+    def unique(self):
+        if len(set(self.dismissed_ids)) != len(self.dismissed_ids) or len({(r.search_id, r.option_id, r.room_id) for r in self.comparison_refs}) != len(self.comparison_refs):
+            raise ValueError("Duplicate workspace reference")
+        return self
+
+    def validate_topic(self, topic):
+        if (topic == "stays" and (self.direct or self.bag or self.airline)) or (topic == "flights" and (self.stars or self.rating)):
+            raise ValueError("Unsupported topic filter")
+
+    def validate_members(self, snapshot):
+        options = {o.id: o for o in snapshot.results}
+        if any(i not in options for i in self.dismissed_ids):
+            raise ValueError("Unknown dismissed option")
+        for ref in self.comparison_refs:
+            option = options.get(ref.option_id)
+            if ref.search_id != snapshot.search_id or option is None or (ref.room_id and (snapshot.mode != "stays" or not any(r.id == ref.room_id for r in option.rooms))):
+                raise ValueError("Unknown comparison option")
+
+
+class WorkspaceContext(Strict):
+    instance_id: Identifier
+    revision: int = Field(ge=0, le=9007199254740991, strict=True)
+    search_id: Identifier | None = None
+    view: WorkspaceView
+    draft_dirty: bool = Field(strict=True)
+
+    @model_validator(mode="after")
+    def bounded(self):
+        if len(self.model_dump_json().encode()) > 32768:
+            raise ValueError("Workspace context too large")
+        if self.search_id is None and (self.view.dismissed_ids or self.view.comparison_refs):
+            raise ValueError("Workspace references require a search")
+        return self
+
+
+class WorkspaceUpdate(Strict):
+    action_id: Identifier
+    plan_id: Identifier
+    topic: SpecialistTopic
+    instance_id: Identifier
+    base_revision: int = Field(ge=0, le=9007199254740991, strict=True)
+    run_id: Identifier
+    brief_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    search_id: Identifier
+    snapshot: dict
+    view: WorkspaceView
+
+    @model_validator(mode="after")
+    def scoped(self):
+        from services.agent.claude.canvas_travel import FlightSnapshot, StaySnapshot
+        snapshot = (StaySnapshot if self.topic == "stays" else FlightSnapshot).model_validate(self.snapshot)
+        if snapshot.plan_id != self.plan_id or snapshot.search_id != self.search_id:
+            raise ValueError("Workspace snapshot scope mismatch")
+        self.view.validate_topic(self.topic)
+        self.view.validate_members(snapshot)
+        self.snapshot = snapshot.model_dump(mode="json")
+        return self
+
+
 class ResearchOption(Strict):
     id: str = Field(min_length=1, max_length=100)
     title: str = Field(min_length=1, max_length=160)
@@ -96,6 +172,7 @@ class TopicRun(Strict):
     comparison_proof: str = Field(default="", max_length=64)
     notes: TopicNotes | None = None
     discussion: TravelDiscussion | None = None
+    workspace_input_digest: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
 
 
 class ChoiceMutation(Strict):

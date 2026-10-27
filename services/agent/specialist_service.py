@@ -7,6 +7,7 @@ from collections.abc import Awaitable
 from fastapi import HTTPException
 
 from .http_contracts import AgentResponse
+from services.travel_topics import WorkspaceUpdate, WorkspaceView, digest as input_digest
 
 
 async def handle_specialist(service, request, subject, token, plan, *, on_text_delta=None):
@@ -27,6 +28,9 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
     generation = reservation.generation
     base = {"plan_id": plan_id, "event_id": request.event_id, "generation": generation}
     begun = committed = False
+    workspace = request.workspace_context
+    workspace_digest = input_digest(workspace.model_dump(mode="json")) if workspace else None
+    binding = {"workspace_input_digest": workspace_digest} if workspace_digest else {}
 
     async def finish(value):
         projection = {**base, **value}
@@ -42,11 +46,19 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
     try:
         from .travel_registry import travel_registry
         discussion = request.travel_discussion
+        workspace_snapshot = None
+        if workspace and workspace.search_id:
+            workspace_snapshot = travel_registry.get(subject, plan_id, workspace.search_id, request.topic)
+            try:
+                workspace.view.validate_members(workspace_snapshot)
+            except ValueError:
+                raise HTTPException(409, "These workspace options changed. Search again to continue.") from None
         selected_snapshots = travel_registry.resolve(subject, plan_id, request.topic, discussion) if discussion else []
         snapshot = await service.context_reader.travel_run(
             request.plan_id, token, topic=request.topic, action="begin", event_id=request.event_id,
             message=request.message.strip(), generation=generation,
             discussion=discussion.model_dump() if discussion else None,
+            **binding,
         )
         begun = True
         if selected_snapshots:
@@ -65,6 +77,9 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
             projection = {"status": "in_progress", "assistant_text": "Review the exact offer below before confirming your choice. Nothing is booked or held.",
                           "travel_specialist_result": {"comparison": {"options": [comparison.model_dump()]}}}
         else:
+            if workspace:
+                snapshot["workspace_context"] = {**workspace.model_dump(mode="json"),
+                    "applied_criteria": workspace_snapshot.criteria.model_dump(mode="json") if workspace_snapshot else None}
             if discussion:
                 snapshot["selected_context"] = {"snapshots": selected_snapshots, "discussion": discussion}
             result = await service.graph.invoke(
@@ -89,6 +104,7 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
                        assistant_text=text[:2000], generation=generation, brief_digest=brief_digest,
                        notes=output.get("notes"))
         payload["discussion"] = discussion.model_dump() if discussion else None
+        payload.update(binding)
         if comparison:
             payload.update(comparison=comparison, comparison_proof=proof)
         active = service._active_streams.get((subject, plan_id, request.event_id))
@@ -100,8 +116,25 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
         except asyncio.CancelledError:
             saved = await commit
         committed = True
+        update = None
+        final_search = projection.get("workspace_update")
+        if workspace and not workspace.draft_dirty and final_search and await service.runs.generation_current(subject, plan_id, generation):
+            # Resolve again after commit: expiry and owner/topic are authority,
+            # whereas the browser revision is only an optimistic concurrency token.
+            try:
+                final = travel_registry.get(subject, plan_id, final_search["search_id"], request.topic)
+                from types import SimpleNamespace
+                from .claude.canvas_travel import draft_facts
+                final.draft_facts = draft_facts(SimpleNamespace(components=(snapshot.get("saved_canvas") or {}).get("components", {})))
+                view = WorkspaceView.model_validate(final_search.get("view") or {})
+                update = WorkspaceUpdate(action_id=input_digest({"event": request.event_id, "generation": generation}),
+                    plan_id=plan_id, topic=request.topic, instance_id=workspace.instance_id,
+                    base_revision=workspace.revision, run_id=request.event_id, brief_digest=brief_digest,
+                    search_id=final.search_id, snapshot=final.model_dump(mode="json"), view=view)
+            except (HTTPException, ValueError, KeyError):
+                update = None  # Committed conversation remains valid when evidence expires.
         return await finish({"status": projection["status"], "assistant_text": text[:2000],
-                             "travel_specialist_result": saved})
+                             "travel_specialist_result": saved, "workspace_update": update.model_dump(mode="json") if update else None})
     except asyncio.CancelledError:
         await finish({"status": "interrupted"})
         raise

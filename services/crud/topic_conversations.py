@@ -122,7 +122,8 @@ class TopicRepository:
         now = self.plans.clock()
         run = self.session.get(TravelTopicRun, (plan_id, data.event_id))
         input_digest = digest({"topic": topic, "message": data.message, "generation": data.generation,
-                               **({"discussion": data.discussion.model_dump()} if data.discussion else {})})
+                               **({"discussion": data.discussion.model_dump()} if data.discussion else {}),
+                               **({"workspace_input_digest": data.workspace_input_digest} if data.workspace_input_digest else {})})
         if run and (run.topic != topic or (data.action != "cancel" and run.input_digest != input_digest)):
             raise LifecycleProblem("request_reused")
         if data.action == "begin":
