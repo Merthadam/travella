@@ -1,0 +1,120 @@
+"""Workspace effects cross the real graph, signed CRUD HTTP and isolated SQL store."""
+import asyncio
+import json
+from types import SimpleNamespace
+from uuid import UUID, uuid4
+
+import httpx
+import pytest
+from claude_agent_sdk import ResultMessage
+from fastapi import HTTPException
+from pydantic import ValidationError
+from sqlalchemy import select
+
+from services.agent.claude.runtime import ClaudeSdkRuntime
+from services.agent.config import ResearchWorkerConfig
+from services.agent.crud_client import CrudContextReader, CrudPlanReader
+from services.agent.graph.builder import AgentGraph
+from services.agent.http_contracts import AgentRequest
+from services.agent.service import AgentTurnService
+from services.agent.state import PlanRunStore, ProcessReceiptCache
+from services.agent.tests.test_canvas_travel import Provider, Transport, components, MESSAGE, FLIGHT_MESSAGE
+from services.agent.tests.test_specialist_worker import STAY, FLIGHT
+from services.agent.tests.test_travel_research_tools import sdk_call
+from services.agent.tests.test_travel_specialist_journey import setup_turn
+from services.agent.travel_registry import travel_registry
+from services.crud.models import PlanningCanvas, TravelTopicRun, TravelTopicState, ResearchContext
+from services.crud.tests.test_api import create, system  # noqa: F401
+from services.travel_topics import WorkspaceView
+
+
+def workspace(**extra):
+    return {"instance_id": "workspace-instance", "revision": 7, "search_id": None,
+            "view": WorkspaceView().model_dump(), "draft_dirty": False, **extra}
+
+
+def real_handler(system, monkeypatch, pid, *, topic="stays", count=4):
+    from services.trip_context import TripContext
+    with system.factory() as db:
+        db.add(PlanningCanvas(plan_id=UUID(pid), payload={"components": components()}, context_revision=1, updated_at=system.current[0]))
+        db.add(ResearchContext(plan_id=UUID(pid), revision=1, updated_at=system.current[0],
+            payload=TripContext(dateStart=STAY["check_in"], dateEnd=STAY["check_out"], travelers=2,
+                                candidates=["Lisbon, Portugal"], finalDestination="Lisbon, Portugal").model_dump()))
+        db.commit()
+    original = httpx.AsyncClient
+    monkeypatch.setattr("services.agent.crud_client.httpx.AsyncClient", lambda **kw:
+        original(transport=httpx.ASGITransport(app=system.app), **kw))
+    monkeypatch.setenv("CANVAS_EVIDENCE_SIGNING_KEY", "test-only-signing-key-that-is-over-32-characters")
+    monkeypatch.setattr("services.agent.claude.travel_specialist.TravelClient", lambda: Provider(count))
+    config = ResearchWorkerConfig(api_key="test-only-no-network")
+    async def query(*, prompt, options, transport):
+        found = await sdk_call(options.mcp_servers["travel"]["instance"], f"search_{topic}",
+            {"criteria": STAY if topic == "stays" else FLIGHT, "dates": {"source": "canvas"}})
+        assert "search_id" in found, found
+        yield ResultMessage(subtype="success", duration_ms=1, duration_api_ms=1, is_error=False,
+            num_turns=1, session_id="scripted", total_cost_usd=0.01,
+            structured_output={"answer": "Search completed; nothing booked.", "needs_input": False,
+                               "comparisons": [], "notes": []})
+    graph = AgentGraph(SimpleNamespace(config=config,
+        worker=ClaudeSdkRuntime(config, query_fn=query, transport_factory=Transport)))
+    captured = []
+    invoke = graph.compiled.ainvoke
+    async def capture(*args, **kwargs):
+        result = await invoke(*args, **kwargs)
+        captured.append(json.dumps(result, default=str))
+        return result
+    monkeypatch.setattr(graph.compiled, "ainvoke", capture)
+    return AgentTurnService(plan_reader=CrudPlanReader("http://crud"), context_reader=CrudContextReader("http://crud"),
+        graph=graph, runs=PlanRunStore(), receipts=ProcessReceiptCache()), captured
+
+
+@pytest.mark.parametrize("topic,count", [("stays", 4), ("flights", 4), ("stays", 0)])
+def test_final_search_crosses_graph_and_commit_without_durable_inventory(system, monkeypatch, topic, count):
+    pid = create(system)["plan_id"]
+    handler, captured = real_handler(system, monkeypatch, pid, topic=topic, count=count)
+    request = AgentRequest(plan_id=pid, event_id=str(uuid4()), topic=topic,
+        message=MESSAGE if topic == "stays" else FLIGHT_MESSAGE, workspace_context=workspace())
+    response = asyncio.run(handler.handle(request, "traveler-one", f"Bearer {system.token}"))
+    assert response.status == "in_progress", response
+    assert response.workspace_update is not None
+    update = response.workspace_update
+    assert update.instance_id == "workspace-instance" and update.base_revision == 7
+    assert update.run_id == request.event_id
+    assert len(update.snapshot["results"]) == count
+    assert update.snapshot["draft_facts"]["destination"] == "Lisbon, Portugal"
+    assert "PRIVATE_" not in update.model_dump_json()
+    assert all("workspace" not in state and "search_id" not in state for state in captured)
+    readback = system.client.get(f"/v1/plans/{pid}/travel/{topic}").json()
+    assert [m["role"] for m in readback["messages"]] == ["user", "assistant"]
+    assert "workspace" not in json.dumps(readback)
+    with system.factory() as db:
+        assert db.scalar(select(TravelTopicRun)).status == "complete"
+        assert "search_id" not in json.dumps(db.scalar(select(TravelTopicState)).payload)
+
+
+@pytest.mark.parametrize("changes", [{"revision": True}, {"revision": 9007199254740992},
+    {"instance_id": "x" * 101}, {"raw_payload": "private"},
+    {"view": {**WorkspaceView().model_dump(), "direct": True}}])
+def test_invalid_workspace_context_rejected(changes):
+    with pytest.raises(ValidationError):
+        AgentRequest(plan_id=uuid4(), event_id="e", topic="stays", message="search", workspace_context=workspace(**changes))
+
+
+@pytest.mark.parametrize("scope", ["owner", "plan", "topic", "expired"])
+def test_foreign_or_expired_workspace_is_rejected_before_worker(system, monkeypatch, scope):
+    from datetime import UTC, datetime, timedelta
+    from services.agent.tests.test_canvas_travel import hotels
+    pid = create(system)["plan_id"]
+    sid = travel_registry.manual("other" if scope == "owner" else "traveler-one",
+        str(uuid4()) if scope == "plan" else pid, "hotels/search", STAY, hotels(1))
+    if scope == "expired":
+        travel_registry.entries[sid][2].expires_at = (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
+    async def unused(state):
+        pytest.fail("Invalid context must not reach worker")
+    handler = setup_turn(system, monkeypatch, unused)
+    req = AgentRequest(plan_id=pid, event_id=str(uuid4()), topic="flights" if scope == "topic" else "stays",
+        message="search", workspace_context=workspace(search_id=sid))
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(handler.handle(req, "traveler-one", f"Bearer {system.token}"))
+    assert exc.value.status_code == 409
+    assert system.client.get(f"/v1/plans/{pid}/travel/stays").json()["messages"] == []
