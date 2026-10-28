@@ -12,6 +12,10 @@ from .travel_client import TravelClient
 from .travel_contracts import INPUTS, OUTPUTS, POST_ACTIONS, TravelInvocation
 
 ERRORS = {
+    "invalid_services": (422, "These seats or bags are unavailable. Review your selections."),
+    "checkout_changed": (409, "Your checkout changed. Check its status and review the latest total."),
+    "checkout_busy": (409, "Your checkout is being updated. Check its status shortly."),
+    "invalid_passengers": (422, "Check passenger ages, document expiry and the test contact details."),
     "sandbox_only": (403, "Mock checkout requires a sandbox key."),
     "checkout_expired": (409, "This checkout expired. Search again for a fresh offer."),
     "provider_timeout": (504, "The search took too long. Try again."),

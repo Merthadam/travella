@@ -1,0 +1,12 @@
+
+> test
+> vitest run src/features/plans/travel/FlightCheckout.test.jsx
+
+
+ RUN  v4.1.11 /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/fragrant-slicer/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  22:18:10
+   Duration  5.77s (transform 54ms, setup 0ms, import 132ms, tests 5.34s, environment 221ms)

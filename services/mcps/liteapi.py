@@ -17,6 +17,10 @@ from services.shared.traveler_profile import reference_catalog
 
 BASE = "https://api.liteapi.travel/v3.0"
 
+# Explicit city-code membership; never accept arbitrary airports merely because
+# the supplier returned them. Individual-airport searches remain exact matches.
+METROPOLITAN_AIRPORTS = {"MIL": frozenset({"MXP", "LIN", "BGY"})}
+
 
 class ProviderUnavailable(Exception):
     def __init__(self, code="provider_unavailable"):
@@ -259,6 +263,8 @@ def timestamp(value):
 
 
 def normalize_flights(payload, criteria, api=None):
+    origins = METROPOLITAN_AIRPORTS.get(criteria["origin"], {criteria["origin"]})
+    destinations = METROPOLITAN_AIRPORTS.get(criteria["destination"], {criteria["destination"]})
     journeys = [
         j
         for g in items(payload.get("data"))
@@ -342,10 +348,10 @@ def normalize_flights(payload, criteria, api=None):
         if (
             out["segments"][0]["departure_at"][:10] != criteria["departure_date"]
             or back["segments"][0]["departure_at"][:10] != criteria["return_date"]
-            or out["segments"][0]["origin"] != criteria["origin"]
-            or out["segments"][-1]["destination"] != criteria["destination"]
-            or back["segments"][0]["origin"] != criteria["destination"]
-            or back["segments"][-1]["destination"] != criteria["origin"]
+            or out["segments"][0]["origin"] not in origins
+            or out["segments"][-1]["destination"] not in destinations
+            or back["segments"][0]["origin"] not in destinations
+            or back["segments"][-1]["destination"] not in origins
         ):
             continue
         bag = obj(offer.get("baggage"))

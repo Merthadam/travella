@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
 import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
-import { FlightSandboxCheckout, FlightMockRecovery } from "./FlightSandboxCheckout";
+import { readFlightReceipt } from "./useFlightCheckout";
 import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
 import { StayDestination } from "./StayDestination";
 import { travelSnapshotSchema, travelState, TravelPhoto } from "./CanvasTravel";
@@ -236,7 +236,7 @@ function Room({ room, onCheckout }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, onFlightCheckout, flightBooked }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
@@ -324,7 +324,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           <button onClick={() => setRetry((x) => x + 1)}>Retry details</button>
         </p>
       )}
-      {checkout && !stay ? <FlightSandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : stay ? (
+      {checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : stay ? (
         <>
           <p>{hotel?.address || item.address}</p>
           {hotel?.images?.length > 0 && (
@@ -364,7 +364,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
               "Detailed fare conditions not supplied."}
           </p>
           <Price price={item.price} />
-          {sandbox && item.checkout_token && <button className="travel-primary" onClick={() => setCheckout(item.checkout_token)}>Try mock flight booking</button>}
+          {sandbox && item.checkout_token && <button className="travel-primary" disabled={flightBooked || !onFlightCheckout} onClick={() => onFlightCheckout({ offerToken: item.checkout_token })}>{flightBooked ? "A flight is already booked in this Plan" : "Continue to flight checkout"}</button>}
           {!item.checkout_token && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
         </>
       )}
@@ -415,7 +415,7 @@ export function filterResults(
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
 }
-export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = '' }) {
+export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, onFlightCheckout, importedSnapshot, importRequest = 0, importReason = '' }) {
   const stay = mode === "accommodation";
   const dates = initialData?.essentials?.dates;
   const [city, setCity] = useState(initialData?.map?.destination || "");
@@ -655,9 +655,9 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
         <p>{initialData.flights.mockBooking.departureDate} – {initialData.flights.mockBooking.returnDate}</p>
         <p>Test reference: {initialData.flights.mockBooking.reference}</p>
         <p>Sandbox only — no real ticket or charge.</p>
+        <button className="travel-primary" onClick={() => onFlightCheckout?.({ savedBooking: initialData.flights.mockBooking })}>View itinerary & receipt</button>
       </section>}
-      {!stay && <FlightMockRecovery planId={planId} onOpen={setRecovery} />}
-      {!stay && recovery && <FlightSandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
+      {!stay && !initialData?.flights?.mockBooking && readFlightReceipt(planId) && <button type="button" onClick={() => onFlightCheckout?.({ recoveryToken: readFlightReceipt(planId) })}>Resume flight checkout</button>}
       {stay && <MockBookingRecovery planId={planId} onOpen={setRecovery} />}
       {stay && recovery && <SandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
       <form
@@ -1170,6 +1170,8 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
           onClose={() => setDetail(null)}
           onExpired={onExpired}
           onBookingResult={onBookingResult}
+          flightBooked={Boolean(initialData?.flights?.mockBooking)}
+          onFlightCheckout={value => { setDetail(null); onFlightCheckout?.(value); }}
           onRefresh={() => { setDetail(null); form.current?.requestSubmit(); }}
         />
       )}

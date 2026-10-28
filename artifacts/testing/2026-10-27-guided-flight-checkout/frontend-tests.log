@@ -1,0 +1,14 @@
+
+> test
+> vitest run src/features/plans/travel src/features/plans/components/PlanningCanvas.test.jsx src/features/plans/usePlanningCanvas.persistence.test.jsx
+
+
+ RUN  v4.1.11 /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/fragrant-slicer/frontend
+
+(node:35684) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  9 passed | 1 skipped (10)
+      Tests  73 passed | 12 skipped (85)
+   Start at  22:16:17
+   Duration  9.05s (transform 1.29s, setup 0ms, import 3.32s, tests 18.95s, environment 3.46s)

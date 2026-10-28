@@ -137,21 +137,61 @@ class SandboxFlightConfirm(SandboxHandle):
     confirm_mock: Literal[True]
 
 
+class FlightServiceSelection(Strict):
+    id: str = Field(min_length=1, max_length=64)
+    passenger_index: int = Field(ge=0, le=8)
+    quantity: int = Field(default=1, ge=1, le=3)
+
+
+class SandboxFlightServices(SandboxFlightConfirm):
+    selected_services: list[FlightServiceSelection] = Field(max_length=64)
+
+
+class TestFlightPassenger(TestGuest):
+    date_of_birth: date
+    gender: Literal["M", "F"]
+    nationality: Country
+    document_issue_country: Country
+    document_number: str = Field(pattern=r"^TEST[A-Z0-9]{4,16}$")
+    document_expiry: date
+    _dates = field_validator("date_of_birth", "document_expiry", mode="before")(exact_date)
+    _countries = field_validator("nationality", "document_issue_country")(Destination.country.__func__)
+
+
+class TestFlightContact(TestGuest):
+    # Sandbox contacts cannot address real travelers. Never checkpoint these fields.
+    email: str = Field(max_length=120, pattern=r"^[A-Za-z0-9._%+-]+@example\.(com|test)$")
+    phone_country_code: str = Field(pattern=r"^[1-9][0-9]{0,2}$")
+    phone_number: str = Field(pattern=r"^[0-9]{6,14}$")
+
+
+class SandboxFlightPrebook(SandboxFlightConfirm):
+    passengers: list[TestFlightPassenger] | None = Field(default=None, min_length=1, max_length=9)
+    contact: TestFlightContact | None = None
+
+    @model_validator(mode="after")
+    def complete_party(self):
+        if (self.passengers is None) != (self.contact is None):
+            raise ValueError("Provide passengers and contact together.")
+        return self
+
+
 class TravelInvocation(Strict):
     plan_id: UUID
     action: Literal[
         "capabilities", "airports", "places", "hotels/search", "hotels/detail", "flights/search",
         "sandbox/prebook", "sandbox/book", "sandbox/status",
-        "sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status"
+        "sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "sandbox/flights/services"
     ]
     criteria: dict = Field(default_factory=dict)
 
 
-POST_ACTIONS = {"sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
+POST_ACTIONS = {"sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "sandbox/flights/services", "hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
 
 INPUTS = {
     "sandbox/flights/verify": SandboxHandle,
-    "sandbox/flights/prebook": SandboxFlightConfirm,
+    "sandbox/flights/prebook": SandboxFlightPrebook,
+    "sandbox/flights/services": SandboxFlightServices,
     "sandbox/flights/book": SandboxFlightConfirm,
     "sandbox/flights/status": SandboxHandle,
     "sandbox/prebook": SandboxHandle,
@@ -328,6 +368,28 @@ class SandboxResult(Public):
     confirmation_code: str | None = None
 
 
+class FlightService(Public):
+    id: str
+    kind: Literal["seat", "baggage"]
+    label: str
+    segment_index: int
+    passenger_indexes: list[int]
+    price: Money
+    max_quantity: int = 1
+    seat_row: int | None = None
+    seat_column: str | None = None
+
+
+class SelectedFlightService(Public):
+    id: str
+    kind: Literal["seat", "baggage"]
+    label: str
+    segment_index: int
+    passenger_index: int
+    quantity: int
+    price: Money
+
+
 class SandboxFlightResult(Public):
     sandbox: Literal[True] = True
     mode: Literal["flights"] = "flights"
@@ -336,12 +398,17 @@ class SandboxFlightResult(Public):
     token: str
     flight: Flight
     passenger_count: int
+    passenger_ages: list[int] = Field(default_factory=list, max_length=9)
+    country_code: str = "US"
+    services: list[FlightService] = Field(default_factory=list, max_length=2000)
+    selected_services: list[SelectedFlightService] = Field(default_factory=list, max_length=64)
+    payment_secret: str | None = None
     booking_id: str | None = None
     confirmation_code: str | None = None
 
 
 OUTPUTS = {
-    **{f"sandbox/flights/{action}": SandboxFlightResult for action in ("verify", "prebook", "book", "status")},
+    **{f"sandbox/flights/{action}": SandboxFlightResult for action in ("verify", "prebook", "services", "book", "status")},
     "sandbox/prebook": SandboxResult,
     "sandbox/book": SandboxResult,
     "sandbox/status": SandboxResult,

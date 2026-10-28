@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
 import { definitions, ids } from '../../design-system/schemas';
 import { flightNeedConfirmed } from './flightNeeds';
+import { flightBookingSummary } from './travel/flightItinerary';
 import { destinationConfirmed } from './generationRequirements';
 import { suggestedPlaceCategory } from './placeCategory';
 import { appendPlaceWebsite, preservePlaceWebsites } from './placeWebsites';
@@ -178,7 +179,10 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (!stay || (result.mode === 'flights' && stay.need !== 'needed')) return;
     if (result.status === 'confirmed') {
       stay.bookingStatus = 'mock-booked';
-      stay.mockBooking = result.mode === 'flights' ? { reference: result.booking_id, origin: result.flight?.outbound.segments[0].origin, destination: result.flight?.outbound.segments.at(-1).destination, departureDate: result.flight?.outbound.segments[0].departure_at.slice(0, 10), returnDate: result.flight?.inbound.segments[0].departure_at.slice(0, 10) } : { reference: result.booking_id, hotelName: result.hotel_name?.slice(0, 160), checkIn: result.check_in, checkOut: result.check_out };
+      if (result.mode === 'flights' && stay.mockBooking && stay.mockBooking.reference !== result.booking_id) return;
+      const previousItinerary = stay.mockBooking?.itinerary;
+      stay.mockBooking = result.mode === 'flights' ? flightBookingSummary(result) : { reference: result.booking_id, hotelName: result.hotel_name?.slice(0, 160), checkIn: result.check_in, checkOut: result.check_out };
+      if (result.mode === 'flights' && previousItinerary && !stay.mockBooking.itinerary) stay.mockBooking.itinerary = previousItinerary;
     } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
       stay.bookingStatus = 'not-booked'; delete stay.mockBooking;
     } else return;
