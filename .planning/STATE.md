@@ -40,7 +40,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 17 — Research phase cleanup
 Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
 Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-28 — Integrating approved guided checkout with current main; compact briefing and checkout verification preserved.
+Last activity: 2026-10-28 — Guided checkout integrated with main; 179 tests and build passed; authorized shipment through PR #21.
 
 Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
 
@@ -138,6 +138,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261028-cla | Integrate and ship guided checkout with current main via PR #21 | 2026-10-28 | f90e4f5 | 179 tests/build passed; 12 optional skips | [Task](quick/261028-cla-merge-guided-flight-checkout-into-main/) |
 | 261027-uhp | Replace legacy flight booking with guided checkout and saved itinerary | 2026-10-27 | f9a0eaa | 148 tests passed; build and real sandbox browser flow passed; 12 external fixture tests skipped | [Task](quick/261027-uhp-replace-legacy-flight-booking-with-guide/) |
 | 261027-tzw | Three flight checkout prototypes | 2026-10-27 | prototype/flight-checkout-20261027 | Build/browser passed; user selected A guided flow plus C confirmation | [Task](quick/261027-tzw-prototype-three-separate-page-flight-che/) |
 | 261026-bob | Start latest main locally | 2026-10-26 | c7d8906 (runtime source) | Health/auth/hashes passed; container migration compatibility applied | [Task](quick/261026-bob-start-latest-main-locally-and-verify-aut/) |
