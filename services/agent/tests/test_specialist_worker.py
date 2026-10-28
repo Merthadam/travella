@@ -272,3 +272,43 @@ def test_attached_manual_option_is_inspectable_without_searching_or_losing_exact
     assert comparison['reference']['room_id'] == 'room-14'
     assert comparison['price_label'] == '714 EUR · stay total'
     assert provider.calls == []
+
+
+@pytest.mark.parametrize('separate_search', [False, True])
+def test_two_rates_of_one_property_keep_exact_order_prices_and_unique_comparison_identity(separate_search):
+    from services.agent.travel_registry import TravelRegistry
+    from services.travel_topics import TravelDiscussion
+    from services.agent.tests.test_canvas_travel import hotels
+    registry, ctx, provider, bundles = TravelRegistry(), context([]), Provider(), []
+    raw = hotels(1)
+    raw['results'][0]['rooms'].append({**raw['results'][0]['rooms'][0], 'id': 'apartment-rate', 'name': 'Private apartment', 'total': {'amount': '950', 'currency': 'EUR'}})
+    first = registry.manual(ctx.traveler_scope, ctx.plan_id, 'hotels/search', STAY, raw)
+    second = registry.manual(ctx.traveler_scope, ctx.plan_id, 'hotels/search', STAY, raw) if separate_search else first
+    refs = [dict(search_id=second, option_id='stay-0', room_id='apartment-rate'), dict(search_id=first, option_id='stay-0', room_id='room-0')]
+    discussion = TravelDiscussion(intent='compare', options=refs)
+    selected = {'snapshots': registry.resolve(ctx.traveler_scope, ctx.plan_id, 'stays', discussion), 'discussion': discussion}
+    config = ResearchWorkerConfig(api_key='test-only-no-network')
+    async def query(*, prompt, options, transport):
+        assert [item['reference'] for item in json.loads(prompt)['selected_options']] == refs
+        yield ResultMessage(subtype='success', duration_ms=1, duration_api_ms=1, is_error=False, num_turns=1,
+            session_id='scripted', total_cost_usd=0.01,
+            structured_output={'answer': 'The apartment costs more than the other exact rate.', 'needs_input': False, 'comparisons': refs})
+    worker = ClaudeSdkTravelSpecialist(config, worker=ClaudeSdkRuntime(config, query_fn=query, transport_factory=Transport), travel_client=provider)
+    async def run():
+        token = bind_travel_results(bundles)
+        try:
+            return await worker.complete(message='Compare these exact rates.', context=ctx, topic='stays', brief={}, saved_canvas={'components': components()}, selected_context=selected)
+        except ResearchWorkerError:
+            pytest.fail('Two authorized distinct room references must not collide on property identity')
+        finally:
+            reset_travel_results(token)
+    result = asyncio.run(run())
+    options = result['travel_specialist_result']['comparison']['options']
+    assert [item['reference'] for item in options] == refs
+    assert [item['price_label'] for item in options] == ['950 EUR · stay total', '700 EUR · stay total']
+    assert len({item['id'] for item in options}) == 2
+    assert all(item['id'] != 'stay-0' for item in options)
+    projected_rates = {(bundle['search_id'], room['id']): room['total']['amount'] for bundle in bundles for item in bundle['results'] for room in item['rooms']}
+    assert projected_rates[(second, 'apartment-rate')] == '950'
+    assert projected_rates[(first, 'room-0')] == '700'
+    assert provider.calls == []

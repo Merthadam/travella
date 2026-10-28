@@ -157,3 +157,47 @@ def test_manual_exact_room_review_persists_with_reply_and_requires_confirmation(
     removed, _, _ = choose(system, plan, readback, 'remove', option['id'])
     assert removed['readiness'] == 'researching'
     assert system.client.get(f'/v1/plans/{pid}/travel/stays').json()['preferred'] is None
+
+
+def test_same_property_two_rate_worker_comparison_persists_distinct_evidence_choices(system, monkeypatch):
+    from claude_agent_sdk import ResultMessage
+    from services.agent.claude.runtime import ClaudeSdkRuntime
+    from services.agent.config import ResearchWorkerConfig
+    from services.agent.tests.test_canvas_travel import hotels, Transport
+    from services.agent.tests.test_specialist_worker import STAY
+    from services.agent.travel_registry import travel_registry
+    from services.crud.tests.test_topic_conversations import choose
+    monkeypatch.setenv('CANVAS_EVIDENCE_SIGNING_KEY', 'test-only-signing-key-that-is-over-32-characters')
+    plan = create(system); pid = plan['plan_id']
+    raw = hotels(1)
+    raw['results'][0]['rooms'].append({**raw['results'][0]['rooms'][0], 'id': 'private-apartment', 'name': 'Private apartment', 'total': {'amount': '950', 'currency': 'EUR'}})
+    sid = travel_registry.manual('traveler-one', pid, 'hotels/search', STAY, raw)
+    refs = [dict(search_id=sid, option_id='stay-0', room_id='private-apartment'), dict(search_id=sid, option_id='stay-0', room_id='room-0')]
+    config = ResearchWorkerConfig(api_key='test-only-no-network')
+    async def query(*, prompt, options, transport):
+        yield ResultMessage(subtype='success', duration_ms=1, duration_api_ms=1, is_error=False,
+            num_turns=1, session_id='scripted', total_cost_usd=0.01,
+            structured_output={'answer': 'Compare the two observed room totals.', 'needs_input': False, 'comparisons': refs})
+    original = httpx.AsyncClient
+    monkeypatch.setattr('services.agent.crud_client.httpx.AsyncClient', lambda **kw: original(transport=httpx.ASGITransport(app=system.app), **kw))
+    runtime = ClaudeSdkRuntime(config, query_fn=query, transport_factory=Transport)
+    handler = AgentTurnService(plan_reader=CrudPlanReader('http://crud'), context_reader=CrudContextReader('http://crud'),
+        graph=AgentGraph(SimpleNamespace(config=config, worker=runtime)), runs=PlanRunStore(), receipts=ProcessReceiptCache())
+    response = asyncio.run(handler.handle(AgentRequest(plan_id=pid, event_id=str(uuid4()), message='Compare these two rooms.', topic='stays',
+        travel_discussion={'intent': 'compare', 'options': refs}), 'traveler-one', f'Bearer {system.token}'))
+    assert response.status == 'in_progress', 'Exact rate comparisons must complete through the real worker and CRUD handlers'
+    saved = system.client.get(f'/v1/plans/{pid}/travel/stays').json()
+    options = saved['comparison']['options']
+    assert [item['reference'] for item in options] == refs
+    assert [item['price_label'] for item in options] == ['950 EUR · stay total', '700 EUR · stay total']
+    assert len({item['id'] for item in options}) == 2 and all(item['id'] != 'stay-0' for item in options)
+    assert saved['preferred'] is None
+    first, _, _ = choose(system, plan, saved, 'prefer', options[0]['id'])
+    second, _, _ = choose(system, plan, first, 'prefer', options[1]['id'])
+    readback = system.client.get(f'/v1/plans/{pid}/travel/stays').json()
+    assert readback['preferred']['reference'] == refs[1]
+    assert readback['preferred']['evidence_id'] == options[1]['id']
+    assert {item['reference']['room_id'] for item in readback['shortlist']} == {'private-apartment', 'room-0'}
+    removed, _, _ = choose(system, plan, second, 'remove', options[1]['id'])
+    assert removed['preferred'] is None and removed['readiness'] == 'researching'
+    assert system.client.get(f'/v1/plans/{pid}/travel/stays').json()['shortlist'][0]['reference'] == refs[0]
