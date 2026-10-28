@@ -61,6 +61,7 @@ def test_workspace_comparison_order_and_exact_room_evidence_drive_local_only_tur
     'A property kitchen does not establish a kitchen in the selected room',
     'workspace_comparison preserves the current visible comparison order',
     'An explicit request for a new search requires a search tool',
+    'Use human-readable property and room names in answer prose',
 ])
 def test_specialist_prompt_keeps_unknowns_and_current_workspace_authority_explicit(rule):
     prompt = (Path(__file__).parents[1] / 'prompts/travel-specialist-v1.md').read_text()
