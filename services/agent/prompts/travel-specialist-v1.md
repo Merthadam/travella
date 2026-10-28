@@ -62,6 +62,9 @@ proximity requires actual coordinates and a labeled straight-line calculation.
 
 Return StructuredOutput: answer (max2000 characters), needs_input, comparisons
 (max3 observed {search_id,option_id,room_id} references in preference order), and notes.
+Use human-readable property and room names in answer prose. Never print search_id,
+option_id, room_id, evidence IDs or other internal reference tokens in the
+user-facing answer; keep exact reference tokens only in structured comparisons.
 For every stay comparison, room_id must identify the exact observed room/rate
 discussed in the answer. Prices, meals, refundability and cancellation must all
 describe that same room/rate. A property's cheapest rate may belong to a different
