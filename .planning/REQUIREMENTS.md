@@ -313,21 +313,21 @@ The user approved dedicated Flights and Accommodation agents on 2026-10-25. The 
 
 | Requirement | Phase | Status |
 | --- | --- | --- |
-| FOCUS-01 | 18 | Planned — isolated topic histories |
-| FOCUS-02 | 18 | Planned — compact shared trip brief |
-| FOCUS-03 | 18 | Planned — accommodation matching |
-| FOCUS-04 | 18 | Planned — flight comparison and verification |
-| FOCUS-05 | 18 | Planned — focused workspaces |
-| FOCUS-06 | 18 | Planned — interruption and stale-context protection |
-| FOCUS-07 | 18 | Planned — explicit saved research choices |
-| FOCUS-08 | 18 | Planned — evidence and capability honesty |
-| FOCUS-09 | 18 | Planned — ownership, tool scope and retention |
-| FOCUS-10 | 18 | Planned — attributed topic memory |
-| FOCUS-11 | 18 | Planned — shared manual workspace and user-input precedence |
-| FOCUS-12 | 18 | Planned — bounded validated automatic workspace effects |
-| FOCUS-13 | 18 | Planned — main factual comparison and exact unbooked choice |
-| FOCUS-14 | 18 | Planned — airline identity/logos and source/price evidence |
-| FOCUS-15 | 18 | Planned — scoped recovery and accessible responsive controls |
-| FOCUS-16 | 18 | Planned — integrated workspace evidence and honest acceptance |
+| FOCUS-01 | 18 | Implemented; acceptance pending — isolated topic histories |
+| FOCUS-02 | 18 | Implemented; acceptance pending — compact shared trip brief |
+| FOCUS-03 | 18 | Implemented; acceptance pending — accommodation matching |
+| FOCUS-04 | 18 | Implemented; acceptance pending — flight comparison and verification |
+| FOCUS-05 | 18 | Implemented; acceptance pending — focused workspaces |
+| FOCUS-06 | 18 | Implemented; acceptance pending — interruption and stale-context protection |
+| FOCUS-07 | 18 | Implemented; acceptance pending — explicit saved research choices |
+| FOCUS-08 | 18 | Implemented; acceptance pending — evidence and capability honesty |
+| FOCUS-09 | 18 | Implemented; acceptance pending — ownership, tool scope and retention |
+| FOCUS-10 | 18 | Implemented; acceptance pending — attributed topic memory |
+| FOCUS-11 | 18 | Implemented; acceptance pending — shared manual workspace and user-input precedence |
+| FOCUS-12 | 18 | Implemented; acceptance pending — bounded validated automatic workspace effects |
+| FOCUS-13 | 18 | Implemented; acceptance pending — main factual comparison and exact unbooked choice |
+| FOCUS-14 | 18 | Implemented; acceptance pending — airline identity/logos and source/price evidence |
+| FOCUS-15 | 18 | Implemented; acceptance pending — scoped recovery and accessible responsive controls |
+| FOCUS-16 | 18 | Implemented; acceptance pending — integrated workspace evidence and honest acceptance |
 
 No implementation or acceptance is claimed by this extension.

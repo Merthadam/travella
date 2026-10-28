@@ -485,7 +485,7 @@ Plans:
 **Requirements:** FOCUS-01, FOCUS-02, FOCUS-03, FOCUS-04, FOCUS-05, FOCUS-06, FOCUS-07, FOCUS-08, FOCUS-09, FOCUS-10, FOCUS-11, FOCUS-12, FOCUS-13, FOCUS-14, FOCUS-15, FOCUS-16
 **Depends on:** Existing Phase 16/17 Canvas and Agent implementation; LiteAPI tools in caf905b. Earlier acceptance gaps remain independently open.
 **UI hint:** yes
-**Status:** Shared-workspace follow-up planning complete; plans18-06 through18-12 ready to execute. Independent review: zero blockers and five nonblocking scope warnings with recorded rationale. Earlier implementation and evidence remain valid for their historical scope; new frontend-first behavior is not implemented. Full agent-quality matrix and user UAT remain pending. See 18-VERIFICATION.md and 18-WORKSPACE-PLAN-INDEX.md.
+**Status:** Shared manual Flights/Stays follow-up implemented through plans18-06–18-12, with actual HTTP/database, authenticated Chrome and bounded live SDK evidence. Review/browser defects corrected. Phase acceptance remains human_needed: full agent-quality matrix, native zoom, broader browser concurrency and traveler UAT remain open. Earlier Phase15/17 gaps are preserved. See18-VERIFICATION.md and18-12-SUMMARY.md.
 
 **Success Criteria:**
 1. Trip, Flights and Stays histories remain separate across reload/session boundaries, with topic-specific tools enforced by the host.
@@ -506,27 +506,27 @@ Plans:
 
 **Wave 6 — shared manual workspace tracer** *(depends on delivered18-04; does not wait for historical18-05 user UAT)*
 
-- [ ] 18-06-PLAN.md — Shared manual controller, actual search/results and user-input precedence
+- [x] 18-06-PLAN.md — Shared manual controller, actual search/results and user-input precedence
 
 **Wave 7 — agent integration and carrier evidence** *(blocked on18-06; disjoint file ownership)*
 
-- [ ] 18-07-PLAN.md — Final validated agent workspace protocol and post-completion delivery
-- [ ] 18-09-PLAN.md — Airline identity/logos, source and price-scope presentation
+- [x] 18-07-PLAN.md — Final validated agent workspace protocol and post-completion delivery
+- [x] 18-09-PLAN.md — Airline identity/logos, source and price-scope presentation
 
 **Wave 8 — bounded refinement** *(blocked on18-07)*
 
-- [ ] 18-08-PLAN.md — Specialist filters, sorting, dismissal/restore and Undo
+- [x] 18-08-PLAN.md — Specialist filters, sorting, dismissal/restore and Undo
 
 **Wave 9 — comparison and selection** *(blocked on18-08 and18-09)*
 
-- [ ] 18-10-PLAN.md — Main comparison, exact choice and contextual side chat
+- [x] 18-10-PLAN.md — Main comparison, exact choice and contextual side chat
 
 **Wave 10 — recovery and accessibility** *(blocked on18-10)*
 
-- [ ] 18-11-PLAN.md — Scoped tab recovery, lifecycle races and responsive keyboard access
+- [x] 18-11-PLAN.md — Scoped tab recovery, lifecycle races and responsive keyboard access
 
 **Wave 11 — integrated acceptance** *(blocked on18-11)*
 
-- [ ] 18-12-PLAN.md — HTTP/database, authenticated browser and bounded live-quality evidence
+- [x] 18-12-PLAN.md — HTTP/database, authenticated browser and bounded live-quality evidence
 
 **Cross-cutting constraints:** One Plan graph and Agent service; Claude SDK workers with application-owned history; CRUD authority; exact confirmation; bounded topic context/tools; no booking/payment expansion; one shared temporary workspace; manual edits win; one validated final batch with Undo; no historic effect replay; safe supplier-observed carrier images; explicit unbooked choice. This session is planning only with no auto-execution. See phase CONTEXT, WORKSPACE-SPEC, WORKSPACE-PLAN-INDEX, REQUIREMENTS, UI-SPEC, AI-SPEC and VALIDATION.

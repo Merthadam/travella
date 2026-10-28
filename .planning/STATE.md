@@ -2,11 +2,11 @@
 gsd_state_version: "1.0"
 current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
-status: ready_to_execute
-stopped_at: Phase 18 shared-workspace plans 18-06–18-12 ready; implementation not started
-last_updated: "2026-10-27T20:05:49.274Z"
-last_activity: 2026-10-27
-last_activity_desc: Completed shared-workspace planning; seven plans reviewed with zero blockers and five nonblocking scope warnings
+status: human_needed
+stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
+last_updated: "2026-10-28T07:51:44.627817+00:00"
+last_activity: 2026-10-28
+last_activity_desc: Shared-workspace implementation and bounded integrated evidence complete; acceptance remains open
 state_head: 4b6f4ab7df42622b10ea7b46222e8ef463f21efe
 progress:
   total_phases: 19
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 18 — Shared manual Flights/Stays workspace and supporting sidechat; follow-up planning complete
+**Current focus:** Phase18 — Shared manual Flights/Stays workspace implemented; traveler acceptance and documented technical limits remain
 
 ## Current Position
 
-Phase: 18 (Focused Flights and Accommodation Agents) — READY TO EXECUTE
-Plan: 18-06 through18-12 planned and reviewed; none of these seven follow-up plans executed.
-Status: Ready to execute. Planning review found zero blockers and five nonblocking scope warnings, retained with bounded coordination rationale. This planning-only request does not start implementation.
-Last activity: 2026-10-27 — Completed shared-workspace specification, research, seven plans, coverage and inspected desktop/mobile planning sketches. Static checks cover16 requirements and10 decisions. See18-WORKSPACE-PLAN-INDEX.md and18-WORKSPACE-PLAN-REVIEW.md in the Phase18 directory.
+Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
+Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
+Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
+Last activity: 2026-10-28 — Executed shared-workspace plans18-06–18-12, fixed browser-discovered exact-room integration defects, and recorded automated/API/browser evidence. Bounded goal reconciliation is recorded; independent exhaustive review and traveler acceptance remain pending.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 

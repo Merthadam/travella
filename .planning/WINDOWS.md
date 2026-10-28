@@ -21,7 +21,7 @@ last_updated: 2026-10-27T20:43:33.447Z
 | 4 | 13 | stub | frontend/src/features/account/AccountSettingsPage.jsx | 145 | Account security rows and security capabilities are intentionally unavailable until plan 13-04. Preferences completed in 13-02 and canonical identity/conditional email in 13-03; browser gate remains open in entry 3. | fixed |  | 2026-10-06T14:19:50.022Z | 2026-10-06T17:23:50.030Z |
 | 5 | 13 | unmet-truth | .planning/phases/13-account-settings-and-travel-preferences/deferred-items.md |  | Full requested frontend regression run has 12 pre-existing failures reproduced from 49e6d526; new account tests pass. | open |  | 2026-10-06T14:19:50.112Z |  |
 | 6 | 13 | unmet-truth | .planning/phases/13-account-settings-and-travel-preferences/deferred-items.md |  | 13-05 broad regression run additionally exposes five unchanged frontend failures and PostgreSQL fixture/expectation debt; all account-specific SQL and browser checks pass. | open |  | 2026-10-06T17:39:29.635Z |  |
-| 7 | 18 | unrun-verify | frontend/src/features/plans/travel/CarrierMark.jsx |  | Plan18-09 real airline image loading, desktop/mobile screenshots and Chrome console/network verification pending parent plan18-12 run. | open |  | 2026-10-27T20:43:33.447Z |  |
+| 7 | 18 | unrun-verify | frontend/src/features/plans/travel/CarrierMark.jsx |  | Plan18-12 verified actual desktop carrier images and Chrome console/network; dedicated mobile-carrier and browser broken-image samples remain pending. See shared-travel-workspace verification.md. | open |  | 2026-10-27T20:43:33.447Z |  |
 
 ````json
 [
@@ -109,7 +109,7 @@ last_updated: 2026-10-27T20:43:33.447Z
     "phase": "18",
     "file": "frontend/src/features/plans/travel/CarrierMark.jsx",
     "line": null,
-    "description": "Plan18-09 real airline image loading, desktop/mobile screenshots and Chrome console/network verification pending parent plan18-12 run.",
+    "description": "Plan18-12 verified actual desktop carrier images and Chrome console/network; dedicated mobile-carrier and browser broken-image samples remain pending. See shared-travel-workspace verification.md.",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-27T20:43:33.447Z",
