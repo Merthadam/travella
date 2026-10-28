@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { comparisonEntry } from './TravelComparison';
-import { draftTravelFacts, travelSnapshotSchema } from './CanvasTravel';
+import { draftTravelFacts, parseTravelRegistrySnapshot } from './CanvasTravel';
 import { reviewExactTravelOption, travelRequest } from './travelApi';
 import { TravelSearch } from './TravelSearch';
 import { TravelConversation } from './TravelConversation';
@@ -71,7 +71,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
     setChoiceError(''); setPane('options');
     if (!option.reference) { setHistoricalOption(option); return; }
     try {
-      const value = travelSnapshotSchema.parse(await travelRequest(selected.plan_id, 'research/snapshot', { search_id: option.reference.search_id }));
+      const value = parseTravelRegistrySnapshot(await travelRequest(selected.plan_id, 'research/snapshot', { search_id: option.reference.search_id }));
       if (!current(version)) return;
       const entry = value.plan_id === selected.plan_id && value.mode === topic && comparisonEntry(value, option.reference);
       if (!entry) throw new Error('Reference unavailable');

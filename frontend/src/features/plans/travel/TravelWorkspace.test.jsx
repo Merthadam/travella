@@ -222,15 +222,16 @@ test.each(['filter', 'inactive', 'same-property'])('exact room comparison respec
   expect(screen.queryByRole('region', { name: 'Option comparison' })).toBeNull();
 });
 
-test.each(['manual', 'foreign', 'invalid-criteria'])('raw manual registry room comparison validates %s evidence', async kind => {
+test.each(['manual', 'foreign', 'invalid-criteria', 'invalid-draft'])('raw manual registry room comparison validates %s evidence', async kind => {
   const original = workspaceSnapshot('stays', 'room-search'), current = workspaceSnapshot('stays', 'main-search');
+  current.draft_facts = draftTravelFacts({ map: { destination: 'Paris' } });
   original.results[0].rooms = [{ id: 'exact-room', name: 'Observed room', total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }];
   chat.messages = [{ message_id: 'earlier', comparison: { options: [{ id: 'saved', title: 'Saved exact room', reference: { search_id: original.search_id, option_id: 'option-1', room_id: 'exact-room' } }] } }];
   fetch.mockResolvedValueOnce({ ok: true, json: async () => original });
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="accommodation" active initialData={{ map: { destination: 'Paris' } }} importedSnapshot={current}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View Saved exact room' }));
   const detail = await screen.findByRole('dialog');
-  const raw = { ...original, draft_facts: {}, ...(kind === 'foreign' ? { plan_id: 'another-plan' } : {}), ...(kind === 'invalid-criteria' ? { criteria: { ...original.criteria, rooms: [] } } : {}) };
+  const raw = { ...original, draft_facts: kind === 'invalid-draft' ? { start: 'invalid partial metadata' } : {}, ...(kind === 'foreign' ? { plan_id: 'another-plan' } : {}), ...(kind === 'invalid-criteria' ? { criteria: { ...original.criteria, rooms: [] } } : {}) };
   fetch.mockResolvedValueOnce({ ok: true, json: async () => raw });
   fireEvent.click(within(detail).getByRole('button', { name: 'Compare room' }));
   if (kind !== 'manual') {

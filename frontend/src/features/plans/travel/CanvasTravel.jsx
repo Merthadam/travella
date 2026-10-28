@@ -48,6 +48,13 @@ export const canvasTravelResultSchema = z.object({ suggestions: z.unknown(), add
 export function draftTravelFacts(data) {
   return { start: data?.essentials?.dates?.start || '', end: data?.essentials?.dates?.end || '', flexible: Boolean(data?.essentials?.dates?.flexible), travelers: data?.essentials?.travelers ?? null, destination: data?.map?.destination || '' };
 }
+// Manual registry observations carry no saved-Plan draft metadata. Historical
+// inspection must not stamp them with today's brief or relax observed criteria.
+export function parseTravelRegistrySnapshot(value) {
+  const facts = value?.draft_facts;
+  const manual = facts && typeof facts === 'object' && !Array.isArray(facts) && Object.keys(facts).length === 0;
+  return travelSnapshotSchema.parse(manual ? { ...value, draft_facts: draftTravelFacts() } : value);
+}
 export function requestedTravelModes(message, previous=[]) {
   const modes=[];
   if (/\b(?:stays?|hotels?|accommodation|rooms?|nationality)\b/i.test(message)) modes.push('stays');

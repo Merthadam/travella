@@ -7,7 +7,7 @@ import { FlightSandboxCheckout, FlightMockRecovery } from "./FlightSandboxChecko
 import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
 import { StaySearchFilters } from "./StaySearchFilters";
 import { StayDestination } from "./StayDestination";
-import { travelState, TravelPhoto, travelSnapshotSchema } from "./CanvasTravel";
+import { travelState, TravelPhoto, parseTravelRegistrySnapshot } from "./CanvasTravel";
 import { CarrierMarks } from "./CarrierMark";
 import { TravelComparison, comparisonEntry, referenceKey } from './TravelComparison';
 import "./travel-search.css";
@@ -500,7 +500,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       return run === comparisonRun.current && now.instance_id === token.instance_id && now.revision === token.revision;
     };
     try {
-      const original = travelSnapshotSchema.parse(await travelRequest(planId, 'research/snapshot', { search_id: reference.search_id }));
+      const original = parseTravelRegistrySnapshot(await travelRequest(planId, 'research/snapshot', { search_id: reference.search_id }));
       if (!current()) return;
       if (original.plan_id !== planId || original.mode !== 'stays') throw new Error('Invalid room evidence');
       const entry = comparisonEntry(original, reference);
