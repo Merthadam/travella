@@ -222,8 +222,33 @@ test.each(['filter', 'inactive', 'same-property'])('exact room comparison respec
   expect(screen.queryByRole('region', { name: 'Option comparison' })).toBeNull();
 });
 
-test('opening a historical exact room keeps current inventory and never starts a supplier search', async () => {
+test.each(['manual', 'foreign', 'invalid-criteria'])('raw manual registry room comparison validates %s evidence', async kind => {
+  const original = workspaceSnapshot('stays', 'room-search'), current = workspaceSnapshot('stays', 'main-search');
+  original.results[0].rooms = [{ id: 'exact-room', name: 'Observed room', total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }];
+  chat.messages = [{ message_id: 'earlier', comparison: { options: [{ id: 'saved', title: 'Saved exact room', reference: { search_id: original.search_id, option_id: 'option-1', room_id: 'exact-room' } }] } }];
+  fetch.mockResolvedValueOnce({ ok: true, json: async () => original });
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="accommodation" active initialData={{ map: { destination: 'Paris' } }} importedSnapshot={current}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'View Saved exact room' }));
+  const detail = await screen.findByRole('dialog');
+  const raw = { ...original, draft_facts: {}, ...(kind === 'foreign' ? { plan_id: 'another-plan' } : {}), ...(kind === 'invalid-criteria' ? { criteria: { ...original.criteria, rooms: [] } } : {}) };
+  fetch.mockResolvedValueOnce({ ok: true, json: async () => raw });
+  fireEvent.click(within(detail).getByRole('button', { name: 'Compare room' }));
+  if (kind !== 'manual') {
+    expect(await screen.findByText(/This room observation is unavailable/)).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Option comparison' })).toBeNull();
+    return;
+  }
+  const comparison = await screen.findByRole('region', { name: 'Option comparison' });
+  expect(within(comparison).getByText('Exact room: Observed room')).toBeTruthy();
+  expect(within(comparison).getByText('Earlier search · historical comparison')).toBeTruthy();
+  expect(within(comparison).getByText(/2027-11-13 – 2027-11-16/)).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'main-search' })).toBeTruthy();
+  expect(fetch.mock.calls.every(([url]) => url.includes('research/snapshot?'))).toBe(true);
+});
+
+test('opening a raw manual historical exact room keeps current inventory and never starts a supplier search', async () => {
   const original = workspaceSnapshot('stays', 'original'), present = workspaceSnapshot('stays', 'current');
+  original.draft_facts = {};
   const room = { id: 'exact-room', name: 'Private apartment', total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults, 0 children' };
   original.results[0].rooms = [room, { ...room, id: 'other-room', name: 'Other room', total: { amount: '100', currency: 'EUR' } }];
   chat.messages = [{ message_id: 'historical', comparison: { options: [{ id: 'old', title: 'Earlier private apartment', reference: { search_id: 'original', option_id: 'option-1', room_id: 'exact-room' } }] } }];
