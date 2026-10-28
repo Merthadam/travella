@@ -123,6 +123,48 @@ test.each(['fresh', 'expired', 'edited', 'owner-change', 'foreign', 'detail'])('
   if (outcome === 'owner-change') expect(readTravelWorkspace(owner, 'plan-1', 'stays')).toBeNull();
 });
 
+test.each(['initial', 'changed'])('manual review receipt preserves initial hydration but invalidates changed brief: %s', async scenario => {
+  chat.active = false;
+  if (scenario === 'changed') chat.snapshot = { revision: 7, brief: { digest: 'before' } };
+  const data = workspaceSnapshot('flights'), reference = { search_id: data.search_id, option_id: 'option-1', room_id: null };
+  const option = { id: 'observed-fare', title: 'Exact return fare', reference, observed_at: new Date().toISOString(), facts: [], unknowns: [] };
+  const receipt = { plan_id: 'plan-1', topic: 'flights', revision: 8, brief: { digest: 'after' }, comparison: { options: [option] }, shortlist: [], preferred: null };
+  let finish;
+  const api = { travelTurn: vi.fn(async () => ({ status: 'complete', travel_specialist_result: receipt })), prepareTravelChoice: vi.fn(() => new Promise(resolve => { finish = resolve; })) };
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={data}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  await waitFor(() => expect(finish).toBeTruthy());
+  await act(async () => finish({ revision: 8, challenge: 'exact-review' }));
+  const confirm = screen.queryByRole('button', { name: 'Confirm choice · not booked' });
+  if (scenario === 'initial') expect(confirm).toBeTruthy(); else expect(confirm).toBeNull();
+});
+
+test('ordinary followups use displayed exact room comparison across searches and clear on close', async () => {
+  chat.real = true;
+  const current = workspaceSnapshot('stays', 'main-search'), first = workspaceSnapshot('stays', 'rate-a'), second = workspaceSnapshot('stays', 'rate-b');
+  for (const [snapshot, id] of [[first, 'room-a'], [second, 'room-b']]) snapshot.results[0].rooms = [{ id, name: id, total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }];
+  const refs = [first, second].map(s => ({ search_id: s.search_id, option_id: 'option-1', room_id: s.results[0].rooms[0].id }));
+  const history = { plan_id: 'plan-1', topic: 'stays', revision: 4, brief: { digest: 'brief' }, messages: [{ message_id: 'old', comparison: { options: refs.map((reference, i) => ({ id: String(i), title: reference.room_id, reference })) } }] };
+  const api = { travelTopic: vi.fn(async () => history), travelTurn: vi.fn(async () => ({ status: 'complete' })), cancelAgentTurn: vi.fn(async () => ({})) };
+  fetch.mockImplementation(async url => ({ ok: true, json: async () => url.includes('rate-a') ? first : second }));
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData} importedSnapshot={current}/>);
+  for (const ref of refs) {
+    fireEvent.click(await screen.findByRole('button', { name: `View ${ref.room_id}` }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Compare room' }));
+    await screen.findByText(`Exact room: ${ref.room_id}`);
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Send workspace search' }));
+  await waitFor(() => expect(api.travelTurn).toHaveBeenCalledTimes(1));
+  expect(api.travelTurn.mock.calls[0][4].travelDiscussion).toEqual({ intent: 'discuss', options: refs });
+  expect(api.travelTurn.mock.calls[0][4].workspaceContext.search_id).toBe('main-search');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send workspace search' }).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'Close comparison' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send workspace search' }));
+  await waitFor(() => expect(api.travelTurn).toHaveBeenCalledTimes(2));
+  expect(api.travelTurn.mock.calls[1][4].travelDiscussion).toBeUndefined();
+});
+
 test('manual exact fare review and confirmed receipt survive unavailable chat history', async () => {
   chat.active = false; chat.send = vi.fn(); chat.refresh = vi.fn(async () => { throw new Error('History unavailable'); });
   const data = workspaceSnapshot('flights'), reference = { search_id: data.search_id, option_id: 'option-1', room_id: null };
