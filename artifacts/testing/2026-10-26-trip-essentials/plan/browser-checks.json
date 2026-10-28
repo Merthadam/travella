@@ -1,0 +1,167 @@
+{
+  "tool": "Chrome DevTools protocol in fresh isolated Chrome; MCP screenshot timeout workaround",
+  "results": [
+    "Captured a-desktop",
+    "Captured resource-dialog",
+    "A: expand, keep, choose/change transport, edit preferences, source, dialog keyboard guard and Escape passed",
+    "Captured b-desktop",
+    "B: topic browsing, note keeping and decision passed",
+    "Captured c-desktop",
+    "C: stage expansion, note keeping and contextual resource passed",
+    "Captured generating",
+    "Captured empty",
+    "Switcher click/keyboard wrapping, select keyboard guard, loading/empty states, reload-stable variant and reset local state passed",
+    "Captured a-mobile-top",
+    "Captured a-mobile-bottom",
+    "Captured b-mobile-top",
+    "Captured b-mobile-bottom",
+    "Captured c-mobile-top",
+    "Captured c-mobile-bottom",
+    "A/B/C mobile layouts have no horizontal overflow; upper/lower captures saved",
+    "Captured b-light",
+    "No page errors; all /v1 requests read-only GET; no model generation or plan writes"
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/places/ChIJO_PkYRozGQ0R0DaQ5L3rAAQ/photos/[reference]/media"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/places/ChIJO_PkYRozGQ0R0DaQ5L3rAAQ/photos/[reference]/media"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/places/ChIJO_PkYRozGQ0R0DaQ5L3rAAQ/photos/[reference]/media"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/traveler-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/destinations"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/canvas"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/research-context"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/conversation/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/agent/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/travel/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plans/0355fb3e-acb1-438b-9177-ccccb1da588c/brief"
+    }
+  ]
+}

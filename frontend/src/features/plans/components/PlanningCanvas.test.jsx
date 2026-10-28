@@ -113,7 +113,8 @@ test('confirming Yes adds flights even when essentials were edited while flights
 
 test('open card edits and unsent chat survive flight and stay navigation', async () => {
   const user = userEvent.setup(); const api = setup();
-  await user.click(await screen.findByRole('button', { name: 'Add preference', exact: true }));
+  await user.click(await screen.findByRole('button', { name: /Read more/ }));
+  await user.click(screen.getByRole('button', { name: 'Add preference', exact: true }));
   await user.type(screen.getByRole('textbox', { name: 'Preference' }), 'Unfinished preference');
   const message = screen.getByRole('textbox', { name: 'Message Travella' });
   expect(message.disabled).toBe(false);
@@ -147,7 +148,8 @@ test('cancelling an editor during a reply releases the save lock after the reply
       resolve({ status: 'complete' });
     };
   }));
-  await user.click(await screen.findByRole('button', { name: 'Add preference', exact: true }));
+  await user.click(await screen.findByRole('button', { name: /Read more/ }));
+  await user.click(screen.getByRole('button', { name: 'Add preference', exact: true }));
   await user.type(screen.getByRole('textbox', { name: 'Message Travella' }), 'Help with this trip');
   await user.click(screen.getByRole('button', { name: 'Send message' }));
   await waitFor(() => expect(finish).toBeTypeOf('function'));

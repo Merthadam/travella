@@ -3,6 +3,7 @@ import { TravelSearch, useTravelCapabilities } from '../travel/TravelSearch';
 import { useFlightBookingSync } from '../travel/useFlightBookingSync';
 import { FlightCheckout } from '../travel/FlightCheckout';
 import { readFlightReceipt } from '../travel/useFlightCheckout';
+import { TripBriefing } from './TripBriefing';
 import { TripEssentials } from '../../../design-system/components/TripEssentials';
 import { readCanvasView, writeCanvasView } from '../canvasViewState';
 import { CanvasSurface } from '../../../design-system/a2ui/CanvasSurface';
@@ -23,7 +24,7 @@ import { CanvasGenerationReview, PlanStages } from './CanvasGenerationReview';
 import { CanvasGenerationLoader } from './CanvasGenerationLoader';
 import './single-canvas.css';
 
-const groupLabel = { all: 'plan', themes: 'themes and preferences', research: 'research and useful websites' };
+const groupLabel = { all: 'plan', themes: 'themes and preferences', research: 'trip briefing research' };
 
 export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDirtyChange, onBusyChange, autoGenerate = false }) {
   const [chatBusy, setChatBusy] = useState(false);
@@ -296,8 +297,8 @@ export function PlanningCanvas({ selected, api, onBack, onExpired, onSaved, onDi
 
       {travel.error && <p role="alert" className="canvas-error">{travel.error} <button className="ds-button" onClick={travel.retry}>Retry travel connection</button></p>}
 
-      {canvas.renderData && <div aria-hidden={screen ? true : undefined} inert={Boolean(screen)}><CanvasMapContext.Provider value={{ preview, viewStateKey: selected.plan_id, destinationHint: canvas.mapDestinationHint, onClearPreview: () => setPreview(null), onAddPreview: place => canvas.addActivities([place]), disabled: busy || canvas.data.map.pins.length >= 50 }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} combinedPlaces viewStateKey={selected.plan_id} visible={['map', 'flights', 'accommodation', 'themes', 'findings', 'links'].filter(id => canvas.renderData[id] && (id !== 'flights' || canvas.renderData.flights.need === 'needed'))} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placePhoto={CanvasPlacePhoto} placeDetails={CanvasPlaceDetails} placePreview={preview} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider></div>}
-      {canvas.data && <div className="canvas-group-actions" aria-label="Generate individual plan sections">{['themes', 'research'].map(group => <div key={group}><span>{group === 'themes' ? 'Themes & preferences' : 'Research & websites'}</span><button type="button" className="ds-text-button" disabled={busy || canvas.editing || Boolean(canvas.saveError)} onClick={() => generate(group)}>{canvas.groups[group] === 'error' ? 'Retry' : 'Regenerate'}</button>{canvas.groups[group] === 'error' && <small role="status">Couldn’t finish. Completed details are still here.</small>}</div>)}</div>}
+      {canvas.renderData && <div aria-hidden={screen ? true : undefined} inert={Boolean(screen)}><CanvasMapContext.Provider value={{ preview, viewStateKey: selected.plan_id, destinationHint: canvas.mapDestinationHint, onClearPreview: () => setPreview(null), onAddPreview: place => canvas.addActivities([place]), disabled: busy || canvas.data.map.pins.length >= 50 }}><CanvasSurface surfaceId={`planning-canvas-${selected.plan_id}`} data={canvas.renderData} combinedPlaces viewStateKey={selected.plan_id} visible={['map', 'flights', 'accommodation'].filter(id => canvas.renderData[id] && (id !== 'flights' || canvas.renderData.flights.need === 'needed'))} onAction={action} disabled={busy} mapAdapter={CanvasDestinationMap} placePhoto={CanvasPlacePhoto} placeDetails={CanvasPlaceDetails} placePreview={preview} preview={false} travelCapabilities={travel.capabilities}/></CanvasMapContext.Provider></div>}
+      {canvas.renderData && <TripBriefing key={selected.plan_id} data={canvas.renderData} groups={canvas.groups} disabled={busy || Boolean(canvas.saveError)} editing={canvas.editing} onAction={action} onRefresh={generate}/>}
       <dialog className="canvas-confirm" ref={dialog} aria-labelledby="canvas-confirm-title" onCancel={event => { event.preventDefault(); setConfirm(null); }}>
         <h2 id="canvas-confirm-title">{confirm?.kind === 'generate' ? `Replace the draft ${groupLabel[confirm.group]}?` : confirm?.kind === 'reload' ? 'Discard edits and load the saved plan?' : 'Leave with changes still pending?'}</h2>
         <p>{confirm?.kind === 'generate' ? 'New results replace the selected generated sections, including edits in those sections. Your essentials and saved map places stay in the draft. Completed results are saved automatically to your draft.' : 'Changes that have not finished saving and unfinished edits may be lost. Keep editing to let your draft finish saving.'}</p>

@@ -1,0 +1,29 @@
+.trip-briefing { padding:24px 28px 0; margin-top:18px; border:1px solid var(--ds-line); border-radius:18px; background:var(--ds-surface); box-shadow:var(--ds-shadow); overflow-wrap:anywhere; }
+.trip-briefing-heading { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:12px; }
+.trip-briefing-heading h2 { margin:0; font:500 27px/1.25 var(--ds-display); letter-spacing:-.025em; }
+.trip-briefing-heading>span { color:var(--ds-muted); font-size:11px; }
+.trip-briefing-intro { margin:0; max-width:1040px; color:var(--ds-ink); font-size:14px; line-height:1.75; }
+.trip-briefing-highlights { display:grid; gap:10px; padding-left:15px; margin:18px 0 20px; }
+.trip-briefing-highlights li::marker { color:var(--ds-green); font-size:11px; }
+.trip-briefing-finding p { margin:0; font-size:13px; line-height:1.75; color:var(--ds-muted); }
+.trip-briefing-finding strong { color:var(--ds-ink); font-weight:600; }
+.trip-briefing a { color:var(--ds-green); font-size:12px; text-decoration:underline; text-underline-offset:3px; }
+.trip-briefing a:focus-visible,.trip-briefing button:focus-visible { outline:3px solid var(--ds-focus); outline-offset:3px; border-radius:3px; }
+.trip-briefing-footer { border-top:1px solid var(--ds-line); display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:54px; margin-top:18px; }
+.trip-briefing-footer button { min-height:44px; padding:8px 0; border:0; border-radius:4px; background:none; color:var(--ds-green); font-size:12px; font-weight:600; cursor:pointer; }
+.trip-briefing button:disabled { opacity:.5; cursor:default; }
+.trip-briefing-more { border-top:1px solid var(--ds-line); padding:20px 0 0; margin-top:20px; }
+.trip-briefing-more[hidden] { display:none; }
+.trip-briefing-more>div { margin:20px 0; }
+.trip-briefing-more h3 { font-size:13px; font-weight:600; margin:0 0 7px; }
+.trip-briefing-more p { font-size:13px; line-height:1.75; color:var(--ds-muted); margin:7px 0 0; }
+.trip-briefing-more .trip-briefing-provenance,.trip-briefing-finding small { display:block; font-size:11px; color:var(--ds-muted); line-height:1.6; }
+.trip-briefing-extra .trip-briefing-finding { margin-top:14px; }
+.trip-briefing-status { margin:16px 0; font-size:13px; line-height:1.7; color:var(--ds-muted); }
+.trip-briefing-preferences-heading { display:flex; align-items:center; justify-content:space-between; }
+.trip-briefing-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+@media(max-width:600px) {
+  .trip-briefing { padding:20px 20px 0; }.trip-briefing-heading h2 { font-size:25px; }.trip-briefing-heading>span { font-size:10px; }
+  .trip-briefing-intro { font-size:13px; line-height:1.7; }.trip-briefing-highlights { gap:12px; margin:16px 0 18px; }
+  .trip-briefing-footer { scroll-margin-block-end:80px; }
+}

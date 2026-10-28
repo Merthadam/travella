@@ -1,0 +1,60 @@
+{
+  "results": [
+    "Five distinct sources; direct Metro, CARRIS and Coach Museum pages present",
+    "New-tab noopener behavior preserved",
+    "Pointer/keyboard disclosure; desktop/mobile screenshots; no horizontal overflow",
+    "No JavaScript errors; only read-only Plan API requests"
+  ],
+  "links": [
+    {
+      "href": "https://www.mncoches.gov.pt/en/visita",
+      "text": "Visitor information ↗ (opens in a new tab)",
+      "target": "_blank",
+      "rel": "noopener noreferrer"
+    },
+    {
+      "href": "https://www.visitportugal.com/en/destinos/lisboa-regiao/196876",
+      "text": "Food guide ↗ (opens in a new tab)",
+      "target": "_blank",
+      "rel": "noopener noreferrer"
+    },
+    {
+      "href": "https://www.metrolisboa.pt/en/travel/using-the-metro/",
+      "text": "Metro guide ↗ (opens in a new tab)",
+      "target": "_blank",
+      "rel": "noopener noreferrer"
+    },
+    {
+      "href": "https://www.visitportugal.com/en/content/lisbon-in-a-day",
+      "text": "About the area ↗ (opens in a new tab)",
+      "target": "_blank",
+      "rel": "noopener noreferrer"
+    },
+    {
+      "href": "https://www.carris.pt/en/travel/planear-viagem/",
+      "text": "Plan a bus or tram journey ↗ (opens in a new tab)",
+      "target": "_blank",
+      "rel": "noopener noreferrer"
+    }
+  ],
+  "errors": [],
+  "failed": [
+    {
+      "status": 404,
+      "path": "/favicon.ico"
+    },
+    {
+      "status": 401,
+      "path": "/auth/session"
+    }
+  ],
+  "warnings": [
+    "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "<gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener.",
+    "Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.",
+    "<gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener."
+  ],
+  "requestCount": 17
+}
