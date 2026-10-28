@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { comparisonEntry } from './TravelComparison';
 import { draftTravelFacts, travelSnapshotSchema } from './CanvasTravel';
@@ -15,7 +15,10 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
   const topic = mode === 'accommodation' ? 'stays' : 'flights';
   const stop = useRef(null);
   const workspace = useTravelWorkspace({ owner: selected.owner_id || selected.subject || 'session', planId: selected.plan_id, topic, initialData, active, onExpired, onManualChange: () => stop.current?.() });
-  const chat = useTravelConversation({ selected, api, topic, visible: active, blocked, onExpired, onBusyChange, getWorkspaceContext: workspace.getWorkspaceContext, onWorkspaceRunStart: workspace.onWorkspaceRunStart, onWorkspaceRunEnd: workspace.onWorkspaceRunEnd, onWorkspaceUpdate: workspace.applyWorkspaceUpdate });
+  const comparisonScope = workspace.state.instanceId;
+  const displayedComparison = useRef(null);
+  const onComparisonChange = useCallback(references => { displayedComparison.current = { scope: comparisonScope, references }; }, [comparisonScope]);
+  const chat = useTravelConversation({ selected, api, topic, visible: active, blocked, onExpired, onBusyChange, getDiscussionContext: () => displayedComparison.current?.scope === comparisonScope && displayedComparison.current.references.length ? { intent: 'discuss', options: displayedComparison.current.references } : undefined, getWorkspaceContext: workspace.getWorkspaceContext, onWorkspaceRunStart: workspace.onWorkspaceRunStart, onWorkspaceRunEnd: workspace.onWorkspaceRunEnd, onWorkspaceUpdate: workspace.applyWorkspaceUpdate });
   const [pane, setPane] = useState('options'), [chatOpen, setChatOpen] = useState(true), [contextOptions, setContextOptions] = useState([]);
   const chatToggle = useRef(null), browseTab = useRef(null);
   function openChat() { setChatOpen(true); setPane('chat'); }
@@ -35,13 +38,17 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
   }, [scope, active]);
   useEffect(() => { setReceipt(null); setReview(null); setChoiceError(''); }, [scope]);
   const snapshot = receipt?.scope === scope && receipt.value.revision >= (chat.snapshot?.revision ?? -1) ? receipt.value : chat.snapshot;
-  const relevantBrief = `${JSON.stringify(draftTravelFacts(initialData))}:${snapshot?.brief?.digest || ''}`;
-  const previousBrief = useRef(relevantBrief);
+  const briefFacts = JSON.stringify(draftTravelFacts(initialData)), briefDigest = snapshot?.brief?.digest || '';
+  const previousBrief = useRef({ scope, facts: briefFacts, digest: briefDigest });
   useEffect(() => {
-    if (previousBrief.current === relevantBrief) return;
-    previousBrief.current = relevantBrief; operationEpoch.current++;
+    const previous = previousBrief.current;
+    previousBrief.current = { scope, facts: briefFacts, digest: briefDigest };
+    // The first authenticated receipt can supply a previously unavailable brief.
+    // Only a changed known brief or saved traveler facts revoke its challenge.
+    if (previous.scope !== scope || previous.facts === briefFacts && (!previous.digest || previous.digest === briefDigest)) return;
+    operationEpoch.current++;
     setReview(null); setSaving(false);
-  }, [relevantBrief]);
+  }, [scope, briefFacts, briefDigest]);
   function acceptReceipt(value) { setReceipt({ scope, value }); chat.acceptReceipt?.(value); }
   const unavailable = blocked || chat.active || chat.loading || snapshot?.locked || Boolean(chat.historyError);
   stop.current = chat.stop;
@@ -160,7 +167,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
         {workspace.state.view.dismissed_ids.length > 0 && <details className="travel-saved-options" open><summary>Dismissed from these results ({workspace.state.view.dismissed_ids.length})</summary>
           {workspace.state.snapshot?.results.filter(item => workspace.state.view.dismissed_ids.includes(item.id)).map(item => <div key={item.id}><span>{topic === 'stays' ? item.name : item.airlines.join(' / ') || 'Flight'}</span>{' '}<button type="button" className="ds-text-button" disabled={workspace.state.draftDirty} onClick={() => workspace.restore({ search_id: workspace.state.searchId, option_id: item.id, room_id: null })}>Restore {topic === 'stays' ? item.name : item.airlines.join(' / ') || 'flight'}</button></div>)}
         </details>}
-        <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onShortlist={item => chooseManual(item, 'shortlist')} onCompare={compare} discussionDisabled={unavailable || saving} choiceDisabled={blocked || saving}/>
+        <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onShortlist={item => chooseManual(item, 'shortlist')} onCompare={compare} onComparisonChange={onComparisonChange} discussionDisabled={unavailable || saving} choiceDisabled={blocked || saving}/>
         {savedSuggestions}
       </section>
       <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatOpen}><TravelConversation chat={chat} topic={topic} visible={active && chatOpen} disabled={blocked || snapshot?.locked && !chat.active} contextOptions={contextOptions} onClearContext={() => setContextOptions([])} onClose={closeChat} brief={snapshot?.brief} pendingEdits={pendingEdits} renderReferences={renderReferences} notes={notes}/></div>

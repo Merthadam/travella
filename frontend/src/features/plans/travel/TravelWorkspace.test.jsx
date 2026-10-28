@@ -123,7 +123,7 @@ test.each(['fresh', 'expired', 'edited', 'owner-change', 'foreign', 'detail'])('
   if (outcome === 'owner-change') expect(readTravelWorkspace(owner, 'plan-1', 'stays')).toBeNull();
 });
 
-test.each(['initial', 'changed'])('manual review receipt preserves initial hydration but invalidates changed brief: %s', async scenario => {
+test.each(['initial', 'changed', 'saved-facts'])('manual review receipt preserves initial hydration but invalidates changed brief: %s', async scenario => {
   chat.active = false;
   if (scenario === 'changed') chat.snapshot = { revision: 7, brief: { digest: 'before' } };
   const data = workspaceSnapshot('flights'), reference = { search_id: data.search_id, option_id: 'option-1', room_id: null };
@@ -131,10 +131,12 @@ test.each(['initial', 'changed'])('manual review receipt preserves initial hydra
   const receipt = { plan_id: 'plan-1', topic: 'flights', revision: 8, brief: { digest: 'after' }, comparison: { options: [option] }, shortlist: [], preferred: null };
   let finish;
   const api = { travelTurn: vi.fn(async () => ({ status: 'complete', travel_specialist_result: receipt })), prepareTravelChoice: vi.fn(() => new Promise(resolve => { finish = resolve; })) };
-  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={data}/>);
+  const props = { selected: { plan_id: 'plan-1' }, api, mode: 'flights', active: true, initialData, importedSnapshot: data };
+  const rendered = render(<TravelWorkspace {...props}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
   await waitFor(() => expect(finish).toBeTruthy());
+  if (scenario === 'saved-facts') rendered.rerender(<TravelWorkspace {...props} initialData={{ map: { destination: 'Paris' } }}/>);
   await act(async () => finish({ revision: 8, challenge: 'exact-review' }));
   const confirm = screen.queryByRole('button', { name: 'Confirm choice · not booked' });
   if (scenario === 'initial') expect(confirm).toBeTruthy(); else expect(confirm).toBeNull();

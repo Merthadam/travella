@@ -4,7 +4,7 @@ import { getTravelRecoveryScope, subscribeTravelRecovery } from '../canvasViewSt
 
 // Each mounted workspace owns its transcript and draft. A stopped run remains
 // locked until the server acknowledges cancellation, including a pending commit.
-export function useTravelConversation({ api, selected, topic, visible, blocked, onExpired, onBusyChange, getWorkspaceContext, onWorkspaceRunStart, onWorkspaceRunEnd, onWorkspaceUpdate }) {
+export function useTravelConversation({ api, selected, topic, visible, blocked, onExpired, onBusyChange, getDiscussionContext, getWorkspaceContext, onWorkspaceRunStart, onWorkspaceRunEnd, onWorkspaceUpdate }) {
   const [snapshot, setSnapshot] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +13,7 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
   const [active, setActive] = useState(false);
   const run = useRef(null), epoch = useRef(0), callbacks = useRef({});
   const owner = getTravelRecoveryScope() || selected.owner_id || selected.subject || 'session';
-  callbacks.current = { onExpired, onBusyChange, getWorkspaceContext, onWorkspaceRunStart, onWorkspaceRunEnd, onWorkspaceUpdate };
+  callbacks.current = { onExpired, onBusyChange, getDiscussionContext, getWorkspaceContext, onWorkspaceRunStart, onWorkspaceRunEnd, onWorkspaceUpdate };
   const refresh = useCallback(async () => {
     const version = epoch.current;
     const result = await api.travelTopic(selected, topic);
@@ -74,6 +74,7 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     return current.stopping;
   }
   async function send(text, travelDiscussion, options = {}) {
+    travelDiscussion ??= callbacks.current.getDiscussionContext?.();
     const message = text.trim();
     const explicitComparison = options.explicitComparison === true && travelDiscussion?.intent === 'compare' && travelDiscussion.options?.length >= 2 && travelDiscussion.options.length <= 3;
     if (!message || blocked || loading || historyError || run.current || (!visible && !explicitComparison)) return false;
