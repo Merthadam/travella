@@ -64,7 +64,7 @@ export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBook
       const value = await travelRequest(planId, `sandbox/flights/${action}`, { token: result.token, ...(action !== 'status' ? { confirm_mock: true } : {}), ...payload });
       // Keep confirmation delivery alive if the user left while submitting.
       accept(value); return value;
-    } catch (e) { if (action === 'prebook' && e.status === 422) setAttempted(false); failed(e); return null; }
+    } catch (e) { if (action === 'services') { setResult(old => ({ ...old, status: 'unknown' })); setConsent(false); } if (action === 'prebook' && e.status === 422) setAttempted(false); failed(e); return null; }
     finally { submitting.current = false; setBusy(false); }
   }
   return { result, busy, error, consent, setConsent, attempted, priceChanged, perform };

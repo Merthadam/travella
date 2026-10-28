@@ -96,7 +96,7 @@ def test_flight_booking_explicit_save_reload_update_and_scope(system):
 def itinerary_payload():
     payload = body()
     segment = {'origin': 'BUD', 'destination': 'MXP', 'departureAt': '2027-02-03T10:00:00', 'arrivalAt': '2027-02-03T12:00:00', 'airline': 'Nuitée Air', 'flightNumber': 'NT123'}
-    itinerary = {'outbound': [segment], 'inbound': [{**segment, 'origin': 'LIN', 'destination': 'BUD', 'departureAt': '2027-02-07T10:00:00', 'arrivalAt': '2027-02-07T12:00:00'}], 'passengerCount': 2, 'amount': '312.00', 'currency': 'EUR', 'baggage': 'Cabin bag included', 'fareConditions': 'Non-refundable', 'confirmationCode': 'TESTPNR'}
+    itinerary = {'outbound': [segment], 'inbound': [{**segment, 'origin': 'LIN', 'destination': 'BUD', 'departureAt': '2027-02-07T10:00:00', 'arrivalAt': '2027-02-07T12:00:00'}], 'passengerCount': 2, 'amount': '312.00', 'currency': 'EUR', 'baggage': 'Cabin bag included', 'fareConditions': 'Non-refundable', 'confirmationCode': 'TESTPNR', 'extras': [{'kind': 'seat', 'label': 'Seat 12A (BUD→MXP)', 'segmentIndex': 0, 'passengerIndex': 0, 'quantity': 1, 'amount': '12', 'currency': 'EUR'}]}
     payload['snapshot']['components']['flights'].update(bookingStatus='mock-booked', mockBooking={'reference': 'TEST-FLIGHT', 'origin': 'BUD', 'destination': 'MXP', 'departureDate': '2027-02-03', 'returnDate': '2027-02-07', 'itinerary': itinerary})
     return payload
 
@@ -133,4 +133,13 @@ def test_itinerary_rejects_sensitive_or_invalid_fields_without_writes(system, fi
     plan = create(system); path = f"/v1/plans/{plan['plan_id']}/canvas"
     payload = itinerary_payload(); payload['snapshot']['components']['flights']['mockBooking']['itinerary'][field] = value
     assert system.client.post(path+'/challenge', json=payload, headers=write_headers(system, plan['revision'])).status_code == 422
+    assert system.client.get(path).json()['snapshot'] is None
+
+
+def test_itinerary_extras_reject_payment_and_passenger_data(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}/canvas"
+    payload = itinerary_payload()
+    payload['snapshot']['components']['flights']['mockBooking']['itinerary']['extras'][0]['cardNumber'] = 'PRIVATE'
+    assert system.client.post(path + '/challenge', json=payload, headers=write_headers(system, plan['revision'])).status_code == 422
     assert system.client.get(path).json()['snapshot'] is None

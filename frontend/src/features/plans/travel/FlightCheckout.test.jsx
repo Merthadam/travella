@@ -28,7 +28,7 @@ it('collects transient test passengers, reconfirms the refreshed fare, and waits
   render(<FlightCheckout planId="p" offerToken="offer" onBookingResult={notify}/>);
   await reserve();
   expect(travelRequest.mock.calls[1][2]).toMatchObject({ confirm_mock: true, passengers: [{ first_name: 'Alex', document_number: 'TEST00000' }], contact: { email: 'sandbox-guest@example.com' } });
-  await screen.findByText('No seat-selection charge added');
+  await screen.findByText(/No selectable seats returned/);
   expect(screen.queryByRole('button', { name: /Seat 10/ })).toBeNull();
   await reachPayment();
   const confirm = screen.getByRole('button', { name: 'Confirm test booking · €175.00' });
@@ -95,4 +95,33 @@ it('reopens a durable itinerary without a browser token and exports only safe do
 it('escapes provider strings in downloaded documents and supports old summary-only receipts', () => {
   const summary = { reference: '<script>bad</script>', origin: 'BUD', destination: 'FCO', departureDate: '2027-02-03', returnDate: '2027-02-07' };
   const html = itineraryDocument(summary); expect(html).not.toContain('<script>'); expect(html).toContain('&lt;script&gt;'); expect(html).toContain('Price unavailable');
+});
+
+it('offers returned seats and baggage instead of disconnected steps', async () => {
+  travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce({ ...ready, services: [
+    { id: 'seat-12a', kind: 'seat', label: '12A', segment_index: 0, passenger_indexes: [0], price: { amount: '12', currency: 'EUR' } },
+    { id: 'bag-20kg', kind: 'baggage', label: 'Checked bag · 20 kg', segment_index: 0, passenger_indexes: [0], price: { amount: '30', currency: 'EUR' } },
+  ] });
+  render(<FlightCheckout planId="p" offerToken="offer"/>); await reserve();
+  expect(await screen.findByRole('button', { name: /12A/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
+  expect(await screen.findByLabelText(/Checked bag · 20 kg/)).toBeTruthy();
+});
+
+it('applies selected seats, updates the total and preserves extras in the saved document', async () => {
+  const seat = { id: 'seat', kind: 'seat', label: 'Seat 12A (BUD→FCO)', segment_index: 0, passenger_indexes: [0], price: { amount: '12', currency: 'EUR' } };
+  const selected = { ...seat, passenger_index: 0, quantity: 1 };
+  const changed = { ...ready, token: 'changed', services: [seat], selected_services: [selected], flight: { ...ready.flight, price: { amount: '187', currency: 'EUR' } } };
+  travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce({ ...ready, services: [seat] }).mockResolvedValueOnce(changed);
+  render(<FlightCheckout planId="p" offerToken="offer"/>); await reserve();
+  fireEvent.click(await screen.findByRole('button', { name: /Seat 12A/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
+  await screen.findByRole('heading', { name: 'Check what you can bring.' });
+  expect(travelRequest.mock.calls[2][2]).toEqual({ token: 'prebook', confirm_mock: true, selected_services: [{ id: 'seat', passenger_index: 0, quantity: 1 }] });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to review & pay →' }));
+  expect(screen.getByRole('button', { name: 'Confirm test booking · €187.00' }).disabled).toBe(true);
+  expect(screen.getByText(/Seat 12A/, { selector: 'li' })).toBeTruthy();
+  const summary = flightBookingSummary({ ...changed, status: 'confirmed', booking_id: 'TEST' });
+  expect(summary.itinerary.extras).toEqual([{ kind: 'seat', label: seat.label, segmentIndex: 0, passengerIndex: 0, quantity: 1, amount: '12', currency: 'EUR' }]);
+  expect(itineraryDocument(summary)).toContain('Seat 12A');
 });

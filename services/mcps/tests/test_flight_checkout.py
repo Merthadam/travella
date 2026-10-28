@@ -23,8 +23,20 @@ class Supplier:
     def __init__(self):
         self.prebooks = 0
         self.books = []
+        self.selected = []
+        self.service_calls = 0
+        self.lose_services = False
         self.journey = flight_payload()['data'][0]['journeys'][0]
         self.journey = self.journey | self.journey['cheapestOffer']
+
+    def prebook_data(self):
+        self.journey['segments'][0]['segmentKey'] = 'out'
+        return {'prebookId': 'PRIVATE_PREBOOK', 'booking': {'journey': self.journey, 'selectedServices': self.selected},
+                'price': 260 + sum((12 if s['serviceId'] == 'PRIVATE_SEAT' else 30) * s['quantity'] for s in self.selected),
+                'currency': 'EUR', 'paymentTypes': ['TRANSACTION_ID'], 'secretKey': 'pi_test_secret_test', 'transactionId': 'tr_test',
+                'servicesAttachable': {'groups': [{'category': 'seat', 'services': [
+                    {'serviceId': 'PRIVATE_SEAT_REFRESHED' if self.selected else 'PRIVATE_SEAT', 'name': 'Seat 12A', 'category': 'seat', 'segmentKey': 'out', 'passengerType': 'ALL', 'pricing': {'display': {'amount': 12, 'currency': 'EUR'}}, 'metadata': {'seat': {'available': True, 'seatRow': 12, 'seatColumn': 'A'}}}]},
+                    {'category': 'baggage', 'services': [{'serviceId': 'PRIVATE_BAG', 'name': 'Checked bag 23kg', 'category': 'baggage', 'segmentKey': 'out', 'passengerType': 'ALL', 'pricing': {'display': {'amount': 30, 'currency': 'EUR'}}, 'metadata': {'baggage': {'maxQuantity': 2}}}]}]}}
 
     def __call__(self, req):
         path = req.url.path
@@ -32,20 +44,29 @@ class Supplier:
             return httpx.Response(200, json=flight_payload())
         if path.endswith('/verify'):
             return httpx.Response(200, json={'data': [{'journey': self.journey}]})
+        if path.endswith('/services'):
+            self.service_calls += 1
+            self.selected = json.loads(req.content)['selectedServices']
+            if self.lose_services:
+                self.lose_services = False
+                raise httpx.ReadTimeout('private')
+            return httpx.Response(200, json={'data': [self.prebook_data()]})
+        if path.endswith('/prebooks/PRIVATE_PREBOOK'):
+            return httpx.Response(200, json={'data': [self.prebook_data()]})
         if path.endswith('/prebooks'):
             self.prebooks += 1
             body = json.loads(req.content)
             self.last_prebook = body
-            assert body['usePaymentSdk'] is False
+            assert body['usePaymentSdk'] is True
             assert body['contact']['email'] == 'sandbox-guest@example.com'
             assert len(body['passengers']) == FLIGHT['adults']
             if self.lose_prebook:
                 raise httpx.ReadTimeout('private')
-            return httpx.Response(200, json={'data': [{'prebookId': 'PRIVATE_PREBOOK', 'booking': {'journey': self.journey}, 'price': 260, 'currency': 'EUR', 'paymentTypes': ['ACC_CREDIT_CARD']}]})
+            return httpx.Response(200, json={'data': [self.prebook_data()]})
         if path.endswith('/bookings/'):
             body = json.loads(req.content)
             self.books.append(body)
-            assert body == {'prebookId': 'PRIVATE_PREBOOK', 'payment': {'method': 'ACC_CREDIT_CARD'}}
+            assert body == {'prebookId': 'PRIVATE_PREBOOK', 'payment': {'method': 'TRANSACTION_ID', 'transactionId': 'tr_test'}}
             if self.lose_book:
                 self.lose_book = False
                 raise httpx.ReadTimeout('private')
@@ -199,3 +220,61 @@ def test_invalid_passengers_never_claim_or_reserve(setup, invalid):
     assert supplier.prebooks == 0
     assert call(api, 'prebook', verified['token'], True)['status'] == 'ready_to_book'
     assert supplier.prebooks == 1
+
+
+def test_services_reprice_clear_reject_stale_and_keep_receipt(setup):
+    api, supplier, token = setup
+    prebook = call(api, 'prebook', call(api, 'verify', token)['token'], True)
+    seat, bag = prebook['services']
+    assert 'PRIVATE' not in json.dumps(prebook)
+    assert len(prebook['token']) < 40000
+    selections = [{'id': seat['id'], 'passenger_index': 0, 'quantity': 1}, {'id': bag['id'], 'passenger_index': 1, 'quantity': 2}]
+    def attach(token, choices):
+        return run(api.call('sandbox/flights/services', {'token': token, 'confirm_mock': True, 'selected_services': choices}))
+    seats_only = attach(prebook['token'], selections[:1])
+    assert seats_only['flight']['price']['amount'] == '272'
+    assert [s['id'] for s in seats_only['services'] if s['kind'] == 'seat'] == [seat['id']]
+    changed = attach(seats_only['token'], selections)
+    assert changed['flight']['price']['amount'] == '332'
+    assert supplier.selected[0]['serviceId'] == 'PRIVATE_SEAT'
+    assert changed['selected_services'][1]['passenger_index'] == 1
+    with pytest.raises(ProviderUnavailable, match='checkout_changed'):
+        call(api, 'book', prebook['token'], True)
+    assert not supplier.books
+    cleared = attach(changed['token'], [])
+    assert cleared['flight']['price']['amount'] == '260' and cleared['selected_services'] == []
+    assert call(api, 'status', prebook['token'])['token'] == cleared['token']
+    supplier.status = 'CONFIRMED'
+    final = call(api, 'book', cleared['token'], True)
+    assert final['status'] == 'confirmed' and final['payment_secret'] is None
+    assert call(api, 'book', cleared['token'], True)['status'] == 'confirmed'
+    assert len(supplier.books) == 1
+
+
+@pytest.mark.parametrize('invalid', ['forged', 'duplicate', 'passenger', 'quantity', 'occupied'])
+def test_invalid_service_assignments_never_reach_provider(setup, invalid):
+    api, supplier, token = setup
+    prebook = call(api, 'prebook', call(api, 'verify', token)['token'], True)
+    choice = {'id': prebook['services'][0]['id'], 'passenger_index': 0, 'quantity': 1}
+    choices = [choice]
+    if invalid == 'forged': choice['id'] = 'fake'
+    if invalid == 'duplicate': choices.append(dict(choice))
+    if invalid == 'passenger': choice['passenger_index'] = 8
+    if invalid == 'quantity': choice['quantity'] = 2
+    if invalid == 'occupied': choices.append({**choice, 'passenger_index': 1})
+    with pytest.raises(ProviderUnavailable, match='invalid_services'):
+        run(api.call('sandbox/flights/services', {'token': prebook['token'], 'confirm_mock': True, 'selected_services': choices}))
+    assert supplier.service_calls == 0
+
+
+def test_lost_service_response_requires_readback_before_payment(setup):
+    api, supplier, token = setup
+    prebook = call(api, 'prebook', call(api, 'verify', token)['token'], True)
+    supplier.lose_services = True
+    with pytest.raises(ProviderUnavailable):
+        run(api.call('sandbox/flights/services', {'token': prebook['token'], 'confirm_mock': True, 'selected_services': [{'id': prebook['services'][0]['id'], 'passenger_index': 0}]}))
+    with pytest.raises(ProviderUnavailable, match='checkout_changed'):
+        call(api, 'book', prebook['token'], True)
+    recovered = call(api, 'status', prebook['token'])
+    assert recovered['status'] == 'ready_to_book' and recovered['flight']['price']['amount'] == '272'
+    assert len(recovered['selected_services']) == 1 and not supplier.books

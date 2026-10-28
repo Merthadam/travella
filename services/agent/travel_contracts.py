@@ -137,6 +137,16 @@ class SandboxFlightConfirm(SandboxHandle):
     confirm_mock: Literal[True]
 
 
+class FlightServiceSelection(Strict):
+    id: str = Field(min_length=1, max_length=64)
+    passenger_index: int = Field(ge=0, le=8)
+    quantity: int = Field(default=1, ge=1, le=3)
+
+
+class SandboxFlightServices(SandboxFlightConfirm):
+    selected_services: list[FlightServiceSelection] = Field(max_length=64)
+
+
 class TestFlightPassenger(TestGuest):
     date_of_birth: date
     gender: Literal["M", "F"]
@@ -171,16 +181,17 @@ class TravelInvocation(Strict):
     action: Literal[
         "capabilities", "airports", "places", "hotels/search", "hotels/detail", "flights/search",
         "sandbox/prebook", "sandbox/book", "sandbox/status",
-        "sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status"
+        "sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "sandbox/flights/services"
     ]
     criteria: dict = Field(default_factory=dict)
 
 
-POST_ACTIONS = {"sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
+POST_ACTIONS = {"sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "sandbox/flights/services", "hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
 
 INPUTS = {
     "sandbox/flights/verify": SandboxHandle,
     "sandbox/flights/prebook": SandboxFlightPrebook,
+    "sandbox/flights/services": SandboxFlightServices,
     "sandbox/flights/book": SandboxFlightConfirm,
     "sandbox/flights/status": SandboxHandle,
     "sandbox/prebook": SandboxHandle,
@@ -357,6 +368,28 @@ class SandboxResult(Public):
     confirmation_code: str | None = None
 
 
+class FlightService(Public):
+    id: str
+    kind: Literal["seat", "baggage"]
+    label: str
+    segment_index: int
+    passenger_indexes: list[int]
+    price: Money
+    max_quantity: int = 1
+    seat_row: int | None = None
+    seat_column: str | None = None
+
+
+class SelectedFlightService(Public):
+    id: str
+    kind: Literal["seat", "baggage"]
+    label: str
+    segment_index: int
+    passenger_index: int
+    quantity: int
+    price: Money
+
+
 class SandboxFlightResult(Public):
     sandbox: Literal[True] = True
     mode: Literal["flights"] = "flights"
@@ -367,12 +400,15 @@ class SandboxFlightResult(Public):
     passenger_count: int
     passenger_ages: list[int] = Field(default_factory=list, max_length=9)
     country_code: str = "US"
+    services: list[FlightService] = Field(default_factory=list, max_length=2000)
+    selected_services: list[SelectedFlightService] = Field(default_factory=list, max_length=64)
+    payment_secret: str | None = None
     booking_id: str | None = None
     confirmation_code: str | None = None
 
 
 OUTPUTS = {
-    **{f"sandbox/flights/{action}": SandboxFlightResult for action in ("verify", "prebook", "book", "status")},
+    **{f"sandbox/flights/{action}": SandboxFlightResult for action in ("verify", "prebook", "services", "book", "status")},
     "sandbox/prebook": SandboxResult,
     "sandbox/book": SandboxResult,
     "sandbox/status": SandboxResult,

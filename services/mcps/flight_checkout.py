@@ -3,21 +3,25 @@
 The journal holds only encrypted technical checkout receipts, never Plan data or
 passenger details. An uncertain prebook is not repeated automatically.
 """
+import fcntl
 import hashlib
 import json
 import os
 import sqlite3
 from contextlib import closing
+from urllib.parse import quote
 from datetime import date
 
 from services.agent.travel_contracts import SandboxFlightResult
 from .liteapi import ProviderUnavailable, items, obj, text, money, normalize_flights
 from .sandbox_checkout import cipher, seal, unseal
+from . import flight_ancillaries
 
 
 def journal():
     db = sqlite3.connect(os.getenv("FLIGHT_CHECKOUT_JOURNAL", "/tmp/travella-flight-checkouts.sqlite3"), timeout=5)
     db.execute("CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, token TEXT)")
+    db.execute("CREATE TABLE IF NOT EXISTS catalogs (id TEXT PRIMARY KEY, data TEXT)")
     return db
 
 
@@ -63,10 +67,51 @@ def flight_for(journey, criteria, selected=None):
     return normalized[0]
 
 
-def project(state, token, status, booking=None):
+def inventory(api, state, value=None):
+    with closing(journal()) as db, db:
+        key = identity(api, state)
+        if value is not None:
+            value = flight_ancillaries.prefer_selected(value, state.get("selected_services", []))
+            encrypted = cipher(api).encrypt(json.dumps(value).encode()).decode()
+            db.execute("INSERT OR REPLACE INTO catalogs VALUES (?, ?)", (key, encrypted))
+            return value
+        row = db.execute("SELECT data FROM catalogs WHERE id=?", (key,)).fetchone()
+        value = json.loads(cipher(api).decrypt(row[0].encode())) if row else {}
+        return flight_ancillaries.prefer_selected(value, state.get("selected_services", []))
+
+
+def refresh(api, state, raw):
+    total = money({"amount": raw.get("price"), "currency": raw.get("currency")})
+    if total["amount"] is None or not total["currency"] or raw.get("prebookId") != state["prebook"]:
+        raise ProviderUnavailable("provider_response_invalid")
+    state["flight"]["price"].update(total)
+    state["payment_secret"] = text(raw.get("secretKey"), 300)
+    state["transaction"] = text(raw.get("transactionId"), 200)
+    state["eligible"] = bool(state["payment_secret"] and state["transaction"]) if state.get("sdk") else "ACC_CREDIT_CARD" in items(raw.get("paymentTypes"))
+    previous = inventory(api, state)
+    available = flight_ancillaries.catalog(raw, state["criteria"])
+    # Attached seats disappear from the available catalog. Keep their scoped
+    # identifiers so a subsequent bag update can send the full replacement set.
+    attached = {hashlib.sha256(value["serviceId"].encode()).hexdigest()[:32]: value for value in items(obj(raw.get("booking")).get("selectedServices")) if isinstance(value, dict) and isinstance(value.get("serviceId"), str)}
+    for selected in state.get("selected_services", []):
+        sid = selected["id"]
+        if sid in available:
+            continue
+        if sid in previous:
+            available[sid] = previous[sid]
+        elif sid in attached and attached[sid].get("passengerIndex") == selected["passenger_index"]:
+            # Recovery of receipts written before attached inventory was retained.
+            available[sid] = {**{k: selected[k] for k in ("id", "kind", "label", "segment_index", "price")}, "provider_id": attached[sid]["serviceId"], "passenger_indexes": [selected["passenger_index"]], "max_quantity": selected["quantity"], "seat_row": None, "seat_column": None}
+    inventory(api, state, available)
+
+
+def project(api, state, token, status, booking=None):
     booking = booking or {}
     return SandboxFlightResult.model_validate({
         "status": status, "token": token, "flight": state["flight"],
+        "services": list(inventory(api, state).values()) if status == "ready_to_book" else [],
+        "selected_services": state.get("selected_services", []),
+        "payment_secret": state.get("payment_secret") if status == "ready_to_book" else None,
         "passenger_count": state["criteria"]["adults"] + len(state["criteria"]["children_ages"]) + len(state["criteria"]["infant_ages"]),
         "passenger_ages": [30] * state["criteria"]["adults"] + state["criteria"]["children_ages"] + state["criteria"]["infant_ages"],
         "country_code": state["criteria"]["country_code"],
@@ -120,6 +165,24 @@ def booking_party(criteria, data):
 
 
 async def checkout(api, action, data):
+    # A non-blocking cross-process lock prevents service repricing racing booking.
+    cipher(api)
+    if action == "verify":
+        return await checkout_locked(api, action, data)
+    try:
+        state = unseal(api, data["token"], "flight-checkout", ttl=604800)
+    except ProviderUnavailable:
+        state = unseal(api, data["token"], "flight-review", ttl=604800)
+    path = os.getenv("FLIGHT_CHECKOUT_JOURNAL", "/tmp/travella-flight-checkouts.sqlite3") + "." + identity(api, state) + ".lock"
+    with open(path, "a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ProviderUnavailable("checkout_busy") from None
+        return await checkout_locked(api, action, data)
+
+
+async def checkout_locked(api, action, data):
     cipher(api)  # Sandbox key and authenticated subject/Plan are required before I/O.
     token = data["token"]
     if action == "verify":
@@ -127,7 +190,7 @@ async def checkout(api, action, data):
         raw = first(await api.request("POST", "/flights/verify", json={"offerId": state["offer"]}))
         state["flight"] = flight_for(obj(raw.get("journey")), state["criteria"], state["flight"])
         token = seal(api, "flight-review", state)
-        return project(state, token, "review")
+        return project(api, state, token, "review")
 
     # Both a review and a prebook receipt can recover an interrupted response.
     try:
@@ -140,39 +203,68 @@ async def checkout(api, action, data):
             claimed, saved = receipt(api, state, claim=True)
             if claimed:
                 raw = first(await api.request("POST", "/flights/prebooks", json={
-                    "offerId": state["offer"], "usePaymentSdk": False,
+                    "offerId": state["offer"], "usePaymentSdk": True,
                     "contact": contact,
                     "passengers": party,
                 }))
                 if not text(raw.get("prebookId"), 100):
                     raise ProviderUnavailable("provider_response_invalid")
                 # Preserve a recoverable receipt even if refreshed terms are invalid.
-                state.update(prebook=raw["prebookId"], eligible=False)
+                state.update(prebook=raw["prebookId"], eligible=False, sdk=True, revision=0)
                 token = seal(api, "flight-checkout", state)
                 remember(api, state, token)
                 state["flight"] = flight_for(obj(obj(raw.get("booking")).get("journey")), state["criteria"], state["flight"])
-                total = money({"amount": raw.get("price"), "currency": raw.get("currency")})
-                if total["amount"] is None or not total["currency"]:
-                    raise ProviderUnavailable("provider_response_invalid")
-                state["flight"]["price"].update(total)
-                state["eligible"] = "ACC_CREDIT_CARD" in items(raw.get("paymentTypes"))
+                refresh(api, state, raw)
                 token = seal(api, "flight-checkout", state)
                 remember(api, state, token)
-                return project(state, token, "ready_to_book" if state["eligible"] else "unknown")
+                return project(api, state, token, "ready_to_book" if state["eligible"] else "unknown")
         else:
             _, saved = receipt(api, state)
         if not saved:
-            return project(state, token, "unknown")
+            return project(api, state, token, "unknown")
         token = saved
         state = unseal(api, token, "flight-checkout", ttl=604800)
 
-    if action == "book":
+    # Never authorize a stale total or payment intent from an older tab.
+    submitted_revision = state.get("revision", 0)
+    _, saved = receipt(api, state)
+    if saved:
+        token = saved
+        state = unseal(api, token, "flight-checkout", ttl=604800)
+    if action in ("services", "book") and not state.get("booking_id"):
+        unseal(api, data["token"], "flight-checkout")
+        if submitted_revision != state.get("revision", 0):
+            raise ProviderUnavailable("checkout_changed")
+    if action == "services" and not state.get("booking_id"):
+        selected, payload = flight_ancillaries.select(inventory(api, state), data["selected_services"])
+        # If the response is lost, booking stays disabled until provider readback.
+        state.update(eligible=False, services_uncertain=True, revision=state.get("revision", 0) + 1)
+        token = seal(api, "flight-checkout", state)
+        remember(api, state, token)
+        raw = first(await api.request("POST", "/flights/prebooks/" + quote(state["prebook"], safe="") + "/services", json={"selectedServices": payload}))
+        state["selected_services"] = selected
+        refresh(api, state, raw)
+        state["services_uncertain"] = False
+        token = seal(api, "flight-checkout", state)
+        remember(api, state, token)
+        return project(api, state, token, "ready_to_book" if state["eligible"] else "unknown")
+    missing_inventory = any(s["id"] not in inventory(api, state) for s in state.get("selected_services", []))
+    if action == "status" and (state.get("services_uncertain") or missing_inventory) and not state.get("booking_id"):
+        raw = first(await api.request("GET", "/flights/prebooks/" + quote(state["prebook"], safe="")))
+        selected = flight_ancillaries.recover(inventory(api, state), raw) if state.get("services_uncertain") else state.get("selected_services", [])
+        state["selected_services"] = selected
+        refresh(api, state, raw)
+        state["services_uncertain"] = False
+        token = seal(api, "flight-checkout", state)
+        remember(api, state, token)
+
+    if action == "book" and not state.get("booking_id"):
         unseal(api, token, "flight-checkout")
         if not state.get("eligible"):
-            return project(state, token, "unknown")
+            return project(api, state, token, "unknown")
         # Provider documents idempotency by prebookId, including lost responses.
         raw = first(await api.request("POST", "/flights/bookings/", json={
-            "prebookId": state["prebook"], "payment": {"method": "ACC_CREDIT_CARD"},
+            "prebookId": state["prebook"], "payment": ({"method": "TRANSACTION_ID", "transactionId": state["transaction"]} if state.get("sdk") else {"method": "ACC_CREDIT_CARD"}),
         }))
         booking = obj(raw.get("booking"))
         bid = text(booking.get("bookingId"), 100)
@@ -188,8 +280,7 @@ async def checkout(api, action, data):
         token = saved
         state = unseal(api, token, "flight-checkout", ttl=604800)
     if not state.get("booking_id"):
-        return project(state, token, "ready_to_book" if state.get("eligible") else "unknown")
-    from urllib.parse import quote
+        return project(api, state, token, "ready_to_book" if state.get("eligible") else "unknown")
     raw = first(await api.request("GET", "/flights/bookings/" + quote(state["booking_id"], safe="")))
     booking = obj(raw.get("booking"))
     # Current LiteAPI readback puts its environment under the ticket point of
@@ -201,4 +292,4 @@ async def checkout(api, action, data):
     if booking.get("bookingId") != state["booking_id"] or not environments or any(value != "sandbox" for value in environments):
         raise ProviderUnavailable("provider_response_invalid")
     status = {"CONFIRMED": "confirmed", "CANCELLED": "cancelled", "CANCELLED_WITH_CHARGES": "cancelled"}.get(booking.get("status"), "pending")
-    return project(state, token, status, booking)
+    return project(api, state, token, status, booking)
