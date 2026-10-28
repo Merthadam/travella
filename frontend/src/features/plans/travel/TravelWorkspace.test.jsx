@@ -241,7 +241,7 @@ test.each(['manual', 'foreign', 'invalid-criteria', 'invalid-draft'])('raw manua
   }
   const comparison = await screen.findByRole('region', { name: 'Option comparison' });
   expect(within(comparison).getByText('Exact room: Observed room')).toBeTruthy();
-  expect(within(comparison).getByText('Earlier search · historical comparison')).toBeTruthy();
+  expect(within(comparison).getByText('Separate search observation · compare the dates and times below')).toBeTruthy();
   expect(within(comparison).getByText(/2027-11-13 – 2027-11-16/)).toBeTruthy();
   expect(screen.getByRole('heading', { name: 'main-search' })).toBeTruthy();
   expect(fetch.mock.calls.every(([url]) => url.includes('research/snapshot?'))).toBe(true);
@@ -312,7 +312,7 @@ test('main comparison preserves selection order and facts when discussion fails 
   expect(await screen.findByRole('button', { name: 'Retry comparison discussion' })).toBeTruthy();
   expect(chat.send.mock.calls[0][1].options.map(ref => ref.option_id)).toEqual(['flight-2', 'flight-0', 'flight-1']);
   view.rerender(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="flights" active initialData={initialData} importedSnapshot={workspaceSnapshot('flights', 'new-search')} importRequest={1}/>);
-  expect(within(screen.getByRole('region', { name: 'Option comparison' })).getByText('Earlier search · historical comparison')).toBeTruthy();
+  expect(within(screen.getByRole('region', { name: 'Option comparison' })).getByText('Separate search observation · compare the dates and times below')).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Option comparison' }).textContent).toContain('Carrier 2');
 });
 

@@ -25,7 +25,7 @@ export function TravelComparison({ entries, currentSearchId, onDetails, onChoose
   const unlike = new Set(entries.map(scope)).size > 1;
   return <section className="travel-main-comparison" aria-label="Option comparison">
     <header><h3>Compare your options</h3><button type="button" onClick={onClose}>Close comparison</button></header>
-    {entries.some(entry => entry.snapshot.search_id !== currentSearchId) && <p role="status">Earlier search · historical comparison</p>}
+    {entries.some(entry => entry.snapshot.search_id !== currentSearchId) && <p role="status">Separate search observation · compare the dates and times below</p>}
     {unlike && <p role="status">Different dates, traveler groups, destinations or currencies. These totals are not directly comparable.</p>}
     <div className="travel-comparison-columns">{entries.map(({ item, snapshot, reference }) => {
       const stay = snapshot.mode === 'stays', room = stay && reference.room_id ? item.rooms.find(value => value.id === reference.room_id) : null;
