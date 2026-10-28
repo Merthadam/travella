@@ -28,3 +28,12 @@ Final post-fix browser evidence and source hash checks are appended below. No pr
 ## Outstanding limits
 
 Full AI-SPEC quality, native200%zoom, deliberate multi-tab/network timing, dedicated broken-image/mobile carrier checks and interrupted independent exhaustive review remain open. Product acceptance is recorded separately. Prior Phase15/17 gaps remain open. Source review's23planned threats remain mitigated; checkout token bound follows the existing server contract and adds no authorization or durable mutation path.
+
+
+## Final integrated result
+
+Final combined Python rerun:793passed,6isolated-PostgreSQL skips,1unchanged baseline onboarding404failure in54.00s. No other integration failure remains in this suite. Frontend287pass plus final105focused passes overlap; counts are not summed.
+
+Final rebuild passed health/example-account authentication. Six representative source files matched the running container: PlanningCanvas, TravelSearch, TravelWorkspace, useTravelWorkspace, CrudContextReader and travel contracts. Chrome reopened the same Plan, restored manual search criteria, explicitly searched and entered Nuitée Air guided checkout. Search and sandbox/flights/verify both returned200; review displayed BUD–LIS12–17May2027,2passengers,EUR802.94. Returned to flights without prebooking/payment/booking. [Inspected integrated checkout](implementation/guided-checkout.png). Console retained existing Lit/Maps warnings and the expected409 for expired registry recovery after restart; no new application exception.
+
+PR: https://github.com/Merthadam/travella/pull/22. User-authorized merge; disclosed technical gaps remain open. No deployment was requested. Local preview remains running.

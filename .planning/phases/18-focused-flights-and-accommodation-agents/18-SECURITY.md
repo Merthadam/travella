@@ -48,3 +48,6 @@ None introduced or accepted. Native zoom, broader browser concurrency, model-qua
 28October2026:23planned threats inspected against implementation and targeted/current-prior regression evidence. Source inspection included server registry owner/Plan/topic checks, post-commit generation projection, strict schemas, bounded tools, Undo, auth recovery allocation under account guard, account clearing, and observed-logo origin policy. Actual authorization and durable readback tests passed. No booking/payment action was performed.
 
 The later raw-manual-registry parser fix is constrained to empty presentation metadata; actual criteria, references and authorization remain strict and have negative regressions. Phase acceptance remains open independently of this mitigation-presence result.
+
+
+Shipment integration: preserved main's scoped sandbox ancillary contracts alongside read-only workspace routes. Private manual checkout handle bound now matches SandboxHandle40000characters;3000/40000/40001 boundary tests pass and prove absence from model/shared state. No new durable authority or planned open threat introduced. See28October workspace-merge verification.

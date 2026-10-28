@@ -441,3 +441,6 @@ Resume file: None
 ### Phase18 shared workspace shipment — 28 October 2026
 
 User approved the running experience and explicitly authorized merge after reviewing the disclosed technical limits. Integrated origin/main ba5e1fd, preserving the compact trip briefing, Milan airport normalization and guided sandbox flight checkout. Workspace checkout forwarding and exact research choices remain distinct. Existing untracked .cache/.gsd data and other worktrees are preserved. Standard GSD verification remains human_needed because technical acceptance checks are unfinished; the explicit user merge instruction takes precedence for shipment, without marking those checks passed.
+
+
+Phase18 shipment PR #22: https://github.com/Merthadam/travella/pull/22. Integrated main with287frontend/793Python passes, one unchanged baseline failure and documented skips; final105checkout/workspace checks and actual browser checkout review passed. Product owner authorized merge; outstanding technical acceptance checks remain recorded. Running preview includes integrated sourcebe539c6; final documentation commit adds evidence only.
