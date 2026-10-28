@@ -198,6 +198,12 @@ def test_same_property_two_rate_worker_comparison_persists_distinct_evidence_cho
     assert readback['preferred']['reference'] == refs[1]
     assert readback['preferred']['evidence_id'] == options[1]['id']
     assert {item['reference']['room_id'] for item in readback['shortlist']} == {'private-apartment', 'room-0'}
+    from sqlalchemy import select
+    from services.crud.models import TravelTopicState
+    with system.factory() as db:
+        stored = db.scalar(select(TravelTopicState)).payload
+        assert stored['preferred_id'] == options[1]['id']
+        assert [item['evidence_id'] for item in stored['shortlist']] == [item['id'] for item in options]
     removed, _, _ = choose(system, plan, second, 'remove', options[1]['id'])
     assert removed['preferred'] is None and removed['readiness'] == 'researching'
     assert system.client.get(f'/v1/plans/{pid}/travel/stays').json()['shortlist'][0]['reference'] == refs[0]

@@ -589,7 +589,7 @@ class SpecialistTravelTools(CanvasTravelTools):
 
         if sum(len(item.option_ids) for item in selections) > 3:
             raise ValueError("comparison_limit")
-        output, seen, option_ids = [], set(), set()
+        output, seen = [], set()
         for selection in selections:
             snapshot = self.snapshots.get(selection.search_id)
             if not snapshot or selection.mode != self.mode or snapshot.search_id in seen or datetime.fromisoformat(snapshot.expires_at) <= datetime.now(UTC):
@@ -597,9 +597,8 @@ class SpecialistTravelTools(CanvasTravelTools):
             valid = {item.id for item in snapshot.results[:self.preview_limit]}
             if self.workspace and self.workspace.search_id == snapshot.search_id:
                 valid.update(ref.option_id for ref in self.workspace.view.comparison_refs)
-            if not set(selection.option_ids).issubset(valid) or len(set(selection.option_ids)) != len(selection.option_ids) or option_ids.intersection(selection.option_ids):
+            if not set(selection.option_ids).issubset(valid) or len(set(selection.option_ids)) != len(selection.option_ids):
                 raise ValueError("travel_option_unknown")
             seen.add(snapshot.search_id)
-            option_ids.update(selection.option_ids)
             output.append(snapshot.model_copy(update={"preview_ids": selection.option_ids}).model_dump(mode="json"))
         return output

@@ -113,7 +113,8 @@ def test_dedicated_sdk_worker_scopes_history_tools_and_grounded_comparison(topic
         assert output["notes"]["covered_through_sequence"] == 16
         assert output["notes"]["items"][0]["source_message_ids"] == [source_id]
         option = output["comparison"]["options"][0]
-        assert option["id"].endswith("-2") and option["provider"] == "LiteAPI"
+        assert option["reference"]["option_id"].endswith("-2") and option["provider"] == "LiteAPI"
+        assert option["id"] != option["reference"]["option_id"]
         assert ("702" if topic == "stays" else "824.50") in option["price_label"]
         assert "PRIVATE" not in json.dumps(output) and not result["state_changes"]
     asyncio.run(run())
@@ -312,3 +313,23 @@ def test_two_rates_of_one_property_keep_exact_order_prices_and_unique_comparison
     assert projected_rates[(second, 'apartment-rate')] == '950'
     assert projected_rates[(first, 'room-0')] == '700'
     assert provider.calls == []
+
+
+def test_exact_observation_identity_is_stable_and_duplicate_rate_comparisons_remain_invalid():
+    from pydantic import ValidationError
+    from services.agent.claude.travel_specialist import _comparison
+    from services.agent.travel_registry import TravelRegistry
+    from services.travel_topics import Comparison
+    from services.agent.tests.test_canvas_travel import hotels
+    registry, ctx = TravelRegistry(), context([])
+    sid = registry.manual(ctx.traveler_scope, ctx.plan_id, 'hotels/search', STAY, hotels(1))
+    snap = registry.get(ctx.traveler_scope, ctx.plan_id, sid, 'stays')
+    first = _comparison(snap, snap.results[0], room_id='room-0')
+    repeated = _comparison(snap, snap.results[0], room_id='room-0')
+    assert first.id == repeated.id
+    assert first.reference.option_id == 'stay-0' and first.reference.room_id == 'room-0'
+    with pytest.raises(ValidationError, match='duplicate options'):
+        Comparison(options=[first, repeated])
+    newer = registry.manual(ctx.traveler_scope, ctx.plan_id, 'hotels/search', STAY, hotels(1))
+    other = registry.get(ctx.traveler_scope, ctx.plan_id, newer, 'stays')
+    assert _comparison(other, other.results[0], room_id='room-0').id != first.id

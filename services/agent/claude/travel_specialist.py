@@ -15,7 +15,7 @@ from claude_agent_sdk import HookMatcher
 from pydantic import Field
 
 from services.crud.canvas import CanvasSnapshot
-from services.travel_topics import Comparison, ResearchOption, TopicNote, TopicNotes
+from services.travel_topics import Comparison, ResearchOption, TopicNote, TopicNotes, digest
 
 from ..request_context import collect_travel_results, collect_workspace_update
 from ..travel_client import TravelClient
@@ -123,10 +123,14 @@ def _comparison(snapshot, option, observed_at=None, *, room_id=None):
         facts.append("Additional taxes or fees are excluded from the shown total")
     if snapshot.sandbox:
         facts.append("Sandbox result; not a live booking")
-    return ResearchOption(id=option.id, title=title, summary="Research option; nothing booked.",
+    reference = {"search_id": snapshot.search_id, "option_id": option.id, "room_id": room.id if room else None}
+    # Provider property IDs identify containers, not exact rates. This temporary
+    # normalized identity binds the full observation; CRUD issues its own durable
+    # evidence UUID after validating the signed comparison.
+    return ResearchOption(id="observation_" + digest(reference), title=title, summary="Research option; nothing booked.",
                           price_label=price_label[:120], facts=facts[:8], unknowns=unknowns[:6],
                           observed_at=observed_at or snapshot.searched_at, provider=snapshot.provider, criteria=projected,
-                          reference={"search_id": snapshot.search_id, "option_id": option.id, "room_id": room.id if room else None})
+                          reference=reference)
 
 
 def _notes(previous, proposed, messages):
@@ -279,7 +283,8 @@ class ClaudeSdkTravelSpecialist:
                     reply = SpecialistAnswer.model_validate(result.structured_output)
                     grouped = defaultdict(list)
                     for reference in reply.comparisons:
-                        grouped[reference.search_id].append(reference.option_id)
+                        if reference.option_id not in grouped[reference.search_id]:
+                            grouped[reference.search_id].append(reference.option_id)
                     selections = [TravelSelection(search_id=key, mode=topic, option_ids=ids) for key, ids in grouped.items()]
                     stage = "selection"
                     bundles = travel.selected(selections)
@@ -297,18 +302,22 @@ class ClaudeSdkTravelSpecialist:
                         collect_workspace_update(final_view)
                     # The ephemeral option previews must display that same rate,
                     # too. Keep the observer's complete evidence registry intact.
-                    for ref in reply.comparisons:
-                        if topic != "stays":
-                            continue
-                        snap = travel.snapshots[ref.search_id]
-                        option = next(item for item in snap.results if item.id == ref.option_id)
-                        room = _selected_room(option, ref.room_id)
-                        if room is not None:
-                            bundle = next(item for item in bundles if item["search_id"] == ref.search_id)
-                            projected = next(item for item in bundle["results"] if item["id"] == ref.option_id)
-                            projected["rooms"] = [room.model_dump(mode="json")]
-                            projected["price"] = {**projected["price"], **room.total.model_dump(),
-                                                  "excluded_taxes": [tax.model_dump() for tax in room.excluded_taxes]}
+                    if topic == "stays":
+                        for search_id, property_ids in grouped.items():
+                            snap = travel.snapshots[search_id]
+                            bundle = next(item for item in bundles if item["search_id"] == search_id)
+                            for property_id in property_ids:
+                                option = next(item for item in snap.results if item.id == property_id)
+                                rooms = [_selected_room(option, ref.room_id) for ref in reply.comparisons
+                                         if ref.search_id == search_id and ref.option_id == property_id]
+                                rooms = [room for room in rooms if room is not None]
+                                projected = next(item for item in bundle["results"] if item["id"] == property_id)
+                                projected["rooms"] = [room.model_dump(mode="json") for room in rooms]
+                                if len(rooms) == 1:
+                                    projected["price"] = {**projected["price"], **rooms[0].total.model_dump(),
+                                                          "excluded_taxes": [tax.model_dump() for tax in rooms[0].excluded_taxes]}
+                                # Multiple rates retain separate room totals and
+                                # the property's observed starting price.
                     stage = "notes"
                     output_notes = _notes(prior_notes.model_dump(), reply.notes, scoped)
                     stage = "answer_stream"
