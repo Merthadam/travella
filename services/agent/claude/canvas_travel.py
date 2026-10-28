@@ -9,16 +9,26 @@ import re
 import time
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal, get_args
-from uuid import uuid4
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from services.shared.traveler_profile import reference_catalog
-from ..travel_contracts import Currency, HotelSearch, Hotel, FlightSearch, Flight, Airports, Capabilities, validate_dates
-from .research_result import StrictResult, public_https_url
 
+from ..travel_contracts import (
+    Airports,
+    Capabilities,
+    Currency,
+    Flight,
+    FlightSearch,
+    Hotel,
+    HotelSearch,
+    validate_dates,
+    carrier_logo,
+)
+from .research_result import StrictResult, public_https_url
 
 Text = Annotated[str, Field(max_length=240)]
 Identifier = Annotated[str, Field(min_length=1, max_length=100)]
@@ -78,9 +88,18 @@ class FlightSegment(StrictResult):
     arrival_at: str = Field(max_length=40, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
     airline: Text | None = None
     operating_airline: Text | None = None
+    marketing_code: str | None = Field(default=None, max_length=3)
+    marketing_logo: str | None = None
+    operating_code: str | None = Field(default=None, max_length=3)
+    operating_logo: str | None = None
     flight_number: Text | None = None
     duration_minutes: int | None = Field(default=None, ge=0, le=10080)
     technical_stops: list[Text] = Field(default_factory=list, max_length=10)
+
+    @field_validator('marketing_logo', 'operating_logo', mode='before')
+    @classmethod
+    def safe_carrier_logo(cls, value):
+        return carrier_logo(value)
 
 
 class FlightLeg(StrictResult):
@@ -571,6 +590,9 @@ class TravelSearchFailure(Exception):
 
 class CanvasTravelObserver:
     names = {"travel_capabilities", "search_destinations", "search_stays", "search_airports", "search_flights"}
+    max_calls = 5
+    evidence_limit = 24576
+    category_limits = {"lookup": 2}
 
     def __init__(self, client, context, authorization_token, draft, message, deadline=None, *, flight_only=False, parse_message=True):
         self.client, self.context, self.authorization_token = client, context, authorization_token
@@ -616,11 +638,11 @@ class CanvasTravelObserver:
         key = json.dumps([action, criteria], sort_keys=True)
         if key in self.cache:
             return self.cache[key]
-        limit = 2 if category == "lookup" else 1
-        if self.calls >= 5 or self.counts[category] >= limit:
+        limit = self.category_limits.get(category, 1)
+        if self.calls >= self.max_calls or self.counts.get(category, 0) >= limit:
             raise ValueError("travel_call_limit")
         self.calls += 1
-        self.counts[category] += 1
+        self.counts[category] = self.counts.get(category, 0) + 1
         # Flight rates can take up to the connector's 115-second deadline.
         # Keep the enclosing turn deadline and time for the model's reply.
         timeout = min(120 if category == "flights" else 45, self.deadline - time.monotonic() - 5)
@@ -699,7 +721,9 @@ class CanvasTravelObserver:
                         truncated=bool(raw.get("truncated")), notices=raw.get("notices", []), results=results,
                         search_only_dates=[normalized.get("check_in", normalized.get("departure_date")), normalized.get("check_out", normalized.get("return_date"))] != [draft_facts(self.draft)["start"], draft_facts(self.draft)["end"]])
                     while len(snapshot.model_dump_json().encode()) > 130000 and snapshot.results:
-                        snapshot.results.pop(); snapshot.returned_count -= 1; snapshot.truncated = True
+                        snapshot.results.pop()
+                        snapshot.returned_count -= 1
+                        snapshot.truncated = True
                     if len(snapshot.model_dump_json().encode()) > 130000:
                         raise ValueError("travel_payload_limit")
                     self.snapshots[snapshot.search_id] = snapshot
@@ -707,7 +731,7 @@ class CanvasTravelObserver:
                 payload = {"search_id": snapshot.search_id, "mode": mode, "count": snapshot.returned_count,
                            "options": [{"id": item.id, "label": (getattr(item, "name", None) or ", ".join(item.airlines))[:240], "price": item.price.model_dump(exclude={"excluded_taxes"})} for item in snapshot.results[:10]]}
             encoded = json.dumps(payload, ensure_ascii=False)
-            if self.tool_bytes + len(encoded.encode()) > 24576:
+            if self.tool_bytes + len(encoded.encode()) > self.evidence_limit:
                 raise ValueError("travel_text_limit")
             self.tool_bytes += len(encoded.encode())
             return {"content": [{"type": "text", "text": encoded}]}

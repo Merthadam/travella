@@ -1,4 +1,4 @@
-import { clearCanvasViews } from './features/plans/canvasViewState';
+import { bindTravelRecoveryScope, clearCanvasViews } from './features/plans/canvasViewState';
 import React, { useEffect, useRef, useState } from 'react';
 import { readSession, readTravelerProfile, request } from './api';
 import { PlansApp } from './PlansApp';
@@ -70,9 +70,9 @@ function AccountContent() {
   useEffect(() => { heading.current?.focus(); }, [step]);
   useEffect(() => {
     let cancelled = false;
-    readSession().then(() => { if (!cancelled) return routeAfterSignIn(); }).catch((err) => {
+    readSession().then(session => { if (!cancelled) { bindTravelRecoveryScope(session.recovery_scope); return routeAfterSignIn(); } }).catch((err) => {
       if (!cancelled) {
-        setStep('sign_in');
+        go('sign_in');
         if (err.status !== 401) setError(err);
       }
     });
@@ -124,14 +124,26 @@ function AccountContent() {
   useEffect(() => {
     if (!['signed_in', 'account', 'onboarding'].includes(step)) return;
     let cancelled = false;
-    const check = () => readSession().catch((err) => {
+    const check = async () => {
+      const ticket = generation.current;
+      let switching = false;
+      try {
+        const session = await readSession();
+        if (cancelled || ticket !== generation.current) return;
+        if (bindTravelRecoveryScope(session.recovery_scope)) {
+          // Scope revocation synchronously aborts workspace effects before React
+          // unmounts the old private tree or requests the new account's profile.
+          switching = true; generation.current++; setTravelerProfile(null);
+          accountVisible.current = false; setStep('loading');
+          await routeAfterSignIn();
+        }
+      } catch (err) {
       // A temporary network/server failure must not discard an in-progress form.
-      if (!cancelled && err.status === 401) {
-        generation.current++;
-        accountVisible.current = false; setTravelerProfile(null); setSecretCode(''); setRecoveryCodes([]);
-        setStep('sign_in'); setNotice('Your session has expired. Sign in again to continue.'); setError(null);
+      if (!cancelled && (ticket === generation.current || switching) && (err.status === 401 || switching)) {
+        go('sign_in'); setNotice('Your session has expired. Sign in again to continue.');
       }
-    });
+      }
+    };
     const timer = setInterval(check, 30000);
     window.addEventListener('focus', check);
     return () => { cancelled = true; clearInterval(timer); window.removeEventListener('focus', check); };
@@ -171,7 +183,9 @@ function AccountContent() {
       else result = await request('/auth/sign-in', { email, password: secret });
       if (generation.current !== attempt) return;
       if (result.state === 'signed_in') {
-        await readSession();
+        const session = await readSession();
+        if (generation.current !== attempt) return;
+        bindTravelRecoveryScope(session.recovery_scope);
         await routeAfterSignIn();
         if (generation.current === attempt) setNotice(result.message || '');
         return;
@@ -183,7 +197,7 @@ function AccountContent() {
     } catch (err) {
       if (generation.current === attempt) {
         setError(err);
-        if (step === 'mfa_challenge' && err.status === 401) setStep('sign_in');
+        if (step === 'mfa_challenge' && err.status === 401) go('sign_in');
       }
     } finally { setBusy(false); }
   }

@@ -29,6 +29,7 @@ function setup() {
     canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, snapshot: null })),
     researchContext: vi.fn(async () => ({ revision: 1, context: { ...confirmedFlights, finalDestination: 'Milan', travelers: 2 } })),
     conversationMessages: vi.fn(async () => []),
+    travelTopic: vi.fn(async (plan, topic) => ({ plan_id: plan.plan_id, topic, revision: 1, messages: [], readiness: 'researching', shortlist: [], preferred: null, comparison: null })),
     saveCanvas: vi.fn(), cancelAgentTurn: vi.fn(async () => {}),
     editCanvas: vi.fn(async (_selected, _draft, _message, _id, { onEvent }) => {
       onEvent({ type: 'TEXT_MESSAGE_CONTENT', delta: 'You can compare airports for Milan.' });
@@ -46,6 +47,7 @@ test('confirmed no flights omits the card and travel navigation while keeping ac
     canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
     researchContext: async () => ({ revision: 1, context: { ...confirmedFlights, flights: 'not-needed' } }),
     conversationMessages: async () => [],
+    travelTopic: async (plan, topic) => ({ plan_id: plan.plan_id, topic, revision: 1, messages: [], readiness: 'researching', shortlist: [], preferred: null, comparison: null }),
   };
   render(<PlanningCanvas selected={{ plan_id: 'no-flights', title: 'Train trip' }} api={api}/>);
   await screen.findByRole('button', { name: 'Explore accommodation' });

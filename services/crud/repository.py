@@ -278,7 +278,7 @@ class PlanRepository:
         ttl: timedelta = timedelta(minutes=5),
     ) -> str:
         now = self.clock()
-        if operation not in {"rename", "delete", "restore", "canvas_save"}:
+        if operation not in {"rename", "delete", "restore", "canvas_save", "travel_choice"}:
             raise LifecycleProblem("invalid_request", "Request could not be processed.")
         plan = self._locked_plan(subject, plan_id)
         wanted = PlanLifecycle.DELETED if operation == "restore" else PlanLifecycle.ACTIVE
@@ -358,30 +358,32 @@ class PlanRepository:
 
     @staticmethod
     def _message_projection(row: ConversationMessage) -> dict:
-        return {"message_id": str(row.id), "conversation_id": str(row.conversation_id), "event_id": row.event_id, "role": row.role, "content": row.content, "status": row.status, "generation": row.generation, "sequence": row.sequence, "created_at": as_utc(row.created_at).isoformat()}
+        return {"message_id": str(row.id), "topic": row.topic, "conversation_id": str(row.conversation_id), "event_id": row.event_id, "role": row.role, "content": row.content, "status": row.status, "generation": row.generation, "sequence": row.sequence, "created_at": as_utc(row.created_at).isoformat()}
 
-    def append_conversation_message(self, subject: str, plan_id: UUID, event_id: str, role: str, content: str, *, generation: int = 0, status: str = "complete", commit: bool = True) -> dict:
-        if role not in {"user", "assistant"} or not event_id or len(content) > 2000:
+    def append_conversation_message(self, subject: str, plan_id: UUID, event_id: str, role: str, content: str, *, generation: int = 0, status: str = "complete", commit: bool = True, topic: str = "trip") -> dict:
+        if topic not in {"trip", "stays", "flights"} or role not in {"user", "assistant"} or not event_id or len(event_id) > 100 or len(content) > 2000:
             raise LifecycleProblem("invalid_request", "Request could not be processed.")
         plan = self._locked_plan(subject, plan_id)
         if plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
             raise LifecycleProblem("not_found")
         existing = self.session.scalar(select(ConversationMessage).where(ConversationMessage.conversation_id == plan.conversation.id, ConversationMessage.event_id == event_id))
         if existing:
+            if existing.topic != topic or existing.role != role or existing.content != content:
+                raise LifecycleProblem("request_reused")
             return self._message_projection(existing)
         sequence = int(self.session.scalar(select(ConversationMessage.sequence).where(ConversationMessage.conversation_id == plan.conversation.id).order_by(ConversationMessage.sequence.desc()).limit(1)) or 0) + 1
-        row = ConversationMessage(conversation_id=plan.conversation.id, event_id=event_id, role=role, content=content, generation=generation, status=status, sequence=sequence, created_at=self.clock())
+        row = ConversationMessage(conversation_id=plan.conversation.id, event_id=event_id, topic=topic, role=role, content=content, generation=generation, status=status, sequence=sequence, created_at=self.clock())
         self.session.add(row)
         self.session.flush()
         if commit:
             self.session.commit()
         return self._message_projection(row)
 
-    def conversation_messages(self, subject: str, plan_id: UUID, limit: int = 12) -> list[dict]:
+    def conversation_messages(self, subject: str, plan_id: UUID, limit: int = 12, topic: str = "trip") -> list[dict]:
         plan = self.session.scalar(select(Plan).where(Plan.id == plan_id, Plan.traveler_subject == subject))
         if not plan or plan.lifecycle is not PlanLifecycle.ACTIVE or not plan.conversation:
             raise LifecycleProblem("not_found")
-        rows = self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == plan.conversation.id).order_by(ConversationMessage.sequence.desc()).limit(max(1, min(limit, 50)))).all()
+        rows = self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == plan.conversation.id, ConversationMessage.topic == topic).order_by(ConversationMessage.sequence.desc()).limit(max(1, min(limit, 50)))).all()
         from .models import ResearchDraftOffer
         from .research_offers import ResearchOfferRepository
         offers = ResearchOfferRepository(self)
@@ -406,7 +408,9 @@ class PlanRepository:
         provenance = brief.provenance if brief else {}
         inactive = brief.inactive if brief else {}
         brief_entries = {key: {"value": value, "origin": provenance.get(key, "traveler_stated"), "active": key not in inactive} for key, value in payload.items()}
-        return {"plan_id": str(plan.id), "conversation_id": str(plan.conversation.id), "revision": plan.revision, "brief": brief_entries, "inactive": inactive, "messages": self.conversation_messages(subject, plan_id, limit)}
+        from .topic_conversations import TopicRepository
+        accepted = TopicRepository(self).brief(subject, plan_id)["accepted_choices"]
+        return {"plan_id": str(plan.id), "conversation_id": str(plan.conversation.id), "revision": plan.revision, "brief": brief_entries, "inactive": inactive, "messages": self.conversation_messages(subject, plan_id, limit), "accepted_travel_choices": accepted}
 
     def generation_context(self, subject: str, plan_id: UUID, *, after_sequence: int = 0,
                            cutoff_sequence: int | None = None, limit: int = 50,
@@ -423,11 +427,11 @@ class PlanRepository:
             raise LifecycleProblem("revision_conflict")
         conversation_id = plan.conversation.id
         latest = self.session.scalar(select(func.max(ConversationMessage.sequence)).where(
-            ConversationMessage.conversation_id == conversation_id)) or 0
+            ConversationMessage.conversation_id == conversation_id, ConversationMessage.topic == "trip")) or 0
         cutoff = latest if cutoff_sequence is None else cutoff_sequence
         if cutoff < 0 or cutoff > latest or after_sequence < 0 or after_sequence > cutoff:
             raise LifecycleProblem("invalid_cursor")
-        bound = (ConversationMessage.conversation_id == conversation_id,
+        bound = (ConversationMessage.conversation_id == conversation_id, ConversationMessage.topic == "trip",
                  ConversationMessage.sequence <= cutoff)
         total = self.session.scalar(select(func.count()).select_from(ConversationMessage).where(*bound)) or 0
         result = self.agent_context(subject, plan_id, 1)

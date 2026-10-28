@@ -384,5 +384,13 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }
-  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, saveError, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, reload: () => setReloadVersion(value => value + 1) };
+  function acceptTravelChoiceRevision(previous, next) {
+    // Only our own exact revision-checked choice can advance the Canvas base.
+    // Other-tab changes still conflict instead of being silently overwritten.
+    if (base.current?.revision === previous && Number.isInteger(next) && next === previous + 1) {
+      base.current = { ...base.current, revision: next };
+      callbacks.current.onSaved?.({ ...selected, revision: next });
+    }
+  }
+  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, saveError, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, acceptTravelChoiceRevision, reload: () => setReloadVersion(value => value + 1) };
 }

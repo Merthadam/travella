@@ -3,6 +3,32 @@ import { plansApi } from './plansApi';
 
 afterEach(() => vi.unstubAllGlobals());
 
+test('specialist requests send only their topic and text and choices require exact confirmation headers', async () => {
+  const fetchMock = vi.fn(async url => String(url).endsWith('/stream')
+    ? new Response('data: {"type":"TERMINAL","status":"complete"}\n\n', { status: 200 })
+    : new Response(JSON.stringify({ challenge: 'exact', revision: 8 }), { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+  const plan = { plan_id: 'plan-1' };
+  await plansApi.travelTurn(plan, 'stays', 'I prefer a kitchen.', 'event-1', { onEvent() {} });
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ plan_id: 'plan-1', event_id: 'event-1', message: 'I prefer a kitchen.', topic: 'stays' });
+  const action = { action: 'prefer', evidence_id: 'research-1' };
+  await plansApi.prepareTravelChoice(plan, 'stays', action, 8);
+  expect(fetchMock.mock.calls[1][0]).toBe('/v1/plans/plan-1/travel/stays/choices/challenge');
+  await plansApi.commitTravelChoice(plan, 'stays', action, 8, 'exact', 'choice-1');
+  expect(fetchMock.mock.calls[2][1].headers).toMatchObject({ 'If-Match': '8', 'X-Plan-Challenge': 'exact', 'Idempotency-Key': 'choice-1' });
+});
+
+test('specialist SSE projects only this Plan and topic and excludes unknown private fields', async () => {
+  const snapshot = { plan_id: 'plan-1', topic: 'stays', revision: 4, messages: [], readiness: 'researching', shortlist: [], preferred: null, private_offer: 'must-not-project' };
+  const frames = [{ type: 'STATE_SNAPSHOT', snapshot: { travel_specialist_result: { ...snapshot, topic: 'flights' } } }, { type: 'STATE_SNAPSHOT', snapshot: { travel_specialist_result: snapshot } }, { type: 'TERMINAL', status: 'complete', travel_specialist_result: snapshot }];
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(frames.map(frame => `data: ${JSON.stringify(frame)}\n\n`).join(''), { status: 200 })));
+  const events = [];
+  const terminal = await plansApi.travelTurn({ plan_id: 'plan-1' }, 'stays', 'Find a stay.', 'event-1', { onEvent: event => events.push(event) });
+  expect(events[0].snapshot.travel_specialist_result).toBeUndefined();
+  expect(events[1].snapshot.travel_specialist_result.topic).toBe('stays');
+  expect(terminal.travel_specialist_result.private_offer).toBeUndefined();
+});
+
 test('agent turn uses the same-origin session and never sends a browser bearer token', async () => {
   const plan = { plan_id: '00000000-0000-0000-0000-000000000123' };
   const event = { status: 'needs your input', plan_id: plan.plan_id, event_id: 'event-1' };
@@ -68,4 +94,12 @@ test('initial generation carries the reviewed receipt and typed offer events exc
   await plansApi.generateCanvas({ plan_id: 'plan-1' }, { group: 'all', context_revision: 4, research_entry_receipt: 'receipt' }, 'request-1', { onEvent: event => events.push(event) });
   expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ canvas_action: 'generate_plan', context_revision: 4, research_entry_receipt: 'receipt' });
   expect(events[0].snapshot).toEqual({ research_offer: offer, assistant_message_id: 'm1' });
+});
+
+test('topic context sends only references alongside unchanged traveler text', async () => {
+  const fetchMock = vi.fn(async () => new Response('data: {"type":"TERMINAL","status":"complete"}\n\n', { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+  const travelDiscussion = { intent:'discuss', options:[{ search_id:'search-1', option_id:'hotel-1', room_id:'room-1' }] };
+  await plansApi.travelTurn({ plan_id:'plan-1' },'stays','Is the kitchen private?','event-1',{ onEvent() {}, travelDiscussion });
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ plan_id:'plan-1',event_id:'event-1',topic:'stays',message:'Is the kitchen private?',travel_discussion:travelDiscussion });
 });

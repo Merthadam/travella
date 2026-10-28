@@ -2,9 +2,15 @@
 
 import asyncio
 import os
+from typing import Literal
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import ToolAnnotations
 from pydantic import ValidationError
+
+from services.agent.travel_contracts import HotelSearch
+
 from .config import McpSettings
 from .liteapi import LiteApi, ProviderUnavailable
 from .transport import authenticated_mcp_app, require_tool_context
@@ -25,7 +31,7 @@ _slots = asyncio.Semaphore(8)
 
 @travel_mcp.tool()
 async def travel_search(action: str, criteria: dict, plan_id: str) -> dict:
-    """Search travel and explicitly requested sandbox hotel checkout. Never mutate Plans."""
+    """Travel searches, hotel details/reviews, flight verification and explicit sandbox checkout. Never mutate Plans."""
     context = require_tool_context(plan_id=plan_id)
     provider = LiteApi(
         McpSettings.from_env().lite_api_key,
@@ -44,6 +50,53 @@ async def travel_search(action: str, criteria: dict, plan_id: str) -> dict:
         return {"status": "unavailable", "code": "provider_timeout"}
     except Exception:
         return {"status": "unavailable", "code": "provider_response_invalid"}
+
+
+_READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
+
+
+@travel_mcp.tool(annotations=_READ_ONLY)
+async def get_stay_filter_catalog(plan_id: str, kind: Literal["hotel_types", "facilities"], q: str = "") -> dict:
+    """Resolve supported property/facility IDs; optional name query, at most100 entries."""
+    return await travel_search("hotels/catalog", {"kind": kind, "q": q}, plan_id)
+
+
+@travel_mcp.tool(annotations=_READ_ONLY)
+async def get_stay_details(plan_id: str, hotel_id: str) -> dict:
+    """Inspect property content. Static details do not establish room availability."""
+    return await travel_search("hotels/detail", {"hotel_id": hotel_id}, plan_id)
+
+
+@travel_mcp.tool(annotations=_READ_ONLY)
+async def get_stay_reviews(
+    plan_id: str, hotel_id: str, limit: int = 5, offset: int = 0, sentiment: bool = False
+) -> dict:
+    """Bounded guest reviews without reviewer identities; optional AI sentiment."""
+    return await travel_search(
+        "hotels/reviews",
+        {
+            "hotel_id": hotel_id,
+            "limit": limit,
+            "offset": offset,
+            "sentiment": sentiment,
+        },
+        plan_id,
+    )
+
+
+@travel_mcp.tool(annotations=_READ_ONLY)
+async def get_stay_rates(plan_id: str, criteria: HotelSearch) -> dict:
+    """Inspect dated room rates for criteria.hotel_id; never prebook or reserve."""
+    require_tool_context(plan_id=plan_id)
+    if not criteria.hotel_id:
+        return {"status": "invalid"}
+    return await travel_search("hotels/search", criteria.model_dump(mode="json"), plan_id)
+
+
+@travel_mcp.tool(annotations=_READ_ONLY)
+async def verify_flight_offer(plan_id: str, option_id: str) -> dict:
+    """Refresh an opaque search option's fare/terms. No reservation or payment."""
+    return await travel_search("flights/verify", {"option_id": option_id}, plan_id)
 
 
 if __name__ == "__main__":

@@ -72,12 +72,17 @@
       "number": "17",
       "name": "Research phase cleanup",
       "status": "in_progress"
+    },
+    {
+      "number": "18",
+      "name": "Focused Flights and Accommodation Agents",
+      "status": "in_progress"
     }
   ],
   "next": {
-    "command": "$gsd-verify-work 17",
-    "label": "Review implemented desktop Research cleanup",
-    "reason": "No implementation blockers; independent verification human_needed. Desktop acceptance/native zoom and authorized live-model quality remain pending; prior Phase15 untouched."
+    "command": "$gsd-execute-phase 18",
+    "label": "Execute planned shared travel workspace follow-up",
+    "reason": "Plans18-06\u201318-12 reviewed: zero blockers, five recorded nonblocking scope warnings. Planning complete; follow-up implementation unstarted. Earlier Phase15/17/18 acceptance gaps remain open."
   },
-  "updated_at": "2026-10-23T18:25:47.842462+00:00"
+  "updated_at": "2026-10-27T20:06:49.327178+00:00"
 }

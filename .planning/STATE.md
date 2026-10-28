@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 17
-current_phase_name: Research phase cleanup
+current_phase: 18
+current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
-stopped_at: Phase 17 implementation verified; desktop UAT and live-model acceptance pending
-last_updated: "2026-10-25T10:13:10.715Z"
-last_activity: 2026-10-27
-last_activity_desc: Replaced old flight booking with approved guided checkout and saved itinerary; sandbox flow verified
-state_head: 2d78e061dfef5dac2e08fc354e1968500a7d5d5a
+stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
+last_updated: "2026-10-28T07:51:44.627817+00:00"
+last_activity: 2026-10-28
+last_activity_desc: Shared-workspace implementation and bounded integrated evidence complete; acceptance remains open
+state_head: 4b6f4ab7df42622b10ea7b46222e8ef463f21efe
 progress:
-  total_phases: 17
+  total_phases: 19
   completed_phases: 1
-  total_plans: 59
+  total_plans: 71
   completed_plans: 50
-  percent: 85
+  percent: 70
 ---
 
 # Project State
@@ -33,16 +33,16 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** A traveler can move from a holiday idea to a trustworthy, editable single-destination Plan while remaining in explicit control of every consequential choice.
-**Current focus:** Phase 17 — User approved merge; integrating with Phase 16 travel previews
+**Current focus:** Phase18 — Shared manual Flights/Stays workspace implemented; traveler acceptance and documented technical limits remain
 
 ## Current Position
 
-Phase: 17 — Research phase cleanup
-Plan: 17-01 through17-04 implemented;17-05 evidence executed, user UAT pending.
-Status: Human verification needed. Research overlay, durable offer/defer and exact confirmation implemented. Targeted tests66 frontend/89 Agent-gateway/49 CRUD passed; browser evidence inspected. Live-model quality and user UAT pending.
-Last activity: 2026-10-28 — Guided checkout integrated with main; 179 tests and build passed; authorized shipment through PR #21.
+Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
+Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
+Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
+Last activity: 2026-10-28 — Executed shared-workspace plans18-06–18-12, fixed browser-discovered exact-room integration defects, and recorded automated/API/browser evidence. Bounded goal reconciliation is recorded; independent exhaustive review and traveler acceptance remain pending.
 
-Previous phase: Phase 15 implementation remains connected; 15-05 live generation and remaining UAT acceptance are still pending. Phase 17 planning does not resolve those gaps.
+Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
 Phase 14 studio appearance including booking states approved by user on 2026-10-06. Phase 12 acceptance remains as recorded in its own artifacts.
 
@@ -101,6 +101,8 @@ Account scrolling follow-up (2026-10-16): viewport scrolling and focus restorati
 
 ### Roadmap Evolution
 
+- Phase 18 added: Focused Flights and Accommodation Agents. Five draft plans, shared brief and separate topic history; visual planning gate pending.
+
 - Phase 17 added and planned: Research phase cleanup, desktop only, five sequential waves; no automatic execution.
 - Phase 16 added: Date-gated travel previews and booking navigation; full GSD discussion, research, planning, implementation and verification requested. Separate booking LangGraph flow deferred.
 
@@ -138,6 +140,9 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261026-ksg | Connected reply suggestions, exact context and manual/chat choices; browser auth recovered | 2026-10-27 | b0182f1 | Verified — sandbox desktop/mobile; phase UAT unchanged | [261026-ksg](./quick/261026-ksg-connect-topic-chat-suggestions-and-exact/) |
+| 261025-g4x | Add LiteAPI stay details/reviews/rates and flight verification tools | 2026-10-25 | caf905b | 29 targeted tests passed; 387 broad passes with 8 baseline UI failures; no live calls/deployment | [Task](quick/261025-g4x-add-read-only-hotel-details-reviews-and-/) |
+| 261025-fzw | Research LiteAPI tools and scoped Claude SDK conversations | 2026-10-25 | 877b5b5 | Documentation/source review complete; no implementation or live capability verification | [Task](quick/261025-fzw-research-liteapi-tools-and-scoped-claude/) |
 | 261028-cla | Integrate and ship guided checkout with current main via PR #21 | 2026-10-28 | f90e4f5 | 179 tests/build passed; 12 optional skips | [Task](quick/261028-cla-merge-guided-flight-checkout-into-main/) |
 | 261027-uhp | Replace legacy flight booking with guided checkout and saved itinerary | 2026-10-27 | f9a0eaa | 148 tests passed; build and real sandbox browser flow passed; 12 external fixture tests skipped | [Task](quick/261027-uhp-replace-legacy-flight-booking-with-guide/) |
 | 261027-tzw | Three flight checkout prototypes | 2026-10-27 | prototype/flight-checkout-20261027 | Build/browser passed; user selected A guided flow plus C confirmation | [Task](quick/261027-tzw-prototype-three-separate-page-flight-che/) |
@@ -259,6 +264,10 @@ Resume file: None
 | 261025-eti | Move show all places onto map and fill available height | 2026-10-25 | 2010203 | — | [261025-eti-move-show-all-places-onto-map-and-fill-a](./quick/261025-eti-move-show-all-places-onto-map-and-fill-a/) |
 | 261025-far | Make travel summary cards clickable and remove redundant explore row | 2026-10-25 | e4234b1 | — | [261025-far-make-travel-summary-cards-clickable-and-](./quick/261025-far-make-travel-summary-cards-clickable-and-/) |
 | 261025-fg2 | Remove check again from missing place descriptions | 2026-10-25 | 2d78e06 | — | [261025-fg2-remove-check-again-from-missing-place-de](./quick/261025-fg2-remove-check-again-from-missing-place-de/) |
+
+| 261026-b8g | Restore manual travel browsing with parallel separate specialist sidechat; desktop/mobile and manual provider journeys verified | 2026-10-26 | see task summary | Verified | [261026-b8g](./quick/261026-b8g-restore-manual-travel-booking-interfaces/) |
+| 261026-c0h | Align travel with Canvas sidechat; shared controls, full-height dock, editable questions and mobile composer verified | 2026-10-26 | bb64608 | Verified | [261026-c0h](./quick/261026-c0h-align-travel-sidechat-with-canvas-and-si/) |
+| 261026-d92 | Suggestions in chat and shared provider stay filters implemented; authenticated browser checks await example-account sign-in recovery | 2026-10-26 | c82fb5b | Incomplete — browser auth | [261026-d92](./quick/261026-d92-put-travel-suggestions-in-chat-and-expos/) |
 
 ### Roadmap Evolution — 2026-10-06
 
@@ -427,3 +436,11 @@ Resume file: None
 - Three structures: A guided steps, B expandable worksheet, C itinerary document and editor. Memory-only fixtures; no real provider/payment/Plan writes. Build and authenticated Chrome DevTools desktop/mobile journeys passed, including decline/pending states and offline receipt download.
 - Preview: http://localhost:5196/plans?prototype=flight-checkout&variant=A. Primary source: prototype/flight-checkout-20261027. User selection and production integration pending.
 - Evidence: artifacts/testing/2026-10-27-flight-checkout-prototypes/verification.md. GSD summary: .planning/quick/261027-tzw-prototype-three-separate-page-flight-che/261027-tzw-SUMMARY.md.
+
+
+### Phase18 shared workspace shipment — 28 October 2026
+
+User approved the running experience and explicitly authorized merge after reviewing the disclosed technical limits. Integrated origin/main ba5e1fd, preserving the compact trip briefing, Milan airport normalization and guided sandbox flight checkout. Workspace checkout forwarding and exact research choices remain distinct. Existing untracked .cache/.gsd data and other worktrees are preserved. Standard GSD verification remains human_needed because technical acceptance checks are unfinished; the explicit user merge instruction takes precedence for shipment, without marking those checks passed.
+
+
+Phase18 shipment PR #22: https://github.com/Merthadam/travella/pull/22. Integrated main with287frontend/793Python passes, one unchanged baseline failure and documented skips; final105checkout/workspace checks and actual browser checkout review passed. Product owner authorized merge; outstanding technical acceptance checks remain recorded. Running preview includes integrated sourcebe539c6; final documentation commit adds evidence only.

@@ -148,6 +148,33 @@ def test_flights_preserve_local_times_party_total_and_technical_stop():
     assert normalize_flights(p, FLIGHT)[0] == []
 
 
+@pytest.mark.parametrize('logo', [
+    'https://assets.nuitee.flights/airlines/SA.svg',
+    '/airlines/SA.svg', 'http://assets.nuitee.flights/SA.svg',
+    'https://assets.nuitee.flights.evil.test/SA.svg',
+    'https://user:secret@assets.nuitee.flights/SA.svg',
+    'https://assets.nuitee.flights:8443/SA.svg',
+    'https://assets.nuitee.flights/SA.svg?token=secret',
+    'https://assets.nuitee.flights/SA.svg#secret',
+    'https://assets.nuitee.flights/SA\n.svg',
+])
+def test_observed_carrier_metadata_and_safe_logo_policy(logo):
+    payload = flight_payload()
+    segments = payload['data'][0]['journeys'][0]['segments']
+    segments[0]['carrier'].update(marketingLogo=logo, operatingCode='OA', operatingLogo=logo)
+    segments[1]['carrier'] = {'marketingName': 'Return Air', 'marketingCode': 'RA'}
+    flight = normalize_flights(payload, FLIGHT)[0][0]
+    outward = flight['outbound']['segments'][0]
+    assert outward.get('marketing_code') == 'SA'
+    assert outward.get('operating_code') == 'OA'
+    expected = logo if logo == 'https://assets.nuitee.flights/airlines/SA.svg' else None
+    assert outward.get('marketing_logo') == expected
+    assert outward.get('operating_logo') == expected
+    assert flight['inbound']['segments'][0].get('marketing_code') == 'RA'
+    assert flight['inbound']['segments'][0].get('operating_code') is None
+    assert flight['airlines'] == ['Test Air', 'Return Air']
+
+
 @pytest.mark.parametrize("out_airport,back_airport", [("MXP", "MXP"), ("LIN", "LIN"), ("BGY", "BGY"), ("MXP", "LIN")])
 @pytest.mark.parametrize("city_at_origin", [False, True])
 def test_milan_all_airports_search_preserves_actual_airports(out_airport, back_airport, city_at_origin):

@@ -173,7 +173,13 @@ class AgentClient:
                             422: "Check your search criteria.", 429: "Please wait a minute before searching again.",
                             504: "The search took too long. Try again."}
                 safe_status = status if status in {401,403,404,409,422,429,502,503,504} else 503
+                if action == "flights/verify":
+                    messages[409] = "This flight option expired. Search again for fresh options."
                 return safe_status, {"message": messages.get(safe_status, "Travel search is temporarily unavailable. Try again.")}
+            if action == "research/snapshot":
+                from pydantic import TypeAdapter
+                from services.agent.claude.canvas_travel import TravelSnapshot
+                return 200, TypeAdapter(TravelSnapshot).validate_python(data).model_dump(mode="json")
             return 200, OUTPUTS[action].model_validate(data).model_dump(mode="json")
         except (httpx.HTTPError, ValueError, TypeError, AttributeError):
             return 503, {"message": "Travel search is temporarily unavailable. Try again."}

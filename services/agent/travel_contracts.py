@@ -1,11 +1,13 @@
 """Bounded travel contracts shared by the public and private boundaries."""
 
-from datetime import date, timedelta
 import re
+from datetime import date, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
+from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
 from services.shared.traveler_profile import reference_catalog
 
 Country = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
@@ -13,6 +15,21 @@ Currency = Literal["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"]
 HotelId = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,100}$")]
 PlaceId = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,255}$")]
 Iata = Annotated[str, Field(pattern=r"^[A-Z]{3}$")]
+
+
+def carrier_logo(value):
+    """Only the supplier image origin observed in the bounded flight sample."""
+    if not isinstance(value, str) or len(value) > 2000 or re.search(r"[\s\\\x00-\x1f\x7f]", value):
+        return None
+    try:
+        url = urlsplit(value)
+        if (url.scheme == 'https' and url.hostname == 'assets.nuitee.flights'
+                and not url.username and not url.password and not url.query
+                and not url.fragment and url.port in (None, 443)):
+            return value
+    except ValueError:
+        pass
+    return None
 
 
 class Strict(BaseModel):
@@ -57,6 +74,10 @@ class HotelSearch(Strict):
     guest_nationality: Country
     currency: Currency = "EUR"
     hotel_id: HotelId | None = None
+    hotel_type_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(default_factory=list, max_length=10)
+    facility_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(default_factory=list, max_length=10)
+    strict_facility_filtering: bool = True
+    refundable_rates_only: bool = False
     _exact_dates = field_validator("check_in", "check_out", mode="before")(exact_date)
     _nationality = field_validator("guest_nationality")(Destination.country.__func__)
 
@@ -119,6 +140,34 @@ class HotelQuery(Strict):
     hotel_id: HotelId
 
 
+class HotelReviewsQuery(HotelQuery):
+    limit: int = Field(default=5, ge=1, le=10)
+    offset: int = Field(default=0, ge=0, le=1000)
+    sentiment: bool = False
+
+
+class FlightVerifyQuery(Strict):
+    option_id: str = Field(pattern=r"^flight-[a-f0-9]{32}$")
+
+
+class StayCatalogQuery(Strict):
+    kind: Literal["hotel_types", "facilities"]
+    q: str = Field(default="", max_length=80)
+
+
+class StayCatalogItem(Strict):
+    id: int = Field(strict=True, ge=1)
+    name: str = Field(min_length=1, max_length=120)
+
+
+class StayCatalog(Strict):
+    provider: Literal["LiteAPI"] = "LiteAPI"
+    sandbox: bool
+    kind: Literal["hotel_types", "facilities"]
+    items: list[StayCatalogItem] = Field(max_length=1000)
+    truncated: bool = False
+
+
 class SandboxHandle(Strict):
     token: str = Field(min_length=50, max_length=40000, pattern=r"^[A-Za-z0-9_=-]+$")
 
@@ -135,6 +184,10 @@ class SandboxBook(SandboxHandle):
 
 class SandboxFlightConfirm(SandboxHandle):
     confirm_mock: Literal[True]
+
+
+class ResearchSnapshotQuery(Strict):
+    search_id: str = Field(min_length=1, max_length=100)
 
 
 class FlightServiceSelection(Strict):
@@ -179,16 +232,44 @@ class SandboxFlightPrebook(SandboxFlightConfirm):
 class TravelInvocation(Strict):
     plan_id: UUID
     action: Literal[
-        "capabilities", "airports", "places", "hotels/search", "hotels/detail", "flights/search",
-        "sandbox/prebook", "sandbox/book", "sandbox/status",
-        "sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "sandbox/flights/services"
+        "research/snapshot",
+        "capabilities",
+        "airports",
+        "places",
+        "hotels/search",
+        "hotels/detail",
+        "hotels/reviews",
+        "hotels/catalog",
+        "flights/search",
+        "flights/verify",
+        "sandbox/prebook",
+        "sandbox/book",
+        "sandbox/status",
+        "sandbox/flights/verify",
+        "sandbox/flights/prebook",
+        "sandbox/flights/book",
+        "sandbox/flights/status",
+        "sandbox/flights/services",
     ]
     criteria: dict = Field(default_factory=dict)
 
 
-POST_ACTIONS = {"sandbox/flights/verify", "sandbox/flights/prebook", "sandbox/flights/book", "sandbox/flights/status", "sandbox/flights/services", "hotels/search", "flights/search", "sandbox/prebook", "sandbox/book", "sandbox/status"}
+POST_ACTIONS = {
+    "sandbox/flights/services",
+    "flights/verify",
+    "sandbox/flights/verify",
+    "sandbox/flights/prebook",
+    "sandbox/flights/book",
+    "sandbox/flights/status",
+    "hotels/search",
+    "flights/search",
+    "sandbox/prebook",
+    "sandbox/book",
+    "sandbox/status",
+}
 
 INPUTS = {
+    "research/snapshot": ResearchSnapshotQuery,
     "sandbox/flights/verify": SandboxHandle,
     "sandbox/flights/prebook": SandboxFlightPrebook,
     "sandbox/flights/services": SandboxFlightServices,
@@ -202,7 +283,10 @@ INPUTS = {
     "places": PlaceQuery,
     "hotels/search": HotelSearch,
     "hotels/detail": HotelQuery,
+    "hotels/reviews": HotelReviewsQuery,
+    "hotels/catalog": StayCatalogQuery,
     "flights/search": FlightSearch,
+    "flights/verify": FlightVerifyQuery,
 }
 
 
@@ -263,9 +347,18 @@ class Segment(Public):
     arrival_at: str
     airline: str | None = None
     operating_airline: str | None = None
+    marketing_code: str | None = Field(default=None, max_length=3)
+    marketing_logo: str | None = None
+    operating_code: str | None = Field(default=None, max_length=3)
+    operating_logo: str | None = None
     flight_number: str | None = None
     duration_minutes: int | None = None
     technical_stops: list[str] = Field(default_factory=list, max_length=10)
+
+    @field_validator('marketing_logo', 'operating_logo', mode='before')
+    @classmethod
+    def safe_carrier_logo(cls, value):
+        return carrier_logo(value)
 
 
 class Leg(Public):
@@ -294,6 +387,7 @@ class Envelope(Public):
 
 
 class SearchResult(Envelope):
+    search_id: str | None = Field(default=None, min_length=1, max_length=100)
     searched_at: str
     results: list[Hotel] | list[Flight] = Field(max_length=100)
     returned_count: int
@@ -352,6 +446,47 @@ class HotelDetail(Envelope):
     hotel: HotelContent
 
 
+class GuestReview(Public):
+    score: float | None = Field(default=None, ge=0, le=10)
+    date: str | None = Field(default=None, max_length=40)
+    headline: str | None = Field(default=None, max_length=240)
+    pros: str | None = Field(default=None, max_length=600)
+    cons: str | None = Field(default=None, max_length=600)
+
+
+class ReviewCategory(Public):
+    name: str = Field(max_length=80)
+    score: float | None = Field(default=None, ge=0, le=10)
+    description: str | None = Field(default=None, max_length=400)
+
+
+class ReviewSentiment(Public):
+    ai_generated: Literal[True] = True
+    categories: list[ReviewCategory] = Field(default_factory=list, max_length=10)
+    pros: list[str] = Field(default_factory=list, max_length=10)
+    cons: list[str] = Field(default_factory=list, max_length=10)
+
+
+class HotelReviews(Envelope):
+    hotel_id: HotelId
+    checked_at: str
+    reviews: list[GuestReview] = Field(max_length=10)
+    sentiment: ReviewSentiment | None = None
+    notices: list[str] = Field(default_factory=list, max_length=5)
+
+
+class FlightVerification(Envelope):
+    checked_at: str
+    flight: Flight
+    previous_price: Money
+    price_changed: bool
+    fare_name: str | None = Field(default=None, max_length=240)
+    changeable: bool | None = None
+    change_fee: Money | None = None
+    mixed_cabin: bool | None = None
+    notices: list[str] = Field(default_factory=list, max_length=10)
+
+
 class SandboxResult(Public):
     sandbox: Literal[True] = True
     provider: Literal["LiteAPI"] = "LiteAPI"
@@ -394,7 +529,9 @@ class SandboxFlightResult(Public):
     sandbox: Literal[True] = True
     mode: Literal["flights"] = "flights"
     provider: Literal["LiteAPI"] = "LiteAPI"
-    status: Literal["review", "ready_to_book", "confirmed", "pending", "cancelled", "failed", "unknown"]
+    status: Literal[
+        "review", "ready_to_book", "confirmed", "pending", "cancelled", "failed", "unknown"
+    ]
     token: str
     flight: Flight
     passenger_count: int
@@ -417,5 +554,8 @@ OUTPUTS = {
     "places": Places,
     "hotels/search": SearchResult,
     "hotels/detail": HotelDetail,
+    "hotels/reviews": HotelReviews,
+    "hotels/catalog": StayCatalog,
     "flights/search": SearchResult,
+    "flights/verify": FlightVerification,
 }

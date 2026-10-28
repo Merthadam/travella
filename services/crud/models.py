@@ -98,6 +98,8 @@ class Plan(Base):
     )
     research_context: Mapped["ResearchContext | None"] = relationship(uselist=False, viewonly=True)
     research_offers: Mapped[list["ResearchDraftOffer"]] = relationship(cascade="all, delete-orphan")
+    travel_topics: Mapped[list["TravelTopicState"]] = relationship(cascade="all, delete-orphan")
+    travel_runs: Mapped[list["TravelTopicRun"]] = relationship(cascade="all, delete-orphan")
     receipts: Mapped[list["PlanActionReceipt"]] = relationship(
         back_populates="plan", cascade="all, delete-orphan"
     )
@@ -132,12 +134,31 @@ class ConversationMessage(Base):
     conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     event_id: Mapped[str] = mapped_column(String(100), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
+    topic: Mapped[str] = mapped_column(String(10), nullable=False, default="trip", server_default="trip")
     content: Mapped[str] = mapped_column(String(2000), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="complete")
     generation: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
+
+
+class TravelTopicState(Base):
+    __tablename__ = "travel_topic_states"
+    plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("plans.id", ondelete="CASCADE"), primary_key=True)
+    topic: Mapped[str] = mapped_column(String(10), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON_OBJECT, nullable=False, default=dict)
+
+
+class TravelTopicRun(Base):
+    __tablename__ = "travel_topic_runs"
+    plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("plans.id", ondelete="CASCADE"), primary_key=True)
+    event_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    topic: Mapped[str] = mapped_column(String(10), nullable=False)
+    input_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    brief_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
 
 
 class DestinationPin(Base):

@@ -11,17 +11,24 @@ import {
 import userEvent from "@testing-library/user-event";
 import { TravelSearch, filterResults } from "./TravelSearch";
 import { travelRequest } from "./travelApi";
-import { draftTravelFacts, TravelPhoto, safeTravelImage } from './CanvasTravel';
+import { draftTravelFacts, TravelPhoto, safeTravelImage, travelSnapshotSchema } from './CanvasTravel';
 vi.mock("./travelApi", () => ({ travelRequest: vi.fn() }));
 const searchRequest = vi.fn();
 beforeEach(() => {
-  travelRequest.mockImplementation((plan, action, criteria, signal) =>
-    action === "places"
-      ? Promise.resolve({
+  const registered = new Map();
+  travelRequest.mockImplementation(async (plan, action, criteria, signal) => {
+    if (action === 'research/snapshot') return registered.get(criteria.search_id);
+    if (action === 'places') return {
           places: [{ place_id: "rome-place", name: "Rome", address: "Italy" }],
-        })
-      : searchRequest(plan, action, criteria, signal),
-  );
+        };
+    const result = await searchRequest(plan, action, criteria, signal);
+    if (action.endsWith('/search') && result?.search_id) {
+      const safe = structuredClone(result);
+      safe.results = safe.results.map(({ checkout_token, ...item }) => item);
+      registered.set(result.search_id, safe);
+    }
+    return result;
+  });
 });
 afterEach(() => {
   cleanup();
@@ -31,10 +38,12 @@ const hotel = (name) => ({
   id: name,
   hotel_id: name,
   name,
-  rooms: [{ id: "room", refundable: null }],
-  price: { amount: "100", currency: "EUR" },
+  address: null, image_url: null, stars: null, review_score: null, review_count: null, facilities: [],
+  rooms: [{ id: 'room', name: 'Observed room', refundable: null, board_name: null, cancellation_summary: null, cancellation_deadline: null, total: { amount: '100', currency: 'EUR' }, excluded_taxes: [], occupancy_summary: null }],
+  price: { amount: "100", currency: "EUR", basis: 'stay', estimated: true, excluded_taxes: [] },
 });
 const response = (name) => ({
+  ...imported('accommodation', name),
   results: [hotel(name)],
   sandbox: true,
   searched_at: new Date().toISOString(),
@@ -138,9 +147,12 @@ test("editing a selected city or its country requires selecting a destination ag
   await user.click(screen.getByRole("button", { name: "Search stays" }));
   expect(searchRequest).not.toHaveBeenCalled();
 });
-test("filters exclude unknowns and sort missing prices last without mutating the response", () => {
+test("filters retain unknowns and sort missing prices last without mutating the response", () => {
   const unknown = hotel("Unknown");
   unknown.price.amount = null;
+  unknown.rooms[0].refundable = null;
+  unknown.stars = null;
+  unknown.review_score = null;
   const known = hotel("Known");
   known.rooms[0].refundable = true;
   known.stars = 4;
@@ -155,8 +167,9 @@ test("filters exclude unknowns and sort missing prices last without mutating the
       refundable: true,
       stars: "4",
       rating: "8",
+      sort: "provider",
     }).map((x) => x.id),
-  ).toEqual(["Known"]);
+  ).toEqual(["Unknown", "Known"]);
   expect(data[0]).toBe(unknown);
 });
 
@@ -174,7 +187,7 @@ test.each(['accommodation','flights'])('new %s import defeats an older manual re
   if(mode==='flights') {
     next.criteria.origin='VIE';next.results[0].outbound.segments[0].origin='VIE';next.results[0].inbound.segments[0].destination='VIE';
   }
-  searchRequest.mockImplementationOnce(()=>new Promise(resolve=>{resolveOld=resolve;})).mockResolvedValueOnce({...next,results:[{...next.results[0],id:'manual',name:'Manual current',airlines:['Manual current']}]});
+  searchRequest.mockImplementationOnce(()=>new Promise(resolve=>{resolveOld=resolve;})).mockResolvedValueOnce({...next,preview_ids:['manual'],results:[{...next.results[0],id:'manual',...(mode === 'accommodation' ? {name:'Manual current'} : {airlines:['Manual current']})}]});
   const view=render(<TravelSearch {...props} mode={mode} importedSnapshot={first}/>);
   await screen.findByRole('heading',{name:'import-1'});
   expect(travelRequest).not.toHaveBeenCalled();
@@ -193,18 +206,18 @@ test.each(['accommodation','flights'])('new %s import defeats an older manual re
   }
   fireEvent.submit(screen.getByRole('button',{name:button}).closest('form'));
   expect(searchRequest.mock.calls[0][2]).toEqual(stay ? {...first.criteria,hotel_id:undefined} : first.criteria);
-  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={next}/>);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={next} importRequest={1}/>);
   await screen.findByRole('heading',{name:'import-2'});
   if(!stay)expect(screen.getByLabelText('From airport').value).toBe('VIE');
   expect(searchRequest.mock.calls[0][3].aborted).toBe(true);
   await act(async()=>resolveOld({...first,results:[{...first.results[0],name:'Obsolete',airlines:['Obsolete']}]}));
   expect(screen.queryByRole('heading',{name:'Obsolete'})).toBeNull();
   fireEvent.change(screen.getByLabelText(start),{target:{value:'2027-11-14'}});
-  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...next}}/>);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...next}} importRequest={1}/>);
   expect(screen.getByLabelText(start).value).toBe('2027-11-14');
   fireEvent.submit(screen.getByRole('button',{name:button}).closest('form'));
   await screen.findByRole('heading',{name:'Manual current'});
-  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...next,expires_at:new Date(Date.now()-1).toISOString()}} importReason="These results have expired."/>);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...next,expires_at:new Date(Date.now()-1).toISOString()}} importRequest={1} importReason="These results have expired."/>);
   expect(screen.getByRole('heading',{name:'Manual current'})).toBeTruthy();
   expect(screen.queryByText('These results have expired.')).toBeNull();
   expect(searchRequest).toHaveBeenCalledTimes(2);
@@ -230,7 +243,8 @@ test('token-free flight details require explicit search before normal mock check
   HTMLDialogElement.prototype.showModal=function(){this.open=true;};
   const s=imported('flights');
   searchRequest.mockResolvedValue({...s,results:[{...s.results[0],checkout_token:'manual-only-token'}]});
-  render(<TravelSearch {...props} mode="flights" importedSnapshot={s}/>);
+  const onFlightCheckout = vi.fn();
+  render(<TravelSearch {...props} mode="flights" importedSnapshot={s} onFlightCheckout={onFlightCheckout}/>);
   await screen.findByRole('heading',{name:s.search_id});
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
   expect(screen.queryByRole('button',{name:'Continue to flight checkout'})).toBeNull();
@@ -239,7 +253,8 @@ test('token-free flight details require explicit search before normal mock check
   await waitFor(()=>expect(searchRequest).toHaveBeenCalledTimes(1));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Search flights'}).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
-  expect(screen.getByRole('button',{name:'Continue to flight checkout'})).toBeTruthy();
+  fireEvent.click(screen.getByRole('button',{name:'Continue to flight checkout'}));
+  expect(onFlightCheckout).toHaveBeenCalledWith({offerToken:'manual-only-token'});
   expect(searchRequest.mock.calls.map(x=>x[1])).toEqual(['flights/search']);
 });
 
@@ -305,8 +320,159 @@ test.each(['accommodation', 'flights'])('%s paginates ten at a time, preserves c
   expect(screen.queryByRole('navigation', {name: 'results pages'})).toBeNull();
   await user.click(screen.getAllByRole('button', {name: 'Reset filters'})[0]);
   await user.click(screen.getAllByRole('button', {name: 'Next results pages'})[0]);
-  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...data, search_id: 'new-search'}} />);
+  view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...data, search_id: 'new-search'}} importRequest={1} />);
   expect(cards()[0].dataset.optionId).toBe('option-1');
   expect(screen.queryByText('Your comparison (1/3)')).toBeNull();
   expect(travelRequest).not.toHaveBeenCalled();
+});
+
+
+test("manual results can prepare a discussion without replacing browsing or exposing offer tokens", async () => {
+  const onDiscuss = vi.fn();
+  const data = response("Courtyard apartment");
+  data.search_id = "manual-search-1";
+  data.results[0].checkout_token = "private-offer-token";
+  searchRequest.mockImplementation(async (_plan, action) => action === 'hotels/detail' ? { hotel: { facilities: [] } } : data);
+  render(<TravelSearch {...props} onDiscuss={onDiscuss} />);
+  const user = await fill();
+  await user.click(screen.getByRole("button", { name: "Search stays" }));
+  await user.click(await screen.findByRole("button", { name: 'View rooms →' }));
+  await user.click(await screen.findByRole('button', { name: 'Discuss room' }));
+  expect(onDiscuss).toHaveBeenCalledTimes(1);
+  const message = onDiscuss.mock.calls[0][0];
+  expect(message).toEqual({ title: "Courtyard apartment · Observed room", reference: { search_id: "manual-search-1", option_id: data.results[0].id, room_id: 'room' } });
+  expect(JSON.stringify(message)).not.toContain("private-offer-token");
+  expect(screen.getByRole("button", { name: /View rooms/ })).toBeTruthy();
+  expect(searchRequest.mock.calls.map(call => call[1])).toEqual(['hotels/search', 'hotels/detail', 'hotels/search']);
+});
+
+test('provider-backed apartment and amenity filters apply to new searches and can be cleared', async () => {
+  searchRequest.mockImplementation((plan, action, criteria) => Promise.resolve(action === 'hotels/catalog'
+    ? { items: criteria.kind === 'hotel_types' ? [{ id: 201, name: 'Apartments' }] : [{ id: 7, name: 'Kitchen' }, { id: 8, name: 'Pool' }] }
+    : response('Filtered apartment')));
+  render(<TravelSearch {...props}/>);
+  const user = await fill();
+  await user.click(screen.getByText('Property type, amenities & cancellation'));
+  const type = await screen.findByRole('combobox', { name: 'Property type' });
+  await user.click(type); await user.type(type, 'apart'); await user.click(screen.getByRole('option', { name: 'Apartments' }));
+  for (const name of ['Kitchen', 'Pool']) {
+    const field = screen.getByRole('combobox', { name: 'Add an amenity' });
+    await user.click(field); await user.type(field, name); await user.click(screen.getByRole('option', { name }));
+  }
+  await user.selectOptions(screen.getByLabelText('Amenity matching'), 'any');
+  await user.click(screen.getByLabelText('Search refundable rates only'));
+  await user.click(screen.getByRole('button', { name: 'Search stays' }));
+  await screen.findByText('Filtered apartment');
+  expect(screen.queryByText('Property type 201')).toBeNull();
+  expect(screen.getByLabelText('Applied search constraints').textContent).toContain('Apartments');
+  const request = searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2];
+  expect(request).toMatchObject({ hotel_type_ids: [201], facility_ids: [7, 8], strict_facility_filtering: false, refundable_rates_only: true });
+  await user.click(screen.getByRole('button', { name: 'Clear search filters' }));
+  await user.click(screen.getByRole('button', { name: 'Search stays' }));
+  const last = searchRequest.mock.calls.filter(call => call[1] === 'hotels/search').at(-1)[2];
+  expect(last.hotel_type_ids).toBeUndefined(); expect(last.facility_ids).toBeUndefined(); expect(last.refundable_rates_only).toBeUndefined();
+});
+
+test('flight metadata survives strict browser projection and cards show carrier and evidence scope', () => {
+  const data = imported('flights');
+  Object.assign(data.results[0].outbound.segments[0], { marketing_code: 'OA', marketing_logo: 'https://assets.nuitee.flights/airlines/OA.svg', operating_code: 'OP', operating_logo: null, operating_airline: 'Operating Air' });
+  Object.assign(data.results[0].inbound.segments[0], { airline: 'Return Air', marketing_code: 'RA', marketing_logo: null });
+  expect(travelSnapshotSchema.safeParse(data).success).toBe(true);
+  render(<TravelSearch {...props} mode="flights" importedSnapshot={data}/>);
+  expect(screen.getByRole('img', { name: 'Observed Air logo' })).toBeTruthy();
+  expect(screen.getByText('Return Air')).toBeTruthy();
+  const card = document.querySelector('.travel-result');
+  expect(card.textContent).toContain('2 adults · 1 child · 1 infant');
+  expect(card.textContent).toContain('Source: LiteAPI');
+  expect(card.textContent).toContain('Cancellation terms unavailable');
+  expect(card.textContent).toContain('Local airport times');
+});
+
+test('stay cards distinguish property amenities and unknown room or distance evidence', () => {
+  render(<TravelSearch {...props} importedSnapshot={imported()}/>);
+  const card = document.querySelector('.travel-result');
+  expect(card.textContent).toContain('3 nights · 1 room · 2 adults · 1 child');
+  expect(card.textContent).toContain('Property amenities: Wi-Fi');
+  expect(card.textContent).toContain('Room amenities not supplied');
+  expect(card.textContent).toContain('Distance unavailable');
+  expect(card.textContent).toContain('Source: LiteAPI');
+});
+
+test('catalog failure offers retry and keeps ordinary manual search available', async () => {
+  searchRequest.mockImplementation((plan, action) => action === 'hotels/catalog' ? Promise.reject(new Error('Unavailable')) : Promise.resolve(response('Hotel')));
+  render(<TravelSearch {...props}/>);
+  const user = await fill();
+  await user.click(screen.getByText('Property type, amenities & cancellation'));
+  expect(await screen.findByRole('button', { name: 'Retry filters' })).toBeTruthy();
+  expect(screen.queryByRole('combobox', { name: 'Property type' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Search stays' }));
+  expect(await screen.findByText('Hotel')).toBeTruthy();
+});
+
+test('manual continuation preserves property and amenity filters imported from agent results', async () => {
+  const data = imported();
+  Object.assign(data.criteria, { hotel_type_ids: [201], facility_ids: [7], strict_facility_filtering: false, refundable_rates_only: true });
+  searchRequest.mockResolvedValue(response('Apartment continuation'));
+  render(<TravelSearch {...props} importedSnapshot={data}/>);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Search stays' }));
+  await screen.findByText('Apartment continuation');
+  expect(searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2]).toMatchObject({ hotel_type_ids: [201], facility_ids: [7], strict_facility_filtering: false, refundable_rates_only: true });
+});
+
+test('refresh keeps applied criteria and observation time visible; empty success preserves exact constraints', async () => {
+  let complete;
+  const first = imported();
+  searchRequest.mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }));
+  render(<TravelSearch {...props} importedSnapshot={first}/>);
+  fireEvent.change(screen.getByLabelText('Check-in'), { target: { value: '2027-11-14' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search stays' }));
+  expect(screen.getByText(/Updating results/)).toBeTruthy();
+  expect(screen.getByText(/2027-11-13/)).toBeTruthy();
+  const checked = screen.getByText(/Checked /).textContent;
+  await act(async () => complete({ ...first, results: [], preview_ids: [], returned_count: 0 }));
+  expect(screen.getByText('No availability for this search.')).toBeTruthy();
+  expect(screen.getByLabelText('Check-in').value).toBe('2027-11-14');
+  expect(screen.getByText(/Checked /).textContent).toBe(checked);
+  expect(screen.getByRole('button', { name: 'Edit search' })).toBeTruthy();
+});
+
+test('new results retain open detail original full identity and mark detached evidence', async () => {
+  HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn();
+  const first = imported('flights'), next = imported('flights', 'new-search');
+  next.results[0].id = first.results[0].id; next.preview_ids = [first.results[0].id];
+  next.criteria.origin = 'VIE';
+  const onChoose = vi.fn();
+  searchRequest.mockResolvedValue(next);
+  render(<TravelSearch {...props} mode="flights" importedSnapshot={first} onChoose={onChoose}/>);
+  fireEvent.click(screen.getByRole('button', { name: /View flight/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Search flights' }));
+  await screen.findByRole('heading', { name: 'new-search' });
+  expect(screen.getByText(/Earlier search.*original observation/)).toBeTruthy();
+  const dialog = document.querySelector('dialog');
+  expect(dialog.textContent).toContain('import-1');
+  fireEvent.click([...dialog.querySelectorAll('button')].find(button => button.textContent === 'Choose for trip'));
+  expect(onChoose).toHaveBeenCalledWith(expect.objectContaining({ reference: { search_id: first.search_id, option_id: first.results[0].id, room_id: null } }));
+});
+
+test('view-only filters and sort perform no supplier request and exclude confirmed violations', async () => {
+  render(<TravelSearch {...props} importedSnapshot={imported()}/>);
+  fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'price' } });
+  fireEvent.change(screen.getByLabelText('Minimum stars'), { target: { value: '5' } });
+  expect(screen.getByText('No options match these filters.')).toBeTruthy();
+  fireEvent.click(screen.getAllByRole('button', { name: 'Reset filters' })[0]);
+  expect(screen.getByRole('heading', { name: 'import-1' })).toBeTruthy();
+  expect(searchRequest).not.toHaveBeenCalled();
+});
+
+test('delayed Trip import cannot replace a manual search made after its navigation request', async () => {
+  const view = render(<TravelSearch {...props} importRequest={1}/>);
+  searchRequest.mockResolvedValue(response('Newer manual result'));
+  const user = await fill();
+  await user.click(screen.getByRole('button', { name: 'Search stays' }));
+  await screen.findByRole('heading', { name: 'Newer manual result' });
+  view.rerender(<TravelSearch {...props} importRequest={1} importedSnapshot={imported()}/>);
+  expect(screen.getByRole('heading', { name: 'Newer manual result' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'import-1' })).toBeNull();
+  view.rerender(<TravelSearch {...props} importRequest={2} importedSnapshot={imported()}/>);
+  expect(screen.getByRole('heading', { name: 'import-1' })).toBeTruthy();
 });

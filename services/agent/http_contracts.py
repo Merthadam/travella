@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from services.crud.profile_schemas import HomeCity
 from services.research_offers import ResearchOffer
 from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
+from services.travel_topics import TopicSnapshot, TravelDiscussion, WorkspaceContext, WorkspaceUpdate
 
 from .canvas_contracts import CanvasDraft, ThemesComponent
 from .editing_contracts import CanvasEditRequest, PublicCanvasEditResult
@@ -19,6 +20,9 @@ class AgentRequest(BaseModel):
     plan_id: UUID
     event_id: str = Field(min_length=1, max_length=100)
     message: str = Field(default="", max_length=2000)
+    topic: Literal["trip", "stays", "flights"] = "trip"
+    travel_discussion: TravelDiscussion | None = None
+    workspace_context: WorkspaceContext | None = None
     forwardedProps: ForwardedProps | None = None
     canvas_action: Literal["generate_themes", "generate_research", "generate_plan"] | None = None
     context_revision: int | None = Field(default=None, ge=1)
@@ -28,6 +32,14 @@ class AgentRequest(BaseModel):
 
     @model_validator(mode="after")
     def separate_canvas_action(self):
+        if self.workspace_context:
+            if self.topic == "trip":
+                raise ValueError("Workspace context requires a focused travel discussion.")
+            self.workspace_context.view.validate_topic(self.topic)
+        if self.travel_discussion and self.topic == "trip":
+            raise ValueError("Option context requires a focused travel discussion.")
+        if self.topic != "trip" and (not self.message.strip() or self.canvas_action or self.canvas_edit or self.forwardedProps or self.canvas_themes or self.context_revision or self.research_entry_receipt):
+            raise ValueError("Send a focused travel message separately from other actions.")
         if self.research_entry_receipt is not None and (
             self.canvas_action != "generate_plan" or self.context_revision is None
         ):
@@ -65,6 +77,8 @@ class AgentResponse(BaseModel):
     research_offer: ResearchOffer | None = None
     assistant_message_id: str | None = None
     flight_preview: FlightSnapshot | None = None
+    travel_specialist_result: TopicSnapshot | None = None
+    workspace_update: WorkspaceUpdate | None = None
 
 
 class TravelerProfileMemoryRequest(BaseModel):

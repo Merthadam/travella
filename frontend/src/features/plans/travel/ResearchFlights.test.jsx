@@ -20,7 +20,12 @@ test.skipIf(!fixture)('real Research SSE renders three A2UI cards with details a
   await user.type(await screen.findByRole('textbox',{name:'Message Travella'}),fixture.message+'{enter}');
   const previews=await screen.findByRole('region',{name:'Flight previews'});
   expect(within(previews).getAllByRole('article')).toHaveLength(3);
-  expect(within(previews).getAllByRole('img',{name:'Flight illustration'})).toHaveLength(3);
+  expect(within(previews).getAllByLabelText('Airlines')).toHaveLength(3);
+  for (const carriers of within(previews).getAllByLabelText('Airlines')) {
+    expect(carriers.textContent).toContain('Observed Air');
+    expect(carriers.querySelector('svg')).toBeTruthy();
+    expect(carriers.querySelector('img')).toBeNull();
+  }
   expect(previews.textContent).toContain('3 adults');
   expect(previews.textContent).toContain('Sandbox · test inventory');
   expect(within(previews).queryAllByRole('button')).toHaveLength(0);

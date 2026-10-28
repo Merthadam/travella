@@ -1,0 +1,90 @@
+.travel-workspace{display:flex;flex-direction:column;min-height:0;flex:1;color:var(--ds-ink)}
+.travel-workspace[hidden]{display:none}
+.canvas-confirm.travel-choice-review{max-height:80dvh;overflow-y:auto}.travel-choice-review .travel-choice-review-details{display:block;line-height:1.65;font-size:14px}.travel-choice-review-details ul{padding-left:20px}.travel-choice-review .travel-choice-review-actions{position:sticky;bottom:0;background:var(--ds-surface);padding:12px 0 0;display:flex;gap:10px;flex-wrap:wrap}.travel-choice-review-actions button{flex:1}
+.travel-substage-status{font-size:12px;color:var(--ds-green);margin:0 0 12px}
+.travel-context-summary{border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-surface);margin-bottom:16px;flex-shrink:0;font-size:13px}
+.travel-context-summary summary{padding:14px 16px;cursor:pointer;line-height:1.6}.travel-context-summary summary strong{margin-right:12px}.travel-context-summary summary span{color:var(--ds-muted)}
+.travel-context-detail{padding:0 16px 14px;line-height:1.65}.travel-context-detail p{margin:8px 0}.travel-pending-context{padding:10px 16px;color:var(--ds-muted);font-size:12px;line-height:1.6}
+
+
+.canvas-workspace.chat-closed .travel-conversation{display:flex}.travel-conversation{height:100%;border:0}.travel-conversation .canvas-chat-composer{flex-shrink:0}
+.travel-options-heading,.travel-comparison-heading{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.travel-options-pane h2{font-size:18px;margin:0 0 12px}.travel-options-heading p{font-size:13px;color:var(--ds-muted);margin:0 0 20px}
+.travel-research-option{border:1px solid var(--ds-line);border-radius:12px;padding:18px;margin:0 0 18px;background:var(--ds-surface);font-size:13px;line-height:1.65;overflow-wrap:anywhere}.travel-option-heading h3{font-size:17px;margin:0 0 8px}.travel-option-price{font-size:17px;font-weight:600;color:var(--ds-green)}.travel-option-source{font-size:11px;color:var(--ds-muted)}.travel-option-unknowns{background:var(--ds-soft);padding:10px;border-radius:8px}.travel-option-actions{display:flex;flex-wrap:wrap;gap:8px}.travel-choice-label{display:inline-block;color:var(--ds-green);background:var(--ds-soft);padding:4px 8px;border-radius:6px;font-size:11px}.travel-compare-check{display:flex;align-items:center;gap:8px;margin-top:14px}.travel-compare-check input{width:18px;height:18px;min-height:18px}
+.travel-research-empty{background:var(--ds-soft);border:1px dashed var(--ds-line);border-radius:14px;padding:24px;line-height:1.7;color:var(--ds-muted);font-size:14px;margin:10px 0}.travel-research-empty h3{color:var(--ds-ink);font-size:18px}.travel-research-notes{font-size:13px;line-height:1.7;margin:20px 0}.travel-research-notes summary{cursor:pointer}.travel-pane-tabs{display:none}.travel-options-pane .travel-search{padding:0}.travel-choice-review{max-width:min(560px,calc(100vw - 32px));overflow-wrap:anywhere}
+
+/* The same edge-to-edge dock and rail as the Canvas conversation. */
+.canvas-travel-screen:not([hidden]):has(.travel-workspace){display:flex;flex-direction:column;overflow:hidden;padding:0;scrollbar-gutter:auto}
+.canvas-travel-screen:has(.travel-workspace)>.travel-navigation{width:100%;max-width:none;margin:0;padding:12px 24px;flex-shrink:0;border-bottom:1px solid var(--ds-line);background:var(--ds-surface)}
+.travel-workspace-panes{display:grid;grid-template-columns:minmax(0,1fr) var(--canvas-chat-width,400px);flex:1;min-height:0;overflow:hidden}
+.travel-chat-closed .travel-workspace-panes{grid-template-columns:minmax(0,1fr) 56px}
+.travel-chat-pane{min-width:0;min-height:0;overflow:hidden;border-left:1px solid var(--ds-line)}
+.travel-chat-pane[hidden]{display:none}
+.travel-chat-context{max-height:30%;overflow:auto;flex-shrink:0;border-bottom:1px solid var(--ds-line)}
+.travel-chat-context:empty{display:none}
+.travel-chat-context .travel-context-summary{border:0;border-radius:0;margin:0;background:transparent;font-size:12px}
+.travel-chat-context .travel-context-summary summary{padding:12px 20px}
+.travel-chat-context .travel-context-summary summary strong{display:inline}
+.travel-chat-context .travel-context-summary summary span{display:block}
+.travel-chat-context .travel-context-detail{padding:0 20px 12px}
+.travel-pending-context{margin:0}
+.travel-options-pane{overflow:auto;padding:24px 28px 40px;min-width:0;container-type:inline-size;overscroll-behavior:contain}
+.travel-options-pane .travel-heading{margin:0 0 20px}
+.travel-options-pane .travel-heading h2{font-size:28px;line-height:1.25}
+.travel-options-pane .travel-heading p{font-size:13px;margin:8px 0 0}
+.travel-options-pane .travel-main-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.travel-options-pane .travel-main-fields>.travel-primary{grid-column:1/-1}
+.travel-options-heading{margin-top:28px;padding-top:20px;border-top:1px solid var(--ds-line)}
+@container(max-width:900px){.travel-results-layout{grid-template-columns:1fr}.travel-filters{display:flex;flex-wrap:wrap;gap:14px;align-items:center}.travel-filters h3{width:100%}.travel-filters>label{margin:0;flex:1;min-width:120px}.travel-result{flex-wrap:wrap}.travel-result-actions{width:100%;border-left:0;border-top:1px solid var(--ds-line)}}
+@media(max-width:1100px) and (min-width:761px){.travel-options-pane{padding:20px 18px}.travel-result.stay{display:block}.travel-result>img,.travel-result .travel-photo-placeholder{width:100%;height:150px;object-fit:cover}}
+@media(max-width:760px){
+ .planning-canvas.canvas-workspace.travel-open{height:calc(100dvh - 72px)}
+ .canvas-travel-screen:has(.travel-workspace)>.travel-navigation{padding:8px 12px;gap:6px}
+ .canvas-travel-screen:has(.travel-workspace)>.travel-navigation>span{display:none}
+ .travel-pane-tabs{display:flex;gap:5px;padding:8px 16px;background:var(--ds-surface);border-bottom:1px solid var(--ds-line);flex-shrink:0}
+ .planning-canvas .travel-pane-tabs button{flex:1;border:0;border-radius:7px;background:var(--ds-surface);color:var(--ds-muted);padding:9px 7px;font-size:12px;min-height:40px}
+ .planning-canvas .travel-pane-tabs button[aria-pressed=true]{background:var(--ds-active);color:var(--ds-ink);font-weight:600}
+ .travel-workspace-panes{display:block}
+ .travel-options-pane,.travel-chat-pane{height:100%;width:100%;border:0}
+ .travel-options-pane{padding:20px 16px 40px}
+ .travel-pane-chat .travel-options-pane,.travel-pane-options .travel-chat-pane{display:none}
+ .travel-pane-chat .travel-chat-pane:not([hidden]){display:block}
+ .travel-chat-context .travel-context-summary summary{padding:10px 18px}
+ .travel-context-summary summary span{display:block}
+ .travel-option-actions .ds-button{flex:1}
+ .travel-choice-review>div{flex-wrap:wrap}
+}
+
+/* Recommendations are part of the topic conversation. */
+.travel-suggestions-jump{flex-shrink:0;padding:10px 20px;text-align:left;border-bottom:1px solid var(--ds-line)}
+.travel-chat-suggestions{outline:none;scroll-margin-top:12px}
+.travel-suggestions-heading h2,.travel-chat-suggestions section>h2{font-size:16px;margin:18px 0 10px}
+.travel-suggestions-heading p{font-size:12px;color:var(--ds-muted)}
+.travel-suggestions-filter{display:block;font-size:12px;margin-bottom:18px}
+.travel-suggestions-filter input{width:100%;margin-top:7px}
+.travel-chat-suggestions .travel-research-option{padding:14px;margin-bottom:14px}
+.travel-chat-suggestions .travel-option-heading h3{font-size:16px}
+.travel-suggestion-details{margin:12px 0}
+.travel-suggestion-details summary{cursor:pointer;font-size:12px;color:var(--ds-muted)}
+.travel-chat-suggestions .travel-option-actions{gap:6px}
+.travel-chat-suggestions .travel-option-actions .ds-button{font-size:12px;min-height:40px;flex:1}
+.travel-chat-suggestions .travel-option-actions .ds-text-button{width:100%;text-align:left}
+
+/* Reply-attached explorer; compact Canvas-style choices with one detail card. */
+.travel-suggestion-list { display: grid; gap: 6px; margin: 12px 0; }
+.travel-suggestion-row { display: flex; align-items: center; gap: 8px; }
+.travel-suggestion-row > button { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 10px; text-align: left; border: 1px solid var(--ds-line); border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
+.travel-suggestion-row > button[aria-pressed="true"] { background: var(--ds-soft); border-color: var(--ds-green); }
+.travel-suggestion-row > button > span:nth-child(2) { flex: 1; min-width: 0; }
+.travel-suggestion-row strong, .travel-suggestion-row small { display: block; overflow-wrap: anywhere; }
+.travel-suggestion-row small { margin-top: 4px; color: var(--ds-muted); }
+.travel-discussion-context { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; margin-bottom: 8px; border-radius: 10px; background: var(--ds-soft); color: var(--ds-ink); font-size: 13px; }
+.travel-discussion-context span { min-width: 0; overflow-wrap: anywhere; }
+.travel-discussion-context button { flex: none; min-width: 32px; min-height: 32px; }
+.travel-saved-options { padding: 12px 0; border-top: 1px solid var(--ds-line); }
+.travel-saved-options > summary { cursor: pointer; font-size: 13px; }
+.travel-reply-references{font-size:12px;margin:10px 0;color:var(--ds-muted)}
+.travel-reply-references p{margin:0 0 6px}.travel-reply-references ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.travel-reply-references li{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;overflow-wrap:anywhere}
+.travel-reply-references li>button:first-child{text-align:left;color:var(--ds-green)}
+.canvas-chat-message .travel-chat-suggestions { padding: 0; }
+.travel-chat-suggestions .travel-option-actions > .ds-button { flex: 1 1 calc(50% - 8px); min-width: 120px; }

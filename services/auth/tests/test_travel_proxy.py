@@ -151,3 +151,42 @@ def test_checkout_handles_never_sent_in_query_string():
     assert status==409 and 'PRIVATE' not in json.dumps(data)
     assert requests[0].method=='POST' and not requests[0].url.query
     assert json.loads(requests[0].content)['token']=='a'*60
+
+
+def test_expired_research_offer_uses_post_and_safe_research_message():
+    requests = []
+
+    def upstream(request):
+        requests.append(request)
+        return httpx.Response(409, json={"message": "PRIVATE_SUPPLIER_ERROR"})
+
+    client = AgentClient("https://agent.test", transport=httpx.MockTransport(upstream))
+    option_id = "flight-" + "0" * 32
+    status, data = client.travel(
+        PLAN, "flights/verify", {"option_id": option_id}, token="server-token"
+    )
+    assert status == 409
+    assert data == {"message": "This flight option expired. Search again for fresh options."}
+    assert requests[0].method == "POST" and not requests[0].url.query
+    assert json.loads(requests[0].content) == {"option_id": option_id}
+
+
+def test_search_reference_and_snapshot_survive_both_proxy_transports():
+    from services.agent.tests.test_canvas_travel import hotels
+    from services.agent.tests.test_specialist_worker import STAY
+    from services.agent.travel_registry import TravelRegistry
+    registry = TravelRegistry()
+    sid = registry.manual('one', PLAN, 'hotels/search', STAY, hotels())
+    snapshot = registry.get('one', PLAN, sid).model_dump(mode='json')
+    for runtime in (False, True):
+        def upstream(request):
+            action = json.loads(request.content)['payload']['action'] if runtime else request.url.path.split('/travel/')[-1]
+            return httpx.Response(200, json=snapshot if action == 'research/snapshot' else {**hotels(), 'search_id':sid})
+        client = AgentClient('https://agent.test',transport=httpx.MockTransport(upstream),
+            runtime_arn='arn:aws:bedrock-agentcore:eu-north-1:123456789012:runtime/test' if runtime else None,
+            runtime_region='eu-north-1' if runtime else None)
+        status, found = client.travel(PLAN,'hotels/search',STAY,token='server-token')
+        assert status == 200 and found['search_id'] == sid
+        status, value = client.travel(PLAN,'research/snapshot',{'search_id':sid},token='server-token')
+        assert status == 200 and value['criteria']['check_in'] == STAY['check_in']
+        assert 'PRIVATE' not in json.dumps(value)

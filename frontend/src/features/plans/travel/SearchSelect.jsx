@@ -2,12 +2,12 @@ import React, { useId, useRef, useState } from "react";
 
 export const PAGE_SIZE = 10;
 
-export function Pagination({ page, total, onChange, label }) {
+export function Pagination({ page, total, onChange, label, announce = true }) {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if (!total) return null;
   return (
     <nav className="travel-pagination" aria-label={label}>
-      <span role="status">{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}</span>
+      <span role={announce ? 'status' : undefined}>{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}</span>
       {pages > 1 && <div>
         <button type="button" aria-label={`Previous ${label}`} disabled={page === 1} onClick={() => onChange(page - 1)}>Previous</button>
         <span>Page {page} of {pages}</span>

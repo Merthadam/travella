@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTravelWorkspace } from "./useTravelWorkspace";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
 import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
 import { readFlightReceipt } from "./useFlightCheckout";
 import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
+import { StaySearchFilters } from "./StaySearchFilters";
 import { StayDestination } from "./StayDestination";
-import { travelSnapshotSchema, travelState, TravelPhoto } from "./CanvasTravel";
+import { travelState, TravelPhoto, parseTravelRegistrySnapshot } from "./CanvasTravel";
+import { CarrierMarks } from "./CarrierMark";
+import { TravelComparison, comparisonEntry, referenceKey } from './TravelComparison';
 import "./travel-search.css";
 
 const currencies = ["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"];
@@ -156,12 +160,12 @@ function Airport({ label, value, onChange, planId, active, onExpired }) {
     </div>
   );
 }
-function Price({ price, stay }) {
+function Price({ price, stay, room = false }) {
   return (
     <div className="travel-price">
       <strong>{price?.estimated ? 'Estimated ' : ''}{priceLabel(price)}</strong>
       <small>
-        {stay ? "Total for all rooms & nights" : "Return total · all travelers"}
+        {stay ? room ? 'Observed room offer · total stay' : "Total for all rooms & nights" : "Return total · all travelers"}{price?.currency && ` · ${price.currency}`}
       </small>
       {price?.excluded_taxes?.map((tax, i) => (
         <small key={i}>
@@ -205,7 +209,7 @@ function Leg({ leg, label, expanded = false }) {
             {s.origin} → {s.destination} · {localTime(s.departure_at)}–
             {localTime(s.arrival_at)} ·{" "}
             {s.flight_number || s.airline || "Airline unavailable"}
-            {s.operating_airline && ` · Operated by ${s.operating_airline}`}
+            {(s.operating_airline || s.operating_code) && ` · Operated by ${s.operating_airline || s.operating_code}`}
             {s.technical_stops.length > 0 &&
               ` · Technical stops: ${s.technical_stops.join(", ")}`}
           </p>
@@ -213,7 +217,18 @@ function Leg({ leg, label, expanded = false }) {
     </div>
   );
 }
-function Room({ room, onCheckout }) {
+function CardEvidence({ snapshot, stay }) {
+  const c = snapshot.criteria;
+  const adults = stay ? c.rooms.reduce((sum, room) => sum + room.adults, 0) : c.adults;
+  const children = stay ? c.rooms.reduce((sum, room) => sum + room.children_ages.length, 0) : c.children_ages.length;
+  const nights = stay ? Math.round((Date.parse(c.check_out) - Date.parse(c.check_in)) / 86400000) : null;
+  return <div className="travel-card-evidence" style={{ display: 'grid', gap: 4, marginTop: 8 }}>
+    <small>{stay && `${nights} ${nights === 1 ? 'night' : 'nights'} · ${c.rooms.length} ${c.rooms.length === 1 ? 'room' : 'rooms'} · `}{adults} {adults === 1 ? 'adult' : 'adults'}{children > 0 && ` · ${children} ${children === 1 ? 'child' : 'children'}`}{!stay && c.infant_ages.length > 0 && ` · ${c.infant_ages.length} ${c.infant_ages.length === 1 ? 'infant' : 'infants'}`}</small>
+    <small>Source: {snapshot.provider}{snapshot.sandbox && ' · Sandbox test inventory'}</small>
+    <small>Observed {new Date(snapshot.searched_at).toLocaleString()} · Expires {new Date(snapshot.expires_at).toLocaleString()}</small>
+  </div>;
+}
+function Room({ room, onCheckout, onDiscuss, onChoose, onCompare }) {
   return (
     <article className="travel-room">
       <div>
@@ -228,20 +243,29 @@ function Room({ room, onCheckout }) {
             "Cancellation deadline and penalties not supplied."}
         </p>
       </div>
+      {(onDiscuss || onChoose) && <div className="travel-option-actions">{onDiscuss && <button type="button" onClick={onDiscuss}>Discuss room</button>}{onChoose && <button type="button" onClick={onChoose}>Choose for trip</button>}</div>}
+      {onCompare && <button type="button" onClick={onCompare}>Compare room</button>}
       {onCheckout && room.checkout_token && <button type="button" onClick={() => onCheckout(room.checkout_token)}>Try mock booking</button>}
       <Price
         price={{ ...room.total, excluded_taxes: room.excluded_taxes }}
         stay
+        room
       />
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, onFlightCheckout, flightBooked }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, choiceDisabled, detached, historical, roomId, observedAt, expiresAt, checkoutToken, onFlightCheckout, flightBooked }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
-  const [rooms, setRooms] = useState(item.rooms || []);
-  const [loading, setLoading] = useState(stay);
+  const [rooms, setRooms] = useState(roomId ? (item.rooms || []).filter(room => room.id === roomId) : item.rooms || []);
+  const [observation, setObservation] = useState({ search_id: searchId, option_id: item.id });
+  const [evidenceExpiry, setEvidenceExpiry] = useState(expiresAt);
+  const [roomObservedAt, setRoomObservedAt] = useState(null);
+  const evidenceExpired = !Number.isFinite(Date.parse(evidenceExpiry)) || Date.now() >= Date.parse(evidenceExpiry);
+  const attach = room => ({ title: stay ? `${item.name}${room ? ` · ${room.name}` : ''}` : item.airlines.join(' / '), reference: { ...observation, room_id: room?.id || null } });
+  const observedOnly = historical || Boolean(roomId);
+  const [loading, setLoading] = useState(stay && !observedOnly);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   useEffect(() => {
@@ -250,7 +274,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
     return () => focus?.focus?.();
   }, []);
   useEffect(() => {
-    if (!stay) return;
+    if (!stay || observedOnly) return;
     const controller = new AbortController();
     let live = true;
     setLoading(true);
@@ -273,6 +297,9 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
         if (live) {
           setHotel(details.hotel);
           setRooms(availability.results[0]?.rooms || []);
+          setRoomObservedAt(availability.searched_at || null);
+          setObservation({ search_id: availability.search_id, option_id: availability.results[0]?.id });
+          setEvidenceExpiry(availability.expires_at || (Number.isFinite(Date.parse(availability.searched_at)) ? new Date(Date.parse(availability.searched_at) + 600000).toISOString() : expiresAt));
         }
       })
       .catch((e) => {
@@ -314,6 +341,11 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
       <p className="travel-note">
         {sandbox ? "LiteAPI sandbox · test inventory" : "LiteAPI results"}
       </p>
+      {detached && <p role="status">Earlier search · inspecting its original observation. The main results have changed.</p>}
+      {observedOnly && <p role="status">Original observed offer · no availability refresh requested.</p>}
+      <p className="travel-note">Observed {new Date(observedAt).toLocaleString()} · {criteria.check_in || criteria.departure_date} – {criteria.check_out || criteria.return_date}</p>
+      {roomObservedAt && <p className="travel-note">Room availability checked {new Date(roomObservedAt).toLocaleString()}. The original search observation above is unchanged.</p>}
+      {evidenceExpired && <p role="status">This offer has expired. Search again before choosing it.</p>}
       <h2 id="travel-detail-title">
         {stay ? item.name : item.airlines.join(" · ") || "Flight details"}
       </h2>
@@ -345,7 +377,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           )}
           <h3>Room offers for your stay</h3>
           {rooms.map((room) => (
-            <Room key={room.id} room={room} onCheckout={sandbox && !loading ? setCheckout : null} />
+            <Room key={room.id} room={room} onCheckout={sandbox && !loading && !evidenceExpired ? setCheckout : null} onCompare={!loading && observation.search_id && onCompareRoom ? () => { onClose(); onCompareRoom(attach(room)); } : null} onDiscuss={!discussionDisabled && !evidenceExpired && observation.search_id && onDiscuss ? () => { onClose(); onDiscuss(attach(room)); } : null} onChoose={!choiceDisabled && !evidenceExpired && observation.search_id && onChoose ? () => { onClose(); onChoose(attach(room)); } : null} />
           ))}
           {!loading && !rooms.length && (
             <p>No room offers are available for these dates.</p>
@@ -364,8 +396,9 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
               "Detailed fare conditions not supplied."}
           </p>
           <Price price={item.price} />
-          {sandbox && item.checkout_token && <button className="travel-primary" disabled={flightBooked || !onFlightCheckout} onClick={() => onFlightCheckout({ offerToken: item.checkout_token })}>{flightBooked ? "A flight is already booked in this Plan" : "Continue to flight checkout"}</button>}
-          {!item.checkout_token && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
+          {!evidenceExpired && observation.search_id && <div className="travel-option-actions">{!discussionDisabled && onDiscuss && <button type="button" onClick={() => { onClose(); onDiscuss(attach()); }}>Discuss flight</button>}{!choiceDisabled && onChoose && <button type="button" onClick={() => { onClose(); onChoose(attach()); }}>Choose for trip</button>}</div>}
+          {sandbox && checkoutToken && !evidenceExpired && <button className="travel-primary" disabled={flightBooked || !onFlightCheckout} onClick={() => onFlightCheckout({ offerToken: checkoutToken })}>{flightBooked ? "A flight is already booked in this Plan" : "Continue to flight checkout"}</button>}
+          {!checkoutToken && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
         </>
       )}
       <p className="travel-note">
@@ -390,19 +423,18 @@ export function filterResults(
 ) {
   const list = results.filter(
     (item) =>
-      (!stars || (item.stars != null && item.stars >= Number(stars))) &&
+      (!stars || item.stars == null || item.stars >= Number(stars)) &&
       (!rating ||
-        (item.review_score != null && item.review_score >= Number(rating))) &&
-      (!airline || item.airlines?.includes(airline)) &&
+        item.review_score == null || item.review_score >= Number(rating)) &&
+      (!airline || !item.airlines?.length || item.airlines.includes(airline)) &&
       (!budget ||
-        (item.price.amount != null &&
-          Number(item.price.amount) <= Number(budget))) &&
+        item.price.amount == null || Number(item.price.amount) <= Number(budget)) &&
       (!refundable ||
         (stay
-          ? item.rooms.some((r) => r.refundable === true)
-          : item.refundable === true)) &&
-      (!direct || (item.outbound?.stops === 0 && item.inbound?.stops === 0)) &&
-      (!bag || item.cabin_bag_included === true),
+          ? !item.rooms.length || item.rooms.some((r) => r.refundable !== false)
+          : item.refundable !== false)) &&
+      (!direct || !(item.outbound?.stops > 0 || item.inbound?.stops > 0)) &&
+      (!bag || item.cabin_bag_included !== false),
   );
   const metric = (item) =>
     sort === "price"
@@ -415,103 +447,96 @@ export function filterResults(
     ? list
     : list.sort((a, b) => metric(a) - metric(b));
 }
-export function TravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, onFlightCheckout, importedSnapshot, importRequest = 0, importReason = '' }) {
+export function unknownFilterFacts(item, { stay, budget, refundable, direct, bag, stars, rating, airline }) {
+  return [budget && item.price.amount == null && 'total price',
+    stay && stars && item.stars == null && 'star rating', stay && rating && item.review_score == null && 'guest rating',
+    refundable && (stay ? !item.rooms.length || !item.rooms.some(r => r.refundable === true) && item.rooms.some(r => r.refundable == null) : item.refundable == null) && 'refundability',
+    !stay && direct && (item.outbound?.stops == null || item.inbound?.stops == null) && 'stops',
+    !stay && bag && item.cabin_bag_included == null && 'cabin baggage',
+    !stay && airline && !item.airlines?.length && 'airline'].filter(Boolean);
+}
+export function TravelSearch(props) {
+  return props.workspace ? <ControlledTravelSearch {...props}/> : <StandaloneTravelSearch {...props}/>;
+}
+function StandaloneTravelSearch(props) {
+  const workspace = useTravelWorkspace({ planId: props.planId, topic: props.mode === "accommodation" ? "stays" : "flights", initialData: props.initialData, active: props.active, onExpired: props.onExpired });
+  return <ControlledTravelSearch {...props} workspace={workspace}/>;
+}
+function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, onFlightCheckout, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onShortlist, onCompare, onComparisonChange, discussionDisabled, choiceDisabled, workspace }) {
   const stay = mode === "accommodation";
-  const dates = initialData?.essentials?.dates;
-  const [city, setCity] = useState(initialData?.map?.destination || "");
-  const [place, setPlace] = useState(null);
-  const [country, setCountry] = useState("");
-  const [nationality, setNationality] = useState("");
-  const [start, setStart] = useState(dates?.flexible ? "" : dates?.start || "");
-  const [end, setEnd] = useState(dates?.flexible ? "" : dates?.end || "");
-  const [rooms, setRooms] = useState([{ adults: 2, children_ages: [] }]);
-  const [adults, setAdults] = useState(2);
-  const [children, setChildren] = useState([]);
-  const [infants, setInfants] = useState([]);
-  const [origin, setOrigin] = useState(null);
-  const [destination, setDestination] = useState(null);
-  const [cabin, setCabin] = useState("ECONOMY");
-  const [currency, setCurrency] = useState("EUR");
-  const [snapshot, setSnapshot] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [recovery, setRecovery] = useState(null);
-  const [detail, setDetail] = useState(null);
-  const [compared, setCompared] = useState([]);
-  const [stars, setStars] = useState("");
-  const [rating, setRating] = useState("");
-  const [airline, setAirline] = useState("");
-  const [page, setPage] = useState(1);
-  const resultsHeading = useRef(null);
-  const [budget, setBudget] = useState("");
-  const [refundable, setRefundable] = useState(false);
-  const [direct, setDirect] = useState(false);
-  const [bag, setBag] = useState(false);
-  const [sort, setSort] = useState("provider");
-  const [imported, setImported] = useState(false);
-  const [, setImportClock] = useState(0);
-  const importedId = useRef(null);
-  const heading = useRef(null);
-  const form = useRef(null);
-  const pending = useRef(null);
-  const epoch = useRef(0);
+  const { snapshot, loading, error, imported, draftCriteria, view, detailsReference } = workspace.state;
+  const field = name => [draftCriteria[name], value => workspace.setDraft(name, value)];
+  const local = name => [view[name], value => workspace.setView(current => ({ [name]: typeof value === "function" ? value(current[name]) : value, ...(name !== "page" ? { page: 1 } : {}) }))];
+  const [stayFilters, setStayFilters] = field("stayFilters"), [city, setCity] = field("city"), [place, setPlace] = field("place"), [country, setCountry] = field("country"), [nationality, setNationality] = field("nationality");
+  const [start, setStart] = field("start"), [end, setEnd] = field("end"), [rooms, setRooms] = field("rooms"), [adults, setAdults] = field("adults"), [children, setChildren] = field("children"), [infants, setInfants] = field("infants");
+  const [origin, setOrigin] = field("origin"), [destination, setDestination] = field("destination"), [cabin, setCabin] = field("cabin"), [currency, setCurrency] = field("currency");
+  const [stars, setStars] = local("stars"), [rating, setRating] = local("rating"), [airline, setAirline] = local("airline"), [page, setPage] = local("page"), [budget, setBudget] = local("budget"), [refundable, setRefundable] = local("refundable"), [direct, setDirect] = local("direct"), [bag, setBag] = local("bag"), [sort, setSort] = local("sort");
+  const compared = view.comparison_refs.filter(ref => ref.search_id === snapshot?.search_id).map(ref => ref.option_id);
+  const setCompared = value => workspace.setView(current => ({ comparison_refs: (typeof value === "function" ? value(current.comparison_refs.map(ref => ref.option_id)) : value).map(option_id => current.comparison_refs.find(ref => ref.search_id === snapshot.search_id && ref.option_id === option_id) || ({ search_id: snapshot.search_id, option_id, room_id: null })) }));
+  const [comparison, setComparison] = useState([]), [comparisonError, setComparisonError] = useState(false), [discussing, setDiscussing] = useState(false);
+  const comparisonRun = useRef(0);
   useEffect(() => {
-    if (!imported || !active) return;
+    onComparisonChange?.(comparison.map(entry => entry.reference));
+    return () => onComparisonChange?.([]);
+  }, [comparison, onComparisonChange]);
+  useEffect(() => { setComparison([]); comparisonRun.current++; return () => { comparisonRun.current++; }; }, [planId, mode, active, workspace.state.instanceId]);
+  async function discussComparison(entries) {
+    if (!onCompare || entries.length < 2) return;
+    const run = ++comparisonRun.current; setDiscussing(true); setComparisonError(false);
+    try { const result = await onCompare(entries.map(entry => ({ title: stay ? entry.item.name : entry.item.airlines.join(' / '), reference: entry.reference }))); if (run === comparisonRun.current) setComparisonError(!result); }
+    catch { if (run === comparisonRun.current) setComparisonError(true); }
+    finally { if (run === comparisonRun.current) setDiscussing(false); }
+  }
+  function openComparison() {
+    const entries = view.comparison_refs.map(ref => comparisonEntry(snapshot, ref)).filter(Boolean);
+    if (entries.length < 2 || entries.length > 3) return;
+    setComparison(entries); void discussComparison(entries);
+  }
+  async function compareRoom({ reference }) {
+    workspace.setView(current => ({ comparison_refs: current.comparison_refs }));
+    const token = workspace.getWorkspaceContext(), run = ++comparisonRun.current;
+    const current = () => {
+      const now = workspace.getWorkspaceContext();
+      return run === comparisonRun.current && now.instance_id === token.instance_id && now.revision === token.revision;
+    };
+    try {
+      const original = parseTravelRegistrySnapshot(await travelRequest(planId, 'research/snapshot', { search_id: reference.search_id }));
+      if (!current()) return;
+      if (original.plan_id !== planId || original.mode !== 'stays') throw new Error('Invalid room evidence');
+      const entry = comparisonEntry(original, reference);
+      if (!entry) throw new Error('Room evidence unavailable');
+      const base = comparison.length ? comparison : view.comparison_refs.map(ref => comparisonEntry(snapshot, ref)).filter(Boolean);
+      const index = base.findIndex(value => referenceKey(value.reference) === referenceKey(entry.reference));
+      if (index < 0 && base.length >= 3) { setError('Compare up to three options. Remove one to add another.'); return; }
+      setComparison(index < 0 ? [...base, entry] : base.map((value, i) => i === index ? entry : value));
+      setComparisonError(false);
+    } catch (err) { if (!current()) return; if (err.status === 401) onExpired?.(); setError('This room observation is unavailable. Search again to compare current rooms.'); }
+  }
+  const setError = value => workspace.dispatch({ type: "error", value });
+  const detail = detailsReference?.item;
+  const setDetail = item => workspace.dispatch({ type: "details", value: item ? { item, snapshot, reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } } : null });
+  const [recovery, setRecovery] = useState(null);
+  const [stayCatalogs, setStayCatalogs] = useState(null);
+  useEffect(() => setStayCatalogs(null), [planId]);
+  const [, setImportClock] = useState(0);
+  const resultsHeading = useRef(null), heading = useRef(null), form = useRef(null);
+  const importIntent = useRef(null);
+  const importIntentKey = `${planId}:${mode}:${importRequest}`;
+  if (importIntent.current?.key !== importIntentKey) importIntent.current = { key: importIntentKey, revision: workspace.state.revision };
+  useEffect(() => {
+    if (!snapshot || !active) return;
     const timer = setInterval(() => setImportClock(Date.now()), 10000);
     return () => clearInterval(timer);
-  }, [imported, active]);
-  // New search identity is an explicit import; parent clock/rerenders never
-  // rehydrate the form or overwrite a subsequent manual result.
+  }, [snapshot, active]);
   useEffect(() => {
-    const identity = `${planId}:${mode}:${importedSnapshot?.search_id}:${importRequest}`;
-    if (!importedSnapshot || identity === importedId.current) return;
-    epoch.current++;
-    pending.current?.abort();
-    setLoading(false); setDetail(null); setCompared([]); resetFilters();
-    const parsed = travelSnapshotSchema.safeParse(importedSnapshot);
-    if (!parsed.success || parsed.data.plan_id !== planId || parsed.data.mode !== (stay ? 'stays' : 'flights') || importReason || travelState(parsed.data, initialData)) {
-      setImported(false); setSnapshot(null); setError('These results are no longer available. Return to Plan chat to search again.'); return;
-    }
-    const value = parsed.data, c = value.criteria;
-    importedId.current = identity;
-    setImported(true); setError(''); setSnapshot(value); setCurrency(c.currency);
-    if (stay) {
-      setCity(c.destination.city); setPlace({name:c.destination.city,place_id:c.destination.place_id});
-      setCountry(c.destination.country_code); setNationality(c.guest_nationality);
-      setStart(c.check_in); setEnd(c.check_out); setRooms(c.rooms);
-    } else {
-      setOrigin({iata:c.origin,label:c.origin}); setDestination({iata:c.destination,label:c.destination});
-      setStart(c.departure_date); setEnd(c.return_date); setAdults(c.adults);
-      setChildren(c.children_ages); setInfants(c.infant_ages); setCabin(c.cabin_class); setCountry(c.country_code);
-    }
-    heading.current?.focus();
+    if (importedSnapshot && workspace.importSnapshot(importedSnapshot, `${planId}:${mode}:${importedSnapshot.search_id}:${importRequest}`, importReason, importIntent.current.revision)) heading.current?.focus();
   }, [importedSnapshot?.search_id, importRequest, planId, mode]);
-  useEffect(() => {
-    if (!active) {
-      epoch.current++;
-      pending.current?.abort();
-      setLoading(false);
-      setDetail(null);
-    }
-    return () => {
-      epoch.current++;
-      pending.current?.abort();
-    };
-  }, [active, planId]);
   const roomChange = (i, patch) =>
     setRooms((prev) =>
       prev.map((room, j) => (i === j ? { ...room, ...patch } : room)),
     );
   function resetFilters() {
-    setStars("");
-    setRating("");
-    setAirline("");
-    setPage(1);
-    setBudget("");
-    setRefundable(false);
-    setDirect(false);
-    setBag(false);
-    setSort("provider");
+    workspace.setView({ stars: '', rating: '', airline: '', page: 1, budget: '', refundable: false, direct: false, bag: false, sort: 'provider' });
   }
   async function search(event) {
     event.preventDefault();
@@ -539,6 +564,9 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
           })),
           guest_nationality: nationality,
           currency,
+          ...(stayFilters.hotel_type_ids.length ? { hotel_type_ids: stayFilters.hotel_type_ids } : {}),
+          ...(stayFilters.facility_ids.length ? { facility_ids: stayFilters.facility_ids, strict_facility_filtering: stayFilters.strict_facility_filtering } : {}),
+          ...(stayFilters.refundable_rates_only ? { refundable_rates_only: true } : {}),
         }
       : {
           origin: origin.iata,
@@ -572,40 +600,21 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       );
       return;
     }
-    pending.current?.abort();
-    const controller = new AbortController();
-    pending.current = controller;
-    const current = ++epoch.current;
-    setLoading(true);
-    try {
-      const result = await travelRequest(
-        planId,
-        stay ? "hotels/search" : "flights/search",
-        criteria,
-        controller.signal,
-      );
-      if (current === epoch.current) {
-        setImported(false);
-        setSnapshot({ ...result, criteria });
-        setCompared([]);
-        resetFilters();
-      }
-    } catch (e) {
-      if (current === epoch.current && e.name !== "AbortError") {
-        setError(e.message || "Unable to connect. Please try again.");
-        if (e.status === 401) onExpired?.();
-      }
-    } finally {
-      if (current === epoch.current) setLoading(false);
-    }
+    await workspace.search(criteria);
   }
-  useEffect(() => { setPage(1); }, [budget, refundable, direct, bag, sort, stars, rating, airline]);
   const unavailable = imported && (importReason || travelState(snapshot, initialData));
+  const evidenceExpired = snapshot && Date.now() >= Date.parse(snapshot.expires_at);
+  const applied = workspace.state.appliedCriteria;
+  const appliedStart = applied?.check_in || applied?.departure_date, appliedEnd = applied?.check_out || applied?.return_date;
+  const savedDates = initialData?.essentials?.dates;
+  const appliedTravelers = applied && (stay ? applied.rooms.reduce((n, room) => n + room.adults + room.children_ages.length, 0) : applied.adults + applied.children_ages.length + applied.infant_ages.length);
+  const exploratory = applied && (savedDates?.start && (savedDates.start !== appliedStart || savedDates.end !== appliedEnd) || initialData?.essentials?.travelers && initialData.essentials.travelers !== appliedTravelers);
+  function editSearch() { form.current?.querySelector('input')?.focus(); form.current?.scrollIntoView?.({ block: 'start' }); }
   function openDetail(item) {
     if (imported && (importReason || travelState(snapshot, initialData))) { setImportClock(Date.now()); return; }
     setDetail(item);
   }
-  const results = filterResults(unavailable ? [] : snapshot?.results || [], {
+  const results = filterResults(unavailable ? [] : (snapshot?.results || []).filter(item => !view.dismissed_ids.includes(item.id)), {
     stay,
     budget,
     refundable,
@@ -630,19 +639,8 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       aria-label={stay ? "Accommodation search" : "Flight search"}
     >
       <header className="travel-heading">
-        <span className="travel-kicker">
-          {stay ? "SOMEWHERE TO CALL HOME" : "THE WAY THERE"}
-        </span>
-        <h2 ref={heading} tabIndex={-1}>
-          {stay
-            ? "Find your little corner of the world."
-            : "A good trip starts with a good flight."}
-        </h2>
-        <p>
-          {stay
-            ? "Find a comfortable base for everything ahead."
-            : "Compare the journey, the fare, and the time you get back."}
-        </p>
+        <h2 ref={heading} tabIndex={-1}>{stay ? 'Find a place to stay' : 'Find your flights'}</h2>
+        <p>{stay ? 'Compare places, rooms and total prices.' : 'Compare return flights, fares and journey times.'}</p>
       </header>
       {stay && initialData?.accommodation?.mockBooking && <section className="travel-empty" aria-label="Mock stay details">
         <h3>Mock booked · {initialData.accommodation.mockBooking.hotelName}</h3>
@@ -766,6 +764,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
             </label>
           )}
         </div>
+        {stay && <StaySearchFilters key={planId} planId={planId} active={active} value={stayFilters} onChange={setStayFilters} onExpired={onExpired} onCatalogs={setStayCatalogs} applied={applied}/>}
         <details className="travel-party">
           <summary>
             {stay
@@ -856,17 +855,17 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
           </small>
         </details>
       </form>
+      {workspace.state.draftDirty && snapshot && <p className="travel-notice">Your edited fields apply to the next search. Results below still use the applied search.</p>}
+      {exploratory && <p className="travel-notice">Exploratory search · dates or travelers differ from your saved trip. Your trip is unchanged.</p>}
       {loading && (
         <p className="travel-notice" role="status">
-          Finding your options…{" "}
+          {snapshot ? 'Updating results…' : 'Finding your options…'}{" "}
           {stay
             ? "Checking room availability."
             : "Flight search can take up to two minutes."}{" "}
           <button
             onClick={() => {
-              epoch.current++;
-              pending.current?.abort();
-              setLoading(false);
+              workspace.cancel();
             }}
           >
             Cancel search
@@ -876,6 +875,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       {error && (
         <p className="travel-error" role="alert">
           {error} {snapshot && "Your last completed results are still shown."}
+          <button type="button" onClick={() => form.current?.requestSubmit()}>Retry search</button>
         </p>
       )}
       {unavailable ? <p role="status" className="travel-notice">{unavailable}</p> : snapshot ? (
@@ -905,6 +905,17 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
               {snapshot.sandbox && " · Test inventory"}
             </small>
           </div>
+          <div className="travel-filter-chips" aria-label="Applied search constraints">
+            {applied?.hotel_type_ids?.map(id => <span key={`type-${id}`}>{stayCatalogs?.hotel_type_ids.find(item => item.id === id)?.name || 'Selected property type'}</span>)}
+            {applied?.facility_ids?.map(id => <span key={`facility-${id}`}>{stayCatalogs?.facility_ids.find(item => item.id === id)?.name || 'Selected amenity'}</span>)}
+            {applied?.facility_ids?.length > 0 && <span>{applied.strict_facility_filtering === false ? 'Any selected amenity' : 'All selected amenities'}</span>}
+            {applied?.refundable_rates_only && <span>Refundable rates only</span>}
+            {budget && <span>Maximum total {snapshot.criteria.currency} {budget}</span>}
+            {stars && <span>{stars}+ stars</span>}{rating && <span>Review score {rating}+</span>}
+            {airline && <span>{airline}</span>}{refundable && <span>Refundable offers</span>}
+            {direct && <span>Direct both ways</span>}{bag && <span>Cabin bag included</span>}
+          </div>
+          {evidenceExpired && <p role="status">These observations have expired. Search again before choosing an option.</p>}
           <div className="travel-results-layout">
             <aside className="travel-filters">
               <h3>Make it your kind of trip</h3>
@@ -987,7 +998,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
               )}
               <button onClick={resetFilters}>Reset filters</button>
               <small>
-                Unknown terms are excluded when a filter is selected.
+                Unknown terms remain visible and are labeled; they are not confirmed matches.
               </small>
             </aside>
             <div className="travel-results">
@@ -1028,6 +1039,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                   {snapshot.results.length > 0 && (
                     <button onClick={resetFilters}>Reset filters</button>
                   )}
+                  <button type="button" onClick={editSearch}>Edit search</button>
                 </div>
               )}
               {results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((item) => (
@@ -1046,7 +1058,9 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                             : "YOUR STAY"}
                         </small>
                         <h3>{item.name}</h3>
+                        {unknownFilterFacts(item, { stay, ...view }).length > 0 && <p className="travel-note">Not confirmed for your filters: {unknownFilterFacts(item, { stay, ...view }).join(', ')}.</p>}
                         <p>{item.address || "Address unavailable"}</p>
+                        <small>Property type unavailable · Distance unavailable</small>
                         {item.review_score != null && (
                           <p>
                             <b className="travel-rating">{item.review_score}</b>{" "}
@@ -1059,23 +1073,38 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                           {item.rooms[0]?.board_name || "Meal plan unavailable"}{" "}
                           · {refund(item.rooms[0]?.refundable)}
                         </small>
+                        <p>Property amenities: {item.facilities?.length ? item.facilities.slice(0, 5).join(', ') : 'Not supplied'}</p>
+                        <small>Room amenities not supplied; check the exact room details.</small>
+                        <CardEvidence snapshot={snapshot} stay/>
                       </div>
                     </>
                   ) : (
                     <div className="travel-result-body">
+                      {unknownFilterFacts(item, { stay, ...view }).length > 0 && <p className="travel-note">Not confirmed for your filters: {unknownFilterFacts(item, { stay, ...view }).join(', ')}.</p>}
                       <h3>
                         {item.airlines.join(" · ") || "Airline unavailable"}
                       </h3>
+                      <CarrierMarks item={item} showName={false}/>
                       <Leg leg={item.outbound} label="Outbound" />
                       <Leg leg={item.inbound} label="Return" />
                       <small>
                         {item.baggage_summary ||
                           "Baggage allowance unavailable"}
                       </small>
+                      <p>{item.cancellation_summary || refund(item.refundable)}</p>
+                      <small>Local airport times</small>
+                      <CardEvidence snapshot={snapshot}/>
                     </div>
                   )}
                   <div className="travel-result-actions">
                     <Price price={item.price} stay={stay} />
+                    {workspace.dismiss && snapshot.search_id && <button type="button" data-dismiss-option disabled={workspace.state.draftDirty || evidenceExpired} onClick={event => {
+                      const button = event.currentTarget, focused = document.activeElement === button;
+                      const buttons = Array.from(button.closest('.travel-search').querySelectorAll('[data-dismiss-option]'));
+                      const next = buttons[buttons.indexOf(button) + 1] || buttons[buttons.indexOf(button) - 1];
+                      workspace.dismiss({ search_id: snapshot.search_id, option_id: item.id, room_id: null });
+                      if (focused) requestAnimationFrame(() => { if (document.activeElement === document.body || document.activeElement === button) (next?.isConnected ? next : resultsHeading.current)?.focus(); });
+                    }}>Dismiss from results</button>}
                     <button
                       className="travel-primary"
                       onClick={() => openDetail(item)}
@@ -1089,6 +1118,7 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                         disabled={
                           !compared.includes(item.id) && compared.length >= 3
                         }
+                        aria-describedby={compared.length >= 3 ? `${mode}-compare-limit` : undefined}
                         onChange={() =>
                           setCompared((prev) =>
                             prev.includes(item.id)
@@ -1102,17 +1132,19 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
                   </div>
                 </article>
               ))}
-              {results.length > PAGE_SIZE && paging}
+              {results.length > PAGE_SIZE && <Pagination page={currentPage} total={results.length} onChange={changeResultsPage} label="results pages" announce={false}/>}
             </div>
           </div>
           {compared.length > 0 && (
             <section className="travel-comparison">
               <div className="travel-results-heading">
                 <h3>Your comparison ({compared.length}/3)</h3>
+                <button type="button" disabled={compared.length < 2} onClick={openComparison}>Compare selected ({compared.length})</button>
                 <button onClick={() => setCompared([])}>
                   Clear comparison
                 </button>
               </div>
+              {compared.length >= 3 && <p id={`${mode}-compare-limit`}>Compare up to three options. Remove one to add another.</p>}
               <div>
                 {snapshot.results
                   .filter((item) => compared.includes(item.id))
@@ -1159,14 +1191,27 @@ export function TravelSearch({ planId, mode, active, initialData, onExpired, onB
       <p className="travel-note">
         Search results are not saved to your Plan. Sandbox flights and stays support test-only mock checkout. For flight testing, choose Nuitée Air when available.
       </p>
-      {detail && !unavailable && (
+      <TravelComparison entries={comparison} currentSearchId={snapshot?.search_id} onChoose={onChoose} onShortlist={onShortlist} choiceDisabled={choiceDisabled} onClose={() => { setComparison([]); comparisonRun.current++; setDiscussing(false); }} onDetails={entry => workspace.dispatch({ type: 'details', value: entry })} onDiscuss={onCompare ? () => discussComparison(comparison) : null} discussionError={comparisonError} discussing={discussing}/>
+      {detail && (
         <Detail
-          key={detail.id}
+          key={`${detailsReference.snapshot.search_id}:${detail.id}:${detailsReference.reference?.room_id || ''}:${Boolean(detailsReference.historical)}`}
           item={detail}
           stay={stay}
           planId={planId}
-          criteria={snapshot.criteria}
-          sandbox={snapshot.sandbox}
+          criteria={detailsReference.snapshot.criteria}
+          searchId={detailsReference.snapshot.search_id}
+          observedAt={detailsReference.snapshot.searched_at}
+          expiresAt={detailsReference.snapshot.expires_at}
+          detached={detailsReference.snapshot.search_id !== snapshot?.search_id}
+          historical={detailsReference.historical}
+          roomId={detailsReference.reference?.room_id}
+          checkoutToken={workspace.getCheckoutToken(detailsReference.reference)}
+          onDiscuss={onDiscuss}
+          onChoose={onChoose}
+          onCompareRoom={compareRoom}
+          discussionDisabled={discussionDisabled}
+          choiceDisabled={choiceDisabled}
+          sandbox={detailsReference.snapshot.sandbox}
           onClose={() => setDetail(null)}
           onExpired={onExpired}
           onBookingResult={onBookingResult}

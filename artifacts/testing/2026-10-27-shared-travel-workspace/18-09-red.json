@@ -1,0 +1,10 @@
+{
+  "command": "npm --prefix frontend test -- --run src/features/plans/travel/CarrierMark.test.jsx src/features/plans/travel/TravelSearch.test.jsx",
+  "exitCode": 1,
+  "targetTest": "flight metadata survives strict browser projection and cards show carrier and evidence scope",
+  "targetFile": "TravelSearch.test.jsx",
+  "expected": "Strict browser schema accepts observed carrier metadata",
+  "actual": "safeParse(data).success was false",
+  "output": "not ok 1 - flight metadata survives strict browser projection and cards show carrier and evidence scope\n# tests 30\n# pass 24\n# fail 6",
+  "note": "TAP summary adapted from executed Vitest assertion output because the GSD validator supports TAP only; 6 failed, 24 passed. Initial missing-module load failure was corrected and rerun before this evidence."
+}

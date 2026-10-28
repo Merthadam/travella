@@ -1,0 +1,20 @@
+Baseline: 4e0780a
+Command: pytest -q services/agent/tests/test_canvas_travel.py -k actual_sse_to_react --tb=short --disable-warnings
+Exit: 1
+E     TestingLibraryElementError: Unable to find role="button" and name "Edit details"
+E     TestingLibraryElementError: Unable to find role="button" and name "Edit details"
+E     TestingLibraryElementError: Unable to find role="button" and name "Edit details"
+E     TestingLibraryElementError: Unable to find role="button" and name "Edit details"
+E     TestingLibraryElementError: Unable to find role="button" and name "Edit details"
+E     TestingLibraryElementError: Unable to find role="button" and name "Edit details"
+E     TestingLibraryElementError: Unable to find role="button" and name "Edit details"
+E     TestingLibraryElementError: Unable to find role="button" and name "Edit details"
+FAILED services/agent/tests/test_canvas_travel.py::test_stay_journey_actual_sse_to_react[0]
+FAILED services/agent/tests/test_canvas_travel.py::test_stay_journey_actual_sse_to_react[1]
+FAILED services/agent/tests/test_canvas_travel.py::test_stay_journey_actual_sse_to_react[2]
+FAILED services/agent/tests/test_canvas_travel.py::test_stay_journey_actual_sse_to_react[4]
+FAILED services/agent/tests/test_canvas_travel.py::test_stay_journey_two_turn_clarification_actual_sse_to_react
+FAILED services/agent/tests/test_canvas_travel.py::test_flight_journey_actual_sse_to_react[4-False]
+FAILED services/agent/tests/test_canvas_travel.py::test_flight_journey_actual_sse_to_react[1-True]
+FAILED services/agent/tests/test_canvas_travel.py::test_mixed_journey_actual_sse_to_react
+8 failed, 189 deselected, 65 warnings in 17.44s

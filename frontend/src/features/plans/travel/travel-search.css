@@ -796,3 +796,12 @@
 @media (max-width: 560px) {
   .travel-extra-fields > .travel-search-select { flex-basis: 100%; max-width: none; }
 }
+
+.travel-provider-filters{margin:18px 0;border-top:1px solid var(--ds-line);padding-top:14px;font-size:13px}
+.travel-provider-filters summary{cursor:pointer;font-weight:600;line-height:1.6}
+.travel-provider-filters>p{font-size:12px;color:var(--ds-muted);line-height:1.6}
+.travel-provider-filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:14px 0}
+.travel-filter-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.travel-search .travel-filter-chips button{font-size:12px;min-height:36px;padding:8px 10px;background:var(--ds-active);color:var(--ds-active-text)}
+.travel-provider-filters>.travel-check{margin:14px 0}
+@media(max-width:760px){.travel-provider-filter-grid{grid-template-columns:minmax(0,1fr)}}

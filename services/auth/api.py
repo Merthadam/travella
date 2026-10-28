@@ -284,6 +284,7 @@ def create_app(
                     "kind": "session", "subject": principal.subject, "email": email,
                     "access": tokens["AccessToken"], "refresh": tokens["RefreshToken"],
                     "started": now, "access_expires": principal.expires_at,
+                    "recovery_scope": secrets.token_hex(16),
                 }, now + MAX_AGE, now,
             )
         set_cookie(response, sid, MAX_AGE)
@@ -609,8 +610,13 @@ def create_app(
     @app.get("/auth/session")
     def session_info(request: Request):
         ready()
-        with store.transaction():
-            sid = request.cookies.get(cookie)
+        sid = request.cookies.get(cookie)
+        snapshot = store.get(sid, clock())
+        if not snapshot or snapshot.get("kind") != "session":
+            raise HTTPException(401, "Sign-in required.")
+        # Match finish/refresh lock order. Existing encrypted sessions receive an
+        # independent public partition ID once, including across concurrent GETs.
+        with store.account_guard(snapshot["subject"]), store.transaction():
             session = store.get(sid, clock())
             if session and session["kind"] == "session":
                 if session["access_expires"] <= clock():
@@ -618,7 +624,11 @@ def create_app(
                 try:
                     principal = identity(session["access"])
                     if principal.subject == session["subject"]:
-                        return {"state": "signed_in", "access_expires_at": principal.expires_at}
+                        if not session.get("recovery_scope"):
+                            session["recovery_scope"] = secrets.token_hex(16)
+                            store.update(sid, session)
+                        return {"state": "signed_in", "access_expires_at": principal.expires_at,
+                                "recovery_scope": session["recovery_scope"]}
                 except (ClientError, BotoCoreError, TokenValidationError):
                     pass
             store.delete(sid)

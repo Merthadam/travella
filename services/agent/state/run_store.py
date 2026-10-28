@@ -48,14 +48,17 @@ class PlanRunStore:
         self._generations: dict[tuple[str, str], int] = {}
         self._receipts: OrderedDict[tuple[str, str, str], dict[str, Any]] = OrderedDict()
         self._pending: dict[tuple[str, str, str], asyncio.Future[dict[str, Any]]] = {}
+        self._digests: dict[tuple[str, str, str], str | None] = {}
 
     def _lock(self, key: tuple[str, str]) -> asyncio.Lock:
         return self._locks.setdefault(key, asyncio.Lock())
 
-    async def reserve(self, traveler_scope: str, plan_id: str, event_id: str, *, exclusive: bool = False) -> EventReservation:
+    async def reserve(self, traveler_scope: str, plan_id: str, event_id: str, *, exclusive: bool = False, input_digest: str | None = None) -> EventReservation:
         key = (traveler_scope, plan_id)
         receipt_key = (*key, event_id)
         async with self._lock(key):
+            if receipt_key in self._digests and self._digests[receipt_key] != input_digest:
+                raise ValueError("event input changed")
             cached = self._receipts.get(receipt_key)
             if cached is not None:
                 future = asyncio.get_running_loop().create_future()
@@ -70,6 +73,7 @@ class PlanRunStore:
             self._generations[key] = generation
             future = asyncio.get_running_loop().create_future()
             self._pending[receipt_key] = future
+            self._digests[receipt_key] = input_digest
             return EventReservation(generation, future, True)
 
     async def resolve_pending(
@@ -82,7 +86,8 @@ class PlanRunStore:
             self._receipts[receipt_key] = copy.deepcopy(projection)
             self._receipts.move_to_end(receipt_key)
             while len(self._receipts) > self.max_receipts:
-                self._receipts.popitem(last=False)
+                evicted, _ = self._receipts.popitem(last=False)
+                self._digests.pop(evicted, None)
             if future is not None and not future.done():
                 future.set_result(copy.deepcopy(projection))
 

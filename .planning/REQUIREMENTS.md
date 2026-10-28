@@ -305,3 +305,29 @@ Current user agreement, 2026-10-23. Desktop Research and its explicit draft hand
 | RC-17-08 | Typed offers, ownership, revisions, idempotency, successful-turn persistence and cancellation prevent stale/cross-Plan/replayed actions. | 17-02, 17-03, 17-04, 17-05 |
 | RC-17-09 | Existing canvas access, regenerate/retry, dirty-state handling and explicit Save plan remain unchanged. | 17-04, 17-05 |
 | RC-17-10 | Real example-account desktop Chrome and changed CRUD API evidence, scoped regressions and production mock exclusion gate delivery. | 17-05 |
+
+
+## Phase 18 extension: focused travel conversations
+
+The user approved dedicated Flights and Accommodation agents on 2026-10-25. The authoritative requirement definitions and plan mapping are in [18-REQUIREMENTS.md](phases/18-focused-flights-and-accommodation-agents/18-REQUIREMENTS.md).
+
+| Requirement | Phase | Status |
+| --- | --- | --- |
+| FOCUS-01 | 18 | Implemented; acceptance pending — isolated topic histories |
+| FOCUS-02 | 18 | Implemented; acceptance pending — compact shared trip brief |
+| FOCUS-03 | 18 | Implemented; acceptance pending — accommodation matching |
+| FOCUS-04 | 18 | Implemented; acceptance pending — flight comparison and verification |
+| FOCUS-05 | 18 | Implemented; acceptance pending — focused workspaces |
+| FOCUS-06 | 18 | Implemented; acceptance pending — interruption and stale-context protection |
+| FOCUS-07 | 18 | Implemented; acceptance pending — explicit saved research choices |
+| FOCUS-08 | 18 | Implemented; acceptance pending — evidence and capability honesty |
+| FOCUS-09 | 18 | Implemented; acceptance pending — ownership, tool scope and retention |
+| FOCUS-10 | 18 | Implemented; acceptance pending — attributed topic memory |
+| FOCUS-11 | 18 | Implemented; acceptance pending — shared manual workspace and user-input precedence |
+| FOCUS-12 | 18 | Implemented; acceptance pending — bounded validated automatic workspace effects |
+| FOCUS-13 | 18 | Implemented; acceptance pending — main factual comparison and exact unbooked choice |
+| FOCUS-14 | 18 | Implemented; acceptance pending — airline identity/logos and source/price evidence |
+| FOCUS-15 | 18 | Implemented; acceptance pending — scoped recovery and accessible responsive controls |
+| FOCUS-16 | 18 | Implemented; acceptance pending — integrated workspace evidence and honest acceptance |
+
+No implementation or acceptance is claimed by this extension.
