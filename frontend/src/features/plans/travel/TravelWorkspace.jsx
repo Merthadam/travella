@@ -11,7 +11,7 @@ import './travel-workspace.css';
 
 const noteLabels = { user_preference: 'Your preference', assistant_inference: 'Assistant suggestion', rejection: 'Ruled out', research_override: 'Exploratory search' };
 const optionId = option => option.evidence_id || option.id;
-export function TravelWorkspace({ selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, importedSnapshot, importRequest, importReason }) {
+export function TravelWorkspace({ selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, onFlightCheckout, importedSnapshot, importRequest, importReason }) {
   const topic = mode === 'accommodation' ? 'stays' : 'flights';
   const stop = useRef(null);
   const workspace = useTravelWorkspace({ owner: selected.owner_id || selected.subject || 'session', planId: selected.plan_id, topic, initialData, active, onExpired, onManualChange: () => stop.current?.() });
@@ -167,7 +167,7 @@ export function TravelWorkspace({ selected, api, mode, active, initialData, pend
         {workspace.state.view.dismissed_ids.length > 0 && <details className="travel-saved-options" open><summary>Dismissed from these results ({workspace.state.view.dismissed_ids.length})</summary>
           {workspace.state.snapshot?.results.filter(item => workspace.state.view.dismissed_ids.includes(item.id)).map(item => <div key={item.id}><span>{topic === 'stays' ? item.name : item.airlines.join(' / ') || 'Flight'}</span>{' '}<button type="button" className="ds-text-button" disabled={workspace.state.draftDirty} onClick={() => workspace.restore({ search_id: workspace.state.searchId, option_id: item.id, room_id: null })}>Restore {topic === 'stays' ? item.name : item.airlines.join(' / ') || 'flight'}</button></div>)}
         </details>}
-        <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onShortlist={item => chooseManual(item, 'shortlist')} onCompare={compare} onComparisonChange={onComparisonChange} discussionDisabled={unavailable || saving} choiceDisabled={blocked || saving}/>
+        <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} onFlightCheckout={onFlightCheckout} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onShortlist={item => chooseManual(item, 'shortlist')} onCompare={compare} onComparisonChange={onComparisonChange} discussionDisabled={unavailable || saving} choiceDisabled={blocked || saving}/>
         {savedSuggestions}
       </section>
       <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatOpen}><TravelConversation chat={chat} topic={topic} visible={active && chatOpen} disabled={blocked || snapshot?.locked && !chat.active} contextOptions={contextOptions} onClearContext={() => setContextOptions([])} onClose={closeChat} brief={snapshot?.brief} pendingEdits={pendingEdits} renderReferences={renderReferences} notes={notes}/></div>

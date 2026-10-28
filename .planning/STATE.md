@@ -18,6 +18,16 @@ progress:
 
 # Project State
 
+Briefing update (2026-10-27): User approved compact prototype D and requested implementation. Production TripBriefing now replaces the three canvas cards on `feat/trip-briefing` (research c8bf67c, UI ec205d0), with evidence-backed tailored research and real persistence. Original prototypes remain on `prototype/trip-essentials-20261026` at d30d672. Local implementation: port 5193. Browser/live generation/build evidence: `artifacts/testing/2026-10-27-trip-briefing/verification.md`. 123 focused tests passed. Local travel capabilities are unavailable (503); no main merge or phase acceptance change.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261027-rif | Refine trip essentials into one compact whole-trip briefing prototype | 2026-10-27 | 3871fc4 | [261027-rif](./quick/261027-rif-refine-trip-essentials-into-one-compact-/) |
+| 261027-rwm | Tailor compact briefing sources to city transport and matching sights | 2026-10-27 | ea0dee8 | [261027-rwm](./quick/261027-rwm-tailor-compact-briefing-source-links-to-/) |
+| 261027-sl1 | Implement compact trip briefing with tailored observed sources | 2026-10-27 | ec205d0 | [261027-sl1](./quick/261027-sl1-implement-approved-compact-trip-briefing/) |
+
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-10-06)
@@ -133,6 +143,10 @@ Resume file: None
 | 261026-ksg | Connected reply suggestions, exact context and manual/chat choices; browser auth recovered | 2026-10-27 | b0182f1 | Verified — sandbox desktop/mobile; phase UAT unchanged | [261026-ksg](./quick/261026-ksg-connect-topic-chat-suggestions-and-exact/) |
 | 261025-g4x | Add LiteAPI stay details/reviews/rates and flight verification tools | 2026-10-25 | caf905b | 29 targeted tests passed; 387 broad passes with 8 baseline UI failures; no live calls/deployment | [Task](quick/261025-g4x-add-read-only-hotel-details-reviews-and-/) |
 | 261025-fzw | Research LiteAPI tools and scoped Claude SDK conversations | 2026-10-25 | 877b5b5 | Documentation/source review complete; no implementation or live capability verification | [Task](quick/261025-fzw-research-liteapi-tools-and-scoped-claude/) |
+| 261028-cla | Integrate and ship guided checkout with current main via PR #21 | 2026-10-28 | f90e4f5 | 179 tests/build passed; 12 optional skips | [Task](quick/261028-cla-merge-guided-flight-checkout-into-main/) |
+| 261027-uhp | Replace legacy flight booking with guided checkout and saved itinerary | 2026-10-27 | f9a0eaa | 148 tests passed; build and real sandbox browser flow passed; 12 external fixture tests skipped | [Task](quick/261027-uhp-replace-legacy-flight-booking-with-guide/) |
+| 261027-tzw | Three flight checkout prototypes | 2026-10-27 | prototype/flight-checkout-20261027 | Build/browser passed; user selected A guided flow plus C confirmation | [Task](quick/261027-tzw-prototype-three-separate-page-flight-che/) |
+| 261026-bob | Start latest main locally | 2026-10-26 | c7d8906 (runtime source) | Health/auth/hashes passed; container migration compatibility applied | [Task](quick/261026-bob-start-latest-main-locally-and-verify-aut/) |
 | 261024-m71 | Persist Google place descriptions | 2026-10-24 | a11bf00 | 65 tests/build passed; reload uses saved descriptions with zero detail requests | [Task](quick/261024-m71-persist-google-place-descriptions-in-sav/) |
 | 261024-loa | Implement approved compact place cards | 2026-10-24 | c8c70a9 | 45 tests/build/browser passed; running at localhost:5175 | [Task](quick/261024-loa-implement-approved-compact-place-cards/) |
 | 261024-liv | Sketch cleaner place cards (design only) | 2026-10-24 | — | Browser sketch checked; implementation pending user direction | [Task](quick/261024-liv-sketch-cleaner-place-cards/) |
@@ -246,6 +260,10 @@ Resume file: None
 | 261024-kbs | Refine selected login A: night mode, natural recovery and inline errors; browser verified prototype | 2026-10-24 | 4befe42 | — | [261024-kbs-refine-login-prototype-a-with-night-mode](./quick/261024-kbs-refine-login-prototype-a-with-night-mode/) |
 | 261024-ko9 | Simplify login globe and remove prototype viewport cutoff; browser verified | 2026-10-24 | 8d4111f | — | [261024-ko9-simplify-selected-login-a-globe-illustra](./quick/261024-ko9-simplify-selected-login-a-globe-illustra/) |
 | 261024-lb5 | Implement approved full-screen login A; 52 tests and real authentication browser checks passed | 2026-10-24 | 63bec5d | — | [261024-lb5-implement-approved-full-screen-login-a-d](./quick/261024-lb5-implement-approved-full-screen-login-a-d/) |
+| 261025-epi | Start local origin main and verify authentication | 2026-10-25 | 4e0780a | — | [261025-epi-start-local-origin-main-and-verify-authe](./quick/261025-epi-start-local-origin-main-and-verify-authe/) |
+| 261025-eti | Move show all places onto map and fill available height | 2026-10-25 | 2010203 | — | [261025-eti-move-show-all-places-onto-map-and-fill-a](./quick/261025-eti-move-show-all-places-onto-map-and-fill-a/) |
+| 261025-far | Make travel summary cards clickable and remove redundant explore row | 2026-10-25 | e4234b1 | — | [261025-far-make-travel-summary-cards-clickable-and-](./quick/261025-far-make-travel-summary-cards-clickable-and-/) |
+| 261025-fg2 | Remove check again from missing place descriptions | 2026-10-25 | 2d78e06 | — | [261025-fg2-remove-check-again-from-missing-place-de](./quick/261025-fg2-remove-check-again-from-missing-place-de/) |
 
 | 261026-b8g | Restore manual travel browsing with parallel separate specialist sidechat; desktop/mobile and manual provider journeys verified | 2026-10-26 | see task summary | Verified | [261026-b8g](./quick/261026-b8g-restore-manual-travel-booking-interfaces/) |
 | 261026-c0h | Align travel with Canvas sidechat; shared controls, full-height dock, editable questions and mobile composer verified | 2026-10-26 | bb64608 | Verified | [261026-c0h](./quick/261026-c0h-align-travel-sidechat-with-canvas-and-si/) |
@@ -399,3 +417,27 @@ Resume file: None
 - User requested a redesigned login with existing functionality. Built A split welcome, B quiet centered form and C workspace navigation rail on dev-only account-access prototype query. Original auth handlers unchanged.
 - Simulated sign-in, registration, verification, reset and MFA recovery flows verified in Chrome on desktop/mobile, including themes, error/loading states and URL switching. No live auth requests. Build passed.
 - Evidence: `artifacts/testing/2026-10-24-login-redesign/verification.md`. Preview: http://localhost:5189/?prototype=account-access&variant=B. Source captured on `prototype/login-redesign-20261024`. User selection and production integration pending.
+
+### Canvas polish shipment — 2026-10-25
+
+- User authorized merge of eight-marten into main: taller map with floating reset, missing-description messaging without Check again, and whole-card travel navigation.
+- Source 03fe3d8 based on current main 4e0780a. Existing 14 map, 21 PlanningCanvas and 11 final place/link tests, build, and authenticated desktop/mobile checks passed. Scoped shipping security review: zero open threats.
+- PR #18: https://github.com/Merthadam/travella/pull/18 (eight-marten → main), created for the user-authorized merge. Shipping record: `.planning/quick/261025-canvas-polish-ship/VERIFICATION.md`. Preserve the separate dirty main checkout and running local app.
+
+### Canvas controls shipment — 2026-10-26
+
+- User approved the verified map reset icon and whole-card flight navigation and explicitly authorized merge. PR #19: https://github.com/Merthadam/travella/pull/19 (highly-rook → main).
+- Application source 73676b0; base c7d8906. 35 focused tests, build, authenticated desktop/mobile pointer/keyboard checks and runtime comparisons passed. Scoped security review: zero open threats.
+- Shipping record: .planning/quick/261026-canvas-controls-ship/VERIFICATION.md. Preview remains http://localhost:5190 because a concurrent checkout owns port 5174. Preserve dirty primary main checkout, database volumes and running stacks. This shipment does not close broader Phase 17 acceptance.
+
+### Flight checkout design exploration — 2026-10-27
+
+- User requested prototypes: flights first, dedicated in-app checkout from Flights, one booking per Plan, sandbox payment, no reusable passenger profiles. Useful downloadable test itinerary now and complete Plan export later.
+- Three structures: A guided steps, B expandable worksheet, C itinerary document and editor. Memory-only fixtures; no real provider/payment/Plan writes. Build and authenticated Chrome DevTools desktop/mobile journeys passed, including decline/pending states and offline receipt download.
+- Preview: http://localhost:5196/plans?prototype=flight-checkout&variant=A. Primary source: prototype/flight-checkout-20261027. User selection and production integration pending.
+- Evidence: artifacts/testing/2026-10-27-flight-checkout-prototypes/verification.md. GSD summary: .planning/quick/261027-tzw-prototype-three-separate-page-flight-che/261027-tzw-SUMMARY.md.
+
+
+### Phase18 shared workspace shipment — 28 October 2026
+
+User approved the running experience and explicitly authorized merge after reviewing the disclosed technical limits. Integrated origin/main ba5e1fd, preserving the compact trip briefing, Milan airport normalization and guided sandbox flight checkout. Workspace checkout forwarding and exact research choices remain distinct. Existing untracked .cache/.gsd data and other worktrees are preserved. Standard GSD verification remains human_needed because technical acceptance checks are unfinished; the explicit user merge instruction takes precedence for shipment, without marking those checks passed.

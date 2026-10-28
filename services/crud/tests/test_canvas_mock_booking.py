@@ -84,9 +84,62 @@ def test_flight_booking_explicit_save_reload_update_and_scope(system):
     assert saved.status_code == 200, saved.text
     assert system.client.put(path,json=payload,headers=headers).json() == saved.json()
     assert system.client.get(path).json()['snapshot'] == payload['snapshot']
+
     flight['bookingStatus'] = 'not-booked'; del flight['mockBooking']
     assert system.client.post(path+'/challenge',json=payload,headers=write_headers(system,plan['revision'])).status_code == 409
     revision = saved.json()['revision']
     challenge = system.client.post(path+'/challenge',json=payload,headers=write_headers(system,revision)).json()['challenge']
     assert system.client.put(path,json=payload,headers=write_headers(system,revision,challenge)).status_code == 200
     assert system.client.get(path).json()['snapshot'] == payload['snapshot']
+
+
+def itinerary_payload():
+    payload = body()
+    segment = {'origin': 'BUD', 'destination': 'MXP', 'departureAt': '2027-02-03T10:00:00', 'arrivalAt': '2027-02-03T12:00:00', 'airline': 'Nuitée Air', 'flightNumber': 'NT123'}
+    itinerary = {'outbound': [segment], 'inbound': [{**segment, 'origin': 'LIN', 'destination': 'BUD', 'departureAt': '2027-02-07T10:00:00', 'arrivalAt': '2027-02-07T12:00:00'}], 'passengerCount': 2, 'amount': '312.00', 'currency': 'EUR', 'baggage': 'Cabin bag included', 'fareConditions': 'Non-refundable', 'confirmationCode': 'TESTPNR', 'extras': [{'kind': 'seat', 'label': 'Seat 12A (BUD→MXP)', 'segmentIndex': 0, 'passengerIndex': 0, 'quantity': 1, 'amount': '12', 'currency': 'EUR'}]}
+    payload['snapshot']['components']['flights'].update(bookingStatus='mock-booked', mockBooking={'reference': 'TEST-FLIGHT', 'origin': 'BUD', 'destination': 'MXP', 'departureDate': '2027-02-03', 'returnDate': '2027-02-07', 'itinerary': itinerary})
+    return payload
+
+
+def test_itinerary_http_save_read_update_clear_and_access(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}/canvas"
+    payload = itinerary_payload()
+    revision = plan['revision']
+    for amount in ['312.00', '325.00']:
+        payload['snapshot']['components']['flights']['mockBooking']['itinerary']['amount'] = amount
+        challenge = system.client.post(path+'/challenge', json=payload, headers=write_headers(system, revision))
+        assert challenge.status_code == 200, challenge.text
+        headers = write_headers(system, revision, challenge.json()['challenge'])
+        saved = system.client.put(path, json=payload, headers=headers)
+        assert saved.status_code == 200, saved.text
+        assert system.client.put(path, json=payload, headers=headers).json() == saved.json()
+        assert system.client.get(path).json()['snapshot'] == payload['snapshot']
+        revision = saved.json()['revision']
+    for auth, status in [("", 401), ("Bearer " + jwt.encode(system.claims | {"sub": "another-traveler"}, system.private, algorithm="RS256"), 404)]:
+        headers = {**write_headers(system, revision, "test-challenge"), "Authorization": auth}
+        assert system.client.get(path, headers=headers).status_code == status
+        assert system.client.post(path+'/challenge', json=payload, headers=headers).status_code == status
+        assert system.client.put(path, json=payload, headers=headers).status_code == status
+    flight = payload['snapshot']['components']['flights']
+    flight['bookingStatus'] = 'not-booked'; del flight['mockBooking']
+    challenge = system.client.post(path+'/challenge', json=payload, headers=write_headers(system, revision)).json()['challenge']
+    assert system.client.put(path, json=payload, headers=write_headers(system, revision, challenge)).status_code == 200
+    assert 'mockBooking' not in system.client.get(path).json()['snapshot']['components']['flights']
+
+
+@pytest.mark.parametrize('field,value', [('token', 'PRIVATE'), ('passengers', [{'name': 'PRIVATE'}]), ('contact', {'email': 'PRIVATE'}), ('amount', '-1'), ('currency', 'not-money'), ('passengerCount', 10)])
+def test_itinerary_rejects_sensitive_or_invalid_fields_without_writes(system, field, value):
+    plan = create(system); path = f"/v1/plans/{plan['plan_id']}/canvas"
+    payload = itinerary_payload(); payload['snapshot']['components']['flights']['mockBooking']['itinerary'][field] = value
+    assert system.client.post(path+'/challenge', json=payload, headers=write_headers(system, plan['revision'])).status_code == 422
+    assert system.client.get(path).json()['snapshot'] is None
+
+
+def test_itinerary_extras_reject_payment_and_passenger_data(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}/canvas"
+    payload = itinerary_payload()
+    payload['snapshot']['components']['flights']['mockBooking']['itinerary']['extras'][0]['cardNumber'] = 'PRIVATE'
+    assert system.client.post(path + '/challenge', json=payload, headers=write_headers(system, plan['revision'])).status_code == 422
+    assert system.client.get(path).json()['snapshot'] is None

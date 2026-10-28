@@ -46,6 +46,18 @@ class CrudContextReader:
                                 "Travel discussion changed or could not be saved. Please retry.")
         return response.json()
 
+    async def saved_canvas(self, plan_id: UUID, token: str) -> dict[str, Any]:
+        """Read canonical saved places under the same traveler authorization."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                f"{self.base_url}/v1/plans/{plan_id}/canvas",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if response.status_code >= 400:
+            raise HTTPException(response.status_code if response.status_code in {401, 404} else 503,
+                                "Saved trip details could not be loaded. Please retry.")
+        return response.json()
+
     async def context(self, plan_id: UUID, token: str) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(

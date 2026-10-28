@@ -165,7 +165,7 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
       const retained = ref.current.detailsReference?.reference;
       const retainedKey = retained && `${retained.search_id}:${retained.option_id}`;
       for (const key of checkout.current.keys()) if (key !== retainedKey) checkout.current.delete(key);
-      for (const item of result.results || []) if (typeof item.checkout_token === 'string' && item.checkout_token.length <= 2000 && parsed.data.results.some(option => option.id === item.id)) checkout.current.set(`${result.search_id}:${item.id}`, item.checkout_token);
+      for (const item of result.results || []) if (typeof item.checkout_token === 'string' && item.checkout_token.length <= 40000 && parsed.data.results.some(option => option.id === item.id)) checkout.current.set(`${result.search_id}:${item.id}`, item.checkout_token);
       dispatch({ type: 'search-success', token, snapshot: { ...parsed.data, criteria: { ...parsed.data.criteria, ...criteria } } });
     } catch (error) {
       if (matches(ref.current, token) && error.name !== 'AbortError') {

@@ -43,7 +43,9 @@ export async function travelRequest(planId, action, criteria, signal) {
     },
   );
   if (!response.ok) {
-    const message =
+    const failure = await response.json().catch(() => ({}));
+    const specific = { invalid_services: 'These seats or bags are unavailable. Review your selections.', checkout_changed: 'Your checkout changed. Check its status and review the latest total.', checkout_busy: 'Your checkout is being updated. Check its status shortly.' };
+    const message = specific[failure.code] || (
       response.status === 401
         ? "Your session expired. Sign in again."
         : response.status === 403
@@ -56,7 +58,7 @@ export async function travelRequest(planId, action, criteria, signal) {
             ? "Too many searches. Please wait a minute and try again."
             : action.startsWith("sandbox/")
               ? "Couldn’t verify the mock booking. Check its status before trying again."
-              : "We couldn’t finish this search. Please try again.";
+              : "We couldn’t finish this search. Please try again.");
     throw Object.assign(new Error(message), { status: response.status });
   }
   return response.json();

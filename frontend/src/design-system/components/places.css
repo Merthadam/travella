@@ -38,14 +38,20 @@
 .ds-places button:focus-visible,.ds-places input:focus-visible,.ds-places textarea:focus-visible { outline:2px solid var(--ds-focus); outline-offset:3px; }
 .ds-places button:disabled { cursor:default; opacity:.5; }
 @media(max-width:600px) { .ds-places { padding:18px 16px; } .places-heading { gap:8px; } .places-heading h2 { font-size:20px; } .places-toolbar { gap:12px; }  .places-actions .ds-button { min-height:40px; } }
-.ds-places .canvas-google-map { height:360px; border-radius:8px; }
+.canvas-map-adapter { display:flex; flex-direction:column; min-width:0; }
+.canvas-map-frame { position:relative; height:360px; min-height:270px; isolation:isolate; }
+.ds-places .canvas-map-frame .canvas-google-map { position:absolute; inset:0; height:100%; border-radius:8px; }
+.ds-places .canvas-map-frame .canvas-map-tools { position:absolute; z-index:1; top:12px; left:12px; right:12px; margin:0; pointer-events:none; }
+.ds-places .canvas-map-tools .ds-button { pointer-events:auto; min-height:44px; background:var(--ds-surface); color:var(--ds-ink); border:1px solid var(--ds-line); box-shadow:0 2px 8px #0003; }
+.ds-places .canvas-map-tools .canvas-map-reset { width:44px; height:44px; padding:0; border-radius:10px; }
+.ds-places .canvas-map-tools .ds-button:hover:not(:disabled) { background:var(--ds-soft); }
 .ds-places .canvas-map-pin { display:block; width:28px; height:36px; padding:0; border:0; border-radius:0; background:none; box-shadow:none; filter:drop-shadow(0 1px 2px #0005); }
 .ds-places .canvas-map-pin svg { width:28px; height:36px; }
 .ds-places .canvas-map-pin.selected { outline:0; filter:drop-shadow(0 0 3px var(--ds-ink)); transform:scale(1.15); }
 .ds-places .canvas-map-pin.is-preview { opacity:.85; outline:0; }
 .ds-places .canvas-map-tools { gap:12px; flex-wrap:wrap; font-size:13px; }
 .ds-places .canvas-map-preview { padding:16px 0; flex-wrap:wrap; border:0; border-bottom:1px solid var(--ds-line); border-radius:0; background:none; }
-@media(max-width:600px) { .ds-places .canvas-google-map { height:300px; } }
+@media(max-width:600px) { .ds-places .canvas-map-frame { height:300px; } }
 
 .ds-places .ds-map-pin { padding:0; border:0; background:none; box-shadow:none; border-radius:0; width:28px; height:36px; }
 .ds-places .ds-map-pin.selected { outline:0; filter:drop-shadow(0 0 3px var(--ds-ink)); }

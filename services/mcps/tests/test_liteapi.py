@@ -175,6 +175,39 @@ def test_observed_carrier_metadata_and_safe_logo_policy(logo):
     assert flight['airlines'] == ['Test Air', 'Return Air']
 
 
+@pytest.mark.parametrize("out_airport,back_airport", [("MXP", "MXP"), ("LIN", "LIN"), ("BGY", "BGY"), ("MXP", "LIN")])
+@pytest.mark.parametrize("city_at_origin", [False, True])
+def test_milan_all_airports_search_preserves_actual_airports(out_airport, back_airport, city_at_origin):
+    payload = flight_payload()
+    segments = payload["data"][0]["journeys"][0]["segments"]
+    segments[0].update(originCode=out_airport if city_at_origin else "BUD", destinationCode="BUD" if city_at_origin else out_airport)
+    segments[1].update(originCode="BUD" if city_at_origin else back_airport, destinationCode=back_airport if city_at_origin else "BUD")
+    criteria = FLIGHT | ({"origin": "MIL", "destination": "BUD"} if city_at_origin else {"destination": "MIL"})
+    api = LiteApi("sand_test", transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)))
+    result = asyncio.run(api.call("flights/search", criteria))
+    assert result["status"] == "ready" and result["returned_count"] == 1
+    assert result["results"][0]["outbound"]["segments"][0]["origin" if city_at_origin else "destination"] == out_airport
+    assert result["results"][0]["inbound"]["segments"][0]["destination" if city_at_origin else "origin"] == back_airport
+
+
+@pytest.mark.parametrize("leg,field", [(0, "originCode"), (0, "destinationCode"), (1, "originCode"), (1, "destinationCode")])
+def test_milan_search_rejects_unrelated_airports_at_every_endpoint(leg, field):
+    payload = flight_payload()
+    segments = payload["data"][0]["journeys"][0]["segments"]
+    segments[0]["destinationCode"] = segments[1]["originCode"] = "MXP"
+    segments[leg][field] = "FCO"
+    assert normalize_flights(payload, FLIGHT | {"destination": "MIL"})[0] == []
+
+
+def test_milan_city_matching_does_not_relax_specific_airports_or_dates():
+    payload = flight_payload()
+    segments = payload["data"][0]["journeys"][0]["segments"]
+    segments[0]["destinationCode"] = segments[1]["originCode"] = "LIN"
+    assert normalize_flights(payload, FLIGHT | {"destination": "MXP"})[0] == []
+    segments[1]["departureTime"] = START + "T10:00:00"
+    assert normalize_flights(payload, FLIGHT | {"destination": "MIL"})[0] == []
+
+
 @pytest.mark.parametrize(
     "model,body,change",
     [

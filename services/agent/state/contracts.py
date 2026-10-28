@@ -20,6 +20,7 @@ class AgentState(TypedDict, total=False):
     travel_specialist_result: dict[str, Any] | None
     canvas_action: str | None
     canvas_draft: dict[str, Any] | None
+    saved_map: dict[str, Any] | None
     canvas_edit: dict[str, Any] | None
     canvas_edit_result: dict[str, Any] | None
     research_flights: bool

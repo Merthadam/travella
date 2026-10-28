@@ -57,6 +57,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   const leavePrompt=vi.fn(()=>true); vi.stubGlobal('confirm',leavePrompt);
   const mounted=render(<AppearanceProvider><PlansApp api={api}/></AppearanceProvider>);
   const user=userEvent.setup();
+  await user.click(await screen.findByRole('button',{name:/Read more/}));
   await user.click(await screen.findByRole('button',{name:'Add preference',exact:true}));
   await user.type(screen.getByRole('textbox',{name:'Preference'}),'Unfinished editor');
   // Same-URL view history belongs to the mounted Canvas. Exercise the parent

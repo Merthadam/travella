@@ -174,12 +174,14 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
   }
   const message = mapError ? 'The map is unavailable. Your places are available in List view.' : !usableDestination ? 'Choose a destination in the conversation to frame your map.' : loading ? 'Finding your destination…' : error || (!final && resolved ? `Exploring ${usableDestination}. Your final destination is still yours to choose.` : '');
   return <div className="canvas-map-adapter">
-    <div className="canvas-google-map" ref={canvas} aria-label={usableDestination ? `Map of ${usableDestination}` : 'Destination map'}/>
+    <div className="canvas-map-frame">
+      <div className="canvas-google-map" ref={canvas} aria-label={usableDestination ? `Map of ${usableDestination}` : 'Destination map'}/>
+      <div className="canvas-map-tools"><button type="button" className="ds-button canvas-map-reset" aria-label="Show all places" title="Show all places" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    </div>
     {message && <div className="canvas-map-message" role="status">
       {message && <p>{message}</p>}
       {(error || mapError) && <button type="button" className="ds-button small" onClick={() => setAttempt(value => value + 1)}>Retry map</button>}
     </div>}
     {preview && <div className="canvas-map-preview"><div><strong>{preview.name}</strong><small>{places.some(place => place.id === preview.id) ? 'In your draft' : 'Preview only · not added to your draft'}</small>{preview.editorial_summary && <div className="places-provider-description"><small>Description from Google Maps</small><p lang={preview.editorial_summary_language || undefined}>{preview.editorial_summary}</p></div>}</div><div className="places-actions">{preview.website && <a className="ds-button small" href={preview.website} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${preview.name} website`}>Website ↗</a>}{onAddPreview && !places.some(place => place.id === preview.id) && <button type="button" className="ds-button small" disabled={disabled} onClick={() => onAddPreview(preview)}>Add to plan</button>}<button type="button" className="ds-text-button" onClick={onClearPreview}>Close preview</button></div></div>}
-    <div className="canvas-map-tools"><button type="button" className="ds-text-button" disabled={!runtime || editing} onClick={() => { onClearPreview?.(); if (onShowAll) onShowAll(); else showAll(); }}>Show all places</button></div>
   </div>;
 }

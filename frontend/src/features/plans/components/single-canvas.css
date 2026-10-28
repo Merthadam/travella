@@ -27,19 +27,21 @@
 .canvas-unified .places-heading h2{font:27px/1.25 var(--ds-display)}
 .places-combined .places-content{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,1.6fr);gap:20px;align-items:start}
 .places-combined .places-list-pane{max-height:460px;overflow:auto;scrollbar-width:thin}
-.places-combined .places-map-pane{min-width:0}
+.places-combined .places-map-pane{min-width:0;display:flex;flex-direction:column;align-self:stretch}
+.places-combined .canvas-map-adapter{flex:1}
+.places-combined .canvas-map-frame{flex:1;height:auto;min-height:444px}
 .places-combined .places-row{padding:14px 0}
 .places-combined .places-row strong{font-size:15px}
 .places-combined .places-row small{font-size:11px}
 .places-combined .places-detail{padding:0 0 18px;border-radius:0}
 .places-combined .places-detail p{font-size:13px}
-.places-combined .canvas-google-map{height:390px;border-radius:14px}
+.places-combined .canvas-map-frame .canvas-google-map{border-radius:14px}
 .places-combined .places-footer{margin-top:10px}
 @container(max-width:700px){
   .places-combined .places-content{grid-template-columns:minmax(0,1fr)}
   .places-combined .places-map-pane{grid-row:1}
   .places-combined .places-list-pane{max-height:330px}
-  .places-combined .canvas-google-map{height:310px}
+  .places-combined .canvas-map-frame{height:364px;min-height:364px}
   .canvas-trip-essentials{flex-basis:100%}
   .canvas-unified .canvas-main-actions{width:100%}
   .canvas-unified .canvas-save-state{margin-right:auto}
@@ -65,8 +67,9 @@
   .places-combined .places-heading,.places-combined .places-filters{grid-column:1}
   .places-combined .places-content{display:contents}
   .places-combined .places-list-pane{grid-column:1;grid-row:3;max-height:300px}
-  .places-combined .places-map-pane{grid-column:2;grid-row:1/4}
-  .places-combined .places-footer,.places-combined .places-undo,.places-combined>.places-empty,.places-combined>[role=alert]{grid-column:1/-1}
+  .places-combined .places-map-pane{grid-column:2;grid-row:1/5}
+  .places-combined .places-footer{grid-column:1}
+  .places-combined .places-undo,.places-combined>.places-empty,.places-combined>[role=alert]{grid-column:1/-1}
 }
 
 @media(max-width:760px){

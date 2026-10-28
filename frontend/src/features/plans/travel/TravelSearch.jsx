@@ -3,7 +3,7 @@ import { useTravelWorkspace } from "./useTravelWorkspace";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
 import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
-import { FlightSandboxCheckout, FlightMockRecovery } from "./FlightSandboxCheckout";
+import { readFlightReceipt } from "./useFlightCheckout";
 import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
 import { StaySearchFilters } from "./StaySearchFilters";
 import { StayDestination } from "./StayDestination";
@@ -254,7 +254,7 @@ function Room({ room, onCheckout, onDiscuss, onChoose, onCompare }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, choiceDisabled, detached, historical, roomId, observedAt, expiresAt, checkoutToken }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, choiceDisabled, detached, historical, roomId, observedAt, expiresAt, checkoutToken, onFlightCheckout, flightBooked }) {
   const ref = useRef();
   const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
@@ -356,7 +356,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           <button onClick={() => setRetry((x) => x + 1)}>Retry details</button>
         </p>
       )}
-      {checkout && !stay ? <FlightSandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : stay ? (
+      {checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : stay ? (
         <>
           <p>{hotel?.address || item.address}</p>
           {hotel?.images?.length > 0 && (
@@ -397,7 +397,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           </p>
           <Price price={item.price} />
           {!evidenceExpired && observation.search_id && <div className="travel-option-actions">{!discussionDisabled && onDiscuss && <button type="button" onClick={() => { onClose(); onDiscuss(attach()); }}>Discuss flight</button>}{!choiceDisabled && onChoose && <button type="button" onClick={() => { onClose(); onChoose(attach()); }}>Choose for trip</button>}</div>}
-          {sandbox && checkoutToken && !evidenceExpired && <button className="travel-primary" onClick={() => setCheckout(checkoutToken)}>Try mock flight booking</button>}
+          {sandbox && checkoutToken && !evidenceExpired && <button className="travel-primary" disabled={flightBooked || !onFlightCheckout} onClick={() => onFlightCheckout({ offerToken: checkoutToken })}>{flightBooked ? "A flight is already booked in this Plan" : "Continue to flight checkout"}</button>}
           {!checkoutToken && <button className="travel-primary" onClick={onRefresh}>Search again to check current availability</button>}
         </>
       )}
@@ -462,7 +462,7 @@ function StandaloneTravelSearch(props) {
   const workspace = useTravelWorkspace({ planId: props.planId, topic: props.mode === "accommodation" ? "stays" : "flights", initialData: props.initialData, active: props.active, onExpired: props.onExpired });
   return <ControlledTravelSearch {...props} workspace={workspace}/>;
 }
-function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onShortlist, onCompare, onComparisonChange, discussionDisabled, choiceDisabled, workspace }) {
+function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, onFlightCheckout, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onShortlist, onCompare, onComparisonChange, discussionDisabled, choiceDisabled, workspace }) {
   const stay = mode === "accommodation";
   const { snapshot, loading, error, imported, draftCriteria, view, detailsReference } = workspace.state;
   const field = name => [draftCriteria[name], value => workspace.setDraft(name, value)];
@@ -653,9 +653,9 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
         <p>{initialData.flights.mockBooking.departureDate} – {initialData.flights.mockBooking.returnDate}</p>
         <p>Test reference: {initialData.flights.mockBooking.reference}</p>
         <p>Sandbox only — no real ticket or charge.</p>
+        <button className="travel-primary" onClick={() => onFlightCheckout?.({ savedBooking: initialData.flights.mockBooking })}>View itinerary & receipt</button>
       </section>}
-      {!stay && <FlightMockRecovery planId={planId} onOpen={setRecovery} />}
-      {!stay && recovery && <FlightSandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
+      {!stay && !initialData?.flights?.mockBooking && readFlightReceipt(planId) && <button type="button" onClick={() => onFlightCheckout?.({ recoveryToken: readFlightReceipt(planId) })}>Resume flight checkout</button>}
       {stay && <MockBookingRecovery planId={planId} onOpen={setRecovery} />}
       {stay && recovery && <SandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
       <form
@@ -1215,6 +1215,8 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           onClose={() => setDetail(null)}
           onExpired={onExpired}
           onBookingResult={onBookingResult}
+          flightBooked={Boolean(initialData?.flights?.mockBooking)}
+          onFlightCheckout={value => { setDetail(null); onFlightCheckout?.(value); }}
           onRefresh={() => { setDetail(null); form.current?.requestSubmit(); }}
         />
       )}

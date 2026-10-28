@@ -565,3 +565,23 @@ test('saved traveler count prefills bounded rooms and return-flight party; owner
   rerender({ owner: 'second' });
   expect(result.current.state.instanceId).not.toBe(instance); expect(result.current.state.snapshot).toBeNull();
 });
+
+
+test('workspace retains guided checkout access for an existing flight receipt', () => {
+  const savedBooking = { reference: 'test-receipt', status: 'confirmed' };
+  const onFlightCheckout = vi.fn();
+  render(<TravelWorkspace selected={{plan_id:'plan-1'}} api={{}} mode="flights" active initialData={{...initialData, flights:{mockBooking:savedBooking}}} onFlightCheckout={onFlightCheckout}/>);
+  fireEvent.click(screen.getByRole('button', {name:'View itinerary & receipt'}));
+  expect(onFlightCheckout).toHaveBeenCalledWith({savedBooking});
+});
+
+
+test.each([3000, 40000, 40001])('manual checkout handle length %i follows the server contract without entering shared state', async length => {
+  const { result } = renderHook(() => useTravelWorkspace({ owner: 'owner', planId: 'plan-1', topic: 'flights', initialData }));
+  const snap = workspaceSnapshot('flights'); const handle = 'x'.repeat(length);
+  fetch.mockResolvedValueOnce({ok:true,json:async()=>({search_id:snap.search_id,results:[{...snap.results[0],checkout_token:handle}]})}).mockResolvedValueOnce({ok:true,json:async()=>snap});
+  await act(async()=>result.current.search(snap.criteria));
+  expect(result.current.getCheckoutToken({search_id:snap.search_id,option_id:'option-1'})).toBe(length <= 40000 ? handle : undefined);
+  expect(JSON.stringify(result.current.state)).not.toContain(handle);
+  expect(JSON.stringify(result.current.getWorkspaceContext())).not.toContain(handle);
+});
