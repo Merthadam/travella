@@ -800,16 +800,15 @@
 .travel-provider-filters{margin:18px 0;border-top:1px solid var(--ds-line);padding-top:14px;font-size:13px}
 .travel-provider-filters summary{cursor:pointer;font-weight:600;line-height:1.6}
 .travel-provider-filters>p{font-size:12px;color:var(--ds-muted);line-height:1.6}
-.travel-provider-filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:14px 0}
+.travel-provider-filter-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;margin:14px 0}
 .travel-provider-filter{min-width:0;margin:0;padding:0;border:0}
 .travel-provider-filter legend{font-size:12px;font-weight:600;margin-bottom:8px;padding:0}
 .travel-filter-count{font-size:12px;color:var(--ds-muted);margin:8px 0}
-.travel-checkbox-options{max-height:220px;overflow:auto;overscroll-behavior:contain;border:1px solid var(--ds-line);border-radius:8px;padding:6px}
-.travel-checkbox-options .travel-check{min-height:44px;padding:8px;box-sizing:border-box;cursor:pointer}
-.travel-checkbox-options .travel-check:hover{background:var(--ds-active)}
-.travel-checkbox-options .travel-check input{flex:0 0 18px;width:18px;height:18px}
-.travel-checkbox-options .travel-check:has(input:disabled){opacity:.55;cursor:not-allowed}
-.travel-checkbox-options p{padding:8px;font-size:12px;color:var(--ds-muted)}
+.travel-toggle-options{display:flex;flex-wrap:wrap;gap:8px}
+:root .travel-search button.travel-filter-option{border-radius:999px;min-height:44px;max-width:100%;padding:10px 16px;text-align:left;overflow-wrap:anywhere;background:var(--ds-surface);color:var(--ds-ink);border-color:var(--ds-line)}
+:root .travel-search button.travel-filter-option[aria-pressed=true]{background:var(--ds-active);color:var(--ds-active-text);border-color:var(--ds-active-text);font-weight:600}
+:root .travel-search button.travel-filter-expand{margin-top:10px;background:transparent;border:0;text-decoration:underline;text-underline-offset:3px;color:var(--ds-ink);min-height:44px}
+.travel-toggle-options p{font-size:12px;color:var(--ds-muted)}
 .travel-filter-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .travel-search .travel-filter-chips button{font-size:12px;min-height:36px;padding:8px 10px;background:var(--ds-active);color:var(--ds-active-text)}
 .travel-provider-filters>.travel-check{margin:14px 0}

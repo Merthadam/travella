@@ -10,36 +10,49 @@ function Form({ initial = emptyStayFilters() }) {
   const [value, onChange] = useState(initial);
   return <StaySearchFilters planId="filters" active value={value} onChange={onChange}/>;
 }
-test('search keeps multiple selections and native keyboard toggling can remove them', async () => {
+test('chips toggle multiple selections with click and keyboard, without textboxes', async () => {
   travelRequest.mockImplementation(async (_plan, _action, { kind }) => ({ items: kind === 'hotel_types' ? [{ id: 1, name: 'Hotel' }, { id: 2, name: 'Apartment' }] : [{ id: 3, name: 'Pool' }, { id: 4, name: 'Kitchen' }] }));
   render(<Form/>);
   const user = userEvent.setup();
   await user.click(screen.getByText('Property type, amenities & cancellation'));
-  await user.click(await screen.findByRole('checkbox', { name: 'Hotel' }));
-  await user.click(screen.getByRole('checkbox', { name: 'Apartment' }));
-  const search = screen.getByRole('searchbox', { name: 'Search property types' });
-  await user.type(search, 'apart');
-  expect(screen.getByRole('checkbox', { name: 'Apartment' }).checked).toBe(true);
-  expect(screen.queryByRole('checkbox', { name: 'Hotel' })).toBeNull();
-  await user.click(screen.getByRole('button', { name: 'Remove Hotel' }));
-  await user.clear(search);
-  expect(screen.getByRole('checkbox', { name: 'Hotel' }).checked).toBe(false);
-  screen.getByRole('checkbox', { name: 'Apartment' }).focus();
+  await user.click(await screen.findByRole('button', { name: 'Hotel' }));
+  await user.click(screen.getByRole('button', { name: 'Apartment' }));
+  expect(screen.getByRole('button', { name: 'Hotel', pressed: true })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Apartment', pressed: true })).toBeTruthy();
+  expect(screen.queryByRole('searchbox')).toBeNull();
+  expect(screen.queryByRole('textbox')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Hotel' }));
+  expect(screen.getByRole('button', { name: 'Hotel', pressed: false })).toBeTruthy();
+  screen.getByRole('button', { name: 'Apartment' }).focus();
   await user.keyboard('[Space]');
-  expect(screen.getByRole('checkbox', { name: 'Apartment' }).checked).toBe(false);
-  await user.type(search, 'no match');
-  expect(screen.getByRole('status').textContent).toContain('No matching options');
-  expect(screen.getByRole('checkbox', { name: 'Pool' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Apartment', pressed: false })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Pool', pressed: false })).toBeTruthy();
+});
+test('expanded catalogs wrap and selected items stay visible after collapsing', async () => {
+  travelRequest.mockImplementation(async (_plan, _action, { kind }) => ({ items: kind === 'hotel_types' ? Array.from({ length: 15 }, (_, i) => ({ id: i + 1, name: `Type ${i + 1}` })) : [] }));
+  render(<Form/>);
+  const user = userEvent.setup();
+  await user.click(screen.getByText('Property type, amenities & cancellation'));
+  await user.click(await screen.findByRole('button', { name: 'Show all property types (15)' }));
+  await user.click(screen.getByRole('button', { name: 'Type 15' }));
+  await user.click(screen.getByRole('button', { name: 'Show fewer property types' }));
+  expect(screen.getByRole('button', { name: 'Type 15', pressed: true })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Type 14' })).toBeNull();
+  screen.getByRole('button', { name: 'Type 15' }).focus();
+  await user.keyboard('[Space]');
+  expect(screen.queryByRole('button', { name: 'Type 15' })).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show all property types (15)' }));
+  expect(screen.getByRole('status').textContent).toBe('No options available.');
 });
 test('selection limit disables only unchecked options and removing one restores capacity', async () => {
   travelRequest.mockResolvedValue({ items: Array.from({ length: 11 }, (_, i) => ({ id: i + 1, name: `Type ${i + 1}` })) });
   render(<Form initial={{ ...emptyStayFilters(), hotel_type_ids: Array.from({ length: 10 }, (_, i) => i + 1) }}/>);
   const user = userEvent.setup();
   await user.click(screen.getByText(/Property type, amenities & cancellation/));
-  const options = await screen.findAllByRole('checkbox', { name: 'Type 11' });
+  const options = await screen.findAllByRole('button', { name: 'Type 11' });
   expect(options[0].disabled).toBe(true);
-  await user.click(screen.getAllByRole('checkbox', { name: 'Type 1' })[0]);
+  await user.click(screen.getAllByRole('button', { name: 'Type 1' })[0]);
   expect(options[0].disabled).toBe(false);
   await user.click(options[0]);
-  expect(options[0].checked).toBe(true);
+  expect(options[0].getAttribute('aria-pressed')).toBe('true');
 });

@@ -353,9 +353,9 @@ test('provider-backed apartment and amenity filters apply to new searches and ca
   render(<TravelSearch {...props}/>);
   const user = await fill();
   await user.click(screen.getByText('Property type, amenities & cancellation'));
-  await user.click(await screen.findByRole('checkbox', { name: 'Apartments' }));
-  await user.click(screen.getByRole('checkbox', { name: 'Hotels' }));
-  for (const name of ['Kitchen', 'Pool']) await user.click(screen.getByRole('checkbox', { name }));
+  await user.click(await screen.findByRole('button', { name: 'Apartments' }));
+  await user.click(screen.getByRole('button', { name: 'Hotels' }));
+  for (const name of ['Kitchen', 'Pool']) await user.click(screen.getByRole('button', { name }));
   await user.selectOptions(screen.getByLabelText('Amenity matching'), 'any');
   await user.click(screen.getByLabelText('Search refundable rates only'));
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
