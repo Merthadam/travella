@@ -55,7 +55,7 @@ class StayRoom(StrictResult):
     name: Text
     board_name: Text | None = None
     refundable: bool | None = None
-    cancellation_summary: Text | None = None
+    cancellation_summary: str | None = Field(default=None, max_length=4000)
     cancellation_deadline: Text | None = None
     total: Money
     excluded_taxes: list[Tax] = Field(default_factory=list, max_length=50)

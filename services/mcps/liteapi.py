@@ -497,9 +497,9 @@ class LiteApi:
                 continue
             result = await self.call("airports", {"q": city["city"][:80]})
             members = {a["iata"] for a in result["airports"] if a["iata"] != code
-                       and (a["city"].casefold() == city["city"].casefold()
-                            or a["name"].casefold().startswith(city["city"].casefold() + " "))
                        and a["country_code"] == city["country_code"]
+                       and ((a["city"] or "").casefold() == city["city"].casefold()
+                            or a["name"].casefold().startswith(city["city"].casefold() + " "))
                        and not re.search(r"\ball airports\b", a["name"], re.I)}
             if members:
                 memberships[code] = members

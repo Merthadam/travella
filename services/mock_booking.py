@@ -5,6 +5,72 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+class StayMoney(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    amount: str | None = Field(default=None, max_length=30, pattern=r"^\d+(\.\d+)?$")
+    currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+
+
+class StayTax(StayMoney):
+    name: str = Field(max_length=300)
+
+
+class StayGuest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    room: int | None = Field(ge=1, le=4)
+    firstName: str = Field(min_length=1, max_length=50)
+    lastName: str = Field(min_length=1, max_length=50)
+
+
+class StayRoom(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    room: int = Field(ge=1, le=4)
+    name: str = Field(max_length=500)
+    board: str | None = Field(default=None, max_length=300)
+    occupancy: str | None = Field(default=None, max_length=300)
+    refundable: bool | None = None
+    cancellation: str | None = Field(default=None, max_length=4000)
+    cancellationDeadline: str | None = Field(default=None, max_length=120)
+    excludedTaxes: list[StayTax] = Field(default_factory=list, max_length=50)
+
+
+class StayReservation(BaseModel):
+    """Owner-only reservation document; never included in agent context."""
+    model_config = ConfigDict(extra="forbid", strict=True)
+    provider: Literal["LiteAPI"] = "LiteAPI"
+    sandbox: Literal[True] = True
+    hotelId: str = Field(max_length=100)
+    address: str | None = Field(default=None, max_length=1000)
+    confirmationCode: str | None = Field(default=None, max_length=100)
+    roomCount: int = Field(ge=1, le=4)
+    rooms: list[StayRoom] = Field(min_length=1, max_length=4)
+    guests: list[StayGuest] = Field(default_factory=list, max_length=40)
+    total: StayMoney
+    priceSource: Literal["prebook", "booking"]
+    roomSource: Literal["prebook", "booking"] = "prebook"
+    paymentStatus: str | None = Field(default=None, max_length=100)
+    terms: str | None = Field(default=None, max_length=12000)
+
+    @model_validator(mode="after")
+    def valid_rooms(self):
+        if {r.room for r in self.rooms} != set(range(1, self.roomCount + 1)) or len(self.rooms) != self.roomCount:
+            raise ValueError("reservation must contain each occupied room")
+        if any(g.room is not None and g.room > self.roomCount for g in self.guests):
+            raise ValueError("guest room is outside the reservation")
+        return self
+
+
+def without_stay_document(snapshot):
+    """Copy a canvas for agent use without private reservation/guest details."""
+    from copy import deepcopy
+    value = deepcopy(snapshot)
+    if isinstance(value, dict):
+        booking = value.get("components", {}).get("accommodation", {}).get("mockBooking")
+        if isinstance(booking, dict):
+            booking.pop("reservation", None)
+    return value
+
+
 class MockStaySummary(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -12,6 +78,7 @@ class MockStaySummary(BaseModel):
     hotelName: str = Field(min_length=1, max_length=160)
     checkIn: str = Field(min_length=10, max_length=10)
     checkOut: str = Field(min_length=10, max_length=10)
+    reservation: StayReservation | None = None
 
     @model_validator(mode="after")
     def valid_dates(self):

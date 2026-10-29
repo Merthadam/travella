@@ -385,3 +385,15 @@ def test_provider_city_code_membership_accepts_airports_and_rejects_unrelated_na
 def test_airport_lookup_does_not_infer_city_membership_from_an_ordinary_airport():
     api = LiteApi('sand_test', transport=httpx.MockTransport(lambda request: httpx.Response(200, json={'data': [{'airports': [{'iata': 'ZZZ', 'name': 'Unknown airport', 'city': 'London', 'country': 'GB'}]}]})))
     assert asyncio.run(api.flight_city_airports(FLIGHT | {'destination': 'ZZZ'})) == {}
+
+
+def test_city_membership_handles_nullable_airport_city_names():
+    rows = [
+        {"iata": "LON", "name": "London - All Airports", "city": "London", "country": "GB"},
+        {"iata": "SEN", "name": "London Southend Airport", "city": None, "country": "GB"},
+        {"iata": "LDY", "name": "City of Derry Airport", "city": None, "country": "GB"},
+        {"iata": "YXU", "name": "London Airport", "city": None, "country": "CA"},
+    ]
+    api = LiteApi("sand_test", transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"data": [{"airports": rows}]})))
+    assert asyncio.run(api.flight_city_airports(FLIGHT | {"destination": "LON"})) == {"LON": {"SEN"}}

@@ -18,6 +18,7 @@ from services.mcps.transport import issue_scope_assertion
 
 _TOOLS = frozenset({"travel_search"})
 _ARGUMENTS = {"travel_search": {"action", "criteria"}}
+_STAY_CHECKOUT_ACTIONS = frozenset({"sandbox/prebook", "sandbox/book", "sandbox/status"})
 
 
 class TravelClient:
@@ -87,7 +88,10 @@ class TravelClient:
             return {"status": "invalid"}
         tool_arguments = {**arguments, "plan_id": plan_id}
         try:
-            if len(json.dumps(tool_arguments)) > 8_000:
+            # Multi-room receipts retain bounded room terms in an encrypted handle.
+            # Search inputs keep their smaller limit; only stays checkout needs this.
+            argument_limit = 65_536 if arguments.get("action") in _STAY_CHECKOUT_ACTIONS else 8_000
+            if len(json.dumps(tool_arguments).encode("utf-8")) > argument_limit:
                 return {"status": "invalid"}
             local = os.getenv("AGENT_MCP_TRANSPORT", "gateway") == "local"
             if local:

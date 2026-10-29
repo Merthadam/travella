@@ -304,6 +304,10 @@ class CanvasRepository:
             return
         stored = self.session.get(PlanningCanvas, plan_id)
         persisted = stored.payload if stored else {}
+        old_stay = persisted.get("components", {}).get("accommodation", {}).get("mockBooking")
+        new_stay = snapshot.components.get("accommodation", {}).get("mockBooking")
+        if old_stay and new_stay and old_stay["reference"] != new_stay["reference"]:
+            raise LifecycleProblem("invalid_request")
         known_findings = {item["id"]: item for item in persisted.get("components", {}).get("findings", {}).get("items", [])}
         for finding in snapshot.components.get("findings", {}).get("items", []):
             if finding["certainty"] not in {"supported", "conflicting"}:

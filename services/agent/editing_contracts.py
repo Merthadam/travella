@@ -61,6 +61,12 @@ class SignedActivityPlace(ActivityPlace):
 
 
 class CanvasEditRequest(StrictResult):
+    @field_validator("draft", mode="before")
+    @classmethod
+    def private_stay_document(cls, value):
+        from services.mock_booking import without_stay_document
+        return without_stay_document(value.model_dump() if isinstance(value, CanvasSnapshot) else value)
+
     draft: CanvasSnapshot
     suggestions: list[SignedActivityPlace] = Field(default_factory=list, max_length=5)
     area: MapArea | None = None

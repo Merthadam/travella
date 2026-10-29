@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from services.shared.traveler_profile import reference_catalog
+from services.mock_booking import StayReservation
 
 Country = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
 Currency = Literal["EUR", "USD", "GBP", "HUF", "CAD", "AUD", "JPY", "CHF"]
@@ -502,6 +503,8 @@ class SandboxResult(Public):
     terms: str | None = None
     booking_id: str | None = None
     confirmation_code: str | None = None
+    reservation: StayReservation | None = None
+    price_changed: bool = False
 
 
 class FlightService(Public):

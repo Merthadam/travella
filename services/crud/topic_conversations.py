@@ -198,7 +198,8 @@ class TopicRepository:
         result = self.snapshot(subject, plan_id, topic)
         if data.action == "begin":
             canvas = self.session.get(PlanningCanvas, plan_id)
-            result["saved_canvas"] = canvas.payload if canvas else None
+            from services.mock_booking import without_stay_document
+            result["saved_canvas"] = without_stay_document(canvas.payload) if canvas else None
         return result
 
     def _choice(self, subject, plan_id, topic, mutation):
