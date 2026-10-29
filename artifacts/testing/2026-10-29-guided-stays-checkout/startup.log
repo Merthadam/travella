@@ -5,15 +5,27 @@ Auth gateway: http://localhost:8003
 Agent service: http://localhost:8103
 Services will run in the background. Stop them with: docker-compose -p travella-local-single -f compose.local-single.yaml down
 time="2026-10-29T21:53:59+01:00" level=warning msg="buildx Docker CLI plugin not found: falling back to the classic builder. BuildKit-only build features (multi-arch, secrets, ssh, additional contexts, ...) will not be available"
- Image travella-local-single-research-mcp Building 
- Image travella-local-single-map-mcp Building 
- Image travella-local-single-travel-mcp Building 
- Image travella-local-single-research-mcp Building 
- Image travella-local-single-map-mcp Building 
- Image travella-local-single-travel-mcp Building 
-Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  547.6kBSending build context to Docker daemon  547.6kBSending build context to Docker daemon  5.899MBSending build context to Docker daemon  5.899MBSending build context to Docker daemon  5.374MBSending build context to Docker daemon  12.26MBSending build context to Docker daemon  11.73MBSending build context to Docker daemon  12.26MBSending build context to Docker daemon   13.2MB
-Sending build context to Docker daemon   13.2MB
-Sending build context to Docker daemon   13.2MB
+ Image travella-local-single-research-mcp Building
+ Image travella-local-single-map-mcp Building
+ Image travella-local-single-travel-mcp Building
+ Image travella-local-single-research-mcp Building
+ Image travella-local-single-map-mcp Building
+ Image travella-local-single-travel-mcp Building
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  5.899MB
+Sending build context to Docker daemon  5.899MB
+Sending build context to Docker daemon  5.374MB
+Sending build context to Docker daemon  12.26MB
+Sending build context to Docker daemon  11.73MB
+Sending build context to Docker daemon  12.26MB
+Sending build context to Docker daemon   13.2MB
+
+Sending build context to Docker daemon   13.2MB
+
+Sending build context to Docker daemon   13.2MB
+
 Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
@@ -111,17 +123,20 @@ Successfully built b068d041a1db
 Successfully built 3bcfe3d35636
 Successfully built c1639d98c9e4
 Successfully tagged travella-local-single-map-mcp:latest
- Image travella-local-single-map-mcp Built 
- Image travella-local-single-map-mcp Built 
+ Image travella-local-single-map-mcp Built
+ Image travella-local-single-map-mcp Built
 Successfully tagged travella-local-single-research-mcp:latest
- Image travella-local-single-research-mcp Built 
- Image travella-local-single-research-mcp Built 
+ Image travella-local-single-research-mcp Built
+ Image travella-local-single-research-mcp Built
 Successfully tagged travella-local-single-travel-mcp:latest
- Image travella-local-single-travel-mcp Built 
- Image travella-local-single-travel-mcp Built 
- Image travella-local-single-app Building 
- Image travella-local-single-app Building 
-Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  12.78MBSending build context to Docker daemon   13.2MB
+ Image travella-local-single-travel-mcp Built
+ Image travella-local-single-travel-mcp Built
+ Image travella-local-single-app Building
+ Image travella-local-single-app Building
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  12.78MB
+Sending build context to Docker daemon   13.2MB
+
 Step 1/20 : FROM node:22-bookworm-slim AS frontend-dependencies
  ---> 43ac6c60b8f8
 Step 2/20 : WORKDIR /frontend
@@ -181,27 +196,27 @@ Step 20/20 : LABEL com.docker.compose.image.builder=classic
  ---> d7ab082c0ca6
 Successfully built d7ab082c0ca6
 Successfully tagged travella-local-single-app:latest
- Image travella-local-single-app Built 
- Image travella-local-single-app Built 
- Container travella-local-single-postgres-1 Running 
- Container travella-local-single-map-mcp-1 Recreate 
- Container travella-local-single-research-mcp-1 Recreate 
- Container travella-local-single-travel-mcp-1 Recreate 
- Container travella-local-single-map-mcp-1 Recreated 
- Container travella-local-single-research-mcp-1 Recreated 
- Container travella-local-single-travel-mcp-1 Recreated 
- Container travella-local-single-app-1 Recreate 
- Container travella-local-single-app-1 Recreated 
- Container travella-local-single-travel-mcp-1 Starting 
- Container travella-local-single-map-mcp-1 Starting 
- Container travella-local-single-research-mcp-1 Starting 
- Container travella-local-single-travel-mcp-1 Started 
- Container travella-local-single-map-mcp-1 Started 
- Container travella-local-single-research-mcp-1 Started 
- Container travella-local-single-postgres-1 Waiting 
- Container travella-local-single-postgres-1 Healthy 
- Container travella-local-single-app-1 Starting 
- Container travella-local-single-app-1 Started 
+ Image travella-local-single-app Built
+ Image travella-local-single-app Built
+ Container travella-local-single-postgres-1 Running
+ Container travella-local-single-map-mcp-1 Recreate
+ Container travella-local-single-research-mcp-1 Recreate
+ Container travella-local-single-travel-mcp-1 Recreate
+ Container travella-local-single-map-mcp-1 Recreated
+ Container travella-local-single-research-mcp-1 Recreated
+ Container travella-local-single-travel-mcp-1 Recreated
+ Container travella-local-single-app-1 Recreate
+ Container travella-local-single-app-1 Recreated
+ Container travella-local-single-travel-mcp-1 Starting
+ Container travella-local-single-map-mcp-1 Starting
+ Container travella-local-single-research-mcp-1 Starting
+ Container travella-local-single-travel-mcp-1 Started
+ Container travella-local-single-map-mcp-1 Started
+ Container travella-local-single-research-mcp-1 Started
+ Container travella-local-single-postgres-1 Waiting
+ Container travella-local-single-postgres-1 Healthy
+ Container travella-local-single-app-1 Starting
+ Container travella-local-single-app-1 Started
 Waiting for the app container and its local service health checks...
 Local authentication is ready: sign-in, session check, and temporary sign-out succeeded.
 The temporary check session was signed out; no credentials or tokens were displayed.

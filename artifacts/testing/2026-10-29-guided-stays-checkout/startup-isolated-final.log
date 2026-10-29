@@ -5,15 +5,37 @@ Auth gateway: http://localhost:8018
 Agent service: http://localhost:8118
 Services will run in the background. Stop them with: docker-compose -p travella-stays-checkout -f compose.local-single.yaml down
 time="2026-10-29T22:12:46+01:00" level=warning msg="buildx Docker CLI plugin not found: falling back to the classic builder. BuildKit-only build features (multi-arch, secrets, ssh, additional contexts, ...) will not be available"
- Image travella-stays-checkout-research-mcp Building 
- Image travella-stays-checkout-map-mcp Building 
- Image travella-stays-checkout-travel-mcp Building 
- Image travella-stays-checkout-travel-mcp Building 
- Image travella-stays-checkout-map-mcp Building 
- Image travella-stays-checkout-research-mcp Building 
-Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  547.6kBSending build context to Docker daemon  547.6kBSending build context to Docker daemon  2.657MBSending build context to Docker daemon  2.657MBSending build context to Docker daemon  2.657MBSending build context to Docker daemon   4.85MBSending build context to Docker daemon  5.374MBSending build context to Docker daemon   4.85MBSending build context to Docker daemon  8.573MBSending build context to Docker daemon  9.097MBSending build context to Docker daemon  7.492MBSending build context to Docker daemon  9.634MBSending build context to Docker daemon  11.73MBSending build context to Docker daemon  11.73MBSending build context to Docker daemon  11.73MBSending build context to Docker daemon  12.78MBSending build context to Docker daemon  12.78MBSending build context to Docker daemon  13.21MB
-Sending build context to Docker daemon  13.21MB
-Sending build context to Docker daemon  12.78MBSending build context to Docker daemon  13.21MB
+ Image travella-stays-checkout-research-mcp Building
+ Image travella-stays-checkout-map-mcp Building
+ Image travella-stays-checkout-travel-mcp Building
+ Image travella-stays-checkout-travel-mcp Building
+ Image travella-stays-checkout-map-mcp Building
+ Image travella-stays-checkout-research-mcp Building
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  2.657MB
+Sending build context to Docker daemon  2.657MB
+Sending build context to Docker daemon  2.657MB
+Sending build context to Docker daemon   4.85MB
+Sending build context to Docker daemon  5.374MB
+Sending build context to Docker daemon   4.85MB
+Sending build context to Docker daemon  8.573MB
+Sending build context to Docker daemon  9.097MB
+Sending build context to Docker daemon  7.492MB
+Sending build context to Docker daemon  9.634MB
+Sending build context to Docker daemon  11.73MB
+Sending build context to Docker daemon  11.73MB
+Sending build context to Docker daemon  11.73MB
+Sending build context to Docker daemon  12.78MB
+Sending build context to Docker daemon  12.78MB
+Sending build context to Docker daemon  13.21MB
+
+Sending build context to Docker daemon  13.21MB
+
+Sending build context to Docker daemon  12.78MB
+Sending build context to Docker daemon  13.21MB
+
 Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
@@ -111,17 +133,25 @@ Successfully built 9fc53c323a60
 Successfully built 67771f002572
 Successfully built f3116a4efdb2
 Successfully tagged travella-stays-checkout-map-mcp:latest
- Image travella-stays-checkout-map-mcp Built 
- Image travella-stays-checkout-map-mcp Built 
+ Image travella-stays-checkout-map-mcp Built
+ Image travella-stays-checkout-map-mcp Built
 Successfully tagged travella-stays-checkout-travel-mcp:latest
- Image travella-stays-checkout-travel-mcp Built 
- Image travella-stays-checkout-travel-mcp Built 
+ Image travella-stays-checkout-travel-mcp Built
+ Image travella-stays-checkout-travel-mcp Built
 Successfully tagged travella-stays-checkout-research-mcp:latest
- Image travella-stays-checkout-research-mcp Built 
- Image travella-stays-checkout-research-mcp Built 
- Image travella-stays-checkout-app Building 
- Image travella-stays-checkout-app Building 
-Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  3.213MBSending build context to Docker daemon  5.899MBSending build context to Docker daemon  6.968MBSending build context to Docker daemon  9.097MBSending build context to Docker daemon  11.21MBSending build context to Docker daemon  12.78MBSending build context to Docker daemon  13.21MB
+ Image travella-stays-checkout-research-mcp Built
+ Image travella-stays-checkout-research-mcp Built
+ Image travella-stays-checkout-app Building
+ Image travella-stays-checkout-app Building
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  3.213MB
+Sending build context to Docker daemon  5.899MB
+Sending build context to Docker daemon  6.968MB
+Sending build context to Docker daemon  9.097MB
+Sending build context to Docker daemon  11.21MB
+Sending build context to Docker daemon  12.78MB
+Sending build context to Docker daemon  13.21MB
+
 Step 1/20 : FROM node:22-bookworm-slim AS frontend-dependencies
  ---> 43ac6c60b8f8
 Step 2/20 : WORKDIR /frontend
@@ -181,27 +211,27 @@ Step 20/20 : LABEL com.docker.compose.image.builder=classic
  ---> 65f7b9c4766d
 Successfully built 65f7b9c4766d
 Successfully tagged travella-stays-checkout-app:latest
- Image travella-stays-checkout-app Built 
- Image travella-stays-checkout-app Built 
- Container travella-stays-checkout-postgres-1 Running 
- Container travella-stays-checkout-map-mcp-1 Recreate 
- Container travella-stays-checkout-research-mcp-1 Recreate 
- Container travella-stays-checkout-travel-mcp-1 Recreate 
- Container travella-stays-checkout-travel-mcp-1 Recreated 
- Container travella-stays-checkout-map-mcp-1 Recreated 
- Container travella-stays-checkout-research-mcp-1 Recreated 
- Container travella-stays-checkout-app-1 Recreate 
- Container travella-stays-checkout-app-1 Recreated 
- Container travella-stays-checkout-map-mcp-1 Starting 
- Container travella-stays-checkout-travel-mcp-1 Starting 
- Container travella-stays-checkout-research-mcp-1 Starting 
- Container travella-stays-checkout-map-mcp-1 Started 
- Container travella-stays-checkout-travel-mcp-1 Started 
- Container travella-stays-checkout-research-mcp-1 Started 
- Container travella-stays-checkout-postgres-1 Waiting 
- Container travella-stays-checkout-postgres-1 Healthy 
- Container travella-stays-checkout-app-1 Starting 
- Container travella-stays-checkout-app-1 Started 
+ Image travella-stays-checkout-app Built
+ Image travella-stays-checkout-app Built
+ Container travella-stays-checkout-postgres-1 Running
+ Container travella-stays-checkout-map-mcp-1 Recreate
+ Container travella-stays-checkout-research-mcp-1 Recreate
+ Container travella-stays-checkout-travel-mcp-1 Recreate
+ Container travella-stays-checkout-travel-mcp-1 Recreated
+ Container travella-stays-checkout-map-mcp-1 Recreated
+ Container travella-stays-checkout-research-mcp-1 Recreated
+ Container travella-stays-checkout-app-1 Recreate
+ Container travella-stays-checkout-app-1 Recreated
+ Container travella-stays-checkout-map-mcp-1 Starting
+ Container travella-stays-checkout-travel-mcp-1 Starting
+ Container travella-stays-checkout-research-mcp-1 Starting
+ Container travella-stays-checkout-map-mcp-1 Started
+ Container travella-stays-checkout-travel-mcp-1 Started
+ Container travella-stays-checkout-research-mcp-1 Started
+ Container travella-stays-checkout-postgres-1 Waiting
+ Container travella-stays-checkout-postgres-1 Healthy
+ Container travella-stays-checkout-app-1 Starting
+ Container travella-stays-checkout-app-1 Started
 Waiting for the app container and its local service health checks...
 Local authentication is ready: sign-in, session check, and temporary sign-out succeeded.
 The temporary check session was signed out; no credentials or tokens were displayed.

@@ -1,7 +1,10 @@
 time="2026-10-29T22:23:26+01:00" level=warning msg="buildx Docker CLI plugin not found: falling back to the classic builder. BuildKit-only build features (multi-arch, secrets, ssh, additional contexts, ...) will not be available"
- Image travella-stays-checkout-travel-mcp Building 
- Image travella-stays-checkout-travel-mcp Building 
-Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  12.26MBSending build context to Docker daemon  13.21MB
+ Image travella-stays-checkout-travel-mcp Building
+ Image travella-stays-checkout-travel-mcp Building
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  12.26MB
+Sending build context to Docker daemon  13.21MB
+
 Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
  ---> e5b65587bce7
 Step 2/10 : WORKDIR /app
@@ -35,11 +38,14 @@ Step 10/10 : LABEL com.docker.compose.image.builder=classic
  ---> ae9dfa850f00
 Successfully built ae9dfa850f00
 Successfully tagged travella-stays-checkout-travel-mcp:latest
- Image travella-stays-checkout-travel-mcp Built 
- Image travella-stays-checkout-travel-mcp Built 
- Image travella-stays-checkout-app Building 
- Image travella-stays-checkout-app Building 
-Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  10.68MBSending build context to Docker daemon  13.21MB
+ Image travella-stays-checkout-travel-mcp Built
+ Image travella-stays-checkout-travel-mcp Built
+ Image travella-stays-checkout-app Building
+ Image travella-stays-checkout-app Building
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  10.68MB
+Sending build context to Docker daemon  13.21MB
+
 Step 1/20 : FROM node:22-bookworm-slim AS frontend-dependencies
  ---> 43ac6c60b8f8
 Step 2/20 : WORKDIR /frontend
@@ -99,13 +105,13 @@ Step 20/20 : LABEL com.docker.compose.image.builder=classic
  ---> 21d745ff78b3
 Successfully built 21d745ff78b3
 Successfully tagged travella-stays-checkout-app:latest
- Image travella-stays-checkout-app Built 
- Image travella-stays-checkout-app Built 
- Container travella-stays-checkout-travel-mcp-1 Recreate 
- Container travella-stays-checkout-travel-mcp-1 Recreated 
- Container travella-stays-checkout-app-1 Recreate 
- Container travella-stays-checkout-app-1 Recreated 
- Container travella-stays-checkout-travel-mcp-1 Starting 
- Container travella-stays-checkout-travel-mcp-1 Started 
- Container travella-stays-checkout-app-1 Starting 
- Container travella-stays-checkout-app-1 Started 
+ Image travella-stays-checkout-app Built
+ Image travella-stays-checkout-app Built
+ Container travella-stays-checkout-travel-mcp-1 Recreate
+ Container travella-stays-checkout-travel-mcp-1 Recreated
+ Container travella-stays-checkout-app-1 Recreate
+ Container travella-stays-checkout-app-1 Recreated
+ Container travella-stays-checkout-travel-mcp-1 Starting
+ Container travella-stays-checkout-travel-mcp-1 Started
+ Container travella-stays-checkout-app-1 Starting
+ Container travella-stays-checkout-app-1 Started
