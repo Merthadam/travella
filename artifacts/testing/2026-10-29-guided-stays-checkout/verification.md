@@ -2,6 +2,8 @@
 
 Status: passed for the agreed sandbox checkout scope. Broader Phase 18 acceptance remains open.
 
+Correction after user report: the initial checks used programmatic scrolling and missed an overflow:hidden lock after entering checkout from the workspace. Fixed and verified with Chrome PageDown/PageUp in `../2026-10-29-stays-scroll/verification.md`.
+
 ## Scope and accepted behavior
 One stay reservation per Plan, including multiple rooms. Sandbox-only guided review → guest names → exact final consent → provider confirmation → durable Plan record. Download a standalone HTML confirmation or print/save PDF. Cancellation terms/deadline are displayed; cancellation actions and the finalized-Plan documents page remain deferred. The user chose discussion without alternative prototypes.
 

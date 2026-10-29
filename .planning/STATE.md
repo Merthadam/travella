@@ -450,3 +450,8 @@ Phase18 shipment PR #22: https://github.com/Merthadam/travella/pull/22. Integrat
 ### Guided Stays checkout — 29 October 2026
 
 User approved one stay per Plan, flight-style checkout, provider-confirmed guest/room/price/cancellation details and downloadable confirmation; requested subagent fan-out. Implemented and reviewed in6cef21d.337 backend and138 frontend tests, build, actual LiteAPI sandbox two-room browser flow, tokenless reload, download, print invocation, persistence/ownership/lifecycle checks and cleanup passed. Provider room-assignment inconsistency is explicitly labeled. Local preview http://localhost:5198/plans; evidence artifacts/testing/2026-10-29-guided-stays-checkout/verification.md. Cancellation actions and finalized-Plan documents remain deferred. No merge/deployment; broader Phase18 acceptance remains pending.
+
+
+### Stays checkout scrolling correction — 29 October 2026
+
+User reported scrolling blocked. Hidden mounted workspace triggered overflow:hidden on checkout. Scoped layout rules to visible workspace children. Chrome keyboard reproduction failed before and passed after on desktop/mobile, build/auth/source hash passed. Earlier programmatic scrolling evidence did not cover user input. Evidence: artifacts/testing/2026-10-29-stays-scroll/verification.md. Broader phase acceptance unchanged.

@@ -1,0 +1,70 @@
+time="2026-10-29T22:44:40+01:00" level=warning msg="buildx Docker CLI plugin not found: falling back to the classic builder. BuildKit-only build features (multi-arch, secrets, ssh, additional contexts, ...) will not be available"
+ Image travella-stays-checkout-app Building 
+ Image travella-stays-checkout-app Building 
+Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  12.78MBSending build context to Docker daemon  13.21MB
+Step 1/20 : FROM node:22-bookworm-slim AS frontend-dependencies
+ ---> 43ac6c60b8f8
+Step 2/20 : WORKDIR /frontend
+ ---> Using cache
+ ---> e82fc8f43f62
+Step 3/20 : COPY frontend/package.json frontend/package-lock.json ./
+ ---> Using cache
+ ---> 1b216545dccb
+Step 4/20 : RUN npm ci
+ ---> Using cache
+ ---> fdc7dd5e2f8e
+Step 5/20 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ ---> e5b65587bce7
+Step 6/20 : WORKDIR /app
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 7/20 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a30c52da356d
+Step 8/20 : COPY --from=frontend-dependencies /usr/local/bin/node /usr/local/bin/node
+ ---> Using cache
+ ---> a700fbd996d3
+Step 9/20 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> a1c8c787c984
+Step 10/20 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> 253107436d65
+Step 11/20 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> b115d97602ca
+Step 12/20 : COPY services ./services
+ ---> Using cache
+ ---> 43f6eba26ee5
+Step 13/20 : COPY frontend ./frontend
+ ---> 4a48bd467ef0
+Step 14/20 : COPY --from=frontend-dependencies /frontend/node_modules ./frontend/node_modules
+ ---> 54e8154cb757
+Step 15/20 : COPY scripts/start-local-single-container.sh ./scripts/start-local-single-container.sh
+ ---> ae8ce9e54689
+Step 16/20 : COPY scripts/local-app-healthcheck.py ./scripts/local-app-healthcheck.py
+ ---> b2c36184cfd3
+Step 17/20 : RUN chmod +x /app/scripts/start-local-single-container.sh
+ ---> Running in 6c855f906bd9
+ ---> Removed intermediate container 6c855f906bd9
+ ---> d2b0f00d8cf1
+Step 18/20 : EXPOSE 5173 8000 8002
+ ---> Running in 6a26eedb60e0
+ ---> Removed intermediate container 6a26eedb60e0
+ ---> 2139bce70ec9
+Step 19/20 : CMD ["bash", "/app/scripts/start-local-single-container.sh"]
+ ---> Running in d9cd8e0603b8
+ ---> Removed intermediate container d9cd8e0603b8
+ ---> 7e324eb6ead0
+Step 20/20 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in 6a16ba964618
+ ---> Removed intermediate container 6a16ba964618
+ ---> 11c2e241dd1d
+Successfully built 11c2e241dd1d
+Successfully tagged travella-stays-checkout-app:latest
+ Image travella-stays-checkout-app Built 
+ Image travella-stays-checkout-app Built 
+ Container travella-stays-checkout-app-1 Recreate 
+ Container travella-stays-checkout-app-1 Recreated 
+ Container travella-stays-checkout-app-1 Starting 
+ Container travella-stays-checkout-app-1 Started 
