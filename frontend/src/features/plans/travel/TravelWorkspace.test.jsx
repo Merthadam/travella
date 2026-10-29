@@ -2,7 +2,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { TravelWorkspace } from './TravelWorkspace';
-import { draftTravelFacts } from './CanvasTravel';
+import { draftTravelFacts, travelSnapshotSchema } from './CanvasTravel';
 import { initialWorkspace, travelWorkspaceReducer, useTravelWorkspace } from './useTravelWorkspace';
 import { emptyWorkspaceView, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 import { plansApi } from '../../../plansApi';
@@ -26,6 +26,14 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   return { search_id: searchId, plan_id: 'plan-1', mode: topic, generation: 1, fingerprint: 'a'.repeat(64), draft_facts: draftTravelFacts(initialData), searched_at: new Date().toISOString(), expires_at: new Date(Date.now() + 600000).toISOString(), provider: 'LiteAPI', sandbox: true, returned_count: 1, truncated: false, notices: [], preview_ids: [item.id], search_only_dates: false, criteria, results: [item] };
 }
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(function () { this.removeAttribute("open"); }); HTMLDialogElement.prototype.showModal = vi.fn(function () { this.setAttribute("open", ""); }); });
+
+test('stay snapshots preserve long provider cancellation schedules', () => {
+  const value = workspaceSnapshot();
+  const policy = 'From 2027-05-10 12:00 UTC: 123.00 EUR cancellation penalty. '.repeat(8);
+  value.results[0].rooms = [{ id: 'room', name: 'Twin', board_name: null, refundable: true,
+    cancellation_summary: policy, cancellation_deadline: null, total: { amount: '200', currency: 'EUR' }, excluded_taxes: [], occupancy_summary: null }];
+  expect(travelSnapshotSchema.parse(value).results[0].rooms[0].cancellation_summary).toBe(policy);
+});
 afterEach(() => { cleanup(); clearCanvasViews(); chat.real = false; chat.active = true; chat.snapshot = null; chat.messages = []; chat.loading = false; chat.historyError = 'History unavailable'; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 test('result pagination announces once and manual dismissal focuses the next card', async () => {

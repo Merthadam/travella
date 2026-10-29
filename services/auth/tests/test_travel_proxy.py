@@ -8,6 +8,14 @@ from services.auth.tests.test_crud_client import gateway, system, login  # noqa:
 PLAN = "00000000-0000-4000-8000-000000000001"
 
 
+def test_checkout_conflict_preserves_safe_code_without_provider_message():
+    client = AgentClient('https://agent.test', transport=httpx.MockTransport(
+        lambda request: httpx.Response(409, json={'code': 'stay_already_booked', 'message': 'PRIVATE'})))
+    status, data = client.travel(PLAN, 'sandbox/prebook', {'token': 't' * 100}, token='private')
+    assert status == 409 and data['code'] == 'stay_already_booked'
+    assert 'PRIVATE' not in str(data)
+
+
 def test_proxy_session_csrf_and_read_only_allowlist(gateway):
     path = f"/v1/agent/plans/{PLAN}/travel/"
     assert gateway.client.get(path + "capabilities").status_code == 401

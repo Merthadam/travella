@@ -1,3 +1,5 @@
+import { StayCheckout } from '../travel/StayCheckout';
+import { useStayBookingSync, readStayReceipt } from '../travel/useStayBookingSync';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTravelCapabilities } from '../travel/TravelSearch';
 import { TravelWorkspace } from '../travel/TravelWorkspace';
@@ -74,10 +76,26 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
   }, [canvas.loading, canvas.data]);
   const generated = useRef(false);
   const fullGeneration = useRef(false);
-  const [screen, setScreen] = useState(() => new URLSearchParams(location.search).get('checkout') === 'flights' ? 'flight-checkout' : null);
+  const [screen, setScreen] = useState(() => ({ flights: 'flight-checkout', stays: 'stay-checkout' }[new URLSearchParams(location.search).get('checkout')] || null));
   const [flightCheckout, setFlightCheckout] = useState(() => ({ recoveryToken: readFlightReceipt(selected.plan_id) }));
-  const checkoutOpen = useRef(screen === 'flight-checkout');
-  checkoutOpen.current = screen === 'flight-checkout';
+  const [stayCheckout, setStayCheckout] = useState(() => ({ recoveryToken: readStayReceipt(selected.plan_id) }));
+  const checkoutOpen = useRef(screen);
+  checkoutOpen.current = screen?.endsWith('-checkout') ? screen : null;
+  async function openStayCheckout(value) {
+    if (switchingTravel || !await stopTravel()) return;
+    const booked = canvas.data?.accommodation?.mockBooking;
+    setStayCheckout(booked ? { savedBooking: booked } : value);
+    const url = new URL(location.href); url.searchParams.set('checkout', 'stays');
+    history.pushState({ ...history.state, stayCheckoutView: true }, '', url);
+    setScreen('stay-checkout');
+  }
+  function closeStayCheckout(toPlan = false) {
+    const url = new URL(location.href); url.searchParams.delete('checkout');
+    const state = { ...history.state }; delete state.stayCheckoutView;
+    if (toPlan) { delete state.canvasTravelView; delete state.canvasTravelId; resultsOpen.current = false; travelReturnFocus.current = 'accommodation'; }
+    history.replaceState(state, '', url);
+    setVisitedTravel(old => ({ ...old, accommodation: true })); setScreen(toPlan ? null : 'accommodation');
+  }
   async function openFlightCheckout(value) {
     if (switchingTravel || !await stopTravel()) return;
     const booked = canvas.data?.flights?.mockBooking;
@@ -146,11 +164,14 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
     resultOwnedEntries.current.clear();
     function pop(event) {
       if(location.pathname!==path) return;
+      if (new URLSearchParams(location.search).get('checkout') === 'stays') {
+        event.stopImmediatePropagation(); setScreen('stay-checkout'); return;
+      }
       if (new URLSearchParams(location.search).get('checkout') === 'flights') {
         event.stopImmediatePropagation(); setScreen('flight-checkout'); return;
       }
       if (checkoutOpen.current && event.state?.canvasTravelView !== 'results') {
-        event.stopImmediatePropagation(); setVisitedTravel(old => ({ ...old, flights: true })); setScreen('flights'); return;
+        event.stopImmediatePropagation(); const mode = checkoutOpen.current === 'stay-checkout' ? 'accommodation' : 'flights'; setVisitedTravel(old => ({ ...old, [mode]: true })); setScreen(mode); return;
       }
       if (event.state?.canvasTravelView === 'results') {
         event.stopImmediatePropagation(); resultsOpen.current = true; resultsPath.current = location.pathname;
@@ -160,7 +181,7 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
         event.stopImmediatePropagation(); restorePlanChat();
       }
     }
-    if (history.state?.canvasTravelView === 'results' && new URLSearchParams(location.search).get('checkout') !== 'flights') {
+    if (history.state?.canvasTravelView === 'results' && !['flights', 'stays'].includes(new URLSearchParams(location.search).get('checkout'))) {
       resultsOpen.current = true; resultsPath.current = location.pathname;
       setTravelResultId(history.state.canvasTravelId); setScreen('travel-results'); setMobileView('canvas');
     }
@@ -168,6 +189,7 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
     return () => window.removeEventListener('popstate', pop, true);
   }, [selected.plan_id]);
   useFlightBookingSync(selected.plan_id, !screen && !canvas.loading && canvas.data?.flights?.need === 'needed', canvas.updateMockBooking);
+  useStayBookingSync(selected.plan_id, !canvas.loading && !screen?.endsWith("-checkout"), canvas.updateMockBooking);
   const travel = useTravelCapabilities(selected.plan_id, onExpired);
   const [visitedTravel, setVisitedTravel] = useState({});
   const selectedTravel = chat.travelSnapshots[travelResultId];
@@ -325,10 +347,11 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
         <div><button type="button" className="ds-button" autoFocus onClick={() => setConfirm(null)}>Keep editing</button><button type="button" className="ds-button primary" onClick={confirmed}>{confirm?.kind === 'generate' ? 'Replace draft sections' : confirm?.kind === 'reload' ? 'Load saved plan' : 'Leave canvas'}</button></div>
       </dialog>
     </div>
-      <section ref={travelScreen} hidden={!screen} className="canvas-travel-screen" aria-label={screen === 'flight-checkout' ? 'Flight booking page' : activeTravel === 'flights' ? 'Explore flights' : 'Explore stays'}>
-      {screen && screen !== 'flight-checkout' && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus disabled={switchingTravel} onClick={returnToCanvas}>{switchingTravel ? 'Finishing discussion…' : resultsOpen.current ? '← Back to plan chat' : '← Back to canvas'}</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([mode, , key]) => travel.capabilities?.[key] && (mode !== 'flights' || flightBrowsing)).map(([mode, label]) => <button key={mode} disabled={switchingTravel} aria-pressed={activeTravel === mode} onClick={() => openTravel(mode)}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
+      <section ref={travelScreen} hidden={!screen} className="canvas-travel-screen" aria-label={screen === 'stay-checkout' ? 'Stay booking page' : screen === 'flight-checkout' ? 'Flight booking page' : activeTravel === 'flights' ? 'Explore flights' : 'Explore stays'}>
+      {screen && !screen.endsWith('-checkout') && <nav className="travel-navigation" aria-label="Travel search"><button autoFocus disabled={switchingTravel} onClick={returnToCanvas}>{switchingTravel ? 'Finishing discussion…' : resultsOpen.current ? '← Back to plan chat' : '← Back to canvas'}</button>{[['accommodation', 'Stays', 'hotels'], ['flights', 'Flights', 'flights']].filter(([mode, , key]) => travel.capabilities?.[key] && (mode !== 'flights' || flightBrowsing)).map(([mode, label]) => <button key={mode} disabled={switchingTravel} aria-pressed={activeTravel === mode} onClick={() => openTravel(mode)}>{label}</button>)}<span>{travel.capabilities?.sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></nav>}
       {screen === 'travel-results' && !selectedTravel && <section aria-label="Travel result recovery"><p role="status">These results are no longer available. Return to Plan chat to search again.</p></section>}
-      {['accommodation', 'flights'].filter(mode => visitedTravel[mode] && (mode !== 'flights' || flightBrowsing)).map(mode => <TravelWorkspace key={`${selected.plan_id}-${mode}`} travelerProfile={travelerProfile} selected={selected} api={api} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} pendingEdits={dirty || Boolean(canvas.saveError)} blocked={Boolean(canvas.activeGroup || canvas.saving || chatBusy || switchingTravel)} onExpired={onExpired} onBusyChange={travelBusyChanged} registerStop={registerTravelStop} onChoiceSaved={canvas.acceptTravelChoiceRevision} onBookingResult={canvas.updateMockBooking} onFlightCheckout={openFlightCheckout}/>)}
+      {['accommodation', 'flights'].filter(mode => visitedTravel[mode] && (mode !== 'flights' || flightBrowsing)).map(mode => <TravelWorkspace key={`${selected.plan_id}-${mode}`} travelerProfile={travelerProfile} selected={selected} api={api} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} pendingEdits={dirty || Boolean(canvas.saveError)} blocked={Boolean(canvas.activeGroup || canvas.saving || chatBusy || switchingTravel)} onExpired={onExpired} onBusyChange={travelBusyChanged} registerStop={registerTravelStop} onChoiceSaved={canvas.acceptTravelChoiceRevision} onBookingResult={canvas.updateMockBooking} onFlightCheckout={openFlightCheckout} onStayCheckout={openStayCheckout}/>)}
+      {screen === 'stay-checkout' && !canvas.loading && <StayCheckout key={`${selected.plan_id}:${stayCheckout?.offerToken || stayCheckout?.recoveryToken || 'saved'}`} planId={selected.plan_id} {...stayCheckout} savedBooking={stayCheckout?.savedBooking || (!stayCheckout?.offerToken ? canvas.data?.accommodation?.mockBooking : undefined)} saveState={{ savedReference: canvas.saved?.components?.accommodation?.mockBooking?.reference, error: canvas.saveError }} onBookingResult={canvas.updateMockBooking} onExpired={onExpired} onClose={() => closeStayCheckout(false)} onBackToPlan={() => closeStayCheckout(true)}/>}
       {screen === 'flight-checkout' && !canvas.loading && <FlightCheckout key={`${selected.plan_id}:${flightCheckout?.offerToken || flightCheckout?.recoveryToken || 'saved'}`} planId={selected.plan_id} {...flightCheckout} savedBooking={flightCheckout?.savedBooking || (!flightCheckout?.offerToken ? canvas.data?.flights?.mockBooking : undefined)} saveState={{ savedReference: canvas.saved?.components?.flights?.mockBooking?.reference, error: canvas.saveError }} onBookingResult={canvas.updateMockBooking} onExpired={onExpired} onClose={() => closeFlightCheckout(false)} onBackToPlan={() => closeFlightCheckout(true)}/>}
       </section>
     <div id="plan-chat-panel" className="canvas-chat-panel" hidden={!chatOpen || Boolean(screen)}><CanvasConversation collapseRef={chatCollapseButton} visible={chatOpen && !screen} chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={collapseChat} onPreview={showPlace} onAdd={canvas.addActivities} onOpenTravel={openTravelResults}/></div>

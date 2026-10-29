@@ -4,6 +4,16 @@ from services.agent.app import create_app
 from services.auth.contracts import ValidatedIdentity
 
 
+def test_manual_stay_registry_preserves_multi_rule_cancellation_terms():
+    from services.agent.claude.canvas_travel import safe_stay
+    terms = 'From 2027-05-10 12:00 UTC: 123.00 EUR cancellation penalty. ' * 8
+    result = safe_stay({'id': 'h1', 'hotel_id': 'h1', 'name': 'Test hotel',
+        'price': {'amount': '200', 'currency': 'EUR', 'basis': 'stay'},
+        'rooms': [{'id': 'r1', 'name': 'Twin', 'total': {'amount': '200', 'currency': 'EUR'},
+                   'cancellation_summary': terms}]})
+    assert result.rooms[0].cancellation_summary == terms
+
+
 class Travel:
     def __init__(self):
         self.calls = []
@@ -198,3 +208,20 @@ def test_flight_services_validate_scope_inputs_and_public_projection():
         assert result.status_code == 200, result.text
         assert result.json()['services'][0]['id'] == 'seat' and 'PRIVATE' not in result.text
         assert calls[0][1]['subject'] == 'owner' and calls[0][1]['plan_id'] == pid
+
+
+def test_saved_stay_blocks_another_checkout_before_provider_access():
+    from fastapi import FastAPI
+    from services.agent.travel_routes import register_travel_routes
+    from types import SimpleNamespace
+    pid=uuid4(); calls=[]
+    async def read(*args): return {'lifecycle':'active'}
+    async def canvas(*args): return {'snapshot': {'components': {'accommodation': {'mockBooking': {'reference':'OLD'}}}}}
+    class Client:
+        async def call(self,*args,**kwargs): calls.append(args); raise AssertionError('Provider must not be called')
+    app=FastAPI();register_travel_routes(app,lambda:SimpleNamespace(subject='owner'),read,Client(),read_canvas=canvas)
+    with TestClient(app) as client:
+        for action in ['prebook','book']:
+            result=client.post(f'/v1/agent/plans/{pid}/travel/sandbox/{action}',json={'token':'opaque'})
+            assert result.status_code==409 and result.json()['code']=='stay_already_booked'
+    assert not calls

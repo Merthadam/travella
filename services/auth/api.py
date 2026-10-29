@@ -35,6 +35,25 @@ RECOVERY_MESSAGE = (
 )
 
 
+def _request_body_limit(method: str, path: str) -> int:
+    """Permit bounded reservation documents only on their exact write routes."""
+    parts = path.strip("/").split("/")
+    if parts[:2] == ["v1", "plans"] and len(parts) in {4, 5}:
+        if (method, tuple(parts[3:])) in {
+            ("PUT", ("canvas",)), ("POST", ("canvas", "challenge")),
+        }:
+            return 65_536
+    if (
+        method == "POST"
+        and len(parts) == 7
+        and parts[:3] == ["v1", "agent", "plans"]
+        and parts[4:6] == ["travel", "sandbox"]
+        and parts[6] in {"prebook", "book", "status"}
+    ):
+        return 65_536
+    return 16_384
+
+
 class Input(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -118,7 +137,7 @@ def create_app(
             if request.headers.get("content-type", "").split(";")[0] != "application/json":
                 return JSONResponse({"message": "JSON required."}, status_code=415)
             # Reverse proxy must also enforce a body size limit before deployment.
-            if len(await request.body()) > 16384:
+            if len(await request.body()) > _request_body_limit(request.method, request.url.path):
                 return JSONResponse({"message": "Request too large."}, status_code=413)
             if request.url.path != "/auth/sign-out":
                 # Local limit; a shared edge limit is needed for production.
