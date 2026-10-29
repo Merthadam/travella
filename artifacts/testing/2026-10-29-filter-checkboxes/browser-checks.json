@@ -1,0 +1,28 @@
+{
+  "submitted_filters": {
+    "hotel_type_ids": [
+      201,
+      204
+    ],
+    "facility_ids": [
+      491,
+      492
+    ],
+    "strict_facility_filtering": true
+  },
+  "network": [
+    "reqid=4656 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/catalog?kind=hotel_types [200]",
+    "reqid=4657 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/catalog?kind=facilities [200]",
+    "reqid=4889 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/catalog?kind=hotel_types [200]",
+    "reqid=4890 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/catalog?kind=facilities [200]",
+    "reqid=5123 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/catalog?kind=hotel_types [200]",
+    "reqid=5124 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/catalog?kind=facilities [200]",
+    "reqid=5125 POST http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/search [200]",
+    "reqid=5126 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/research/snapshot?search_id=a9cb4cf3b203456a864cab0636d9553f [200]",
+    "reqid=5128 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/catalog?kind=hotel_types [200]",
+    "reqid=5129 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/catalog?kind=facilities [200]"
+  ],
+  "console": [
+    "msgid=145 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)"
+  ]
+}

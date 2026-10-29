@@ -800,8 +800,55 @@
 .travel-provider-filters{margin:18px 0;border-top:1px solid var(--ds-line);padding-top:14px;font-size:13px}
 .travel-provider-filters summary{cursor:pointer;font-weight:600;line-height:1.6}
 .travel-provider-filters>p{font-size:12px;color:var(--ds-muted);line-height:1.6}
-.travel-provider-filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:14px 0}
+.travel-provider-filter-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;margin:14px 0}
+.travel-provider-filter{min-width:0;margin:0;padding:0;border:0}
+.travel-provider-filter legend{font-size:12px;font-weight:600;margin-bottom:8px;padding:0}
+.travel-filter-count{font-size:12px;color:var(--ds-muted);margin:8px 0}
+.travel-toggle-options{display:flex;flex-wrap:wrap;gap:8px}
+:root .travel-search button.travel-filter-option{border-radius:999px;min-height:44px;max-width:100%;padding:10px 16px;text-align:left;overflow-wrap:anywhere;background:var(--ds-surface);color:var(--ds-ink);border-color:var(--ds-line)}
+:root .travel-search button.travel-filter-option[aria-pressed=true]{background:var(--ds-active);color:var(--ds-active-text);border-color:var(--ds-active-text);font-weight:600}
+:root .travel-search button.travel-filter-expand{margin-top:10px;background:transparent;border:0;text-decoration:underline;text-underline-offset:3px;color:var(--ds-ink);min-height:44px}
+.travel-toggle-options p{font-size:12px;color:var(--ds-muted)}
 .travel-filter-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .travel-search .travel-filter-chips button{font-size:12px;min-height:36px;padding:8px 10px;background:var(--ds-active);color:var(--ds-active-text)}
 .travel-provider-filters>.travel-check{margin:14px 0}
 @media(max-width:760px){.travel-provider-filter-grid{grid-template-columns:minmax(0,1fr)}}
+
+.flight-travelers{position:relative;min-width:160px;flex:1;max-width:260px}
+.flight-travelers-label{display:block;font-size:11px;font-weight:600;line-height:1.5;margin-bottom:7px}
+:root .travel-search .flight-travelers button{background:var(--ds-surface);color:var(--ds-ink);border:1px solid var(--ds-line);font-size:13px}
+:root .travel-search .flight-travelers .flight-travelers-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;height:42px;padding:10px 11px;text-align:left;border-radius:7px}
+.flight-travelers-trigger svg{flex-shrink:0;transition:transform .15s}
+.flight-travelers-trigger[aria-expanded=true] svg{transform:rotate(180deg)}
+.flight-travelers-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:15;width:304px;max-width:calc(100vw - 48px);box-sizing:border-box;padding:6px 16px 12px;border:1px solid var(--ds-line);border-radius:8px;background:var(--ds-surface);color:var(--ds-ink);box-shadow:0 8px 24px #00000014}
+.flight-travelers-panel[hidden]{display:none}
+.flight-travelers-group+.flight-travelers-group{border-top:1px solid var(--ds-line)}
+.flight-travelers-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px}
+.flight-travelers-row>div:first-child{min-width:0;display:flex;flex-direction:column;gap:3px}
+.flight-travelers-row strong{font-size:13px;font-weight:600;line-height:1.3}
+.flight-travelers-row small{font-size:11px;color:var(--ds-muted);line-height:1.3}
+.flight-travelers-stepper{display:grid;grid-template-columns:32px 30px 32px;align-items:center;flex-shrink:0;border:1px solid var(--ds-control);border-radius:5px;overflow:hidden}
+:root .travel-search .flight-travelers .flight-travelers-stepper button{width:32px;height:32px;min-height:0;padding:0;border:0;border-radius:0;font-size:20px;line-height:1;color:var(--ds-green)}
+:root .travel-search .flight-travelers .flight-travelers-stepper button:hover:not(:disabled){background:var(--ds-soft);filter:none}
+:root .travel-search .flight-travelers .flight-travelers-stepper button:disabled{opacity:.35}
+.flight-travelers-stepper output{text-align:center;font-size:13px;font-variant-numeric:tabular-nums}
+.flight-travelers-ages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px}
+:root .travel-search .flight-travelers-ages select{height:36px;padding:7px 9px;background:var(--ds-surface);color:var(--ds-ink);border-color:var(--ds-line);font-size:12px}
+:root .travel-search .flight-travelers-panel .flight-travelers-help{font-size:11px;line-height:1.5;color:var(--ds-muted);margin:0 0 8px}
+:root .travel-search .flight-travelers-panel .flight-travelers-error{font-size:12px;line-height:1.5;color:var(--ds-danger);margin:0 0 10px}
+.flight-travelers-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--ds-line);padding-top:10px}
+.flight-travelers-footer small{font-size:11px;color:var(--ds-muted)}
+:root .travel-search .flight-travelers .flight-travelers-done{margin-left:auto;min-height:34px;padding:8px 18px;border:0;border-radius:5px;background:var(--ds-action);color:var(--ds-on-action);font-size:12px;font-weight:600}
+:root .travel-search .flight-travelers :focus-visible{outline:2px solid var(--ds-focus);outline-offset:2px}
+:root .travel-search .flight-travelers-stepper button:focus-visible{outline-offset:-3px}
+@media(max-width:560px){
+  .flight-travelers{flex-basis:100%;max-width:none;min-width:0}
+  .flight-travelers-panel{position:static;width:100%;max-width:100%;margin-top:6px;padding:6px 14px 12px}
+}
+@media(pointer:coarse),(max-width:560px){
+  .flight-travelers-stepper{grid-template-columns:44px 30px 44px}
+  :root .travel-search .flight-travelers .flight-travelers-stepper button{width:44px;height:44px}
+  .flight-travelers-row{min-height:64px}
+  :root .travel-search .flight-travelers .flight-travelers-done{min-height:44px;padding:10px 20px}
+  :root .travel-search .flight-travelers-ages select{height:44px}
+}

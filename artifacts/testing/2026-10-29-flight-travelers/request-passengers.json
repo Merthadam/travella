@@ -1,0 +1,12 @@
+{
+  "adults": 2,
+  "children_ages": [
+    7
+  ],
+  "infant_ages": [
+    0
+  ],
+  "cabin_class": "ECONOMY",
+  "origin": "BUD",
+  "destination": "MIL"
+}

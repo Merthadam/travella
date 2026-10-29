@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-29T21:31:41.401478+00:00"
 last_activity: 2026-10-29
-last_activity_desc: Guided stays sandbox checkout verified; broader phase acceptance remains open
+last_activity_desc: Travel search defaults and controls verified and shipped in PR24; user-authorized merge after readiness checks; broader phase acceptance remains open
 state_head: 4b6f4ab7df42622b10ea7b46222e8ef463f21efe
 progress:
   total_phases: 19
@@ -27,6 +27,12 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 | 261027-rif | Refine trip essentials into one compact whole-trip briefing prototype | 2026-10-27 | 3871fc4 | [261027-rif](./quick/261027-rif-refine-trip-essentials-into-one-compact-/) |
 | 261027-rwm | Tailor compact briefing sources to city transport and matching sights | 2026-10-27 | ea0dee8 | [261027-rwm](./quick/261027-rwm-tailor-compact-briefing-source-links-to-/) |
 | 261027-sl1 | Implement compact trip briefing with tailored observed sources | 2026-10-27 | ec205d0 | [261027-sl1](./quick/261027-sl1-implement-approved-compact-trip-briefing/) |
+| 261029-rrx | Prefill editable airports and nationality from home base and Plan | 2026-10-29 | 6b77473 | [261029-rrx](./quick/261029-rrx-preset-editable-flight-airports-national/) |
+| 261029-u9c | Prefill stay destination country from Plan destination | 2026-10-29 | d5ee569 | [261029-u9c](./quick/261029-u9c-prefill-editable-stay-destination-countr/) |
+| 261029-uf3 | Make property types and amenities searchable checkbox lists | 2026-10-29 | 49c1b7d | [261029-uf3](./quick/261029-uf3-make-stay-property-and-amenity-filters-s/) |
+| 261029-ulo | Replace filter searches and scroll boxes with wrapping toggle chips | 2026-10-29 | cfcff20 | [261029-ulo](./quick/261029-ulo-replace-stay-filter-searches-and-scrolli/) |
+| 261029-v70 | Replace flight passenger boxes with compact traveler picker | 2026-10-29 | 11ac5d8 | [261029-v70](./quick/261029-v70-replace-flight-passenger-boxes-with-a-co/) |
+| 261029-vlr | Refine traveler picker density and counters | 2026-10-29 | 456034f | [261029-vlr](./quick/261029-vlr-refine-traveler-picker-density-and-verif/) |
 
 ## Project Reference
 

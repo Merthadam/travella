@@ -1,0 +1,6 @@
+Emulating viewport: {"deviceScaleFactor":1,"isMobile":true,"hasTouch":true,"isLandscape":false,"width":390,"height":844}
+## Console messages
+Showing 1-3 of 3 (Page 1 of 1).
+msgid=230 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)
+msgid=231 [error] Failed to load resource: the server responded with a status of 500 (Internal Server Error) (0 args)
+msgid=235 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args) [2 times]

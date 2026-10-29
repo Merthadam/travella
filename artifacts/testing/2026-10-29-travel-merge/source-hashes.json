@@ -1,0 +1,8 @@
+{
+  "frontend/src/features/plans/components/PlanningCanvas.jsx": "match",
+  "frontend/src/features/plans/travel/TravelWorkspace.jsx": "match",
+  "frontend/src/features/plans/travel/FlightTravelers.jsx": "match",
+  "frontend/src/features/plans/travel/StaySearchFilters.jsx": "match",
+  "services/mcps/liteapi.py": "match",
+  "travel-mcp:services/mcps/liteapi.py": "match"
+}

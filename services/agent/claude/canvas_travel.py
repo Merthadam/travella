@@ -16,6 +16,7 @@ from claude_agent_sdk import create_sdk_mcp_server, tool
 from pydantic import Field, field_validator, model_validator
 
 from services.shared.traveler_profile import reference_catalog
+from services.shared.airport_groups import airport_members
 
 from ..travel_contracts import (
     Airports,
@@ -542,12 +543,12 @@ def flight_criteria(message, context, draft):
         raise Clarification(FLIGHT_INPUT_QUESTION) from None
 
 
-def safe_flight(raw, criteria):
+def safe_flight(raw, criteria, airport_groups=None):
     flight = Flight.model_validate(raw)
     result = FlightOption.model_validate(flight.model_dump(include=set(FlightOption.model_fields)))
     for leg, origin, destination, day in [(result.outbound, criteria.origin, criteria.destination, criteria.departure_date),
                                          (result.inbound, criteria.destination, criteria.origin, criteria.return_date)]:
-        if leg.segments[0].origin != origin or leg.segments[-1].destination != destination or leg.segments[0].departure_at[:10] != day.isoformat():
+        if leg.segments[0].origin not in airport_members(origin, airport_groups) or leg.segments[-1].destination not in airport_members(destination, airport_groups) or leg.segments[0].departure_at[:10] != day.isoformat():
             raise ValueError("flight_route_mismatch")
         for index, segment in enumerate(leg.segments):
             datetime.fromisoformat(segment.departure_at)
@@ -708,7 +709,7 @@ class CanvasTravelObserver:
                         raise TravelSearchFailure("invalid_search")
                     if raw.get("provider") != "LiteAPI" or type(raw.get("sandbox")) is not bool or raw.get("status") not in {"ready", "empty"}:
                         raise ValueError("travel_response_invalid")
-                    results = [safe_flight(item, criteria) if mode == "flights" else safe_stay(item) for item in raw["results"]]
+                    results = [safe_flight(item, criteria, raw.get("airport_groups")) if mode == "flights" else safe_stay(item) for item in raw["results"]]
                     if len(results) > 100 or raw.get("returned_count") != len(results) or (raw["status"] == "empty") != (not results):
                         raise ValueError("travel_count_invalid")
                     now = datetime.now(UTC)

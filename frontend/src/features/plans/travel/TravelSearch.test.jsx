@@ -12,6 +12,8 @@ import userEvent from "@testing-library/user-event";
 import { TravelSearch, filterResults } from "./TravelSearch";
 import { travelRequest } from "./travelApi";
 import { draftTravelFacts, TravelPhoto, safeTravelImage, travelSnapshotSchema } from './CanvasTravel';
+import { bindTravelRecoveryScope, clearCanvasViews, writeTravelWorkspace } from '../canvasViewState';
+import { draftFromCriteria, initialWorkspace } from './useTravelWorkspace';
 vi.mock("./travelApi", () => ({ travelRequest: vi.fn() }));
 const searchRequest = vi.fn();
 beforeEach(() => {
@@ -181,6 +183,93 @@ function imported(mode='accommodation', id='import-1') {
   return {search_id:id,mode:stay?'stays':'flights',plan_id:props.planId,generation:1,fingerprint:'a'.repeat(64),draft_facts:draftTravelFacts(props.initialData),searched_at:new Date().toISOString(),expires_at:new Date(Date.now()+600000).toISOString(),provider:'LiteAPI',sandbox:true,returned_count:1,truncated:false,notices:[],preview_ids:[id],search_only_dates:true,results:[item],criteria:stay ? {destination:{city:'Lisbon',country_code:'PT',place_id:null},check_in:'2027-11-13',check_out:'2027-11-16',rooms:[{adults:2,children_ages:[7]}],guest_nationality:'HU',currency:'USD',hotel_id:null} : {origin:'BUD',destination:'LIS',departure_date:'2027-11-13',return_date:'2027-11-16',adults:2,children_ages:[7],infant_ages:[1],cabin_class:'BUSINESS',currency:'USD',country_code:'HU'}};
 }
 
+test('flight traveler picker sends exact counts, age selections and the existing cabin after Done', async () => {
+  const data = imported('flights');
+  searchRequest.mockImplementation(async (_plan, action, criteria) => action === 'flights/search'
+    ? { ...imported('flights', 'family-search'), criteria }
+    : undefined);
+  render(<TravelSearch {...props} mode="flights" importedSnapshot={data}/>);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /Travelers.*4 travelers/i }));
+  expect(screen.getByLabelText('Child 1 age').value).toBe('7');
+  expect(screen.getByLabelText('Infant 1 age').value).toBe('1');
+  await user.click(screen.getByRole('button', { name: 'Add adult' }));
+  await user.click(screen.getByRole('button', { name: 'Add child' }));
+  await user.selectOptions(screen.getByLabelText('Child 2 age'), '5');
+  await user.click(screen.getByRole('button', { name: 'Add infant' }));
+  await user.selectOptions(screen.getByLabelText('Infant 2 age'), '0');
+  await user.click(screen.getByRole('button', { name: 'Done' }));
+  expect(screen.getByRole('button', { name: /Travelers.*7 travelers/i }).getAttribute('aria-expanded')).toBe('false');
+  expect(searchRequest).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Search flights' }));
+  await screen.findByRole('heading', { name: 'family-search' });
+  expect(searchRequest.mock.calls.find(call => call[1] === 'flights/search')[2]).toEqual({
+    ...data.criteria, adults: 3, children_ages: [7, 5], infant_ages: [1, 0],
+  });
+});
+
+test.each(['child', 'infant'])('closed flight picker exposes a missing %s age before searching', async kind => {
+  const data = imported('flights');
+  data.criteria.children_ages = [];
+  data.criteria.infant_ages = [];
+  render(<TravelSearch {...props} mode="flights" importedSnapshot={data}/>);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /Travelers.*2 travelers/i }));
+  await user.click(screen.getByRole('button', { name: `Add ${kind}` }));
+  await user.keyboard('{Escape}');
+  expect(screen.getByRole('button', { name: /Travelers.*3 travelers/i }).getAttribute('aria-expanded')).toBe('false');
+  await user.click(screen.getByRole('button', { name: 'Search flights' }));
+  expect(searchRequest).not.toHaveBeenCalled();
+  const label = `${kind[0].toUpperCase()}${kind.slice(1)} 1 age`;
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(label)));
+  expect(screen.getByRole('button', { name: /Travelers.*3 travelers/i }).getAttribute('aria-expanded')).toBe('true');
+});
+
+test('flight traveler edits recover on remount with their exact ages and cabin', async () => {
+  bindTravelRecoveryScope('f'.repeat(32));
+  try {
+    const recoveryProps = { ...props, planId: 'flight-traveler-recovery', mode: 'flights' };
+    const view = render(<TravelSearch {...recoveryProps}/>);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Travelers.*2 travelers/i }));
+    await user.click(screen.getByRole('button', { name: 'Add child' }));
+    await user.selectOptions(screen.getByLabelText('Child 1 age'), '8');
+    await user.click(screen.getByRole('button', { name: 'Add infant' }));
+    await user.selectOptions(screen.getByLabelText('Infant 1 age'), '0');
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.selectOptions(screen.getByLabelText('Cabin'), 'PREMIUM_ECONOMY');
+    view.unmount();
+    render(<TravelSearch {...recoveryProps}/>);
+    await user.click(screen.getByRole('button', { name: /Travelers.*4 travelers/i }));
+    expect(screen.getByLabelText('Child 1 age').value).toBe('8');
+    expect(screen.getByLabelText('Infant 1 age').value).toBe('0');
+    expect(screen.getByLabelText('Cabin').value).toBe('PREMIUM_ECONOMY');
+    expect(searchRequest).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    clearCanvasViews();
+  }
+});
+
+test('an incomplete adult count recovered from the old flight form cannot submit zero adults', async () => {
+  const owner = 'e'.repeat(32), planId = 'flight-traveler-incomplete-recovery';
+  bindTravelRecoveryScope(owner);
+  try {
+    const state = initialWorkspace({ owner, planId, topic: 'flights', initialData: props.initialData });
+    state.draftCriteria = { ...state.draftCriteria, ...draftFromCriteria(imported('flights').criteria, 'flights'), adults: '', children: [], infants: [] };
+    state.draftDirty = true;
+    expect(writeTravelWorkspace(owner, planId, 'flights', state)).toBe(true);
+    render(<TravelSearch {...props} planId={planId} mode="flights"/>);
+    expect(screen.getByRole('button', { name: /Travelers.*0 travelers/i })).toBeTruthy();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Search flights' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Choose at least one adult');
+    expect(travelRequest).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    clearCanvasViews();
+  }
+});
+
 test.each(['accommodation','flights'])('new %s import defeats an older manual response; same identity and expiry cannot overwrite manual continuation',async(mode)=>{
   let resolveOld;
   const first=imported(mode), next=imported(mode,'import-2');
@@ -348,17 +437,14 @@ test("manual results can prepare a discussion without replacing browsing or expo
 
 test('provider-backed apartment and amenity filters apply to new searches and can be cleared', async () => {
   searchRequest.mockImplementation((plan, action, criteria) => Promise.resolve(action === 'hotels/catalog'
-    ? { items: criteria.kind === 'hotel_types' ? [{ id: 201, name: 'Apartments' }] : [{ id: 7, name: 'Kitchen' }, { id: 8, name: 'Pool' }] }
+    ? { items: criteria.kind === 'hotel_types' ? [{ id: 201, name: 'Apartments' }, { id: 202, name: 'Hotels' }] : [{ id: 7, name: 'Kitchen' }, { id: 8, name: 'Pool' }] }
     : response('Filtered apartment')));
   render(<TravelSearch {...props}/>);
   const user = await fill();
   await user.click(screen.getByText('Property type, amenities & cancellation'));
-  const type = await screen.findByRole('combobox', { name: 'Property type' });
-  await user.click(type); await user.type(type, 'apart'); await user.click(screen.getByRole('option', { name: 'Apartments' }));
-  for (const name of ['Kitchen', 'Pool']) {
-    const field = screen.getByRole('combobox', { name: 'Add an amenity' });
-    await user.click(field); await user.type(field, name); await user.click(screen.getByRole('option', { name }));
-  }
+  await user.click(await screen.findByRole('button', { name: 'Apartments' }));
+  await user.click(screen.getByRole('button', { name: 'Hotels' }));
+  for (const name of ['Kitchen', 'Pool']) await user.click(screen.getByRole('button', { name }));
   await user.selectOptions(screen.getByLabelText('Amenity matching'), 'any');
   await user.click(screen.getByLabelText('Search refundable rates only'));
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
@@ -366,7 +452,7 @@ test('provider-backed apartment and amenity filters apply to new searches and ca
   expect(screen.queryByText('Property type 201')).toBeNull();
   expect(screen.getByLabelText('Applied search constraints').textContent).toContain('Apartments');
   const request = searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2];
-  expect(request).toMatchObject({ hotel_type_ids: [201], facility_ids: [7, 8], strict_facility_filtering: false, refundable_rates_only: true });
+  expect(request).toMatchObject({ hotel_type_ids: [201, 202], facility_ids: [7, 8], strict_facility_filtering: false, refundable_rates_only: true });
   await user.click(screen.getByRole('button', { name: 'Clear search filters' }));
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
   const last = searchRequest.mock.calls.filter(call => call[1] === 'hotels/search').at(-1)[2];
@@ -404,7 +490,7 @@ test('catalog failure offers retry and keeps ordinary manual search available', 
   const user = await fill();
   await user.click(screen.getByText('Property type, amenities & cancellation'));
   expect(await screen.findByRole('button', { name: 'Retry filters' })).toBeTruthy();
-  expect(screen.queryByRole('combobox', { name: 'Property type' })).toBeNull();
+  expect(screen.queryByRole('searchbox', { name: 'Search property types' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
   expect(await screen.findByText('Hotel')).toBeTruthy();
 });
