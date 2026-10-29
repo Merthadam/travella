@@ -6,4 +6,4 @@ Source:18d169f. Base:origin/main c1eba7d; no intervening main commits or conflic
 
 Prior implementation reviews were performed by the three requested subagents. No additional teammate review is requested. Cancellation, finalized-Plan documents and UI refinement remain follow-up work. Runtime preview preserved at localhost5198; no deployment or shared-stack restart needed for merge.
 
-Final documentation cleanup normalizes terminal-log trailing whitespace without changing recorded results. PR/merge reference follows.
+Final documentation cleanup normalizes terminal-log trailing whitespace without changing recorded results. PR #23: https://github.com/Merthadam/travella/pull/23 (lydian-fifth → main). User-authorized merge proceeds after remote mergeability/check inspection.

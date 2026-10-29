@@ -455,3 +455,8 @@ User approved one stay per Plan, flight-style checkout, provider-confirmed guest
 ### Stays checkout scrolling correction — 29 October 2026
 
 User reported scrolling blocked. Hidden mounted workspace triggered overflow:hidden on checkout. Scoped layout rules to visible workspace children. Chrome keyboard reproduction failed before and passed after on desktop/mobile, build/auth/source hash passed. Earlier programmatic scrolling evidence did not cover user input. Evidence: artifacts/testing/2026-10-29-stays-scroll/verification.md. Broader phase acceptance unchanged.
+
+
+### Guided Stays shipment — 29 October 2026
+
+Product owner explicitly authorized merge of the current version, with substantial UI fine-tuning remaining. PR #23: https://github.com/Merthadam/travella/pull/23 (lydian-fifth → main), including scroll fix18d169f. Base c1eba7d; scoped security review has zero open findings. Existing475 tests/build and authenticated sandbox/scroll checks are recorded in quick261029-u8c and browser evidence. This shipment does not close wider Phase18 acceptance or the deferred cancellation/documents work.
