@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { AccountMenu } from '../../../components/AccountMenu';
 import { PlanDrawerAction } from './PlanDrawerAction';
 import './plan-drawer.css';
 
@@ -44,7 +45,7 @@ function recentGroup(value, now = new Date()) {
   return 'Earlier';
 }
 
-export function PlanDrawer({ plans, loading, error, hasMore, selected, api, onExpired, onDone, onRetry, onLoadMore, onClose, onOpen, onNew, closeRef, drawerRef, onLockedChange }) {
+export function PlanDrawer({ onAccount, onSignOut, accountBusy, plans, loading, error, hasMore, selected, api, onExpired, onDone, onRetry, onLoadMore, onClose, onOpen, onNew, closeRef, drawerRef, onLockedChange }) {
   const [query, setQuery] = useState('');
   const [action, setAction] = useState(null);
   const [locked, setLocked] = useState(false);
@@ -94,6 +95,6 @@ export function PlanDrawer({ plans, loading, error, hasMore, selected, api, onEx
       {hasMore && !error && <button className="drawer-load-more" disabled={loading || Boolean(action)} onClick={onLoadMore}>Load more plans</button>}
       {hasMore && query.trim() && <p className="drawer-feedback">Search covers loaded plans. Load more to search older plans.</p>}
     </div>
-    <footer className="quiet-drawer-footer"><a href="/plans" aria-disabled={Boolean(action)} onClick={event => { if (action) event.preventDefault(); else onOpen(event, null); }}>All plans</a><p>Double-click a name to rename.</p><p>Or focus it and press F2 · Enter saves</p></footer>
+    <footer className="quiet-drawer-footer"><a href="/plans" aria-disabled={Boolean(action)} onClick={event => { if (action) event.preventDefault(); else onOpen(event, null); }}>All plans</a><p>Double-click a name to rename.</p><p>Or focus it and press F2 · Enter saves</p>{onAccount && <AccountMenu placement="drawer" disabled={accountBusy || Boolean(action) || locked} onAccount={onAccount} onSignOut={onSignOut}/>}</footer>
   </SwipeDrawer></>;
 }

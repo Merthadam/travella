@@ -16,7 +16,7 @@
 .canvas-travel-screen:not([hidden]):has(.travel-workspace){display:flex;flex-direction:column;overflow:hidden;padding:0;scrollbar-gutter:auto}
 .canvas-travel-screen:has(.travel-workspace)>.travel-navigation{width:100%;max-width:none;margin:0;padding:12px 24px;flex-shrink:0;border-bottom:1px solid var(--ds-line);background:var(--ds-surface)}
 .travel-workspace-panes{display:grid;grid-template-columns:minmax(0,1fr) var(--canvas-chat-width,400px);flex:1;min-height:0;overflow:hidden}
-.travel-chat-closed .travel-workspace-panes{grid-template-columns:minmax(0,1fr) 56px}
+.travel-chat-closed .travel-workspace-panes{grid-template-columns:minmax(0,1fr)}
 .travel-chat-pane{min-width:0;min-height:0;overflow:hidden;border-left:1px solid var(--ds-line)}
 .travel-chat-pane[hidden]{display:none}
 .travel-chat-context{max-height:30%;overflow:auto;flex-shrink:0;border-bottom:1px solid var(--ds-line)}
@@ -88,3 +88,7 @@
 .travel-reply-references li>button:first-child{text-align:left;color:var(--ds-green)}
 .canvas-chat-message .travel-chat-suggestions { padding: 0; }
 .travel-chat-suggestions .travel-option-actions > .ds-button { flex: 1 1 calc(50% - 8px); min-width: 120px; }
+
+.travel-options-pane[hidden] { display:none; }
+.travel-substage-status { display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap; }
+.travel-provider-label { color:var(--ds-muted);font-size:11px; }

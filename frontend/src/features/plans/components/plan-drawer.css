@@ -47,3 +47,6 @@
 .quiet-drawer-footer a:hover { text-decoration:underline; }
 @media(hover:none),(pointer:coarse) { .quiet-plan-drawer .drawer-trash:not(:disabled) { opacity:1; pointer-events:auto; width:32px; height:44px; } .quiet-plan-row { grid-template-columns:minmax(0,1fr) 34px; } .quiet-plan-drawer .drawer-inline-action input { font-size:16px; } .quiet-plan-drawer .drawer-inline-buttons button { min-height:40px; } }
 @media(prefers-reduced-motion:reduce) { .quiet-plan-drawer button { transition:none; } }
+/* The modal drawer and its account footer sit above the mobile chat control. */
+.plans-app > .drawer-backdrop { z-index:39; }
+.plans-app > .plan-drawer { z-index:40; }

@@ -23,7 +23,9 @@ test('account suspension keeps the mounted canvas instead of falling back to res
   const user=userEvent.setup();const onAccount=vi.fn();const props={api,onAccount,onExpired:vi.fn(),onSignOut:vi.fn()};
   const view=render(<PlansApp {...props}/>);
   await user.click(await screen.findByRole('button',{name:'Enter canvas'}));
-  await user.click(screen.getByRole('button',{name:'Account'}));
+  await user.click(screen.getByRole('button',{name:'Open plans navigation'}));
+  await user.click(screen.getByRole('button',{name:'Account menu'}));
+  await user.click(screen.getByRole('menuitem',{name:'Account settings'}));
   expect(onAccount).toHaveBeenCalledOnce();
   view.rerender(<PlansApp {...props} inactive/>);
   view.rerender(<PlansApp {...props} inactive={false}/>);

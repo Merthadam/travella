@@ -9,9 +9,14 @@
 .account-menu__profile strong { font-size:14px;line-height:1.4; }
 .account-menu__profile p { margin:5px 0 0;color:var(--app-muted);font-size:12px;line-height:1.5; }
 .account-menu__avatar { display:grid;place-items:center;width:42px;height:42px;flex-shrink:0;border-radius:50%;background:var(--app-active);color:var(--app-active-text); }
-.app-nav .account-menu [role=menuitem] { display:flex;align-items:center;gap:12px;width:100%;min-height:46px;padding:12px;border:0;border-radius:8px;background:transparent;color:var(--app-text);text-align:left;text-decoration:none;font-size:14px;font-weight:400; }
-.app-nav .account-menu [role=menuitem]:hover, .app-nav .account-menu [role=menuitem]:focus-visible { background:var(--app-soft); }
+.account-menu [role=menuitem] { display:flex;align-items:center;gap:12px;width:100%;min-height:46px;padding:12px;border:0;border-radius:8px;background:transparent;color:var(--app-text);text-align:left;text-decoration:none;font-size:14px;font-weight:400; }
+.account-menu [role=menuitem]:hover, .account-menu [role=menuitem]:focus-visible { background:var(--app-soft); }
 .account-menu__chevron { margin-left:auto;color:var(--app-muted); }
 .account-menu__divider { height:1px;margin:6px 8px;background:var(--app-line); }
-.app-nav .account-menu :focus-visible { outline:2px solid var(--app-focus);outline-offset:2px; }
-.app-nav .account-menu svg { flex-shrink:0; }
+.account-menu :focus-visible { outline:2px solid var(--app-focus);outline-offset:2px; }
+.account-menu svg { flex-shrink:0; }
+
+.account-menu--drawer { margin-top:16px; }
+.quiet-plan-drawer .account-menu--drawer .account-menu__trigger { display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:10px 0;border:0;border-radius:6px;color:#e1e7e5;text-align:left; }
+.account-menu--drawer .account-menu__card { top:auto;bottom:calc(100% + 10px);left:0;right:auto;width:100%;z-index:2; }
+.quiet-drawer-footer { flex-shrink:0; }

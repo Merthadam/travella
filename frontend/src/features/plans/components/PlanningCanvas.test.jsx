@@ -18,7 +18,7 @@ vi.mock('../travel/TravelSearch', () => ({
 }));
 beforeEach(() => {
   sessionStorage.clear(); vi.mocked(travelRequest).mockReset();
-  vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
@@ -128,7 +128,9 @@ test('open card edits and unsent chat survive flight and stay navigation', async
   expect(screen.queryByRole('region', { name: 'Plan content' })).toBeNull();
   expect(screen.queryByRole('dialog', { name: 'Explore travel' })).toBeNull();
   expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();
-  await user.click(screen.getByRole('button', { name: 'Stays', exact: true }));
+  expect(screen.queryByRole('button', { name: 'Stays', exact: true })).toBeNull();
+  await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
+  await user.click(screen.getByRole('button', { name: 'Explore accommodation' }));
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
   expect(screen.getByRole('textbox', { name: 'Preference' }).value).toBe('Unfinished preference');
