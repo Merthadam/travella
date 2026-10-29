@@ -80,31 +80,42 @@ export function FlightTravelers({ adults, children = [], infants = [], onAdultsC
         closeAndFocus();
       }
     }}>
+    <span className="flight-travelers-label" id={`${id}-label`}>Travelers</span>
     <button type="button" className="flight-travelers-trigger" ref={triggerRef}
       aria-expanded={open} aria-controls={`${id}-panel`} aria-haspopup="dialog"
+      aria-labelledby={`${id}-label ${id}-count`}
       onClick={() => setOpen(value => !value)}>
-      <span><strong>Travelers</strong><span>{total} {total === 1 ? 'traveler' : 'travelers'} · Return flights</span></span>
-      <span aria-hidden="true">⌄</span>
+      <span id={`${id}-count`}>{total} {total === 1 ? 'traveler' : 'travelers'}</span>
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.5"/></svg>
     </button>
-    <div className="flight-travelers-panel" role="dialog" aria-labelledby={`${id}-heading`}
+    <div className="flight-travelers-panel" role="dialog" aria-labelledby={`${id}-label`}
       id={`${id}-panel`} ref={panelRef} hidden={!open}>
-      <h3 id={`${id}-heading`}>Travelers</h3>
-      <TravelerCount label="Adults" description="Ages 12+" singular="adult" count={adultCount}
+      <div className="flight-travelers-group">
+      <TravelerCount label="Adults" description="12+ years" singular="adult" count={adultCount}
         canRemove={adultCount > Math.max(1, infants.length)} canAdd={total < 9}
         onRemove={() => onAdultsChange(adultCount - 1)} onAdd={() => onAdultsChange(adultCount + 1)}/>
-      <TravelerCount label="Children" description="Ages 2–11" singular="child" count={children.length}
+      </div>
+      <div className="flight-travelers-group">
+      <TravelerCount label="Children" description="2–11 years" singular="child" count={children.length}
         canRemove={children.length > 0} canAdd={total < 9}
         onRemove={() => onChildrenChange(children.slice(0, -1))} onAdd={() => onChildrenChange([...children, ''])}/>
       <TravelerAges singular="Child" ages={children} min={2} max={11} onChange={onChildrenChange}
         onInvalid={revealInvalidAge} showError={showError} errorId={`${id}-error`}/>
+      </div>
+      <div className="flight-travelers-group">
       <TravelerCount label="Infants" description="Under 2" singular="infant" count={infants.length}
         canRemove={infants.length > 0} canAdd={total < 9 && infants.length < adultCount}
         onRemove={() => onInfantsChange(infants.slice(0, -1))} onAdd={() => onInfantsChange([...infants, ''])}/>
       <TravelerAges singular="Infant" ages={infants} min={0} max={1} onChange={onInfantsChange}
         onInvalid={revealInvalidAge} showError={showError} errorId={`${id}-error`}/>
-      <p className="flight-travelers-help">Up to 9 travelers. Each infant needs an adult. Ages are at departure.</p>
+      </div>
+      {total >= 9 && <p className="flight-travelers-help" role="status">Maximum 9 travelers.</p>}
+      {total < 9 && infants.length > 0 && infants.length >= adultCount && <p className="flight-travelers-help" role="status">One infant per adult.</p>}
       {showError && missingAge && <p className="flight-travelers-error" id={`${id}-error`} role="alert">Choose an age for every child and infant.</p>}
-      <button type="button" className="flight-travelers-done" onClick={done}>Done</button>
+      <div className="flight-travelers-footer">
+        {(children.length > 0 || infants.length > 0) && <small>Ages at departure</small>}
+        <button type="button" className="flight-travelers-done" onClick={done}>Done</button>
+      </div>
     </div>
   </div>;
 }
