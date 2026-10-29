@@ -1,0 +1,111 @@
+time="2026-10-29T22:23:26+01:00" level=warning msg="buildx Docker CLI plugin not found: falling back to the classic builder. BuildKit-only build features (multi-arch, secrets, ssh, additional contexts, ...) will not be available"
+ Image travella-stays-checkout-travel-mcp Building 
+ Image travella-stays-checkout-travel-mcp Building 
+Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  12.26MBSending build context to Docker daemon  13.21MB
+Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ ---> e5b65587bce7
+Step 2/10 : WORKDIR /app
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 3/10 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a30c52da356d
+Step 4/10 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> 15311d6f9274
+Step 5/10 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> d72b12c49a63
+Step 6/10 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> 03132a87ce93
+Step 7/10 : COPY services ./services
+ ---> 5071c1b5f91f
+Step 8/10 : EXPOSE 8000
+ ---> Running in e1975904b845
+ ---> Removed intermediate container e1975904b845
+ ---> f9da7f0398ce
+Step 9/10 : CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.auth.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+ ---> Running in 58ad5bb3c199
+ ---> Removed intermediate container 58ad5bb3c199
+ ---> 2981ff326a1f
+Step 10/10 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in 65d62863d9e0
+ ---> Removed intermediate container 65d62863d9e0
+ ---> ae9dfa850f00
+Successfully built ae9dfa850f00
+Successfully tagged travella-stays-checkout-travel-mcp:latest
+ Image travella-stays-checkout-travel-mcp Built 
+ Image travella-stays-checkout-travel-mcp Built 
+ Image travella-stays-checkout-app Building 
+ Image travella-stays-checkout-app Building 
+Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  10.68MBSending build context to Docker daemon  13.21MB
+Step 1/20 : FROM node:22-bookworm-slim AS frontend-dependencies
+ ---> 43ac6c60b8f8
+Step 2/20 : WORKDIR /frontend
+ ---> Using cache
+ ---> e82fc8f43f62
+Step 3/20 : COPY frontend/package.json frontend/package-lock.json ./
+ ---> Using cache
+ ---> 1b216545dccb
+Step 4/20 : RUN npm ci
+ ---> Using cache
+ ---> fdc7dd5e2f8e
+Step 5/20 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ ---> e5b65587bce7
+Step 6/20 : WORKDIR /app
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 7/20 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a30c52da356d
+Step 8/20 : COPY --from=frontend-dependencies /usr/local/bin/node /usr/local/bin/node
+ ---> Using cache
+ ---> a700fbd996d3
+Step 9/20 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> a1c8c787c984
+Step 10/20 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> 253107436d65
+Step 11/20 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> b115d97602ca
+Step 12/20 : COPY services ./services
+ ---> 43f6eba26ee5
+Step 13/20 : COPY frontend ./frontend
+ ---> 8c0ae77201f7
+Step 14/20 : COPY --from=frontend-dependencies /frontend/node_modules ./frontend/node_modules
+ ---> a6956a7ad315
+Step 15/20 : COPY scripts/start-local-single-container.sh ./scripts/start-local-single-container.sh
+ ---> 471f869f97de
+Step 16/20 : COPY scripts/local-app-healthcheck.py ./scripts/local-app-healthcheck.py
+ ---> b9be68468832
+Step 17/20 : RUN chmod +x /app/scripts/start-local-single-container.sh
+ ---> Running in 632871f3965a
+ ---> Removed intermediate container 632871f3965a
+ ---> 4587d4c52cfd
+Step 18/20 : EXPOSE 5173 8000 8002
+ ---> Running in e2c70d273208
+ ---> Removed intermediate container e2c70d273208
+ ---> 1aaabf0a6cfe
+Step 19/20 : CMD ["bash", "/app/scripts/start-local-single-container.sh"]
+ ---> Running in b26febae97e8
+ ---> Removed intermediate container b26febae97e8
+ ---> 34761ea7abf5
+Step 20/20 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in af2ab00a36a9
+ ---> Removed intermediate container af2ab00a36a9
+ ---> 21d745ff78b3
+Successfully built 21d745ff78b3
+Successfully tagged travella-stays-checkout-app:latest
+ Image travella-stays-checkout-app Built 
+ Image travella-stays-checkout-app Built 
+ Container travella-stays-checkout-travel-mcp-1 Recreate 
+ Container travella-stays-checkout-travel-mcp-1 Recreated 
+ Container travella-stays-checkout-app-1 Recreate 
+ Container travella-stays-checkout-app-1 Recreated 
+ Container travella-stays-checkout-travel-mcp-1 Starting 
+ Container travella-stays-checkout-travel-mcp-1 Started 
+ Container travella-stays-checkout-app-1 Starting 
+ Container travella-stays-checkout-app-1 Started 

@@ -1,0 +1,209 @@
+Shared settings refreshed in ignored env files (owner read/write only).
+Local service credentials ready; existing values preserved.
+Starting Travella at http://localhost:5198
+Auth gateway: http://localhost:8018
+Agent service: http://localhost:8118
+Services will run in the background. Stop them with: docker-compose -p travella-stays-checkout -f compose.local-single.yaml down
+time="2026-10-29T22:12:46+01:00" level=warning msg="buildx Docker CLI plugin not found: falling back to the classic builder. BuildKit-only build features (multi-arch, secrets, ssh, additional contexts, ...) will not be available"
+ Image travella-stays-checkout-research-mcp Building 
+ Image travella-stays-checkout-map-mcp Building 
+ Image travella-stays-checkout-travel-mcp Building 
+ Image travella-stays-checkout-travel-mcp Building 
+ Image travella-stays-checkout-map-mcp Building 
+ Image travella-stays-checkout-research-mcp Building 
+Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  547.6kBSending build context to Docker daemon  547.6kBSending build context to Docker daemon  2.657MBSending build context to Docker daemon  2.657MBSending build context to Docker daemon  2.657MBSending build context to Docker daemon   4.85MBSending build context to Docker daemon  5.374MBSending build context to Docker daemon   4.85MBSending build context to Docker daemon  8.573MBSending build context to Docker daemon  9.097MBSending build context to Docker daemon  7.492MBSending build context to Docker daemon  9.634MBSending build context to Docker daemon  11.73MBSending build context to Docker daemon  11.73MBSending build context to Docker daemon  11.73MBSending build context to Docker daemon  12.78MBSending build context to Docker daemon  12.78MBSending build context to Docker daemon  13.21MB
+Sending build context to Docker daemon  13.21MB
+Sending build context to Docker daemon  12.78MBSending build context to Docker daemon  13.21MB
+Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ ---> e5b65587bce7
+Step 2/10 : WORKDIR /app
+ ---> e5b65587bce7
+Step 2/10 : WORKDIR /app
+ ---> e5b65587bce7
+Step 2/10 : WORKDIR /app
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 3/10 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 3/10 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 3/10 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a30c52da356d
+Step 4/10 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> a30c52da356d
+Step 4/10 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> a30c52da356d
+Step 4/10 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> 15311d6f9274
+Step 5/10 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> 15311d6f9274
+Step 5/10 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> 15311d6f9274
+Step 5/10 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> d72b12c49a63
+Step 6/10 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> d72b12c49a63
+Step 6/10 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> d72b12c49a63
+Step 6/10 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> 03132a87ce93
+Step 7/10 : COPY services ./services
+ ---> Using cache
+ ---> 03132a87ce93
+Step 7/10 : COPY services ./services
+ ---> Using cache
+ ---> 03132a87ce93
+Step 7/10 : COPY services ./services
+ ---> dc65523fc4f4
+Step 8/10 : EXPOSE 8000
+ ---> 8cdfbee6cb19
+Step 8/10 : EXPOSE 8000
+ ---> 2251e6ff882b
+Step 8/10 : EXPOSE 8000
+ ---> Running in f72e107ff9b3
+ ---> Running in ad096bb4600d
+ ---> Running in f5c2cfee889e
+ ---> Removed intermediate container f5c2cfee889e
+ ---> 6cebc71fd3b6
+Step 9/10 : CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.auth.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+ ---> Running in b1302bb62e07
+ ---> Removed intermediate container f72e107ff9b3
+ ---> a76a84b8d58e
+Step 9/10 : CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.auth.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+ ---> Removed intermediate container ad096bb4600d
+ ---> c1853fe31423
+Step 9/10 : CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.auth.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+ ---> Running in 69ad94858b62
+ ---> Running in 2434cb452c3f
+ ---> Removed intermediate container b1302bb62e07
+ ---> d4d92437f48f
+Step 10/10 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in 310bdd3f2553
+ ---> Removed intermediate container 2434cb452c3f
+ ---> 7752b16eaddb
+Step 10/10 : LABEL com.docker.compose.image.builder=classic
+ ---> Removed intermediate container 69ad94858b62
+ ---> e81e15b68440
+Step 10/10 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in 6c28469ab045
+ ---> Running in 93dd37a7246b
+ ---> Removed intermediate container 93dd37a7246b
+ ---> 9fc53c323a60
+Successfully built 9fc53c323a60
+ ---> Removed intermediate container 6c28469ab045
+ ---> 67771f002572
+ ---> Removed intermediate container 310bdd3f2553
+ ---> f3116a4efdb2
+Successfully built 67771f002572
+Successfully built f3116a4efdb2
+Successfully tagged travella-stays-checkout-map-mcp:latest
+ Image travella-stays-checkout-map-mcp Built 
+ Image travella-stays-checkout-map-mcp Built 
+Successfully tagged travella-stays-checkout-travel-mcp:latest
+ Image travella-stays-checkout-travel-mcp Built 
+ Image travella-stays-checkout-travel-mcp Built 
+Successfully tagged travella-stays-checkout-research-mcp:latest
+ Image travella-stays-checkout-research-mcp Built 
+ Image travella-stays-checkout-research-mcp Built 
+ Image travella-stays-checkout-app Building 
+ Image travella-stays-checkout-app Building 
+Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  3.213MBSending build context to Docker daemon  5.899MBSending build context to Docker daemon  6.968MBSending build context to Docker daemon  9.097MBSending build context to Docker daemon  11.21MBSending build context to Docker daemon  12.78MBSending build context to Docker daemon  13.21MB
+Step 1/20 : FROM node:22-bookworm-slim AS frontend-dependencies
+ ---> 43ac6c60b8f8
+Step 2/20 : WORKDIR /frontend
+ ---> Using cache
+ ---> e82fc8f43f62
+Step 3/20 : COPY frontend/package.json frontend/package-lock.json ./
+ ---> Using cache
+ ---> 1b216545dccb
+Step 4/20 : RUN npm ci
+ ---> Using cache
+ ---> fdc7dd5e2f8e
+Step 5/20 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ ---> e5b65587bce7
+Step 6/20 : WORKDIR /app
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 7/20 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a30c52da356d
+Step 8/20 : COPY --from=frontend-dependencies /usr/local/bin/node /usr/local/bin/node
+ ---> Using cache
+ ---> a700fbd996d3
+Step 9/20 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> a1c8c787c984
+Step 10/20 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> 253107436d65
+Step 11/20 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> b115d97602ca
+Step 12/20 : COPY services ./services
+ ---> d5f5d3ea956e
+Step 13/20 : COPY frontend ./frontend
+ ---> dbe4aed39674
+Step 14/20 : COPY --from=frontend-dependencies /frontend/node_modules ./frontend/node_modules
+ ---> 579f7061c7b1
+Step 15/20 : COPY scripts/start-local-single-container.sh ./scripts/start-local-single-container.sh
+ ---> b2b761b5f3ea
+Step 16/20 : COPY scripts/local-app-healthcheck.py ./scripts/local-app-healthcheck.py
+ ---> 72fa550d1bf7
+Step 17/20 : RUN chmod +x /app/scripts/start-local-single-container.sh
+ ---> Running in 2a9c72d05bb3
+ ---> Removed intermediate container 2a9c72d05bb3
+ ---> 79d1685f8633
+Step 18/20 : EXPOSE 5173 8000 8002
+ ---> Running in 5a6e83ab6305
+ ---> Removed intermediate container 5a6e83ab6305
+ ---> c7ffbbdf1ece
+Step 19/20 : CMD ["bash", "/app/scripts/start-local-single-container.sh"]
+ ---> Running in 8320d17e5a9d
+ ---> Removed intermediate container 8320d17e5a9d
+ ---> 2947de899bca
+Step 20/20 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in 28321d0b7bb0
+ ---> Removed intermediate container 28321d0b7bb0
+ ---> 65f7b9c4766d
+Successfully built 65f7b9c4766d
+Successfully tagged travella-stays-checkout-app:latest
+ Image travella-stays-checkout-app Built 
+ Image travella-stays-checkout-app Built 
+ Container travella-stays-checkout-postgres-1 Running 
+ Container travella-stays-checkout-map-mcp-1 Recreate 
+ Container travella-stays-checkout-research-mcp-1 Recreate 
+ Container travella-stays-checkout-travel-mcp-1 Recreate 
+ Container travella-stays-checkout-travel-mcp-1 Recreated 
+ Container travella-stays-checkout-map-mcp-1 Recreated 
+ Container travella-stays-checkout-research-mcp-1 Recreated 
+ Container travella-stays-checkout-app-1 Recreate 
+ Container travella-stays-checkout-app-1 Recreated 
+ Container travella-stays-checkout-map-mcp-1 Starting 
+ Container travella-stays-checkout-travel-mcp-1 Starting 
+ Container travella-stays-checkout-research-mcp-1 Starting 
+ Container travella-stays-checkout-map-mcp-1 Started 
+ Container travella-stays-checkout-travel-mcp-1 Started 
+ Container travella-stays-checkout-research-mcp-1 Started 
+ Container travella-stays-checkout-postgres-1 Waiting 
+ Container travella-stays-checkout-postgres-1 Healthy 
+ Container travella-stays-checkout-app-1 Starting 
+ Container travella-stays-checkout-app-1 Started 
+Waiting for the app container and its local service health checks...
+Local authentication is ready: sign-in, session check, and temporary sign-out succeeded.
+The temporary check session was signed out; no credentials or tokens were displayed.
+Travella is ready at http://localhost:5198
+Open that exact localhost origin so its session cookie matches the local auth service.

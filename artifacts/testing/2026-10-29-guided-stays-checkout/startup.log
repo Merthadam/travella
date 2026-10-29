@@ -1,0 +1,209 @@
+Shared settings refreshed in ignored env files (owner read/write only).
+Created ignored local MCP auth credentials.
+Starting Travella at http://localhost:5174
+Auth gateway: http://localhost:8003
+Agent service: http://localhost:8103
+Services will run in the background. Stop them with: docker-compose -p travella-local-single -f compose.local-single.yaml down
+time="2026-10-29T21:53:59+01:00" level=warning msg="buildx Docker CLI plugin not found: falling back to the classic builder. BuildKit-only build features (multi-arch, secrets, ssh, additional contexts, ...) will not be available"
+ Image travella-local-single-research-mcp Building 
+ Image travella-local-single-map-mcp Building 
+ Image travella-local-single-travel-mcp Building 
+ Image travella-local-single-research-mcp Building 
+ Image travella-local-single-map-mcp Building 
+ Image travella-local-single-travel-mcp Building 
+Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  547.6kBSending build context to Docker daemon  547.6kBSending build context to Docker daemon  5.899MBSending build context to Docker daemon  5.899MBSending build context to Docker daemon  5.374MBSending build context to Docker daemon  12.26MBSending build context to Docker daemon  11.73MBSending build context to Docker daemon  12.26MBSending build context to Docker daemon   13.2MB
+Sending build context to Docker daemon   13.2MB
+Sending build context to Docker daemon   13.2MB
+Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ ---> e5b65587bce7
+Step 2/10 : WORKDIR /app
+ ---> e5b65587bce7
+Step 2/10 : WORKDIR /app
+ ---> e5b65587bce7
+Step 2/10 : WORKDIR /app
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 3/10 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 3/10 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 3/10 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a30c52da356d
+Step 4/10 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> a30c52da356d
+Step 4/10 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> a30c52da356d
+Step 4/10 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> 15311d6f9274
+Step 5/10 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> 15311d6f9274
+Step 5/10 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> 15311d6f9274
+Step 5/10 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> d72b12c49a63
+Step 6/10 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> d72b12c49a63
+Step 6/10 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> d72b12c49a63
+Step 6/10 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> 03132a87ce93
+Step 7/10 : COPY services ./services
+ ---> Using cache
+ ---> 03132a87ce93
+Step 7/10 : COPY services ./services
+ ---> Using cache
+ ---> 03132a87ce93
+Step 7/10 : COPY services ./services
+ ---> 52a19a630f72
+Step 8/10 : EXPOSE 8000
+ ---> cc58ebfcaec5
+Step 8/10 : EXPOSE 8000
+ ---> cd03b4d3f352
+Step 8/10 : EXPOSE 8000
+ ---> Running in 33b0410128df
+ ---> Running in 9adf64974a56
+ ---> Running in 5d5701fa532a
+ ---> Removed intermediate container 33b0410128df
+ ---> ec609e1ce5f9
+Step 9/10 : CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.auth.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+ ---> Removed intermediate container 9adf64974a56
+ ---> c6c120560cce
+Step 9/10 : CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.auth.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+ ---> Removed intermediate container 5d5701fa532a
+ ---> 218cdad1efca
+Step 9/10 : CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.auth.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+ ---> Running in 4c35a1bf1285
+ ---> Running in ce370769ceaf
+ ---> Running in 015489ccd3f5
+ ---> Removed intermediate container 4c35a1bf1285
+ ---> ce46d353becf
+Step 10/10 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in fd095913364f
+ ---> Removed intermediate container ce370769ceaf
+ ---> 9d4c1b832c9d
+Step 10/10 : LABEL com.docker.compose.image.builder=classic
+ ---> Removed intermediate container 015489ccd3f5
+ ---> be06f6ba0e08
+Step 10/10 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in 5df189ed38a5
+ ---> Running in c71d7988c1f4
+ ---> Removed intermediate container c71d7988c1f4
+ ---> b068d041a1db
+ ---> Removed intermediate container 5df189ed38a5
+ ---> 3bcfe3d35636
+Successfully built b068d041a1db
+ ---> Removed intermediate container fd095913364f
+ ---> c1639d98c9e4
+Successfully built 3bcfe3d35636
+Successfully built c1639d98c9e4
+Successfully tagged travella-local-single-map-mcp:latest
+ Image travella-local-single-map-mcp Built 
+ Image travella-local-single-map-mcp Built 
+Successfully tagged travella-local-single-research-mcp:latest
+ Image travella-local-single-research-mcp Built 
+ Image travella-local-single-research-mcp Built 
+Successfully tagged travella-local-single-travel-mcp:latest
+ Image travella-local-single-travel-mcp Built 
+ Image travella-local-single-travel-mcp Built 
+ Image travella-local-single-app Building 
+ Image travella-local-single-app Building 
+Sending build context to Docker daemon  547.6kBSending build context to Docker daemon  12.78MBSending build context to Docker daemon   13.2MB
+Step 1/20 : FROM node:22-bookworm-slim AS frontend-dependencies
+ ---> 43ac6c60b8f8
+Step 2/20 : WORKDIR /frontend
+ ---> Using cache
+ ---> e82fc8f43f62
+Step 3/20 : COPY frontend/package.json frontend/package-lock.json ./
+ ---> Using cache
+ ---> 1b216545dccb
+Step 4/20 : RUN npm ci
+ ---> Using cache
+ ---> fdc7dd5e2f8e
+Step 5/20 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ ---> e5b65587bce7
+Step 6/20 : WORKDIR /app
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 7/20 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a30c52da356d
+Step 8/20 : COPY --from=frontend-dependencies /usr/local/bin/node /usr/local/bin/node
+ ---> Using cache
+ ---> a700fbd996d3
+Step 9/20 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> a1c8c787c984
+Step 10/20 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> 253107436d65
+Step 11/20 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> b115d97602ca
+Step 12/20 : COPY services ./services
+ ---> 51c81403990b
+Step 13/20 : COPY frontend ./frontend
+ ---> 786dcf48b429
+Step 14/20 : COPY --from=frontend-dependencies /frontend/node_modules ./frontend/node_modules
+ ---> f4db050d8469
+Step 15/20 : COPY scripts/start-local-single-container.sh ./scripts/start-local-single-container.sh
+ ---> de60e652b087
+Step 16/20 : COPY scripts/local-app-healthcheck.py ./scripts/local-app-healthcheck.py
+ ---> 295eaa03913a
+Step 17/20 : RUN chmod +x /app/scripts/start-local-single-container.sh
+ ---> Running in 2ae392a4ff1d
+ ---> Removed intermediate container 2ae392a4ff1d
+ ---> fed4c915c77f
+Step 18/20 : EXPOSE 5173 8000 8002
+ ---> Running in a7fd6759ba4d
+ ---> Removed intermediate container a7fd6759ba4d
+ ---> ee19aba65471
+Step 19/20 : CMD ["bash", "/app/scripts/start-local-single-container.sh"]
+ ---> Running in 700f75bec244
+ ---> Removed intermediate container 700f75bec244
+ ---> e49eb230ae5f
+Step 20/20 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in b61c396d7525
+ ---> Removed intermediate container b61c396d7525
+ ---> d7ab082c0ca6
+Successfully built d7ab082c0ca6
+Successfully tagged travella-local-single-app:latest
+ Image travella-local-single-app Built 
+ Image travella-local-single-app Built 
+ Container travella-local-single-postgres-1 Running 
+ Container travella-local-single-map-mcp-1 Recreate 
+ Container travella-local-single-research-mcp-1 Recreate 
+ Container travella-local-single-travel-mcp-1 Recreate 
+ Container travella-local-single-map-mcp-1 Recreated 
+ Container travella-local-single-research-mcp-1 Recreated 
+ Container travella-local-single-travel-mcp-1 Recreated 
+ Container travella-local-single-app-1 Recreate 
+ Container travella-local-single-app-1 Recreated 
+ Container travella-local-single-travel-mcp-1 Starting 
+ Container travella-local-single-map-mcp-1 Starting 
+ Container travella-local-single-research-mcp-1 Starting 
+ Container travella-local-single-travel-mcp-1 Started 
+ Container travella-local-single-map-mcp-1 Started 
+ Container travella-local-single-research-mcp-1 Started 
+ Container travella-local-single-postgres-1 Waiting 
+ Container travella-local-single-postgres-1 Healthy 
+ Container travella-local-single-app-1 Starting 
+ Container travella-local-single-app-1 Started 
+Waiting for the app container and its local service health checks...
+Local authentication is ready: sign-in, session check, and temporary sign-out succeeded.
+The temporary check session was signed out; no credentials or tokens were displayed.
+Travella is ready at http://localhost:5174
+Open that exact localhost origin so its session cookie matches the local auth service.
