@@ -1,10 +1,12 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
-import { preferredAirport } from './travelDefaults';
+import { destinationCountry, preferredAirport } from './travelDefaults';
+import { loadGoogleMaps } from '../../../lib/googleMaps';
 import { initialWorkspace, useTravelWorkspace } from './useTravelWorkspace';
 import { travelRequest } from './travelApi';
 import { bindTravelRecoveryScope, clearCanvasViews } from '../canvasViewState';
 vi.mock('./travelApi', () => ({ travelRequest: vi.fn() }));
+vi.mock('../../../lib/googleMaps', () => ({ loadGoogleMaps: vi.fn() }));
 const profile = { home_city: { name: 'Budapest', country_code: 'HU' }, default_airport: 'BUD', citizenships: ['AT'] };
 const data = { map: { destination: 'Milan' }, essentials: { dates: { start: '2027-03-04', end: '2027-03-09' }, travelers: 2 } };
 const milan = [{ iata: 'MXP', name: 'Malpensa', city: 'Milan', country_code: 'IT' }, { iata: 'MIL', name: 'Milan - All Airports', city: 'Milan', country_code: 'IT' }, { iata: 'LIN', name: 'Linate', city: 'Milan', country_code: 'IT' }, { iata: 'BGY', name: 'Bergamo', city: 'Bergamo', country_code: 'IT' }];
@@ -91,4 +93,68 @@ test('qualified Plan city uses a clean lookup and country-qualified selection', 
   const { result } = renderHook(() => useTravelWorkspace({ ...params, initialData: { ...data, map: { destination: 'Milan, Italy' } } }));
   await waitFor(() => expect(result.current.state.draftCriteria.destination?.iata).toBe('MIL'));
   expect(travelRequest.mock.calls.some(call => call[2].q === 'Milan')).toBe(true);
+});
+
+const geocodedCountry = code => ({ address_components: [{ types: ['country'], short_name: code }] });
+function mockGeocoder(geocode) {
+  loadGoogleMaps.mockResolvedValue({ libraries: { geocoding: { Geocoder: class { geocode = geocode; } } } });
+}
+
+test('stay destination country resolves from Plan without a profile or flight provider', async () => {
+  mockGeocoder(vi.fn().mockResolvedValue({ results: [geocodedCountry('IT')] }));
+  const { result } = renderHook(() => useTravelWorkspace({ ...params, topic: 'stays', travelerProfile: null }));
+  await waitFor(() => expect(result.current.state.draftCriteria.country).toBe('IT'));
+  expect(result.current.state.draftCriteria.nationality).toBe('');
+  expect(result.current.state.draftDirty).toBe(false);
+  expect(travelRequest).not.toHaveBeenCalled();
+});
+
+test('qualified destination country resolves without geocoding', async () => {
+  expect(await destinationCountry('Milan, Italy')).toBe('IT');
+  expect(await destinationCountry('Milan, IT')).toBe('IT');
+  expect(loadGoogleMaps).not.toHaveBeenCalled();
+});
+
+test.each([
+  { results: [] }, { results: [geocodedCountry('IT'), geocodedCountry('US')] },
+  { results: [{ ...geocodedCountry('IT'), partial_match: true }] }, { results: [geocodedCountry('XX')] },
+])('unresolved or ambiguous geocoding leaves the destination country blank: %j', async ({ results }) => {
+  mockGeocoder(vi.fn().mockResolvedValue({ results }));
+  expect(await destinationCountry('Unknown city')).toBe('');
+});
+
+test.each(['country', 'city'])('late destination lookup respects edited %s', async field => {
+  let resolve;
+  const geocode = vi.fn(() => new Promise(done => { resolve = done; }));
+  mockGeocoder(geocode);
+  const { result } = renderHook(() => useTravelWorkspace({ ...params, topic: 'stays' }));
+  await waitFor(() => expect(geocode).toHaveBeenCalled());
+  act(() => result.current.setDraft(field, field === 'country' ? 'AT' : 'Vienna'));
+  await act(async () => resolve({ results: [geocodedCountry('IT')] }));
+  expect(result.current.state.draftCriteria.country).toBe(field === 'country' ? 'AT' : '');
+});
+
+test('manual destination country survives reload and failed lookup stays editable', async () => {
+  bindTravelRecoveryScope('b'.repeat(32));
+  mockGeocoder(vi.fn().mockRejectedValue(new Error('unavailable')));
+  const first = renderHook(() => useTravelWorkspace({ ...params, topic: 'stays' }));
+  await act(async () => {});
+  expect(first.result.current.state.draftCriteria.country).toBe('');
+  act(() => first.result.current.setDraft('country', 'AT'));
+  first.unmount();
+  mockGeocoder(vi.fn().mockResolvedValue({ results: [geocodedCountry('IT')] }));
+  const second = renderHook(() => useTravelWorkspace({ ...params, topic: 'stays' }));
+  await act(async () => {});
+  expect(second.result.current.state.draftCriteria.country).toBe('AT');
+});
+
+test('late country response cannot cross Plan boundaries', async () => {
+  const pending = [];
+  const geocode = vi.fn(() => new Promise(resolve => pending.push(resolve)));
+  mockGeocoder(geocode);
+  const { result, rerender } = renderHook(({ planId }) => useTravelWorkspace({ ...params, topic: 'stays', planId }), { initialProps: { planId: 'first' } });
+  await waitFor(() => expect(pending).toHaveLength(1));
+  rerender({ planId: 'second' });
+  await act(async () => pending[0]({ results: [geocodedCountry('IT')] }));
+  expect(result.current.state.draftCriteria.country).toBe('');
 });

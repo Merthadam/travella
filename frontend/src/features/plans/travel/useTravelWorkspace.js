@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { travelRequest } from './travelApi';
-import { preferredAirport, profileTravelDefaults } from './travelDefaults';
+import { destinationCountry, preferredAirport, profileTravelDefaults } from './travelDefaults';
 import { emptyStayFilters } from './StaySearchFilters';
 import { draftTravelFacts, travelSnapshotSchema, travelState } from './CanvasTravel';
 import { emptyWorkspaceView, travelReferenceSchema, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
@@ -105,6 +105,18 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
   const defaultAirport = travelerProfile?.default_airport || '';
   const nationality = travelerProfile?.citizenships?.[0] || homeCountry;
   const destinationCity = initialData?.map?.destination || '';
+  useEffect(() => {
+    const state = ref.current;
+    if (!enabled || !active || topic !== 'stays' || !destinationCity || state.draftCriteria.country || state.draftTouched?.country || state.draftTouched?.city || state.draftCriteria.city !== destinationCity || state.appliedCriteria || state.recovery?.draftDirty) return;
+    const instanceId = state.instanceId;
+    let live = true;
+    destinationCountry(destinationCity).then(country => {
+      if (live && !ref.current.draftTouched?.city && ref.current.draftCriteria.city === destinationCity) {
+        dispatch({ type: 'defaults', instanceId, patch: { country } });
+      }
+    }).catch(() => { /* Keep the country picker editable when location lookup is unavailable. */ });
+    return () => { live = false; };
+  }, [owner, planId, topic, enabled, active, destinationCity]);
   useEffect(() => {
     if (!enabled || !active) return;
     const instanceId = ref.current.instanceId;
