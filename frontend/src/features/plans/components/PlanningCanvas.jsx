@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { PlanHeaderSlot, useFocusedPlanHeader } from '../../../components/PlanHeaderContext';
+import { PlanHeaderSlot } from '../../../components/PlanHeaderContext';
+import { PlanChatToggle } from '../../../components/PlanChatToggle';
 import { useTravelCapabilities } from '../travel/TravelSearch';
 import { TravelWorkspace } from '../travel/TravelWorkspace';
 import { useFlightBookingSync } from '../travel/useFlightBookingSync';
@@ -41,8 +42,14 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
   const [chatOpen, setChatOpen] = useState(viewState.chatOpen !== false);
   useEffect(() => { writeCanvasView(selected.plan_id, { canvas: true, chatOpen }); }, [selected.plan_id, chatOpen]);
   const chatCollapseButton = useRef(null);
-  const chatReopenButton = useRef(null);
-  const mobileChatButton = useRef(null);
+  const [narrow, setNarrow] = useState(() => window.matchMedia?.('(max-width: 760px)').matches || false);
+  useEffect(() => {
+    const query = window.matchMedia?.('(max-width: 760px)');
+    if (!query) return;
+    const changed = () => setNarrow(query.matches);
+    changed(); query.addEventListener?.('change', changed);
+    return () => query.removeEventListener?.('change', changed);
+  }, []);
   const planContent = useRef(null);
   function openChat() {
     setChatOpen(true); setMobileView('chat');
@@ -50,7 +57,7 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
   }
   function collapseChat() {
     setChatOpen(false); setMobileView('canvas');
-    requestAnimationFrame(() => (window.matchMedia('(max-width: 760px)').matches ? mobileChatButton : chatReopenButton).current?.focus());
+    requestAnimationFrame(() => chatCollapseButton.current?.focus());
   }
   const [mobileView, setMobileView] = useState(autoGenerate ? 'chat' : 'canvas');
   const [preview, setPreview] = useState(null);
@@ -94,14 +101,13 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
     history.replaceState(state, '', url);
     setVisitedTravel(old => ({ ...old, flights: true })); setScreen(toPlan ? null : 'flights');
   }
-  useFocusedPlanHeader(selected.plan_id, Boolean(screen && screen !== 'flight-checkout'));
   const travelBack = useRef(null);
   const explicitCanvasReturn = useRef(false);
   const travelScreen = useRef(null);
   useEffect(() => {
     if (!screen) return;
     travelScreen.current.scrollTop = 0;
-    // The shell reveals its portal host after this workspace claims the header.
+    // Wait for the destination pane and its back link to render.
     const frame = requestAnimationFrame(() => (travelBack.current || travelScreen.current?.querySelector('button'))?.focus());
     return () => cancelAnimationFrame(frame);
   }, [screen]);
@@ -300,13 +306,15 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
   // Cover the handoff while the saved snapshot loads, before generate can
   // acquire its context lease, so the empty workspace never flashes first.
   const generating = canvas.activeGroup === 'all' || Boolean(autoGenerate && !started.current && !canvas.error);
+  const chatVisible = chatOpen && (!narrow || mobileView === 'chat');
+  const backNavigation = <button ref={travelBack} type="button" className="focused-back" disabled={switchingTravel} onClick={returnToCanvas}>{switchingTravel ? 'Finishing discussion…' : '← Back to canvas'}</button>;
   return <main id="canvas-main" className={`planning-canvas canvas-workspace canvas-unified ${chatOpen && !screen ? 'with-chat' : 'chat-closed'} mobile-${mobileView} ${screen ? 'travel-open' : ''} ${generating ? 'is-generating' : ''}`} aria-label="Planning canvas" tabIndex={-1}>
     {generating ? <CanvasGenerationLoader destination={canvas.data?.map.final ? canvas.data.map.destination : ''} {...canvas.generationProgress}/> : null}
     {review && <CanvasGenerationReview context={review.context} replacing={Boolean(canvas.saved || canvas.data?.themes.items.length || canvas.data?.findings.items.length || canvas.data?.links.items.length)} cancelLabel="Keep editing" onCancel={() => setReview(null)} onConfirm={async flights => {
       const confirmed = await confirmFlightNeed(api, selected, review, flights);
       setReview(null); void canvas.generate('all', confirmed.revision);
     }}/>}
-    <nav hidden={generating || Boolean(screen)} inert={generating || Boolean(screen)} className="canvas-mobile-tabs" aria-label="Plan workspace view"><button ref={mobileChatButton} type="button" aria-controls="plan-chat-panel" aria-expanded={mobileView === 'chat' && chatOpen} onClick={mobileView === 'chat' && chatOpen ? collapseChat : openChat}>{mobileView === 'chat' && chatOpen ? 'Close chat' : 'Plan chat'} {chat.active ? '· replying' : ''}</button></nav>
+    {!screen && <PlanHeaderSlot slot="actions"><PlanChatToggle ref={chatCollapseButton} expanded={chatVisible} label={`${chatVisible ? 'Collapse' : 'Expand'} plan chat`} controls="plan-chat-panel" replying={chat.active} disabled={generating} onClick={chatVisible ? collapseChat : openChat}/></PlanHeaderSlot>}
     <div className="canvas-workspace-body" hidden={generating} inert={generating}>
     <div ref={planContent} hidden={Boolean(screen)} className="planning-canvas-inner" tabIndex={0} role="region" aria-label="Plan content" onScroll={event => { if (!screen && restoredScroll.current) writeCanvasView(selected.plan_id, { scrollTop: event.currentTarget.scrollTop }); }}>
       <PlanStages canvas/>
@@ -336,13 +344,13 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
       </dialog>
     </div>
       <section ref={travelScreen} hidden={!screen} className="canvas-travel-screen" aria-label={screen === 'flight-checkout' ? 'Flight booking page' : activeTravel === 'flights' ? 'Explore flights' : 'Explore stays'}>
-      {screen && screen !== 'flight-checkout' && <PlanHeaderSlot slot="leading"><button ref={travelBack} className="focused-back" disabled={switchingTravel} onClick={returnToCanvas}>{switchingTravel ? 'Finishing discussion…' : '← Back to canvas'}</button></PlanHeaderSlot>}
+      {screen && screen !== 'flight-checkout' && !activeTravel && backNavigation}
       {screen === 'travel-results' && !selectedTravel && <section aria-label="Travel result recovery"><p role="status">These results are no longer available. Return to Plan chat to search again.</p></section>}
-      {['accommodation', 'flights'].filter(mode => visitedTravel[mode] && (mode !== 'flights' || flightBrowsing)).map(mode => <TravelWorkspace key={`${selected.plan_id}-${mode}`} travelerProfile={travelerProfile} sandbox={travel.capabilities?.sandbox} selected={selected} api={api} mode={mode} active={activeTravel === mode} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} pendingEdits={dirty || Boolean(canvas.saveError)} blocked={Boolean(canvas.activeGroup || canvas.saving || chatBusy || switchingTravel)} onExpired={onExpired} onBusyChange={travelBusyChanged} registerStop={registerTravelStop} onChoiceSaved={canvas.acceptTravelChoiceRevision} onBookingResult={canvas.updateMockBooking} onFlightCheckout={openFlightCheckout}/>)}
+      {['accommodation', 'flights'].filter(mode => visitedTravel[mode] && (mode !== 'flights' || flightBrowsing)).map(mode => <TravelWorkspace key={`${selected.plan_id}-${mode}`} travelerProfile={travelerProfile} sandbox={travel.capabilities?.sandbox} selected={selected} api={api} mode={mode} active={activeTravel === mode} backNavigation={activeTravel === mode ? backNavigation : null} importedSnapshot={chat.travelSnapshots[travelImports[mode]?.searchId]} importRequest={travelImports[mode]?.request} importReason={travelImports[mode] ? chat.travelReason(chat.travelSnapshots[travelImports[mode].searchId]) : ''} initialData={canvas.data} pendingEdits={dirty || Boolean(canvas.saveError)} blocked={Boolean(canvas.activeGroup || canvas.saving || chatBusy || switchingTravel)} onExpired={onExpired} onBusyChange={travelBusyChanged} registerStop={registerTravelStop} onChoiceSaved={canvas.acceptTravelChoiceRevision} onBookingResult={canvas.updateMockBooking} onFlightCheckout={openFlightCheckout}/>)}
       {screen === 'flight-checkout' && !canvas.loading && <FlightCheckout key={`${selected.plan_id}:${flightCheckout?.offerToken || flightCheckout?.recoveryToken || 'saved'}`} planId={selected.plan_id} {...flightCheckout} savedBooking={flightCheckout?.savedBooking || (!flightCheckout?.offerToken ? canvas.data?.flights?.mockBooking : undefined)} saveState={{ savedReference: canvas.saved?.components?.flights?.mockBooking?.reference, error: canvas.saveError }} onBookingResult={canvas.updateMockBooking} onExpired={onExpired} onClose={() => closeFlightCheckout(false)} onBackToPlan={() => closeFlightCheckout(true)}/>}
       </section>
-    <div id="plan-chat-panel" className="canvas-chat-panel" hidden={!chatOpen || Boolean(screen)}><CanvasConversation collapseRef={chatCollapseButton} visible={chatOpen && !screen} chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onClose={collapseChat} onPreview={showPlace} onAdd={canvas.addActivities} onOpenTravel={openTravelResults}/></div>
-    {!chatOpen && !screen && <div className="canvas-chat-rail"><button ref={chatReopenButton} type="button" className="canvas-chat-expand" aria-label="Expand plan chat" title="Expand plan chat" aria-controls="plan-chat-panel" aria-expanded={false} onClick={openChat}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 4v16m15-8H8m5-5-5 5 5 5"/></svg><span>Chat</span>{chat.active && <span className="canvas-chat-rail-status" aria-label="Travella is replying"/>}</button></div>}
+    <div id="plan-chat-panel" className="canvas-chat-panel" hidden={!chatVisible || Boolean(screen)}><CanvasConversation visible={chatVisible && !screen} chat={chat} data={canvas.data} disabled={Boolean(canvas.activeGroup || canvas.saving || canvas.loading)} generating={Boolean(canvas.activeGroup)} onPreview={showPlace} onAdd={canvas.addActivities} onOpenTravel={openTravelResults}/></div>
+
     </div>
   </main>;
 }

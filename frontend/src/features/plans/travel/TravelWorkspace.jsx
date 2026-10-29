@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { PlanChatToggle } from '../../../components/PlanChatToggle';
 import { PlanHeaderSlot } from '../../../components/PlanHeaderContext';
 import { requestId } from '../../../plansApi';
 import { comparisonEntry } from './TravelComparison';
@@ -12,7 +13,7 @@ import './travel-workspace.css';
 
 const noteLabels = { user_preference: 'Your preference', assistant_inference: 'Assistant suggestion', rejection: 'Ruled out', research_override: 'Exploratory search' };
 const optionId = option => option.evidence_id || option.id;
-export function TravelWorkspace({ travelerProfile, sandbox, selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, onFlightCheckout, importedSnapshot, importRequest, importReason }) {
+export function TravelWorkspace({ backNavigation, travelerProfile, sandbox, selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, onFlightCheckout, importedSnapshot, importRequest, importReason }) {
   const topic = mode === 'accommodation' ? 'stays' : 'flights';
   const stop = useRef(null);
   const workspace = useTravelWorkspace({ owner: selected.owner_id || selected.subject || 'session', planId: selected.plan_id, topic, initialData, travelerProfile, active, onExpired, onManualChange: () => stop.current?.() });
@@ -170,9 +171,10 @@ export function TravelWorkspace({ travelerProfile, sandbox, selected, api, mode,
   </>;
   const notes = <>{snapshot?.notes?.items?.length > 0 && <details className="travel-research-notes"><summary>What we’ve learned</summary><ul>{snapshot.notes.items.map((note, index) => <li key={index}><strong>{noteLabels[note.kind] || 'Research note'}:</strong> {note.text}</li>)}</ul></details>}</>;
   return <div hidden={!active} className={`travel-workspace travel-pane-${pane} ${chatOpen ? "travel-chat-open" : "travel-chat-closed"}`}>
-    {active && <PlanHeaderSlot slot="actions"><button ref={chatToggle} type="button" className="focused-chat-toggle" aria-label={`${chatVisible ? 'Collapse' : 'Open'} ${topic === 'stays' ? 'accommodation' : 'flight'} chat`} aria-controls={`travel-${topic}-chat`} aria-expanded={chatVisible} onClick={chatVisible ? closeChat : openChat}><span aria-hidden="true">{chatVisible ? 'Hide' : 'Show'} {topic === 'stays' ? 'stay' : 'flight'} chat</span>{chat.active && <span className="focused-replying"> · replying</span>}</button></PlanHeaderSlot>}
+    {active && <PlanHeaderSlot slot="actions"><PlanChatToggle ref={chatToggle} expanded={chatVisible} label={`${chatVisible ? 'Collapse' : 'Open'} ${topic === 'stays' ? 'accommodation' : 'flight'} chat`} controls={`travel-${topic}-chat`} replying={chat.active} onClick={chatVisible ? closeChat : openChat}/></PlanHeaderSlot>}
     <div className="travel-workspace-panes">
       <section hidden={narrow && chatVisible} className="travel-options-pane" aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} options`}>
+        {backNavigation}
         <div className="travel-substage-status" role="status">{readiness}<span className="travel-provider-label">{sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></div>
         {workspace.state.recoveredDetails && <button type="button" className="ds-text-button" onClick={() => workspace.dispatch({ type: 'details', value: workspace.state.recoveredDetails })}>Reopen previous details</button>}
         {saving && !review && <p role="status">Preparing your exact choice…</p>}

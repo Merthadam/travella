@@ -59,9 +59,8 @@ function ActionDialog({ value, onClose, onDone, onExpired, api }) {
 }
 
 export function PlansApp({ travelerProfile, onExpired, onSignOut, onAccount, accountBusy = false, accountError, inactive = false, api = plansApi }) {
-  const [headerLeading, setHeaderLeading] = useState(null), [headerActions, setHeaderActions] = useState(null);
-  const [focusedOwner, setFocusedOwner] = useState(null);
-  const headerShell = useMemo(() => ({ leading: headerLeading, actions: headerActions, setOwner: setFocusedOwner }), [headerLeading, headerActions]);
+  const [headerActions, setHeaderActions] = useState(null);
+  const headerShell = useMemo(() => ({ actions: headerActions }), [headerActions]);
   const inactiveView = useRef(inactive);
   inactiveView.current = inactive;
   const initialized = useRef(false);
@@ -336,15 +335,14 @@ export function PlansApp({ travelerProfile, onExpired, onSignOut, onAccount, acc
       setSavedDestinations(current => current.filter(item => item.place_id !== destination.place_id));
     } catch (err) { if (err.status === 401) onExpired(); else setError({ message: err.message || 'Could not remove this destination.' }); }
   }
-  const focused = conversationPage && canvasPage && selected?.plan_id === focusedOwner;
   return <PlanHeaderContext.Provider value={headerShell}><div className={`plans-app${conversationPage ? ' chat-app' : ''}`}>
     <p className="sr-only" role="status">{renameNotice}</p>
     <a className="skip-link" href={conversationPage ? (canvasPage ? '#canvas-main' : '#conversation-main') : '#plans-main'}>{conversationPage ? (canvasPage ? 'Skip to plan canvas' : 'Skip to conversation') : 'Skip to plans'}</a>
-    <AppHeader className={focused ? 'chat-header focused-travel-header' : conversationPage ? 'chat-header' : ''} leading={<><div ref={setHeaderLeading} hidden={!focused} />{!focused && (conversationPage ? <div className="chat-nav-leading">
+    <AppHeader className={conversationPage ? 'chat-header plan-workspace-header' : ''} leading={conversationPage ? <div className="chat-nav-leading">
         <button type="button" className="sidebar-toggle" aria-label={planDrawerOpen ? 'Close plans navigation' : 'Open plans navigation'} aria-expanded={planDrawerOpen} onClick={togglePlanDrawer}><span /><span /><span /></button>
         <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>
-      </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>)}</>}>
-        <div ref={setHeaderActions} hidden={!focused} />
+      </div> : <a className="brand" href="/plans" onClick={e => link(e, () => load())}>Travella</a>}>
+        <div ref={setHeaderActions} hidden={!conversationPage} />
         {!conversationPage && <AccountMenu disabled={accountBusy || busy || inactive} onAccount={onAccount} onSignOut={() => { if (leaveCanvas()) onSignOut(); }} />}
     </AppHeader>
     {planDrawerOpen && <PlanDrawer accountBusy={accountBusy || busy || inactive} onAccount={() => { closePlanDrawer(); onAccount(); }} onSignOut={() => { if (leaveCanvas()) { closePlanDrawer(); onSignOut(); } }} drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} api={api} onExpired={onExpired} onDone={drawerCompleted} onLockedChange={setDrawerLocked} error={drawerError} hasMore={Boolean(drawerCursor)} onLoadMore={() => loadDrawerPlans(drawerCursor)} onRetry={() => loadDrawerPlans(drawerCursor)} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
