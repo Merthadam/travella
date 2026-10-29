@@ -58,7 +58,7 @@ class TravelRegistry:
     def manual(self, subject, plan_id, action, criteria, result):
         mode = "stays" if action == "hotels/search" else "flights"
         criteria = (HotelSearch if mode == "stays" else FlightSearch).model_validate(criteria)
-        options = [safe_stay(o) if mode == "stays" else safe_flight(o, criteria) for o in result["results"]]
+        options = [safe_stay(o) if mode == "stays" else safe_flight(o, criteria, result.get("airport_groups")) for o in result["results"]]
         now = datetime.now(UTC)
         # Keep supplier observation age; registry insertion is not a new search.
         observed = datetime.fromisoformat(result.get('searched_at') or now.isoformat())

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { airportSelection } from "./travelDefaults";
 import { useTravelWorkspace } from "./useTravelWorkspace";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
@@ -142,8 +143,9 @@ function Airport({ label, value, onChange, planId, active, onExpired }) {
               <button
                 type="button"
                 onClick={() => {
-                  const label = `${a.city || a.name} (${a.iata})`;
-                  onChange({ iata: a.iata, label });
+                  const selection = airportSelection(a);
+                  const label = selection.label;
+                  onChange(selection);
                   setQuery(label);
                   setOptions([]);
                 }}
@@ -459,7 +461,7 @@ export function TravelSearch(props) {
   return props.workspace ? <ControlledTravelSearch {...props}/> : <StandaloneTravelSearch {...props}/>;
 }
 function StandaloneTravelSearch(props) {
-  const workspace = useTravelWorkspace({ planId: props.planId, topic: props.mode === "accommodation" ? "stays" : "flights", initialData: props.initialData, active: props.active, onExpired: props.onExpired });
+  const workspace = useTravelWorkspace({ planId: props.planId, topic: props.mode === "accommodation" ? "stays" : "flights", initialData: props.initialData, travelerProfile: props.travelerProfile, active: props.active, onExpired: props.onExpired });
   return <ControlledTravelSearch {...props} workspace={workspace}/>;
 }
 function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, onFlightCheckout, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onShortlist, onCompare, onComparisonChange, discussionDisabled, choiceDisabled, workspace }) {
@@ -666,6 +668,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           event.target.closest("details")?.setAttribute("open", "")
         }
       >
+        <p className="travel-defaults-hint">Start with your saved trip details. You can change any field before searching.</p>
         <div className="travel-main-fields">
           {stay ? (
             <StayDestination

@@ -224,7 +224,7 @@ function AccountContent() {
 
   if (step === 'signed_in' || step === 'account') {
     return <><div hidden={step === 'account'} inert={step === 'account'}><PlansApp inactive={step === 'account'} onExpired={() => go('sign_in')} onSignOut={signOut} onAccount={openAccount}
-      accountBusy={busy} accountError={error} /></div>
+      accountBusy={busy} accountError={error} travelerProfile={travelerProfile} /></div>
       {step === 'account' && <AccountSettingsPage initialProfile={travelerProfile} onExpired={() => go('sign_in')}
         navigationGuard={navigationGuard} onProfileSaved={setTravelerProfile} onNavigatePlans={openPlans} onSignOut={signOut} sessionBusy={busy} sessionError={error} />}</>;
   }

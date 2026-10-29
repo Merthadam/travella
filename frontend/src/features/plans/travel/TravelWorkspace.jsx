@@ -11,10 +11,10 @@ import './travel-workspace.css';
 
 const noteLabels = { user_preference: 'Your preference', assistant_inference: 'Assistant suggestion', rejection: 'Ruled out', research_override: 'Exploratory search' };
 const optionId = option => option.evidence_id || option.id;
-export function TravelWorkspace({ selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, onFlightCheckout, importedSnapshot, importRequest, importReason }) {
+export function TravelWorkspace({ travelerProfile, selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, onFlightCheckout, importedSnapshot, importRequest, importReason }) {
   const topic = mode === 'accommodation' ? 'stays' : 'flights';
   const stop = useRef(null);
-  const workspace = useTravelWorkspace({ owner: selected.owner_id || selected.subject || 'session', planId: selected.plan_id, topic, initialData, active, onExpired, onManualChange: () => stop.current?.() });
+  const workspace = useTravelWorkspace({ owner: selected.owner_id || selected.subject || 'session', planId: selected.plan_id, topic, initialData, travelerProfile, active, onExpired, onManualChange: () => stop.current?.() });
   const comparisonScope = workspace.state.instanceId;
   const displayedComparison = useRef(null);
   const onComparisonChange = useCallback(references => { displayedComparison.current = { scope: comparisonScope, references }; }, [comparisonScope]);

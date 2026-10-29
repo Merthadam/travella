@@ -17,13 +17,11 @@ import httpx
 
 from services.agent.travel_contracts import INPUTS, OUTPUTS, carrier_logo
 from services.shared.traveler_profile import reference_catalog
+from services.shared.airport_groups import METROPOLITAN_AIRPORTS, airport_members
 
 BASE = "https://api.liteapi.travel/v3.0"
 _catalog_cache: dict[tuple[str, str, str], tuple[float, dict]] = {}
 
-# Explicit city-code membership; never accept arbitrary airports merely because
-# the supplier returned them. Individual-airport searches remain exact matches.
-METROPOLITAN_AIRPORTS = {"MIL": frozenset({"MXP", "LIN", "BGY"})}
 
 
 class ProviderUnavailable(Exception):
@@ -266,9 +264,9 @@ def timestamp(value):
         return None
 
 
-def normalize_flights(payload, criteria, api=None):
-    origins = METROPOLITAN_AIRPORTS.get(criteria["origin"], {criteria["origin"]})
-    destinations = METROPOLITAN_AIRPORTS.get(criteria["destination"], {criteria["destination"]})
+def normalize_flights(payload, criteria, api=None, *, city_airports=None):
+    origins = airport_members(criteria["origin"], city_airports)
+    destinations = airport_members(criteria["destination"], city_airports)
     journeys = [
         j
         for g in items(payload.get("data"))
@@ -481,6 +479,32 @@ class LiteApi:
         _catalog_cache[key] = (time.monotonic() + 3600, result)
         return result
 
+    async def flight_city_airports(self, criteria):
+        """Resolve city codes without weakening exact-airport endpoint validation.
+
+        Use only provider-confirmed city or city-branded airports in the same country. A text search
+        can also return unrelated airport names; those are never membership.
+        Milan's explicit membership includes nearby Bergamo.
+        """
+        airport_codes = {airport["code"] for airport in reference_catalog("airports")}
+        memberships = {}
+        for code in dict.fromkeys((criteria["origin"], criteria["destination"])):
+            if code in METROPOLITAN_AIRPORTS or code in airport_codes:
+                continue
+            result = await self.call("airports", {"q": code})
+            city = next((a for a in result["airports"] if a["iata"] == code and re.search(r"\ball airports\b", a["name"], re.I)), None)
+            if not city or not city["city"] or not city["country_code"]:
+                continue
+            result = await self.call("airports", {"q": city["city"][:80]})
+            members = {a["iata"] for a in result["airports"] if a["iata"] != code
+                       and (a["city"].casefold() == city["city"].casefold()
+                            or a["name"].casefold().startswith(city["city"].casefold() + " "))
+                       and a["country_code"] == city["country_code"]
+                       and not re.search(r"\ball airports\b", a["name"], re.I)}
+            if members:
+                memberships[code] = members
+        return memberships
+
     async def call(self, action, criteria):
         data = INPUTS[action].model_validate(criteria).model_dump(mode="json")
         envelope = {"provider": "LiteAPI", "sandbox": self.sandbox}
@@ -645,10 +669,11 @@ class LiteApi:
                     "currency": data["currency"],
                     "country": data["country_code"],
                 }
+                city_airports = await self.flight_city_airports(data)
                 raw = await self.request("POST", "/flights/rates", json=body)
                 if not isinstance(raw.get("data"), list):
                     raise ProviderUnavailable("provider_response_invalid")
-                results, truncated = normalize_flights(raw, data, self)
+                results, truncated = normalize_flights(raw, data, self, city_airports=city_airports)
                 if any(items(obj(group).get("journeys")) for group in raw["data"]) and not results:
                     raise ProviderUnavailable("provider_response_invalid")
                 if raw["data"] and any(
@@ -665,5 +690,6 @@ class LiteApi:
                 "returned_count": len(results),
                 "truncated": truncated,
                 "notices": [notice],
+                **({"airport_groups": {code: sorted(members) for code, members in city_airports.items()}} if action == "flights/search" else {}),
             }
         return OUTPUTS[action].model_validate(result).model_dump(mode="json")

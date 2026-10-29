@@ -99,3 +99,43 @@ def test_manual_search_and_snapshot_through_authenticated_http_and_runtime(large
         runtime = client.post('/invocations', headers=headers, json={'operation':'travel', 'payload':{'plan_id':pid,'action':'research/snapshot','criteria':{'search_id':sid}}})
         assert runtime.status_code == 200, runtime.text
         assert runtime.json()['search_id'] == sid
+
+
+@pytest.mark.parametrize('city,airport,groups', [('MIL','MXP',{}),('MIL','LIN',{}),('MIL','BGY',{}),('LON','SEN',{'LON':['LHR','SEN']})])
+def test_manual_city_airports_survive_authenticated_search_and_snapshot(city, airport, groups):
+    from services.mcps.tests.test_liteapi import FLIGHT, flight_payload
+    from services.mcps.liteapi import normalize_flights
+    payload = flight_payload()
+    segments = payload['data'][0]['journeys'][0]['segments']
+    segments[0]['destinationCode'] = segments[1]['originCode'] = airport
+    criteria = FLIGHT | {'destination': city}
+    results = normalize_flights(payload, criteria, city_airports=groups)[0]
+    class CityProvider:
+        async def call(self, *args, **kwargs):
+            return dict(status='ready',provider='LiteAPI',sandbox=True,searched_at=datetime.now(UTC).isoformat(),results=results,returned_count=len(results),truncated=False,notices=[],airport_groups=groups)
+    pid = str(uuid4())
+    def verifier(token):
+        if token != 'valid': raise ValueError()
+        return ValidatedIdentity('owner','client',frozenset({'aws.cognito.signin.user.admin'}),1,9999999999)
+    app = create_app(verifier=verifier,plan_reader=lambda *args:{'lifecycle':'active','traveler_subject':'owner'},adapter=object(),travel_client=CityProvider())
+    with TestClient(app) as client:
+        base=f'/v1/agent/plans/{pid}/travel/'
+        found=client.post(base+'flights/search',json=criteria,headers={'Authorization':'Bearer valid'})
+        assert found.status_code == 200, found.text
+        snap=client.get(base+'research/snapshot',params={'search_id':found.json()['search_id']},headers={'Authorization':'Bearer valid'})
+        assert snap.status_code == 200
+        assert snap.json()['criteria']['destination'] == city
+        assert snap.json()['results'][0]['outbound']['segments'][-1]['destination'] == airport
+        assert 'checkout_token' not in snap.text
+
+
+def test_city_membership_cannot_broaden_a_specific_airport_or_accept_unrelated_routes():
+    from services.mcps.tests.test_liteapi import FLIGHT, flight_payload
+    from services.mcps.liteapi import normalize_flights
+    from services.agent.travel_contracts import FlightSearch
+    from services.agent.claude.canvas_travel import safe_flight
+    flight=normalize_flights(flight_payload(),FLIGHT)[0][0]
+    with pytest.raises(ValueError,match='flight_route_mismatch'):
+        safe_flight(flight,FlightSearch.model_validate(FLIGHT | {'destination':'MIL'}))
+    with pytest.raises(ValueError,match='flight_route_mismatch'):
+        safe_flight(flight,FlightSearch.model_validate(FLIGHT | {'destination':'LHR'}),{'LHR':['FCO']})
