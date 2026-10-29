@@ -125,6 +125,7 @@ test('open card edits and unsent chat survive flight and stay navigation', async
   await user.click(screen.getByRole('button', { name: 'Explore flights' }));
   expect(screen.getByRole('region', { name: 'flights search' })).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Explore flights' })).toBeTruthy();
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: '← Back to canvas' })));
   expect(screen.queryByRole('region', { name: 'Plan content' })).toBeNull();
   expect(screen.queryByRole('dialog', { name: 'Explore travel' })).toBeNull();
   expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();

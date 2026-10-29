@@ -99,7 +99,11 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
   const explicitCanvasReturn = useRef(false);
   const travelScreen = useRef(null);
   useEffect(() => {
-    if (screen) { travelScreen.current.scrollTop = 0; (travelBack.current || travelScreen.current.querySelector('button'))?.focus(); }
+    if (!screen) return;
+    travelScreen.current.scrollTop = 0;
+    // The shell reveals its portal host after this workspace claims the header.
+    const frame = requestAnimationFrame(() => (travelBack.current || travelScreen.current?.querySelector('button'))?.focus());
+    return () => cancelAnimationFrame(frame);
   }, [screen]);
   async function stopTravel() {
     setSwitchingTravel(true);
