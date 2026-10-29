@@ -1,0 +1,13 @@
+{
+  "frontend/src/PlansApp.jsx": "MATCH",
+  "frontend/src/components/PlanChatToggle.jsx": "MATCH",
+  "frontend/src/components/focused-header.css": "MATCH",
+  "frontend/src/features/plans/components/PlanningCanvas.jsx": "MATCH",
+  "frontend/src/features/plans/travel/TravelWorkspace.jsx": "MATCH",
+  "frontend/src/features/plans/travel/travel-workspace.css": "MATCH",
+  "frontend/src/features/plans/travel/FlightTravelers.jsx": "MATCH",
+  "frontend/src/features/plans/travel/StayCheckout.jsx": "MATCH",
+  "services/mcps/liteapi.py": "MATCH",
+  "services/mcps/sandbox_checkout.py": "MATCH",
+  "services/mcps/travel_server.py": "MATCH"
+}
