@@ -1,0 +1,12 @@
+{
+  "network": [
+    "reqid=3672 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/places?q=Milan&country_code=IT [200]",
+    "reqid=3673 POST http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/hotels/search [200]",
+    "reqid=3674 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/research/snapshot?search_id=10f96f4afc0c477b827bb263d1c7fa65 [200]",
+    "reqid=3910 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/research/snapshot?search_id=10f96f4afc0c477b827bb263d1c7fa65 [200]",
+    "reqid=3915 GET http://localhost:5174/v1/agent/plans/9e78f907-47ed-4dc8-afcd-ec5e5f998fbd/travel/places?q=Milan&country_code=AT [200]"
+  ],
+  "console": [
+    "msgid=112 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)"
+  ]
+}

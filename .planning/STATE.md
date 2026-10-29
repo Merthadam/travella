@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-28T07:51:44.627817+00:00"
 last_activity: 2026-10-29
-last_activity_desc: Quick 261029-rrx completed editable city-wide travel defaults; broader phase acceptance remains open
+last_activity_desc: Quick 261029-u9c completed editable stay destination country defaults; broader phase acceptance remains open
 state_head: 4b6f4ab7df42622b10ea7b46222e8ef463f21efe
 progress:
   total_phases: 19
@@ -28,6 +28,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 | 261027-rwm | Tailor compact briefing sources to city transport and matching sights | 2026-10-27 | ea0dee8 | [261027-rwm](./quick/261027-rwm-tailor-compact-briefing-source-links-to-/) |
 | 261027-sl1 | Implement compact trip briefing with tailored observed sources | 2026-10-27 | ec205d0 | [261027-sl1](./quick/261027-sl1-implement-approved-compact-trip-briefing/) |
 | 261029-rrx | Prefill editable airports and nationality from home base and Plan | 2026-10-29 | 6b77473 | [261029-rrx](./quick/261029-rrx-preset-editable-flight-airports-national/) |
+| 261029-u9c | Prefill stay destination country from Plan destination | 2026-10-29 | d5ee569 | [261029-u9c](./quick/261029-u9c-prefill-editable-stay-destination-countr/) |
 
 ## Project Reference
 
