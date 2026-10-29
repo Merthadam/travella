@@ -348,17 +348,14 @@ test("manual results can prepare a discussion without replacing browsing or expo
 
 test('provider-backed apartment and amenity filters apply to new searches and can be cleared', async () => {
   searchRequest.mockImplementation((plan, action, criteria) => Promise.resolve(action === 'hotels/catalog'
-    ? { items: criteria.kind === 'hotel_types' ? [{ id: 201, name: 'Apartments' }] : [{ id: 7, name: 'Kitchen' }, { id: 8, name: 'Pool' }] }
+    ? { items: criteria.kind === 'hotel_types' ? [{ id: 201, name: 'Apartments' }, { id: 202, name: 'Hotels' }] : [{ id: 7, name: 'Kitchen' }, { id: 8, name: 'Pool' }] }
     : response('Filtered apartment')));
   render(<TravelSearch {...props}/>);
   const user = await fill();
   await user.click(screen.getByText('Property type, amenities & cancellation'));
-  const type = await screen.findByRole('combobox', { name: 'Property type' });
-  await user.click(type); await user.type(type, 'apart'); await user.click(screen.getByRole('option', { name: 'Apartments' }));
-  for (const name of ['Kitchen', 'Pool']) {
-    const field = screen.getByRole('combobox', { name: 'Add an amenity' });
-    await user.click(field); await user.type(field, name); await user.click(screen.getByRole('option', { name }));
-  }
+  await user.click(await screen.findByRole('checkbox', { name: 'Apartments' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Hotels' }));
+  for (const name of ['Kitchen', 'Pool']) await user.click(screen.getByRole('checkbox', { name }));
   await user.selectOptions(screen.getByLabelText('Amenity matching'), 'any');
   await user.click(screen.getByLabelText('Search refundable rates only'));
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
@@ -366,7 +363,7 @@ test('provider-backed apartment and amenity filters apply to new searches and ca
   expect(screen.queryByText('Property type 201')).toBeNull();
   expect(screen.getByLabelText('Applied search constraints').textContent).toContain('Apartments');
   const request = searchRequest.mock.calls.find(call => call[1] === 'hotels/search')[2];
-  expect(request).toMatchObject({ hotel_type_ids: [201], facility_ids: [7, 8], strict_facility_filtering: false, refundable_rates_only: true });
+  expect(request).toMatchObject({ hotel_type_ids: [201, 202], facility_ids: [7, 8], strict_facility_filtering: false, refundable_rates_only: true });
   await user.click(screen.getByRole('button', { name: 'Clear search filters' }));
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
   const last = searchRequest.mock.calls.filter(call => call[1] === 'hotels/search').at(-1)[2];
@@ -404,7 +401,7 @@ test('catalog failure offers retry and keeps ordinary manual search available', 
   const user = await fill();
   await user.click(screen.getByText('Property type, amenities & cancellation'));
   expect(await screen.findByRole('button', { name: 'Retry filters' })).toBeTruthy();
-  expect(screen.queryByRole('combobox', { name: 'Property type' })).toBeNull();
+  expect(screen.queryByRole('searchbox', { name: 'Search property types' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Search stays' }));
   expect(await screen.findByText('Hotel')).toBeTruthy();
 });
