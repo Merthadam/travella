@@ -1,8 +1,23 @@
 import { countries } from '../../onboarding/catalogs';
+import { loadGoogleMaps } from '../../../lib/googleMaps';
 // Suggestions only: these values never write a Plan or traveler profile.
 const normalized = value => String(value || '').normalize('NFKD').replace(/\p{Diacritic}/gu, '').trim().toLowerCase();
 export const allAirports = airport => /\ball airports\b/i.test(airport?.name || '');
 export const airportSelection = airport => ({ iata: airport.iata, label: `${airport.city || airport.name}${allAirports(airport) ? ' · All airports' : ''} (${airport.iata})` });
+
+export async function destinationCountry(destination) {
+  const query = String(destination || '').trim();
+  if (!query) return '';
+  const parts = query.split(',');
+  const named = countries.find(country => normalized(country.name) === normalized(parts.at(-1)) || normalized(country.code) === normalized(parts.at(-1)));
+  if (named && parts.length > 1) return named.code;
+  const { libraries } = await loadGoogleMaps({ libraries: ['geocoding'] });
+  const { results = [] } = await new libraries.geocoding.Geocoder().geocode({ address: query });
+  const matches = results.filter(result => !result.partial_match);
+  const codes = matches.map(result => result.address_components?.find(component => component.types?.includes('country'))?.short_name);
+  const unique = new Set(codes);
+  return unique.size === 1 && countries.some(country => country.code === codes[0]) ? codes[0] : '';
+}
 
 export function preferredAirport(airports, city, country, preferredCode) {
   const [name, ...qualifiers] = String(city || '').split(',').map(part => part.trim());
