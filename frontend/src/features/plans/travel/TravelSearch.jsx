@@ -7,6 +7,7 @@ import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
 import { readFlightReceipt } from "./useFlightCheckout";
 import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
 import { StaySearchFilters } from "./StaySearchFilters";
+import { FlightTravelers } from "./FlightTravelers";
 import { StayDestination } from "./StayDestination";
 import { travelState, TravelPhoto, parseTravelRegistrySnapshot } from "./CanvasTravel";
 import { CarrierMarks } from "./CarrierMark";
@@ -551,6 +552,14 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       setError("Choose both airports from the suggestions.");
       return;
     }
+    if (!stay && (
+      !Number.isInteger(Number(adults)) || Number(adults) < 1 || Number(adults) > 9 ||
+      children.some(age => age === "" || !Number.isInteger(Number(age)) || Number(age) < 2 || Number(age) > 11) ||
+      infants.some(age => age === "" || !Number.isInteger(Number(age)) || Number(age) < 0 || Number(age) > 1)
+    )) {
+      setError("Choose at least one adult and an age for every child and infant in Travelers.");
+      return;
+    }
     const criteria = stay
       ? {
           destination: {
@@ -726,6 +735,16 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           </button>
         </div>
         <div className="travel-extra-fields">
+          {!stay && (
+          <FlightTravelers
+            adults={adults}
+            children={children}
+            infants={infants}
+            onAdultsChange={setAdults}
+            onChildrenChange={setChildren}
+            onInfantsChange={setInfants}
+          />
+          )}
           <Country
             label={stay ? "Destination country" : "Country of residence"}
             value={country}
@@ -768,14 +787,11 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           )}
         </div>
         {stay && <StaySearchFilters key={planId} planId={planId} active={active} value={stayFilters} onChange={setStayFilters} onExpired={onExpired} onCatalogs={setStayCatalogs} applied={applied}/>}
-        <details className="travel-party">
-          <summary>
-            {stay
-              ? `${rooms.length} room${rooms.length > 1 ? "s" : ""} · ${rooms.reduce((n, r) => n + Number(r.adults) + r.children_ages.length, 0)} guests`
-              : `Return flights · ${Number(adults) + children.length + infants.length} travelers`}{" "}
-            · edit travelers
-          </summary>
-          {stay ? (
+        {stay ? (
+          <details className="travel-party">
+            <summary>
+              {`${rooms.length} room${rooms.length > 1 ? "s" : ""} · ${rooms.reduce((n, r) => n + Number(r.adults) + r.children_ages.length, 0)} guests`} · edit travelers
+            </summary>
             <>
               {rooms.map((r, i) => (
                 <div key={i} className="travel-party-row">
@@ -821,42 +837,11 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                 + Add room
               </button>
             </>
-          ) : (
-            <div className="travel-party-row">
-              <label>
-                Adults (12+)
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  max="9"
-                  value={adults}
-                  onChange={(e) => setAdults(e.target.value)}
-                />
-              </label>
-              <Ages
-                label="Children"
-                ages={children}
-                min={2}
-                max={11}
-                limit={8}
-                onChange={setChildren}
-              />
-              <Ages
-                label="Infants"
-                ages={infants}
-                min={0}
-                max={1}
-                limit={8}
-                onChange={setInfants}
-              />
-            </div>
-          )}
-          <small>
-            Ages on the date of travel. Review these search details before
-            submitting.
-          </small>
-        </details>
+            <small>
+              Ages on the date of travel. Review these search details before submitting.
+            </small>
+          </details>
+        ) : null}
       </form>
       {workspace.state.draftDirty && snapshot && <p className="travel-notice">Your edited fields apply to the next search. Results below still use the applied search.</p>}
       {exploratory && <p className="travel-notice">Exploratory search · dates or travelers differ from your saved trip. Your trip is unchanged.</p>}
