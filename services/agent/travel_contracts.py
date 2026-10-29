@@ -387,6 +387,7 @@ class Envelope(Public):
 
 
 class SearchResult(Envelope):
+    airport_groups: dict[Iata, Annotated[list[Iata], Field(min_length=1, max_length=12)]] = Field(default_factory=dict, max_length=2)
     search_id: str | None = Field(default=None, min_length=1, max_length=100)
     searched_at: str
     results: list[Hotel] | list[Flight] = Field(max_length=100)

@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { travelRequest } from './travelApi';
+import { preferredAirport, profileTravelDefaults } from './travelDefaults';
 import { emptyStayFilters } from './StaySearchFilters';
 import { draftTravelFacts, travelSnapshotSchema, travelState } from './CanvasTravel';
 import { emptyWorkspaceView, travelReferenceSchema, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
 import { getTravelRecoveryScope, readTravelWorkspace, writeTravelWorkspace, subscribeTravelRecovery } from '../canvasViewState';
 
-export function initialWorkspace({ owner = 'session', planId, topic, initialData, instanceId = requestId() }) {
+export function initialWorkspace({ owner = 'session', planId, topic, initialData, travelerProfile, instanceId = requestId() }) {
   const dates = initialData?.essentials?.dates;
   const travelers = initialData?.essentials?.travelers;
   const adults = Number.isInteger(travelers) && travelers >= 1 && travelers <= (topic === 'stays' ? 16 : 9) ? travelers : 2;
   const rooms = Array.from({ length: Math.ceil(adults / 6) }, (_, index) => ({ adults: Math.min(6, adults - index * 6), children_ages: [] }));
   return { owner, planId, topic, instanceId, revision: 0, requestGeneration: 0,
-    draftCriteria: { city: initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms, adults, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters() },
-    draftDirty: false, appliedCriteria: null, searchId: null, snapshot: null, view: emptyWorkspaceView(),
+    draftCriteria: { city: initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms, adults, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters(), ...profileTravelDefaults(travelerProfile, topic) },
+    draftTouched: {}, draftDirty: false, appliedCriteria: null, searchId: null, snapshot: null, view: emptyWorkspaceView(),
     detailsReference: null, loading: false, error: '', imported: false, importIdentity: null, authority: null, inverse: null, inverseRevision: null, notice: '', appliedActions: [],
   };
 }
@@ -27,7 +28,13 @@ const matches = (state, token) => token && ['owner', 'planId', 'topic', 'instanc
 
 export function travelWorkspaceReducer(state, action) {
   switch (action.type) {
-    case 'draft': return { ...advanced(state), draftCriteria: { ...state.draftCriteria, [action.field]: typeof action.value === 'function' ? action.value(state.draftCriteria[action.field]) : action.value }, draftDirty: true, loading: false, requestGeneration: state.requestGeneration + 1 };
+    case 'defaults': {
+      if (action.instanceId !== state.instanceId || state.snapshot || state.appliedCriteria || state.authority || state.loading || state.recovery?.draftDirty) return state;
+      const patch = Object.fromEntries(Object.entries(action.patch).filter(([key, value]) => value && !state.draftTouched?.[key] && !state.draftCriteria[key]));
+      if (!Object.keys(patch).length) return state;
+      return { ...advanced(state), draftCriteria: { ...state.draftCriteria, ...patch } };
+    }
+    case 'draft': return { ...advanced(state), draftTouched: { ...state.draftTouched, [action.field]: true }, draftCriteria: { ...state.draftCriteria, [action.field]: typeof action.value === 'function' ? action.value(state.draftCriteria[action.field]) : action.value }, draftDirty: true, loading: false, requestGeneration: state.requestGeneration + 1 };
     case 'view': return { ...advanced(state), view: { ...state.view, ...action.patch }, loading: false, requestGeneration: state.requestGeneration + 1 };
     case 'dismiss':
     case 'restore': {
@@ -71,7 +78,7 @@ export function travelWorkspaceReducer(state, action) {
   }
 }
 
-export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initialData, active = true, onExpired, onManualChange, enabled = true }) {
+export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initialData, travelerProfile, active = true, onExpired, onManualChange, enabled = true }) {
   const owner = getTravelRecoveryScope() || suppliedOwner || 'session';
   const ref = useRef(null), pending = useRef(null), callbacks = useRef({}), checkout = useRef(new Map());
   const savedFacts = JSON.stringify(draftTravelFacts(initialData)), previousFacts = useRef(savedFacts);
@@ -80,7 +87,7 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
   if (!ref.current || ref.current.owner !== owner || ref.current.planId !== planId || ref.current.topic !== topic) {
     pending.current?.abort(); checkout.current.clear();
     const saved = enabled && readTravelWorkspace(owner, planId, topic);
-    ref.current = { ...initialWorkspace({ owner, planId, topic, initialData }), ...(saved ? { draftCriteria: saved.draftCriteria, draftDirty: saved.draftDirty, appliedCriteria: saved.appliedCriteria, searchId: saved.searchId, view: saved.view, recovery: saved } : {}) };
+    ref.current = { ...initialWorkspace({ owner, planId, topic, initialData, travelerProfile }), ...(saved ? { draftCriteria: saved.draftCriteria, draftDirty: saved.draftDirty, appliedCriteria: saved.appliedCriteria, searchId: saved.searchId, view: saved.view, recovery: saved } : {}) };
   }
   function dispatch(action) { const previous = ref.current; ref.current = travelWorkspaceReducer(previous, action); if (previous !== ref.current) render(n => n + 1); return ref.current; }
   function invalidate(action) {
@@ -93,6 +100,34 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
     if (hadAuthority) void callbacks.current.onManualChange?.();
     return value;
   }
+  const homeCity = travelerProfile?.home_city?.name || '';
+  const homeCountry = travelerProfile?.home_city?.country_code || '';
+  const defaultAirport = travelerProfile?.default_airport || '';
+  const nationality = travelerProfile?.citizenships?.[0] || homeCountry;
+  const destinationCity = initialData?.map?.destination || '';
+  useEffect(() => {
+    if (!enabled || !active) return;
+    const instanceId = ref.current.instanceId;
+    dispatch({ type: 'defaults', instanceId, patch: profileTravelDefaults(travelerProfile, topic) });
+    if (!travelerProfile || topic !== 'flights' || ref.current.appliedCriteria || ref.current.recovery?.draftDirty) return;
+    const controller = new AbortController();
+    let live = true;
+    async function resolve(field, city, country, preferredCode) {
+      if (!city || ref.current.draftCriteria[field] || ref.current.draftTouched?.[field]) return;
+      try {
+        const result = await travelRequest(planId, 'airports', { q: city.split(',')[0].trim().slice(0, 80) }, controller.signal);
+        if (!live) return;
+        const airport = preferredAirport(result.airports || [], city, country, preferredCode);
+        if (airport) dispatch({ type: 'defaults', instanceId, patch: { [field]: airport } });
+      } catch (error) {
+        if (live && error.status === 401) callbacks.current.onExpired?.();
+        // Lookup failure leaves the editable picker available; never invent a code.
+      }
+    }
+    void resolve('origin', homeCity, homeCountry, defaultAirport);
+    void resolve('destination', destinationCity);
+    return () => { live = false; controller.abort(); };
+  }, [owner, planId, topic, enabled, active, homeCity, homeCountry, defaultAirport, nationality, destinationCity, Boolean(travelerProfile)]);
   useEffect(() => {
     if (!enabled) return;
     const instanceId = ref.current.instanceId;

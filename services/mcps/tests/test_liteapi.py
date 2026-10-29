@@ -357,3 +357,31 @@ def test_nonempty_malformed_results_are_errors_not_empty_availability():
         )
         with pytest.raises(ProviderUnavailable):
             asyncio.run(api.call(action, criteria))
+
+
+@pytest.mark.parametrize('member', ['LHR', 'LGW'])
+def test_provider_city_code_membership_accepts_airports_and_rejects_unrelated_names(member):
+    def airport(code, name, city='London', country='GB'):
+        return {'iata': code, 'name': name, 'city': city, 'country': country}
+    rows = [airport('LON', 'London - All Airports'), airport('LHR', 'Heathrow'), airport('LGW', 'Gatwick'),
+            airport('SEN', 'London Southend Airport', 'Southend-on-Sea'), airport('LDY', 'City of Derry Airport', 'Londonderry'), airport('YXU', 'London Airport', country='CA')]
+    payload = flight_payload()
+    segments = payload['data'][0]['journeys'][0]['segments']
+    segments[0]['destinationCode'] = segments[1]['originCode'] = member
+    def handler(request):
+        if '/airports' in request.url.path:
+            return httpx.Response(200, json={'data': [{'airports': rows}]})
+        return httpx.Response(200, json=payload)
+    api = LiteApi('sand_test', transport=httpx.MockTransport(handler))
+    members = asyncio.run(api.flight_city_airports(FLIGHT | {'destination': 'LON'}))
+    assert members == {'LON': {'LHR', 'LGW', 'SEN'}}
+    result = asyncio.run(api.call('flights/search', FLIGHT | {'destination': 'LON'}))
+    assert result['returned_count'] == 1
+    segments[0]['destinationCode'] = segments[1]['originCode'] = 'LDY'
+    assert normalize_flights(payload, FLIGHT | {'destination': 'LON'}, city_airports=members)[0] == []
+    assert normalize_flights(payload, FLIGHT | {'destination': 'LHR'}, city_airports=members)[0] == []
+
+
+def test_airport_lookup_does_not_infer_city_membership_from_an_ordinary_airport():
+    api = LiteApi('sand_test', transport=httpx.MockTransport(lambda request: httpx.Response(200, json={'data': [{'airports': [{'iata': 'ZZZ', 'name': 'Unknown airport', 'city': 'London', 'country': 'GB'}]}]})))
+    assert asyncio.run(api.flight_city_airports(FLIGHT | {'destination': 'ZZZ'})) == {}
