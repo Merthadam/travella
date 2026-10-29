@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTravelWorkspace } from "./useTravelWorkspace";
 import { countries } from "../../onboarding/catalogs";
 import { travelRequest } from "./travelApi";
-import { SandboxCheckout, MockBookingRecovery } from "./SandboxCheckout";
+import { readStayReceipt } from "./useStayBookingSync";
 import { readFlightReceipt } from "./useFlightCheckout";
 import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
 import { StaySearchFilters } from "./StaySearchFilters";
@@ -245,7 +245,7 @@ function Room({ room, onCheckout, onDiscuss, onChoose, onCompare }) {
       </div>
       {(onDiscuss || onChoose) && <div className="travel-option-actions">{onDiscuss && <button type="button" onClick={onDiscuss}>Discuss room</button>}{onChoose && <button type="button" onClick={onChoose}>Choose for trip</button>}</div>}
       {onCompare && <button type="button" onClick={onCompare}>Compare room</button>}
-      {onCheckout && room.checkout_token && <button type="button" onClick={() => onCheckout(room.checkout_token)}>Try mock booking</button>}
+      {onCheckout && room.checkout_token && <button type="button" onClick={() => onCheckout(room.checkout_token)}>Continue to stay checkout</button>}
       <Price
         price={{ ...room.total, excluded_taxes: room.excluded_taxes }}
         stay
@@ -254,9 +254,8 @@ function Room({ room, onCheckout, onDiscuss, onChoose, onCompare }) {
     </article>
   );
 }
-function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, choiceDisabled, detached, historical, roomId, observedAt, expiresAt, checkoutToken, onFlightCheckout, flightBooked }) {
+function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onBookingResult, onRefresh, searchId, onDiscuss, onChoose, onCompareRoom, discussionDisabled, choiceDisabled, detached, historical, roomId, observedAt, expiresAt, checkoutToken, onFlightCheckout, flightBooked, onStayCheckout, stayBooked }) {
   const ref = useRef();
-  const [checkout, setCheckout] = useState(null);
   const [hotel, setHotel] = useState(null);
   const [rooms, setRooms] = useState(roomId ? (item.rooms || []).filter(room => room.id === roomId) : item.rooms || []);
   const [observation, setObservation] = useState({ search_id: searchId, option_id: item.id });
@@ -356,7 +355,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           <button onClick={() => setRetry((x) => x + 1)}>Retry details</button>
         </p>
       )}
-      {checkout ? <SandboxCheckout key={checkout} planId={planId} offerToken={checkout} onClose={() => setCheckout(null)} onBookingResult={onBookingResult} /> : stay ? (
+      {stay ? (
         <>
           <p>{hotel?.address || item.address}</p>
           {hotel?.images?.length > 0 && (
@@ -377,7 +376,7 @@ function Detail({ item, stay, planId, criteria, sandbox, onClose, onExpired, onB
           )}
           <h3>Room offers for your stay</h3>
           {rooms.map((room) => (
-            <Room key={room.id} room={room} onCheckout={sandbox && !loading && !evidenceExpired ? setCheckout : null} onCompare={!loading && observation.search_id && onCompareRoom ? () => { onClose(); onCompareRoom(attach(room)); } : null} onDiscuss={!discussionDisabled && !evidenceExpired && observation.search_id && onDiscuss ? () => { onClose(); onDiscuss(attach(room)); } : null} onChoose={!choiceDisabled && !evidenceExpired && observation.search_id && onChoose ? () => { onClose(); onChoose(attach(room)); } : null} />
+            <Room key={room.id} room={room} onCheckout={sandbox && !stayBooked && onStayCheckout && !loading && !evidenceExpired ? token => onStayCheckout({ offerToken: token }) : null} onCompare={!loading && observation.search_id && onCompareRoom ? () => { onClose(); onCompareRoom(attach(room)); } : null} onDiscuss={!discussionDisabled && !evidenceExpired && observation.search_id && onDiscuss ? () => { onClose(); onDiscuss(attach(room)); } : null} onChoose={!choiceDisabled && !evidenceExpired && observation.search_id && onChoose ? () => { onClose(); onChoose(attach(room)); } : null} />
           ))}
           {!loading && !rooms.length && (
             <p>No room offers are available for these dates.</p>
@@ -462,7 +461,7 @@ function StandaloneTravelSearch(props) {
   const workspace = useTravelWorkspace({ planId: props.planId, topic: props.mode === "accommodation" ? "stays" : "flights", initialData: props.initialData, active: props.active, onExpired: props.onExpired });
   return <ControlledTravelSearch {...props} workspace={workspace}/>;
 }
-function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, onFlightCheckout, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onShortlist, onCompare, onComparisonChange, discussionDisabled, choiceDisabled, workspace }) {
+function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onBookingResult, onFlightCheckout, onStayCheckout, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onShortlist, onCompare, onComparisonChange, discussionDisabled, choiceDisabled, workspace }) {
   const stay = mode === "accommodation";
   const { snapshot, loading, error, imported, draftCriteria, view, detailsReference } = workspace.state;
   const field = name => [draftCriteria[name], value => workspace.setDraft(name, value)];
@@ -515,7 +514,6 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   const setError = value => workspace.dispatch({ type: "error", value });
   const detail = detailsReference?.item;
   const setDetail = item => workspace.dispatch({ type: "details", value: item ? { item, snapshot, reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } } : null });
-  const [recovery, setRecovery] = useState(null);
   const [stayCatalogs, setStayCatalogs] = useState(null);
   useEffect(() => setStayCatalogs(null), [planId]);
   const [, setImportClock] = useState(0);
@@ -646,6 +644,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
         <h3>Mock booked · {initialData.accommodation.mockBooking.hotelName}</h3>
         <p>{initialData.accommodation.mockBooking.checkIn} – {initialData.accommodation.mockBooking.checkOut}</p>
         <p>Test reference: {initialData.accommodation.mockBooking.reference}</p>
+        <button className="travel-primary" onClick={() => onStayCheckout?.({ savedBooking: initialData.accommodation.mockBooking })}>View stay confirmation</button>
         <p>Sandbox only — no real reservation or charge.</p>
       </section>}
       {!stay && initialData?.flights?.mockBooking && <section className="travel-empty" aria-label="Mock flight details">
@@ -656,8 +655,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
         <button className="travel-primary" onClick={() => onFlightCheckout?.({ savedBooking: initialData.flights.mockBooking })}>View itinerary & receipt</button>
       </section>}
       {!stay && !initialData?.flights?.mockBooking && readFlightReceipt(planId) && <button type="button" onClick={() => onFlightCheckout?.({ recoveryToken: readFlightReceipt(planId) })}>Resume flight checkout</button>}
-      {stay && <MockBookingRecovery planId={planId} onOpen={setRecovery} />}
-      {stay && recovery && <SandboxCheckout key={recovery} planId={planId} recoveryToken={recovery} onClose={() => setRecovery(null)} onBookingResult={onBookingResult} />}
+      {stay && !initialData?.accommodation?.mockBooking && readStayReceipt(planId) && <button type="button" onClick={() => onStayCheckout?.({ recoveryToken: readStayReceipt(planId) })}>Resume stay checkout</button>}
       <form
         ref={form}
         className="travel-form"
@@ -1215,6 +1213,8 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           onClose={() => setDetail(null)}
           onExpired={onExpired}
           onBookingResult={onBookingResult}
+          stayBooked={Boolean(initialData?.accommodation?.mockBooking)}
+          onStayCheckout={onStayCheckout ? value => { setDetail(null); onStayCheckout(value); } : undefined}
           flightBooked={Boolean(initialData?.flights?.mockBooking)}
           onFlightCheckout={value => { setDetail(null); onFlightCheckout?.(value); }}
           onRefresh={() => { setDetail(null); form.current?.requestSubmit(); }}

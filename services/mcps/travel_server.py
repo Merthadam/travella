@@ -1,7 +1,10 @@
 """Private travel search and sandbox checkout, scoped to a verified traveler and Plan."""
 
 import asyncio
+import logging
 import os
+import sqlite3
+from contextlib import asynccontextmanager, suppress
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
@@ -14,6 +17,30 @@ from services.agent.travel_contracts import HotelSearch
 from .config import McpSettings
 from .liteapi import LiteApi, ProviderUnavailable
 from .transport import authenticated_mcp_app, require_tool_context
+from .sandbox_checkout import prune_stay_receipts
+
+
+@asynccontextmanager
+async def checkout_maintenance(server, *, interval=60):
+    # Runs even without checkout traffic; startup removes receipts left by downtime.
+    async def prune():
+        try:
+            await asyncio.to_thread(prune_stay_receipts)
+        except (sqlite3.Error, OSError):
+            # Never log exception details: database paths and receipt data are private.
+            logging.getLogger(__name__).warning('stay_receipt_cleanup_failed')
+    await prune()
+    async def sweep():
+        while True:
+            await asyncio.sleep(interval)
+            await prune()
+    maintenance = asyncio.create_task(sweep())
+    try:
+        yield {}
+    finally:
+        maintenance.cancel()
+        with suppress(asyncio.CancelledError):
+            await maintenance
 
 travel_mcp = FastMCP(
     "travella-travel-mcp",
@@ -27,6 +54,22 @@ travel_mcp = FastMCP(
     ),
 )
 _slots = asyncio.Semaphore(8)
+
+
+def create_travel_app(server=travel_mcp, *, maintenance_interval=60):
+    app = authenticated_mcp_app(server)
+    original_lifespan = app.app.router.lifespan_context
+
+    @asynccontextmanager
+    async def lifespan(starlette_app):
+        # FastMCP's own lifespan is per request in stateless mode. Maintenance
+        # belongs to the HTTP application's lifetime, alongside its session manager.
+        async with checkout_maintenance(server, interval=maintenance_interval):
+            async with original_lifespan(starlette_app) as state:
+                yield state
+
+    app.app.router.lifespan_context = lifespan
+    return app
 
 
 @travel_mcp.tool()
@@ -103,5 +146,5 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        authenticated_mcp_app(travel_mcp), host="0.0.0.0", port=int(os.getenv("PORT", "8002"))
+        create_travel_app(), host="0.0.0.0", port=int(os.getenv("PORT", "8002"))
     )
