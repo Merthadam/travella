@@ -18,12 +18,15 @@ progress:
 
 # Project State
 
+Quick-task update (2026-10-29): Approved focused travel navigation implemented on `feat/focused-travel-integration` with both maple-cake default features. Local review: http://localhost:5196 (isolated from concurrent maple-cake builds on 5174). Evidence: `artifacts/testing/2026-10-29-focused-travel-integration/verification.md`. Existing phase acceptance is unchanged.
+
 Briefing update (2026-10-27): User approved compact prototype D and requested implementation. Production TripBriefing now replaces the three canvas cards on `feat/trip-briefing` (research c8bf67c, UI ec205d0), with evidence-backed tailored research and real persistence. Original prototypes remain on `prototype/trip-essentials-20261026` at d30d672. Local implementation: port 5193. Browser/live generation/build evidence: `artifacts/testing/2026-10-27-trip-briefing/verification.md`. 123 focused tests passed. Local travel capabilities are unavailable (503); no main merge or phase acceptance change.
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261029-ufv | Integrate focused travel header, drawer account access and maple-cake defaults | 2026-10-29 | eb71152 | [261029-ufv](./quick/261029-ufv-implement-approved-focused-travel-ui-wit/) |
 | 261027-rif | Refine trip essentials into one compact whole-trip briefing prototype | 2026-10-27 | 3871fc4 | [261027-rif](./quick/261027-rif-refine-trip-essentials-into-one-compact-/) |
 | 261027-rwm | Tailor compact briefing sources to city transport and matching sights | 2026-10-27 | ea0dee8 | [261027-rwm](./quick/261027-rwm-tailor-compact-briefing-source-links-to-/) |
 | 261027-sl1 | Implement compact trip briefing with tailored observed sources | 2026-10-27 | ec205d0 | [261027-sl1](./quick/261027-sl1-implement-approved-compact-trip-briefing/) |
