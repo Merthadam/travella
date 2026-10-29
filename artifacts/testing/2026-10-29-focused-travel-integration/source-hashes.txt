@@ -1,0 +1,13 @@
+frontend/src/PlansApp.jsx: MATCH
+frontend/src/components/PlanHeaderContext.jsx: MATCH
+frontend/src/components/focused-header.css: MATCH
+frontend/src/components/AccountMenu.jsx: MATCH
+frontend/src/components/account-menu.css: MATCH
+frontend/src/features/plans/components/PlanningCanvas.jsx: MATCH
+frontend/src/features/plans/components/PlanDrawers.jsx: MATCH
+frontend/src/features/plans/components/plan-drawer.css: MATCH
+frontend/src/features/plans/travel/TravelWorkspace.jsx: MATCH
+frontend/src/features/plans/travel/travel-workspace.css: MATCH
+frontend/src/features/plans/travel/travelDefaults.js: MATCH
+services/agent/travel_registry.py: MATCH
+services/mcps/liteapi.py: MATCH

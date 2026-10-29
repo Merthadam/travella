@@ -1,0 +1,12 @@
+/* A stable shell across canvas and travel. Navigation back belongs to content. */
+.plans-header.plan-workspace-header { background:var(--app-panel);border-bottom:1px solid var(--app-line);flex-shrink:0; }
+.plans-header.plan-workspace-header > div { width:100%;max-width:none;height:66px;gap:12px;padding:10px 28px;box-sizing:border-box;flex-wrap:nowrap; }
+.plans-header.plan-workspace-header .brand { color:var(--app-text); }
+.plans-header.plan-workspace-header .sidebar-toggle { width:38px;height:38px;flex-basis:38px;color:var(--app-text);border-color:var(--app-line); }
+.plans-header.plan-workspace-header .focused-chat-toggle { display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:88px;padding:10px 12px;border:1px solid var(--app-line);border-radius:9px;background:transparent;color:var(--app-text);font:500 13px/1.4 Inter,system-ui,sans-serif;text-decoration:none;white-space:nowrap;position:relative; }
+.plans-header.plan-workspace-header button:hover:not(:disabled) { background:var(--app-soft); }
+.plans-header.plan-workspace-header button:focus-visible { outline:2px solid var(--app-focus);outline-offset:3px; }
+.focused-replying { position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--app-text); }
+.planning-canvas .focused-back { display:inline-flex;align-items:center;min-height:44px;margin:0 0 12px;padding:0;border:0;border-radius:0;background:transparent;color:var(--ds-muted);font:500 13px/1.4 var(--ds-font);text-align:left; }
+.planning-canvas .focused-back:hover:not(:disabled) { color:var(--ds-ink);text-decoration:underline;text-underline-offset:4px; }
+@media(max-width:760px) { .plans-header.plan-workspace-header > div { padding:10px 16px; } }

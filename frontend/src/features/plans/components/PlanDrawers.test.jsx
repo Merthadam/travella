@@ -114,3 +114,28 @@ test('expired authentication and unavailable plans never appear saved', async ()
   await screen.findByRole('alert');
   expect(screen.getByRole('button', { name: 'Delete plan' }).disabled).toBe(true);
 });
+
+test('account menu stays in the footer and cannot bypass an unfinished plan action', async () => {
+  const onAccount = vi.fn(), onSignOut = vi.fn();
+  const { user } = setup({ onAccount, onSignOut });
+  const account = screen.getByRole('button', { name: 'Account menu' });
+  expect(account.closest('footer')).toBeTruthy();
+  await user.click(account);
+  await user.keyboard('{Escape}');
+  expect(document.activeElement).toBe(account);
+  expect(screen.queryByRole('menu')).toBeNull();
+  await user.dblClick(screen.getByText('Lisbon weekend'));
+  expect(account.disabled).toBe(true);
+  await user.click(account);
+  expect(onAccount).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('textbox', { name: 'Plan name' }));
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('link', { name: /Lisbon weekend/ })));
+  expect(account.disabled).toBe(false);
+  await user.click(account);
+  await user.click(screen.getByRole('menuitem', { name: 'Account settings' }));
+  expect(onAccount).toHaveBeenCalledOnce();
+  await user.click(account);
+  await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+  expect(onSignOut).toHaveBeenCalledOnce();
+});

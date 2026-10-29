@@ -203,3 +203,26 @@ test('only explicit structured comparison can send while the topic pane is hidde
   expect(api.travelTurn).toHaveBeenCalledTimes(1);
   expect(api.travelTurn.mock.calls[0][4].travelDiscussion.options).toEqual(references);
 });
+
+test('the top toggle reveals the mobile chat and restores the same draft and search pane', async () => {
+  const original = window.matchMedia;
+  window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+  try {
+    const user = userEvent.setup();
+    const api = { travelTopic: vi.fn(async () => snapshot('flights')) };
+    render(<TravelWorkspace selected={selected} api={api} mode="flights" active/>);
+    const toggle = screen.getByRole('button', { name: 'Open flight chat' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('textbox', { name: 'Message flight assistant' })).toBeNull();
+    await user.click(toggle);
+    const composer = await screen.findByRole('textbox', { name: 'Message flight assistant' });
+    await waitFor(() => expect(composer.disabled).toBe(false));
+    await user.type(composer, 'Keep this draft');
+    expect(screen.queryByRole('region', { name: 'Manual search' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Collapse flight chat' }));
+    await waitFor(() => expect(document.activeElement).toBe(toggle));
+    expect(screen.getByRole('region', { name: 'Manual search' })).toBeTruthy();
+    await user.click(toggle);
+    expect(screen.getByRole('textbox', { name: 'Message flight assistant' }).value).toBe('Keep this draft');
+  } finally { window.matchMedia = original; }
+});

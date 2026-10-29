@@ -4,10 +4,10 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-29T21:31:41.401478+00:00"
+last_updated: "2026-10-29T22:09:39.637Z"
 last_activity: 2026-10-29
 last_activity_desc: Travel search defaults and controls verified and shipped in PR24; user-authorized merge after readiness checks; broader phase acceptance remains open
-state_head: 4b6f4ab7df42622b10ea7b46222e8ef463f21efe
+state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
   completed_phases: 1
@@ -18,12 +18,15 @@ progress:
 
 # Project State
 
+Quick-task update (2026-10-29): Approved focused travel navigation implemented on `feat/focused-travel-integration` with both maple-cake default features. Local review: http://localhost:5196 (isolated from concurrent maple-cake builds on 5174). Evidence: `artifacts/testing/2026-10-29-focused-travel-integration/verification.md`. Existing phase acceptance is unchanged.
+
 Briefing update (2026-10-27): User approved compact prototype D and requested implementation. Production TripBriefing now replaces the three canvas cards on `feat/trip-briefing` (research c8bf67c, UI ec205d0), with evidence-backed tailored research and real persistence. Original prototypes remain on `prototype/trip-essentials-20261026` at d30d672. Local implementation: port 5193. Browser/live generation/build evidence: `artifacts/testing/2026-10-27-trip-briefing/verification.md`. 123 focused tests passed. Local travel capabilities are unavailable (503); no main merge or phase acceptance change.
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261029-ufv | Integrate focused travel header, drawer account access and maple-cake defaults | 2026-10-29 | eb71152 | [261029-ufv](./quick/261029-ufv-implement-approved-focused-travel-ui-wit/) |
 | 261027-rif | Refine trip essentials into one compact whole-trip briefing prototype | 2026-10-27 | 3871fc4 | [261027-rif](./quick/261027-rif-refine-trip-essentials-into-one-compact-/) |
 | 261027-rwm | Tailor compact briefing sources to city transport and matching sights | 2026-10-27 | ea0dee8 | [261027-rwm](./quick/261027-rwm-tailor-compact-briefing-source-links-to-/) |
 | 261027-sl1 | Implement compact trip briefing with tailored observed sources | 2026-10-27 | ec205d0 | [261027-sl1](./quick/261027-sl1-implement-approved-compact-trip-briefing/) |
@@ -33,6 +36,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 | 261029-ulo | Replace filter searches and scroll boxes with wrapping toggle chips | 2026-10-29 | cfcff20 | [261029-ulo](./quick/261029-ulo-replace-stay-filter-searches-and-scrolli/) |
 | 261029-v70 | Replace flight passenger boxes with compact traveler picker | 2026-10-29 | 11ac5d8 | [261029-v70](./quick/261029-v70-replace-flight-passenger-boxes-with-a-co/) |
 | 261029-vlr | Refine traveler picker density and counters | 2026-10-29 | 456034f | [261029-vlr](./quick/261029-vlr-refine-traveler-picker-density-and-verif/) |
+| 261029-w2k | Integrate approved consistent header with latest main; resolve conflicts and verify for authorized merge | 2026-10-29 | a7cc96b | [261029-w2k-merge-consistent-plan-header-with-latest](./quick/261029-w2k-merge-consistent-plan-header-with-latest/) |
 
 ## Project Reference
 
@@ -444,25 +448,24 @@ Resume file: None
 - Preview: http://localhost:5196/plans?prototype=flight-checkout&variant=A. Primary source: prototype/flight-checkout-20261027. User selection and production integration pending.
 - Evidence: artifacts/testing/2026-10-27-flight-checkout-prototypes/verification.md. GSD summary: .planning/quick/261027-tzw-prototype-three-separate-page-flight-che/261027-tzw-SUMMARY.md.
 
-
 ### Phase18 shared workspace shipment — 28 October 2026
 
 User approved the running experience and explicitly authorized merge after reviewing the disclosed technical limits. Integrated origin/main ba5e1fd, preserving the compact trip briefing, Milan airport normalization and guided sandbox flight checkout. Workspace checkout forwarding and exact research choices remain distinct. Existing untracked .cache/.gsd data and other worktrees are preserved. Standard GSD verification remains human_needed because technical acceptance checks are unfinished; the explicit user merge instruction takes precedence for shipment, without marking those checks passed.
 
-
 Phase18 shipment PR #22: https://github.com/Merthadam/travella/pull/22. Integrated main with287frontend/793Python passes, one unchanged baseline failure and documented skips; final105checkout/workspace checks and actual browser checkout review passed. Product owner authorized merge; outstanding technical acceptance checks remain recorded. Running preview includes integrated sourcebe539c6; final documentation commit adds evidence only.
-
 
 ### Guided Stays checkout — 29 October 2026
 
 User approved one stay per Plan, flight-style checkout, provider-confirmed guest/room/price/cancellation details and downloadable confirmation; requested subagent fan-out. Implemented and reviewed in6cef21d.337 backend and138 frontend tests, build, actual LiteAPI sandbox two-room browser flow, tokenless reload, download, print invocation, persistence/ownership/lifecycle checks and cleanup passed. Provider room-assignment inconsistency is explicitly labeled. Local preview http://localhost:5198/plans; evidence artifacts/testing/2026-10-29-guided-stays-checkout/verification.md. Cancellation actions and finalized-Plan documents remain deferred. No merge/deployment; broader Phase18 acceptance remains pending.
 
-
 ### Stays checkout scrolling correction — 29 October 2026
 
 User reported scrolling blocked. Hidden mounted workspace triggered overflow:hidden on checkout. Scoped layout rules to visible workspace children. Chrome keyboard reproduction failed before and passed after on desktop/mobile, build/auth/source hash passed. Earlier programmatic scrolling evidence did not cover user input. Evidence: artifacts/testing/2026-10-29-stays-scroll/verification.md. Broader phase acceptance unchanged.
 
-
 ### Guided Stays shipment — 29 October 2026
 
 Product owner explicitly authorized merge of the current version, with substantial UI fine-tuning remaining. PR #23: https://github.com/Merthadam/travella/pull/23 (lydian-fifth → main), including scroll fix18d169f. Base c1eba7d; scoped security review has zero open findings. Existing475 tests/build and authenticated sandbox/scroll checks are recorded in quick261029-u8c and browser evidence. This shipment does not close wider Phase18 acceptance or the deferred cancellation/documents work.
+
+### Consistent header integration shipment — 29 October 2026
+
+User approved the corrected consistent Canvas/Flights/Stays header and explicitly requested merge/conflict resolution. Quick261029-w2k integrated origin/main ab84e88 in a7cc96b, preserving current traveler picker and stay checkout. Frontend274 and backend264 tests passed (12 existing frontend skips), build and actual Chrome desktop/mobile checks passed. Evidence: artifacts/testing/2026-10-29-header-merge/verification.md. GitHub PR merge record supplies the final shipment SHA; wider Phase18 acceptance unchanged.

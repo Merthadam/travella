@@ -17,7 +17,7 @@
 .canvas-travel-screen:not([hidden]):has(> .travel-workspace:not([hidden])){display:flex;flex-direction:column;overflow:hidden;padding:0;scrollbar-gutter:auto}
 .canvas-travel-screen:has(> .travel-workspace:not([hidden]))>.travel-navigation{width:100%;max-width:none;margin:0;padding:12px 24px;flex-shrink:0;border-bottom:1px solid var(--ds-line);background:var(--ds-surface)}
 .travel-workspace-panes{display:grid;grid-template-columns:minmax(0,1fr) var(--canvas-chat-width,400px);flex:1;min-height:0;overflow:hidden}
-.travel-chat-closed .travel-workspace-panes{grid-template-columns:minmax(0,1fr) 56px}
+.travel-chat-closed .travel-workspace-panes{grid-template-columns:minmax(0,1fr)}
 .travel-chat-pane{min-width:0;min-height:0;overflow:hidden;border-left:1px solid var(--ds-line)}
 .travel-chat-pane[hidden]{display:none}
 .travel-chat-context{max-height:30%;overflow:auto;flex-shrink:0;border-bottom:1px solid var(--ds-line)}
@@ -38,7 +38,7 @@
 @container(max-width:900px){.travel-results-layout{grid-template-columns:1fr}.travel-filters{display:flex;flex-wrap:wrap;gap:14px;align-items:center}.travel-filters h3{width:100%}.travel-filters>label{margin:0;flex:1;min-width:120px}.travel-result{flex-wrap:wrap}.travel-result-actions{width:100%;border-left:0;border-top:1px solid var(--ds-line)}}
 @media(max-width:1100px) and (min-width:761px){.travel-options-pane{padding:20px 18px}.travel-result.stay{display:block}.travel-result>img,.travel-result .travel-photo-placeholder{width:100%;height:150px;object-fit:cover}}
 @media(max-width:760px){
- .planning-canvas.canvas-workspace.travel-open{height:calc(100dvh - 72px)}
+ .planning-canvas.canvas-workspace.travel-open{height:calc(100dvh - 67px)}
  .canvas-travel-screen:has(> .travel-workspace:not([hidden]))>.travel-navigation{padding:8px 12px;gap:6px}
  .canvas-travel-screen:has(> .travel-workspace:not([hidden]))>.travel-navigation>span{display:none}
  .travel-pane-tabs{display:flex;gap:5px;padding:8px 16px;background:var(--ds-surface);border-bottom:1px solid var(--ds-line);flex-shrink:0}
@@ -89,3 +89,7 @@
 .travel-reply-references li>button:first-child{text-align:left;color:var(--ds-green)}
 .canvas-chat-message .travel-chat-suggestions { padding: 0; }
 .travel-chat-suggestions .travel-option-actions > .ds-button { flex: 1 1 calc(50% - 8px); min-width: 120px; }
+
+.travel-options-pane[hidden] { display:none; }
+.travel-substage-status { display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap; }
+.travel-provider-label { color:var(--ds-muted);font-size:11px; }

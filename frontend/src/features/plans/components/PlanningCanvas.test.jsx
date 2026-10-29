@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PlanningCanvas } from './PlanningCanvas';
+import { PlansApp } from '../../../PlansApp';
 import { usePlanningCanvas } from '../usePlanningCanvas';
 import { travelRequest } from '../travel/travelApi';
 import { AppearanceProvider } from '../../appearance/AppearanceProvider';
@@ -18,13 +19,13 @@ vi.mock('../travel/TravelSearch', () => ({
 }));
 beforeEach(() => {
   sessionStorage.clear(); vi.mocked(travelRequest).mockReset();
-  vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const confirmedFlights = { finalDestination: 'Milan', flights: 'needed', provenance: { finalDestination: { source: 'user_edit' }, flights: { source: 'user_edit', updated_at: '2026-10-16T10:00:00Z' } } };
-function setup() {
+function setup(shell = false) {
   const api = {
     canvas: vi.fn(async () => ({ revision: 1, context_revision: 1, snapshot: null })),
     researchContext: vi.fn(async () => ({ revision: 1, context: { ...confirmedFlights, finalDestination: 'Milan', travelers: 2 } })),
@@ -37,7 +38,12 @@ function setup() {
       return { status: 'complete' };
     }),
   };
-  render(<AppearanceProvider><PlanningCanvas selected={{ plan_id: 'test-plan', title: 'Test trip' }} api={api} /></AppearanceProvider>);
+  if (shell) {
+    const plan = { plan_id: '9f2d2f35-186c-4d57-a2fa-e5a7820f3783', title: 'Header test', lifecycle: 'active', revision: 1, resume_target: 'workspace' };
+    Object.assign(api, { get: async () => plan, list: async () => ({ plans: [plan] }), activity: async () => plan });
+    history.replaceState({}, '', `/plans/${plan.plan_id}`);
+    render(<AppearanceProvider><PlansApp api={api} onExpired={vi.fn()} onAccount={vi.fn()} onSignOut={vi.fn()}/></AppearanceProvider>);
+  } else render(<AppearanceProvider><PlanningCanvas selected={{ plan_id: 'test-plan', title: 'Test trip' }} api={api} /></AppearanceProvider>);
   return api;
 }
 
@@ -125,10 +131,13 @@ test('open card edits and unsent chat survive flight and stay navigation', async
   await user.click(screen.getByRole('button', { name: 'Explore flights' }));
   expect(screen.getByRole('region', { name: 'flights search' })).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Explore flights' })).toBeTruthy();
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: '← Back to canvas' })));
   expect(screen.queryByRole('region', { name: 'Plan content' })).toBeNull();
   expect(screen.queryByRole('dialog', { name: 'Explore travel' })).toBeNull();
   expect(screen.queryByRole('textbox', { name: 'Preference' })).toBeNull();
-  await user.click(screen.getByRole('button', { name: 'Stays', exact: true }));
+  expect(screen.queryByRole('button', { name: 'Stays', exact: true })).toBeNull();
+  await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
+  await user.click(screen.getByRole('button', { name: 'Explore accommodation' }));
   expect(screen.getByRole('region', { name: 'accommodation search' })).toBeTruthy();
   await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
   expect(screen.getByRole('textbox', { name: 'Preference' }).value).toBe('Unfinished preference');
@@ -526,4 +535,32 @@ test('provider summaries are saved with additions and later enrichment survives 
   await waitFor(() => expect(restored.result.current.loading).toBe(false));
   expect(restored.result.current.data.map.pins[0].googleDetails.summary).toBe(provider.editorial_summary);
   expect(restored.result.current.data.map.pins[1].googleDetails).toEqual(metadata);
+});
+
+
+test('canvas, flights and stays retain the same shell navigation and chat control with back inside content', async () => {
+  const user = userEvent.setup(); setup(true);
+  await screen.findByRole('button', { name: 'Explore flights' });
+  const header = document.querySelector('.app-header');
+  const plans = screen.getByRole('button', { name: 'Open plans navigation' });
+  const brand = screen.getByRole('link', { name: 'Travella' });
+  const headerClass = header.className;
+  expect(header.contains(screen.getByRole('button', { name: 'Collapse plan chat' }))).toBe(true);
+  expect(document.querySelector('.canvas-chat-collapse')).toBeNull();
+  for (const [entry, chatName] of [['Explore flights', 'Collapse flight chat'], ['Explore accommodation', 'Collapse accommodation chat']]) {
+    await user.click(screen.getByRole('button', { name: entry }));
+    const back = await screen.findByRole('button', { name: '← Back to canvas' });
+    expect(header.contains(back)).toBe(false);
+    expect(header.contains(screen.getByRole('button', { name: chatName }))).toBe(true);
+    expect(screen.getByRole('button', { name: 'Open plans navigation' })).toBe(plans);
+    expect(screen.getByRole('link', { name: 'Travella' })).toBe(brand);
+    expect(header.className).toBe(headerClass);
+    expect(header.querySelectorAll('.focused-chat-toggle')).toHaveLength(1);
+    await user.click(plans);
+    expect(await screen.findByRole('button', { name: 'Account menu' })).toBeTruthy();
+    await user.keyboard('{Escape}');
+    await user.click(back);
+    await screen.findByRole('button', { name: 'Explore flights' });
+    expect(header.contains(screen.getByRole('button', { name: 'Collapse plan chat' }))).toBe(true);
+  }
 });

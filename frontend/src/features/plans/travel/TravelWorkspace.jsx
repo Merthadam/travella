@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { PlanChatToggle } from '../../../components/PlanChatToggle';
+import { PlanHeaderSlot } from '../../../components/PlanHeaderContext';
 import { requestId } from '../../../plansApi';
 import { comparisonEntry } from './TravelComparison';
 import { draftTravelFacts, parseTravelRegistrySnapshot } from './CanvasTravel';
@@ -11,7 +13,7 @@ import './travel-workspace.css';
 
 const noteLabels = { user_preference: 'Your preference', assistant_inference: 'Assistant suggestion', rejection: 'Ruled out', research_override: 'Exploratory search' };
 const optionId = option => option.evidence_id || option.id;
-export function TravelWorkspace({ travelerProfile, selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, onFlightCheckout, onStayCheckout, importedSnapshot, importRequest, importReason }) {
+export function TravelWorkspace({ backNavigation, travelerProfile, sandbox, selected, api, mode, active, initialData, pendingEdits, blocked, onExpired, onBusyChange, registerStop, onChoiceSaved, onBookingResult, onFlightCheckout, onStayCheckout, importedSnapshot, importRequest, importReason }) {
   const topic = mode === 'accommodation' ? 'stays' : 'flights';
   const stop = useRef(null);
   const workspace = useTravelWorkspace({ owner: selected.owner_id || selected.subject || 'session', planId: selected.plan_id, topic, initialData, travelerProfile, active, onExpired, onManualChange: () => stop.current?.() });
@@ -20,9 +22,21 @@ export function TravelWorkspace({ travelerProfile, selected, api, mode, active, 
   const onComparisonChange = useCallback(references => { displayedComparison.current = { scope: comparisonScope, references }; }, [comparisonScope]);
   const chat = useTravelConversation({ selected, api, topic, visible: active, blocked, onExpired, onBusyChange, getDiscussionContext: () => displayedComparison.current?.scope === comparisonScope && displayedComparison.current.references.length ? { intent: 'discuss', options: displayedComparison.current.references } : undefined, getWorkspaceContext: workspace.getWorkspaceContext, onWorkspaceRunStart: workspace.onWorkspaceRunStart, onWorkspaceRunEnd: workspace.onWorkspaceRunEnd, onWorkspaceUpdate: workspace.applyWorkspaceUpdate });
   const [pane, setPane] = useState('options'), [chatOpen, setChatOpen] = useState(true), [contextOptions, setContextOptions] = useState([]);
-  const chatToggle = useRef(null), browseTab = useRef(null);
-  function openChat() { setChatOpen(true); setPane('chat'); }
-  function closeChat() { setChatOpen(false); setPane('options'); requestAnimationFrame(() => { const target = browseTab.current?.getClientRects().length ? browseTab.current : chatToggle.current; target?.focus(); }); }
+  const chatToggle = useRef(null);
+  const [narrow, setNarrow] = useState(() => window.matchMedia?.('(max-width: 760px)').matches || false);
+  useEffect(() => {
+    const query = window.matchMedia?.('(max-width: 760px)');
+    if (!query) return;
+    const changed = () => setNarrow(query.matches);
+    changed(); query.addEventListener('change', changed);
+    return () => query.removeEventListener('change', changed);
+  }, []);
+  const chatVisible = chatOpen && (!narrow || pane === 'chat');
+  function openChat() {
+    setChatOpen(true); setPane('chat');
+    requestAnimationFrame(() => document.querySelector(`#travel-${topic}-chat textarea`)?.focus());
+  }
+  function closeChat() { setChatOpen(false); setPane('options'); requestAnimationFrame(() => chatToggle.current?.focus()); }
   const [historicalOption, setHistoricalOption] = useState(null);
   const [review, setReview] = useState(null), [saving, setSaving] = useState(false), [choiceError, setChoiceError] = useState('');
   const [clock, setClock] = useState(Date.now());
@@ -157,10 +171,11 @@ export function TravelWorkspace({ travelerProfile, selected, api, mode, active, 
   </>;
   const notes = <>{snapshot?.notes?.items?.length > 0 && <details className="travel-research-notes"><summary>What we’ve learned</summary><ul>{snapshot.notes.items.map((note, index) => <li key={index}><strong>{noteLabels[note.kind] || 'Research note'}:</strong> {note.text}</li>)}</ul></details>}</>;
   return <div hidden={!active} className={`travel-workspace travel-pane-${pane} ${chatOpen ? "travel-chat-open" : "travel-chat-closed"}`}>
-    <nav className="travel-pane-tabs" aria-label={`${topic} workspace view`}><button ref={browseTab} type="button" aria-pressed={pane === 'options'} onClick={() => setPane('options')}>Browse {topic === 'stays' ? 'stays' : 'flights'}</button><button type="button" aria-pressed={pane === 'chat'} onClick={openChat}>{topic === 'stays' ? 'Stay' : 'Flight'} chat{chat.active ? ' · replying' : ''}</button></nav>
+    {active && <PlanHeaderSlot slot="actions"><PlanChatToggle ref={chatToggle} expanded={chatVisible} label={`${chatVisible ? 'Collapse' : 'Open'} ${topic === 'stays' ? 'accommodation' : 'flight'} chat`} controls={`travel-${topic}-chat`} replying={chat.active} onClick={chatVisible ? closeChat : openChat}/></PlanHeaderSlot>}
     <div className="travel-workspace-panes">
-      <section className="travel-options-pane" aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} options`}>
-        <div className="travel-substage-status" role="status">{readiness}</div>
+      <section hidden={narrow && chatVisible} className="travel-options-pane" aria-label={`${topic === 'stays' ? 'Accommodation' : 'Flight'} options`}>
+        {backNavigation}
+        <div className="travel-substage-status" role="status">{readiness}<span className="travel-provider-label">{sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></div>
         {workspace.state.recoveredDetails && <button type="button" className="ds-text-button" onClick={() => workspace.dispatch({ type: 'details', value: workspace.state.recoveredDetails })}>Reopen previous details</button>}
         {saving && !review && <p role="status">Preparing your exact choice…</p>}
         {workspace.state.notice && <div className="canvas-notice"><p role="status">{workspace.state.notice}</p>{workspace.state.inverse && <button type="button" className="ds-text-button" aria-label="Undo workspace change" onClick={workspace.undo}>Undo</button>}</div>}
@@ -170,8 +185,8 @@ export function TravelWorkspace({ travelerProfile, selected, api, mode, active, 
         <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onBookingResult={onBookingResult} onFlightCheckout={onFlightCheckout} onStayCheckout={onStayCheckout} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onShortlist={item => chooseManual(item, 'shortlist')} onCompare={compare} onComparisonChange={onComparisonChange} discussionDisabled={unavailable || saving} choiceDisabled={blocked || saving}/>
         {savedSuggestions}
       </section>
-      <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatOpen}><TravelConversation chat={chat} topic={topic} visible={active && chatOpen} disabled={blocked || snapshot?.locked && !chat.active} contextOptions={contextOptions} onClearContext={() => setContextOptions([])} onClose={closeChat} brief={snapshot?.brief} pendingEdits={pendingEdits} renderReferences={renderReferences} notes={notes}/></div>
-      {!chatOpen && <div className="canvas-chat-rail"><button ref={chatToggle} type="button" className="canvas-chat-expand" aria-label={`Open ${topic === 'stays' ? 'accommodation' : 'flight'} chat`} title="Open chat" aria-controls={`travel-${topic}-chat`} aria-expanded={false} onClick={openChat}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 4v16m15-8H8m5-5-5 5 5 5"/></svg><span>Chat</span>{chat.active && <span className="canvas-chat-rail-status" aria-label="Travella is replying"/>}</button></div>}
+      <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatVisible}><TravelConversation chat={chat} topic={topic} visible={active && chatVisible} disabled={blocked || snapshot?.locked && !chat.active} contextOptions={contextOptions} onClearContext={() => setContextOptions([])} brief={snapshot?.brief} pendingEdits={pendingEdits} renderReferences={renderReferences} notes={notes}/></div>
+
     </div>
     <dialog className="canvas-confirm travel-choice-review" ref={dialog} aria-labelledby={`travel-${topic}-review`} onCancel={event => { event.preventDefault(); if (!saving) setReview(null); }}>
       <h2 id={`travel-${topic}-review`}>{review?.body.action === 'prefer' ? 'Choose this option for your trip?' : review?.body.action === 'remove' ? 'Remove this saved option?' : 'Save this option to your shortlist?'}</h2>

@@ -1,0 +1,27 @@
+services:
+  app:
+    image: travella-focused-header-app:review
+    networks: [default, shared-database]
+    environment:
+      FRONTEND_ORIGIN: http://localhost:5196
+      CRUD_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@travella-local-single-postgres-1:5432/${POSTGRES_DB:-travella}
+      SESSION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-travella}:${POSTGRES_PASSWORD:-travella-local-only}@travella-local-single-postgres-1:5432/${POSTGRES_DB:-travella}
+      LOCAL_TRAVEL_MCP_URL: http://travella-focused-header-travel-mcp-1:8002/mcp
+      LOCAL_MAP_MCP_URL: http://travella-focused-header-map-mcp-1:8001/mcp
+      LOCAL_RESEARCH_MCP_URL: http://travella-focused-header-research-mcp-1:8000/mcp
+  travel-mcp:
+    image: travella-focused-header-mcp:review
+    environment:
+      MCP_ALLOWED_HOSTS: travella-focused-header-travel-mcp-1:8002,travel-mcp:8002,localhost:8002,127.0.0.1:8002
+  map-mcp:
+    image: travella-focused-header-mcp:review
+    environment:
+      MCP_ALLOWED_HOSTS: travella-focused-header-map-mcp-1:8001,map-mcp:8001,localhost:8001,127.0.0.1:8001
+  research-mcp:
+    image: travella-focused-header-mcp:review
+    environment:
+      MCP_ALLOWED_HOSTS: travella-focused-header-research-mcp-1:8000,research-mcp:8000,localhost:8000,127.0.0.1:8000
+networks:
+  shared-database:
+    external: true
+    name: travella-local-single_default

@@ -316,7 +316,7 @@ test('main comparison preserves selection order and facts when discussion fails 
   expect([...comparison.querySelectorAll('[data-comparison-option]')].map(node => node.dataset.comparisonOption)).toEqual(['flight-2', 'flight-0', 'flight-1']);
   expect(comparison.textContent).toContain('Return total for all travelers');
   expect(comparison.textContent).toContain('Source: LiteAPI');
-  expect(screen.getByRole('button', { name: 'Browse flights' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('region', { name: 'Flight options' })).toBeTruthy();
   expect(await screen.findByRole('button', { name: 'Retry comparison discussion' })).toBeTruthy();
   expect(chat.send.mock.calls[0][1].options.map(ref => ref.option_id)).toEqual(['flight-2', 'flight-0', 'flight-1']);
   view.rerender(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="flights" active initialData={initialData} importedSnapshot={workspaceSnapshot('flights', 'new-search')} importRequest={1}/>);

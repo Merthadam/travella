@@ -1,0 +1,8 @@
+frontend/src/PlansApp.jsx: MATCH
+frontend/src/components/PlanHeaderContext.jsx: MATCH
+frontend/src/components/PlanChatToggle.jsx: MATCH
+frontend/src/components/focused-header.css: MATCH
+frontend/src/features/plans/components/PlanningCanvas.jsx: MATCH
+frontend/src/features/plans/components/canvas-conversation.css: MATCH
+frontend/src/features/plans/travel/TravelWorkspace.jsx: MATCH
+frontend/src/features/plans/travel/travel-workspace.css: MATCH

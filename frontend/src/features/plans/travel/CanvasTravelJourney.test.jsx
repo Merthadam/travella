@@ -24,7 +24,7 @@ test('legacy activities parse and unknown top-level fields fail closed',()=>{
 test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses real parser, Canvas and A2UI into matching results without refetch',async()=>{
   const fixture=JSON.parse(readFileSync(process.env.TRAVELLA_CANVAS_SSE_FIXTURE,'utf8'));
   history.replaceState({},'',`/plans/${fixture.plan_id}`);
-  vi.stubGlobal('matchMedia',()=>({matches:false}));
+  vi.stubGlobal('matchMedia',()=>({matches:false,addEventListener(){},removeEventListener(){}}));
   HTMLDialogElement.prototype.showModal=function(){this.open=true;};
   HTMLDialogElement.prototype.close=function(){this.open=false;};
   const requests=[];
@@ -133,7 +133,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   expect(within(results).getAllByRole('article')).toHaveLength(1);
   count += 2; // Authenticated manual search, then its authorized registry snapshot.
   expect(requests).toHaveLength(count);
-  await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
+  await user.click(screen.getByRole('button',{name:'← Back to canvas'}));
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   expect(screen.getByRole('textbox',{name:'Preference'}).value).toBe('Unfinished editor');
   expect(leavePrompt).not.toHaveBeenCalled();
@@ -145,7 +145,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   expect(within(reopened).getAllByRole('article')).toHaveLength(resultCount);
   expect(within(reopened).queryByRole('heading',{name:'Manual B'})).toBeNull();
   expect(requests).toHaveLength(count);
-  await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
+  await user.click(screen.getByRole('button',{name:'← Back to canvas'}));
   await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   if(fixture.mixed) {
     const flightOpen=screen.getByRole('button',{name:'View all flights'});
@@ -157,7 +157,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
     expect(flightsView.textContent).not.toContain('Observed stay');
     expect(flightsView.textContent).toContain('Return total · all travelers');
     expect(requests).toHaveLength(count);
-    await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
+    await user.click(screen.getByRole('button',{name:'← Back to canvas'}));
     await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message Travella'}).value).toBe('Keep this unsent message'));
   }
   expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
@@ -174,7 +174,7 @@ test.skipIf(!process.env.TRAVELLA_CANVAS_SSE_FIXTURE)('actual Python SSE crosses
   const recovered=await screen.findByRole('region',{name:'Travel result recovery'});
   expect(recovered.textContent).toContain('no longer available');
   expect(within(recovered).queryAllByRole('article')).toHaveLength(0);
-  await user.click(screen.getByRole('button',{name:'← Back to plan chat'}));
+  await user.click(screen.getByRole('button',{name:'← Back to canvas'}));
   await screen.findByRole('textbox',{name:'Message Travella'});
   expect(requests.filter(x=>x.endsWith('/events/stream'))).toHaveLength(turns.length);
 });
