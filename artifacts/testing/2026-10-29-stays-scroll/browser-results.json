@@ -1,0 +1,292 @@
+[
+  {
+    "command": {
+      "js": "async () => {const {plansApi,requestId}=await import('/src/plansApi.js');const p=await plansApi.get('78532b6d-bdd5-439f-97a1-f4dae176fc57','deleted');const c=await plansApi.prepare(p,'restore');await plansApi.commit({plan:p,operation:'restore',challenge:c.challenge,id:requestId()});return 'restored only previous verification Plan';}"
+    },
+    "result": "restored only previous verification Plan"
+  },
+  {
+    "command": {
+      "tool": "navigate_page",
+      "args": {
+        "url": "http://localhost:5198/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully navigated to http://localhost:5198/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57.\n## Pages\n1: about:blank\n2: Travella \u2014 Account access (http://localhost:5198/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57) [selected]"
+  },
+  {
+    "command": {
+      "js": "() => {document.querySelector('[aria-label=\"View mock stay\"]').click();return 'entered stays workspace';}"
+    },
+    "result": "entered stays workspace"
+  },
+  {
+    "command": {
+      "js": "() => { [...document.querySelectorAll('button')].find(e=>e.textContent==='View stay confirmation').click();return 'open confirmation';}"
+    },
+    "result": "open confirmation"
+  },
+  {
+    "command": {
+      "js": "() => {const e=document.querySelector('.canvas-travel-screen');return {overflow:getComputedStyle(e).overflowY,top:e.scrollTop,height:e.clientHeight,content:e.scrollHeight,hiddenWorkspaces:e.querySelectorAll('.travel-workspace[hidden]').length};}"
+    },
+    "result": {
+      "overflow": "hidden",
+      "top": 0,
+      "height": 928,
+      "content": 1435,
+      "hiddenWorkspaces": 1
+    }
+  },
+  {
+    "command": {
+      "tool": "press_key",
+      "args": {
+        "key": "PageDown",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully pressed key: PageDown"
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "artifacts/testing/2026-10-29-stays-scroll/plan/before-desktop.png",
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the current page's viewport.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/lydian-fifth/artifacts/testing/2026-10-29-stays-scroll/plan/before-desktop.png."
+  },
+  {
+    "command": {
+      "js": "() => {const e=document.querySelector('.canvas-travel-screen');return {afterPageDown:e.scrollTop,windowScroll:scrollY};}"
+    },
+    "result": {
+      "afterPageDown": 0,
+      "windowScroll": 0
+    }
+  },
+  {
+    "command": {
+      "tool": "__auth"
+    },
+    "result": 200
+  },
+  {
+    "command": {
+      "tool": "navigate_page",
+      "args": {
+        "url": "http://localhost:5198/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully navigated to http://localhost:5198/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57.\n## Pages\n1: about:blank\n2: Travella \u2014 Account access (http://localhost:5198/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57) [selected]"
+  },
+  {
+    "command": {
+      "js": "() => {document.querySelector('[aria-label=\"View mock stay\"]').click();return 'entered workspace';}"
+    },
+    "result": "entered workspace"
+  },
+  {
+    "command": {
+      "js": "() => {const e=document.querySelector('.canvas-travel-screen');const workspace={display:getComputedStyle(e).display,overflow:getComputedStyle(e).overflowY};[...document.querySelectorAll('button')].find(e=>e.textContent==='View stay confirmation').click();return {activeWorkspace:workspace};}"
+    },
+    "result": {
+      "activeWorkspace": {
+        "display": "flex",
+        "overflow": "hidden"
+      }
+    }
+  },
+  {
+    "command": {
+      "js": "() => {const e=document.querySelector('.canvas-travel-screen');return {overflow:getComputedStyle(e).overflowY,top:e.scrollTop,height:e.clientHeight,content:e.scrollHeight,hiddenWorkspaces:e.querySelectorAll('.travel-workspace[hidden]').length};}"
+    },
+    "result": {
+      "overflow": "auto",
+      "top": 0,
+      "height": 928,
+      "content": 1507,
+      "hiddenWorkspaces": 1
+    }
+  },
+  {
+    "command": {
+      "tool": "press_key",
+      "args": {
+        "key": "PageDown",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully pressed key: PageDown"
+  },
+  {
+    "command": {
+      "js": "() => {const e=document.querySelector('.canvas-travel-screen');return {afterPageDown:e.scrollTop,max:e.scrollHeight-e.clientHeight,overflowX:document.documentElement.scrollWidth>innerWidth};}"
+    },
+    "result": {
+      "afterPageDown": 579,
+      "max": 579,
+      "overflowX": false
+    }
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "artifacts/testing/2026-10-29-stays-scroll/implementation/desktop-scrolled.png",
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the current page's viewport.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/lydian-fifth/artifacts/testing/2026-10-29-stays-scroll/implementation/desktop-scrolled.png."
+  },
+  {
+    "command": {
+      "tool": "press_key",
+      "args": {
+        "key": "PageUp",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully pressed key: PageUp"
+  },
+  {
+    "command": {
+      "tool": "emulate",
+      "args": {
+        "viewport": "390x844x1,mobile,touch",
+        "pageId": 2
+      }
+    },
+    "result": "Emulation configured successfully\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "js": "() => { [...document.querySelectorAll('[aria-label=\"Stay checkout\"] button')].find(e=>e.textContent.includes('Back to Plan')).click();return 'back to Plan';}"
+    },
+    "result": "back to Plan"
+  },
+  {
+    "command": {
+      "js": "() => {document.querySelector('[aria-label=\"View mock stay\"]').click();return 'entered mobile workspace';}"
+    },
+    "result": "entered mobile workspace"
+  },
+  {
+    "command": {
+      "js": "() => { [...document.querySelectorAll('button')].find(e=>e.textContent==='View stay confirmation').click();return 'reopen mobile confirmation';}"
+    },
+    "result": "reopen mobile confirmation"
+  },
+  {
+    "command": {
+      "js": "() => {const e=document.querySelector('.canvas-travel-screen');return {overflow:getComputedStyle(e).overflowY,top:e.scrollTop,height:e.clientHeight,content:e.scrollHeight,hiddenWorkspaces:e.querySelectorAll('.travel-workspace[hidden]').length,width:innerWidth};}"
+    },
+    "result": {
+      "overflow": "auto",
+      "top": 0,
+      "height": 772,
+      "content": 2053,
+      "hiddenWorkspaces": 1,
+      "width": 390
+    }
+  },
+  {
+    "command": {
+      "tool": "press_key",
+      "args": {
+        "key": "PageDown",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully pressed key: PageDown\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "js": "() => ({afterPageDown:document.querySelector('.canvas-travel-screen').scrollTop})"
+    },
+    "result": {
+      "afterPageDown": 732
+    }
+  },
+  {
+    "command": {
+      "tool": "press_key",
+      "args": {
+        "key": "PageDown",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully pressed key: PageDown\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "js": "() => {const e=document.querySelector('.canvas-travel-screen');const button=[...e.querySelectorAll('button')].find(b=>b.textContent==='Download confirmation');const r=button.getBoundingClientRect();return {afterPageDown:e.scrollTop,max:e.scrollHeight-e.clientHeight,downloadVisible:r.top>=72&&r.bottom<=innerHeight,overflowX:document.documentElement.scrollWidth>innerWidth};}"
+    },
+    "result": {
+      "afterPageDown": 1281,
+      "max": 1281,
+      "downloadVisible": true,
+      "overflowX": false
+    }
+  },
+  {
+    "command": {
+      "tool": "take_screenshot",
+      "args": {
+        "filePath": "artifacts/testing/2026-10-29-stays-scroll/implementation/mobile-scrolled.png",
+        "pageId": 2
+      }
+    },
+    "result": "Took a screenshot of the current page's viewport.\nSaved screenshot to /Users/adammerth/.superset/worktrees/7718c7a9-dea7-4520-aacf-2cd62896751c/lydian-fifth/artifacts/testing/2026-10-29-stays-scroll/implementation/mobile-scrolled.png.\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "tool": "press_key",
+      "args": {
+        "key": "PageUp",
+        "pageId": 2
+      }
+    },
+    "result": "Successfully pressed key: PageUp\nEmulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}"
+  },
+  {
+    "command": {
+      "tool": "list_console_messages",
+      "args": {
+        "types": [
+          "error",
+          "warn"
+        ],
+        "pageId": 2
+      }
+    },
+    "result": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Console messages\nShowing 1-1 of 1 (Page 1 of 1).\nmsgid=31 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)"
+  },
+  {
+    "command": {
+      "tool": "list_network_requests",
+      "args": {
+        "resourceTypes": [
+          "fetch",
+          "xhr"
+        ],
+        "pageSize": 60,
+        "pageId": 2
+      }
+    },
+    "result": "Emulating viewport: {\"deviceScaleFactor\":1,\"isMobile\":true,\"hasTouch\":true,\"isLandscape\":false,\"width\":390,\"height\":844}\n## Network requests\nShowing 1-15 of 15 (Page 1 of 1).\nreqid=1125 GET http://localhost:5198/auth/session [200]\nreqid=1126 GET http://localhost:5198/v1/traveler-profile [200]\nreqid=1127 GET http://localhost:5198/v1/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57?view=active [200]\nreqid=1128 GET http://localhost:5198/v1/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57/destinations [200]\nreqid=1129 GET http://localhost:5198/v1/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57/canvas [200]\nreqid=1130 GET http://localhost:5198/v1/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57/research-context [200]\nreqid=1131 GET http://localhost:5198/v1/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57/conversation/messages [200]\nreqid=1132 GET http://localhost:5198/v1/agent/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57/travel/capabilities [200]\nreqid=1133 GET http://localhost:5198/v1/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57/brief [200]\nreqid=1136 GET https://maps.googleapis.com/maps/api/mapsjs/gen_204?csp_test=true [200]\nreqid=1144 GET http://localhost:5198/v1/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57/travel/stays [200]\nreqid=1147 GET https://maps.googleapis.com/maps/api/mapsjs/mapConfigs:batchGet?language=en-GB&region=US&alt=protojson&major_version=66&minor_version=12d&map_ids=DEMO_MAP_ID&map_type=1 [200]\nreqid=1149 POST https://maps.googleapis.com/$rpc/google.internal.maps.mapsjs.v1.MapsJsInternalService/GetViewportInfo [200]\nreqid=1201 GET http://localhost:5198/v1/plans/78532b6d-bdd5-439f-97a1-f4dae176fc57/travel/stays [200]\nreqid=1202 GET http://localhost:5198/auth/session [200]"
+  },
+  {
+    "command": {
+      "js": "async () => {const e=document.querySelector('.canvas-travel-screen');const afterPageUp=e.scrollTop; const {plansApi,requestId}=await import('/src/plansApi.js');const p=await plansApi.get('78532b6d-bdd5-439f-97a1-f4dae176fc57');const c=await plansApi.prepare(p,'delete');await plansApi.commit({plan:p,operation:'delete',challenge:c.challenge,id:requestId()});const r=await fetch('/v1/plans/'+p.plan_id+'/canvas');return {afterPageUp,cleanupStatus:r.status};}"
+    },
+    "result": {
+      "afterPageUp": 549,
+      "cleanupStatus": 404
+    }
+  }
+]

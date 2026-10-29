@@ -15,6 +15,7 @@ from .travel_contracts import INPUTS, OUTPUTS, POST_ACTIONS, TravelInvocation
 from .travel_registry import travel_registry
 
 ERRORS = {
+    "stay_already_booked": (409, "This Plan already has a stay checkout. Reopen its confirmation."),
     "offer_expired": (409, "This flight option is no longer available to verify. Search again for fresh options."),
     "invalid_services": (422, "These seats or bags are unavailable. Review your selections."),
     "checkout_changed": (409, "Your checkout changed. Check its status and review the latest total."),
@@ -28,7 +29,7 @@ ERRORS = {
 }
 
 
-def register_travel_routes(app, identity_dependency, read_plan, client=None):
+def register_travel_routes(app, identity_dependency, read_plan, client=None, read_canvas=None):
     client = client or TravelClient()
     attempts = defaultdict(deque)
     slots = asyncio.Semaphore(8)
@@ -36,6 +37,11 @@ def register_travel_routes(app, identity_dependency, read_plan, client=None):
     async def dispatch(invocation, identity, authorization):
         token = (authorization or "").removeprefix("Bearer ").strip()
         await read_plan(identity.subject, invocation.plan_id, token)
+        if invocation.action in {"sandbox/prebook", "sandbox/book"} and read_canvas:
+            saved = await read_canvas(invocation.plan_id, token)
+            booking = (saved.get("snapshot") or {}).get("components", {}).get("accommodation", {}).get("mockBooking")
+            if booking:
+                return JSONResponse({"code": "stay_already_booked", "message": ERRORS["stay_already_booked"][1]}, status_code=409)
         try:
             criteria = (
                 INPUTS[invocation.action]

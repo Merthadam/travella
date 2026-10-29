@@ -169,6 +169,11 @@ class AgentClient:
                         **({"json": criteria} if action in POST_ACTIONS else {"params": criteria}))
                 status, data = response.status_code, response.json()
             if status != 200:
+                if action.startswith("sandbox/") and isinstance(data, dict):
+                    from services.agent.travel_routes import ERRORS
+                    code = data.get("code")
+                    if code in ERRORS and ERRORS[code][0] == status:
+                        return status, {"code": code, "message": ERRORS[code][1]}
                 messages = {403: "Mock checkout requires a sandbox key.", 409: "This checkout expired. Search again for a fresh offer.", 401: "Sign in again to search.", 404: "This Plan is unavailable.",
                             422: "Check your search criteria.", 429: "Please wait a minute before searching again.",
                             504: "The search took too long. Try again."}

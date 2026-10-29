@@ -106,7 +106,8 @@ def create_app(
 
     from .travel_routes import register_travel_routes
     from .travel_contracts import TravelInvocation
-    travel_dispatch = register_travel_routes(app, identity_dependency, turn_service._read_plan, travel_client)
+    travel_dispatch = register_travel_routes(app, identity_dependency, turn_service._read_plan, travel_client,
+        read_canvas=getattr(context_reader, "saved_canvas", None))
 
     @app.get("/ping")
     async def runtime_ping() -> dict[str, str]:

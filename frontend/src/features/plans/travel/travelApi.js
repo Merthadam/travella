@@ -44,7 +44,7 @@ export async function travelRequest(planId, action, criteria, signal) {
   );
   if (!response.ok) {
     const failure = await response.json().catch(() => ({}));
-    const specific = { invalid_services: 'These seats or bags are unavailable. Review your selections.', checkout_changed: 'Your checkout changed. Check its status and review the latest total.', checkout_busy: 'Your checkout is being updated. Check its status shortly.' };
+    const specific = { stay_already_booked: 'This Plan already has a stay. Reopen its saved confirmation.', invalid_services: 'These seats or bags are unavailable. Review your selections.', checkout_changed: 'Your checkout changed. Check its status and review the latest total.', checkout_busy: 'Your checkout is being updated. Check its status shortly.' };
     const message = specific[failure.code] || (
       response.status === 401
         ? "Your session expired. Sign in again."

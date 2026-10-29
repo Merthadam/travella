@@ -1,0 +1,48 @@
+time="2026-10-29T22:15:51+01:00" level=warning msg="buildx Docker CLI plugin not found: falling back to the classic builder. BuildKit-only build features (multi-arch, secrets, ssh, additional contexts, ...) will not be available"
+ Image travella-stays-checkout-travel-mcp Building
+ Image travella-stays-checkout-travel-mcp Building
+Sending build context to Docker daemon  547.6kB
+Sending build context to Docker daemon  3.213MB
+Sending build context to Docker daemon  10.16MB
+Sending build context to Docker daemon  12.78MB
+Sending build context to Docker daemon  13.21MB
+
+Step 1/10 : FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ ---> e5b65587bce7
+Step 2/10 : WORKDIR /app
+ ---> Using cache
+ ---> a1de9a6e96eb
+Step 3/10 : ENV UV_LINK_MODE=copy     PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ ---> Using cache
+ ---> a30c52da356d
+Step 4/10 : COPY pyproject.toml uv.lock ./
+ ---> Using cache
+ ---> 15311d6f9274
+Step 5/10 : RUN uv sync --locked --no-dev
+ ---> Using cache
+ ---> d72b12c49a63
+Step 6/10 : RUN .venv/lib/python3.12/site-packages/claude_agent_sdk/_bundled/claude --version
+ ---> Using cache
+ ---> 03132a87ce93
+Step 7/10 : COPY services ./services
+ ---> e55236183b67
+Step 8/10 : EXPOSE 8000
+ ---> Running in 91c4d01dccc7
+ ---> Removed intermediate container 91c4d01dccc7
+ ---> 721056dc2682
+Step 9/10 : CMD ["uv", "run", "--frozen", "--no-sync", "uvicorn", "services.auth.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+ ---> Running in 47a56ce18051
+ ---> Removed intermediate container 47a56ce18051
+ ---> 06ebff3e5069
+Step 10/10 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in 61ae8696b53a
+ ---> Removed intermediate container 61ae8696b53a
+ ---> 998e0a60203a
+Successfully built 998e0a60203a
+Successfully tagged travella-stays-checkout-travel-mcp:latest
+ Image travella-stays-checkout-travel-mcp Built
+ Image travella-stays-checkout-travel-mcp Built
+ Container travella-stays-checkout-travel-mcp-1 Recreate
+ Container travella-stays-checkout-travel-mcp-1 Recreated
+ Container travella-stays-checkout-travel-mcp-1 Starting
+ Container travella-stays-checkout-travel-mcp-1 Started

@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-28T07:51:44.627817+00:00"
-last_activity: 2026-10-28
-last_activity_desc: Shared-workspace implementation and bounded integrated evidence complete; acceptance remains open
+last_updated: "2026-10-29T21:31:41.401478+00:00"
+last_activity: 2026-10-29
+last_activity_desc: Guided stays sandbox checkout verified; broader phase acceptance remains open
 state_head: 4b6f4ab7df42622b10ea7b46222e8ef463f21efe
 progress:
   total_phases: 19
@@ -140,6 +140,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261029-u8c | Guided stays checkout and durable LiteAPI confirmation | 2026-10-29 | 6cef21d | Passed — 475 tests, build, authenticated desktop/mobile sandbox journey | [Task](quick/261029-u8c-implement-guided-stays-checkout-and-dura/) |
 | 261026-ksg | Connected reply suggestions, exact context and manual/chat choices; browser auth recovered | 2026-10-27 | b0182f1 | Verified — sandbox desktop/mobile; phase UAT unchanged | [261026-ksg](./quick/261026-ksg-connect-topic-chat-suggestions-and-exact/) |
 | 261025-g4x | Add LiteAPI stay details/reviews/rates and flight verification tools | 2026-10-25 | caf905b | 29 targeted tests passed; 387 broad passes with 8 baseline UI failures; no live calls/deployment | [Task](quick/261025-g4x-add-read-only-hotel-details-reviews-and-/) |
 | 261025-fzw | Research LiteAPI tools and scoped Claude SDK conversations | 2026-10-25 | 877b5b5 | Documentation/source review complete; no implementation or live capability verification | [Task](quick/261025-fzw-research-liteapi-tools-and-scoped-claude/) |
@@ -444,3 +445,18 @@ User approved the running experience and explicitly authorized merge after revie
 
 
 Phase18 shipment PR #22: https://github.com/Merthadam/travella/pull/22. Integrated main with287frontend/793Python passes, one unchanged baseline failure and documented skips; final105checkout/workspace checks and actual browser checkout review passed. Product owner authorized merge; outstanding technical acceptance checks remain recorded. Running preview includes integrated sourcebe539c6; final documentation commit adds evidence only.
+
+
+### Guided Stays checkout — 29 October 2026
+
+User approved one stay per Plan, flight-style checkout, provider-confirmed guest/room/price/cancellation details and downloadable confirmation; requested subagent fan-out. Implemented and reviewed in6cef21d.337 backend and138 frontend tests, build, actual LiteAPI sandbox two-room browser flow, tokenless reload, download, print invocation, persistence/ownership/lifecycle checks and cleanup passed. Provider room-assignment inconsistency is explicitly labeled. Local preview http://localhost:5198/plans; evidence artifacts/testing/2026-10-29-guided-stays-checkout/verification.md. Cancellation actions and finalized-Plan documents remain deferred. No merge/deployment; broader Phase18 acceptance remains pending.
+
+
+### Stays checkout scrolling correction — 29 October 2026
+
+User reported scrolling blocked. Hidden mounted workspace triggered overflow:hidden on checkout. Scoped layout rules to visible workspace children. Chrome keyboard reproduction failed before and passed after on desktop/mobile, build/auth/source hash passed. Earlier programmatic scrolling evidence did not cover user input. Evidence: artifacts/testing/2026-10-29-stays-scroll/verification.md. Broader phase acceptance unchanged.
+
+
+### Guided Stays shipment — 29 October 2026
+
+Product owner explicitly authorized merge of the current version, with substantial UI fine-tuning remaining. PR #23: https://github.com/Merthadam/travella/pull/23 (lydian-fifth → main), including scroll fix18d169f. Base c1eba7d; scoped security review has zero open findings. Existing475 tests/build and authenticated sandbox/scroll checks are recorded in quick261029-u8c and browser evidence. This shipment does not close wider Phase18 acceptance or the deferred cancellation/documents work.

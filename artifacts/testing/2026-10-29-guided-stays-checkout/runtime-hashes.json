@@ -1,0 +1,47 @@
+[
+  {
+    "file": "frontend/src/features/plans/travel/StayCheckout.jsx",
+    "service": "app",
+    "matches": true
+  },
+  {
+    "file": "frontend/src/features/plans/travel/CanvasTravel.jsx",
+    "service": "app",
+    "matches": true
+  },
+  {
+    "file": "services/agent/travel_routes.py",
+    "service": "app",
+    "matches": true
+  },
+  {
+    "file": "services/auth/api.py",
+    "service": "app",
+    "matches": true
+  },
+  {
+    "file": "services/agent/claude/canvas_travel.py",
+    "service": "app",
+    "matches": true
+  },
+  {
+    "file": "services/mcps/sandbox_checkout.py",
+    "service": "travel-mcp",
+    "matches": true
+  },
+  {
+    "file": "services/mcps/stay_confirmation.py",
+    "service": "travel-mcp",
+    "matches": true
+  },
+  {
+    "file": "services/mcps/travel_server.py",
+    "service": "travel-mcp",
+    "matches": true
+  },
+  {
+    "file": "services/mock_booking.py",
+    "service": "travel-mcp",
+    "matches": true
+  }
+]
