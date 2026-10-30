@@ -1,7 +1,5 @@
 """Local FastAPI authentication boundary. All provider tokens stay server-side."""
 
-from services.shared.traveler_profile import profile_context
-
 import hashlib
 import secrets
 import time
@@ -17,6 +15,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
 from starlette.concurrency import run_in_threadpool
+
+from services.shared.traveler_profile import profile_context
 
 from .agent_client import AgentClient
 from .authorization import traveler_key
@@ -387,19 +387,35 @@ def create_app(
 
         return await run_in_threadpool(forward)
 
+    async def agent_access_token(
+        request: Request,
+        *,
+        plan_id: str | None = None,
+        unavailable_message: str = "Copilot is not configured yet.",
+    ) -> str:
+        def read_token():
+            with store.transaction():
+                _, session, _ = current_session(request)
+                return session["access"]
+
+        # Verification can block; end its transaction before calling the agent.
+        token = await run_in_threadpool(read_token)
+        if agent_client is None:
+            raise HTTPException(503, unavailable_message)
+        if plan_id is not None:
+            try:
+                UUID(plan_id)
+            except ValueError:
+                raise HTTPException(404, "Copilot is unavailable.") from None
+        return token
+
     @app.api_route("/v1/agent/plans/{plan_id}/travel/{action:path}", methods=["GET", "POST"])
     async def travel_proxy(plan_id: str, action: str, request: Request):
         from services.agent.travel_contracts import INPUTS, POST_ACTIONS
         ready()
         if action not in INPUTS or (request.method == "POST") != (action in POST_ACTIONS):
             raise HTTPException(404, "Search unavailable.")
-        def access_token():
-            with store.transaction():
-                _, session, _ = current_session(request)
-                return session["access"]
-        token = await run_in_threadpool(access_token)
-        if agent_client is None:
-            raise HTTPException(503, "Travel search unavailable.")
+        token = await agent_access_token(request, unavailable_message="Travel search unavailable.")
         try:
             criteria = await request.json() if request.method == "POST" else dict(request.query_params)
         except ValueError:
@@ -412,18 +428,7 @@ def create_app(
         ready()
         body = await request.body()
 
-        def access_token():
-            with store.transaction():
-                _, session, _ = current_session(request)
-                return session["access"]
-
-        token = await run_in_threadpool(access_token)
-        if agent_client is None:
-            raise HTTPException(503, "Copilot is not configured yet.")
-        try:
-            UUID(plan_id)
-        except ValueError:
-            raise HTTPException(404, "Copilot is unavailable.") from None
+        token = await agent_access_token(request, plan_id=plan_id)
         status, data = await run_in_threadpool(
             agent_client.turn,
             request.url.path,
@@ -437,18 +442,7 @@ def create_app(
         ready()
         body = await request.body()
 
-        def access_token():
-            with store.transaction():
-                _, session, _ = current_session(request)
-                return session["access"]
-
-        token = await run_in_threadpool(access_token)
-        if agent_client is None:
-            raise HTTPException(503, "Copilot is not configured yet.")
-        try:
-            UUID(plan_id)
-        except ValueError:
-            raise HTTPException(404, "Copilot is unavailable.") from None
+        token = await agent_access_token(request, plan_id=plan_id)
         return StreamingResponse(
             agent_client.stream(
                 f"/v1/agent/plans/{plan_id}/events/stream",
@@ -463,18 +457,7 @@ def create_app(
     async def agent_proxy_cancel(plan_id: str, event_id: str, request: Request):
         ready()
 
-        def access_token():
-            with store.transaction():
-                _, session, _ = current_session(request)
-                return session["access"]
-
-        token = await run_in_threadpool(access_token)
-        if agent_client is None:
-            raise HTTPException(503, "Copilot is not configured yet.")
-        try:
-            UUID(plan_id)
-        except ValueError:
-            raise HTTPException(404, "Copilot is unavailable.") from None
+        token = await agent_access_token(request, plan_id=plan_id)
         status, data = await run_in_threadpool(
             agent_client.cancel,
             f"/v1/agent/plans/{plan_id}/events/{event_id}/cancel",

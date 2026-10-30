@@ -103,7 +103,9 @@ def test_existing_session_get_backfills_recovery_scope_once_without_extending_li
     client, provider, verifier, store, now = system
     client.post('/auth/sign-in', json=CREDENTIALS)
     sid = client.cookies.get('__Host-travella')
-    value = store.get(sid, now[0]); value.pop('recovery_scope', None); store.update(sid, value)
+    value = store.get(sid, now[0])
+    value.pop('recovery_scope', None)
+    store.update(sid, value)
     expiry = store.expiry(sid)
     first = client.get('/auth/session').json().get('recovery_scope')
     assert isinstance(first, str) and len(first) == 32
@@ -167,7 +169,7 @@ def test_agent_proxy_uses_server_session_and_never_forwards_browser_headers(syst
     assert "secret-access" not in response.text
 
 
-def test_onboarding_and_profile_proxies_keep_identity_server_side(system):
+def test_profile_proxy_keeps_identity_server_side_and_old_onboarding_is_unavailable(system):
     client, provider, verifier, store, now = system
     seen = []
 
@@ -188,12 +190,8 @@ def test_onboarding_and_profile_proxies_keep_identity_server_side(system):
 
     def agent_upstream(request):
         seen.append(request)
-        if request.url.path == "/v1/agent/traveler-profile/memory":
-            return httpx.Response(200, json={"status": "synced"})
-        return httpx.Response(
-            200,
-            json={"action": "ask", "assistant_text": "What city do you usually leave from?", "answer_candidates": []},
-        )
+        assert request.url.path == "/v1/agent/traveler-profile/memory"
+        return httpx.Response(200, json={"status": "synced"})
 
     agent = AgentClient("http://agent.test", transport=httpx.MockTransport(agent_upstream))
     app = create_app(
@@ -209,9 +207,8 @@ def test_onboarding_and_profile_proxies_keep_identity_server_side(system):
         assert saved.status_code == 200 and saved.json()["onboarding_complete"] is True
         assert saved.json()["memory_sync"] == "synced"
         onboarding = signed_client.post("/v1/agent/onboarding/events", json={"messages": []})
-        assert onboarding.status_code == 200
-        assert onboarding.json()["action"] == "ask"
-    assert len(seen) == 4
+        assert onboarding.status_code == 404
+    assert len(seen) == 3
     assert all(request.headers["authorization"] == "Bearer secret-access" for request in seen)
     assert all("cookie" not in request.headers for request in seen)
     assert all(request.headers.get("x-travella-request") is None for request in seen)
