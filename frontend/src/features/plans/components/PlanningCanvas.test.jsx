@@ -15,7 +15,10 @@ vi.mock('./CanvasDestinationMap', async () => {
 });
 vi.mock('../travel/TravelSearch', () => ({
   useTravelCapabilities: () => ({ capabilities: { hotels: true, flights: true, sandbox: true } }),
-  TravelSearch: ({ planId, mode, active, onBookingResult }) => <section hidden={!active} aria-label={`${mode} search`}>Search {mode}<button onClick={() => onBookingResult(planId, { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hotel_name: 'Ski stay', check_in: '2027-02-03', check_out: '2027-02-07' })}>Complete mock stay</button></section>,
+  TravelSearch: ({ mode, active, onStayCheckout }) => <section hidden={!active} aria-label={`${mode} search`}>Search {mode}<button onClick={() => onStayCheckout({ offerToken: 'test-offer' })}>Continue to stay checkout</button></section>,
+}));
+vi.mock('../travel/StayCheckout', () => ({
+  StayCheckout: ({ planId, onBookingResult, onBackToPlan }) => <section aria-label="Stay checkout"><button onClick={() => onBookingResult(planId, { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hotel_name: 'Ski stay', check_in: '2027-02-03', check_out: '2027-02-07' })}>Complete mock stay</button><button onClick={onBackToPlan}>Back to Plan</button></section>,
 }));
 beforeEach(() => {
   sessionStorage.clear(); vi.mocked(travelRequest).mockReset();
@@ -194,8 +197,9 @@ const booking = { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hot
 test('confirmed checkout switches the real canvas card to a clearly labeled mock state', async () => {
   const user = userEvent.setup(); const api = setup();
   await user.click(await screen.findByRole('button', { name: 'Explore accommodation' }));
-  await user.click(screen.getByRole('button', { name: 'Complete mock stay' }));
-  await user.click(screen.getByRole('button', { name: '← Back to canvas' }));
+  await user.click(screen.getByRole('button', { name: 'Continue to stay checkout' }));
+  await user.click(await screen.findByRole('button', { name: 'Complete mock stay' }));
+  await user.click(screen.getByRole('button', { name: 'Back to Plan' }));
   expect(await screen.findByText('Mock booked')).toBeTruthy();
   expect(screen.getByText('Ski stay')).toBeTruthy();
   expect(screen.getByText('Sandbox only · no real reservation or charge')).toBeTruthy();
