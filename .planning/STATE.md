@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-29T22:09:39.637Z"
+last_updated: "2026-10-30T18:02:12.450457+00:00"
 last_activity: 2026-10-30
-last_activity_desc: Consolidated booking recovery polling; 196 tests, build and Chrome DevTools checks passed
+last_activity_desc: Removed obsolete docs and identified backend cleanup candidates
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261030-qec | Remove obsolete docs and inspect backend cleanup candidates | 2026-10-30 | 14b8a64 | [261030-qec](./quick/261030-qec-remove-obsolete-docs-directory-and-ident/) |
 | 261030-q1u | Separate flight and stay option details | 2026-10-30 | 07586d4 | [261030-q1u](./quick/261030-q1u-separate-flight-and-stay-option-details-/) |
 | 261030-phy | Consolidate flight and stay booking status recovery polling | 2026-10-30 | 7c8b7e9 | [261030-phy](./quick/261030-phy-consolidate-flight-and-stay-booking-stat/) |
 | 261030-pcb | Remove redundant traveler profile memory lookup from agent turns | 2026-10-30 | f92f938 | [261030-pcb](./quick/261030-pcb-remove-redundant-traveler-profile-memory/) |
@@ -53,7 +54,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-30 — Completed quick task 261030-q1u: separate travel details; 139 tests passed, build and authenticated browser checks passed; phase acceptance unchanged.
+Last activity: 2026-10-30 — Completed quick task 261030-qec: removed docs/, preserved testing skill and inspected backend cleanup candidates; runtime unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
