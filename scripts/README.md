@@ -114,8 +114,7 @@ on each turn. The SDK owns research iterations and real answer streaming.
 Old shared-secret names are accepted only for migration compatibility, are not
 copied into local env files, and are not passed to containers. The sync helper does
 not delete their values from AWS. Rollback requires a previous image.
-See [the Runtime runbook](../docs/runbooks/agentcore-runtime.md) for bounds and secret
-ARN loading. `/health` reports `claude-agent-sdk` and the selected model without keys.
+`/health` reports `claude-agent-sdk` and the selected model without keys.
 
 Pass standard `docker compose up` options when needed, for example
 `bash scripts/start-local.sh -d` for detached mode. Stop detached services with
