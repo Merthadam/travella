@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261030-q1u | Separate flight and stay option details | 2026-10-30 | 07586d4 | [261030-q1u](./quick/261030-q1u-separate-flight-and-stay-option-details-/) |
 | 261030-phy | Consolidate flight and stay booking status recovery polling | 2026-10-30 | 7c8b7e9 | [261030-phy](./quick/261030-phy-consolidate-flight-and-stay-booking-stat/) |
 | 261030-pcb | Remove redundant traveler profile memory lookup from agent turns | 2026-10-30 | f92f938 | [261030-pcb](./quick/261030-pcb-remove-redundant-traveler-profile-memory/) |
 | 261029-ufv | Integrate focused travel header, drawer account access and maple-cake defaults | 2026-10-29 | eb71152 | [261029-ufv](./quick/261029-ufv-implement-approved-focused-travel-ui-wit/) |
@@ -52,7 +53,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-30 — Completed quick task 261030-phy: shared booking recovery; 196 tests, build and browser persistence checks passed; phase acceptance unchanged.
+Last activity: 2026-10-30 — Completed quick task 261030-q1u: separate travel details; 139 tests passed, build and authenticated browser checks passed; phase acceptance unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
