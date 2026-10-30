@@ -1,13 +1,12 @@
 import { StayCheckout } from '../travel/StayCheckout';
-import { useStayBookingSync, readStayReceipt } from '../travel/useStayBookingSync';
+import { readStayReceipt, readFlightReceipt } from '../travel/bookingReceipts';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PlanHeaderSlot } from '../../../components/PlanHeaderContext';
 import { PlanChatToggle } from '../../../components/PlanChatToggle';
 import { useTravelCapabilities } from '../travel/TravelSearch';
 import { TravelWorkspace } from '../travel/TravelWorkspace';
-import { useFlightBookingSync } from '../travel/useFlightBookingSync';
+import { useBookingSync } from '../travel/useBookingSync';
 import { FlightCheckout } from '../travel/FlightCheckout';
-import { readFlightReceipt } from '../travel/useFlightCheckout';
 import { TripBriefing } from './TripBriefing';
 import { TripEssentials } from '../../../design-system/components/TripEssentials';
 import { readCanvasView, writeCanvasView } from '../canvasViewState';
@@ -204,8 +203,8 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
     window.addEventListener('popstate', pop, true);
     return () => window.removeEventListener('popstate', pop, true);
   }, [selected.plan_id]);
-  useFlightBookingSync(selected.plan_id, !screen && !canvas.loading && canvas.data?.flights?.need === 'needed', canvas.updateMockBooking);
-  useStayBookingSync(selected.plan_id, !canvas.loading && !screen?.endsWith("-checkout"), canvas.updateMockBooking);
+  useBookingSync(selected.plan_id, 'flights', !screen && !canvas.loading && canvas.data?.flights?.need === 'needed', canvas.updateMockBooking);
+  useBookingSync(selected.plan_id, 'stays', !canvas.loading && !screen?.endsWith("-checkout"), canvas.updateMockBooking);
   const travel = useTravelCapabilities(selected.plan_id, onExpired);
   const [visitedTravel, setVisitedTravel] = useState({});
   const selectedTravel = chat.travelSnapshots[travelResultId];
