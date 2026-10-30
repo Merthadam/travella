@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { StaySearchFilters, emptyStayFilters } from './StaySearchFilters';
@@ -10,6 +10,57 @@ function Form({ initial = emptyStayFilters() }) {
   const [value, onChange] = useState(initial);
   return <StaySearchFilters planId="filters" active value={value} onChange={onChange}/>;
 }
+test('catalogs preload only in active search and are ready on first opening', async () => {
+  travelRequest.mockResolvedValue({ items: [] });
+  const onCatalogs = vi.fn();
+  const props = { planId: 'filters', value: emptyStayFilters(), onChange: vi.fn(), onCatalogs };
+  const view = render(<StaySearchFilters {...props} active={false}/>);
+  expect(travelRequest).not.toHaveBeenCalled();
+  view.rerender(<StaySearchFilters {...props} active/>);
+  await waitFor(() => expect(onCatalogs).toHaveBeenCalledTimes(1));
+  expect(travelRequest).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText('Loading property types and amenities…')).toBeNull();
+  await userEvent.setup().click(screen.getByText('Property type, amenities & cancellation'));
+  expect(screen.queryByText('Loading property types and amenities…')).toBeNull();
+  expect(screen.getAllByText('No options available.')).toHaveLength(2);
+});
+test('pending catalogs never flash incomplete controls and survive close/reopen', async () => {
+  const resolve = {};
+  travelRequest.mockImplementation((_plan, _action, { kind }) => new Promise(done => { resolve[kind] = done; }));
+  render(<Form/>);
+  const user = userEvent.setup();
+  const summary = screen.getByText('Property type, amenities & cancellation');
+  await user.click(summary);
+  expect(screen.getByRole('status').textContent).toContain('Loading');
+  expect(screen.queryByText('Property types')).toBeNull();
+  expect(screen.queryByRole('checkbox')).toBeNull();
+  await user.click(summary);
+  await user.click(summary);
+  expect(travelRequest).toHaveBeenCalledTimes(2);
+  expect(travelRequest.mock.calls.every(call => !call[3].aborted)).toBe(true);
+  await act(async () => {
+    resolve.hotel_types({ items: [{ id: 1, name: 'Apartment' }] });
+    resolve.facilities({ items: [{ id: 2, name: 'Pool' }] });
+  });
+  expect(screen.getByRole('button', { name: 'Apartment' })).toBeTruthy();
+  expect(screen.getByRole('checkbox', { name: 'Search refundable rates only' })).toBeTruthy();
+  expect(screen.queryByText('Loading property types and amenities…')).toBeNull();
+});
+test('catalog failure preserves removable selections and cancellation, then retries', async () => {
+  travelRequest.mockRejectedValue(new Error('Unavailable'));
+  render(<Form initial={{ ...emptyStayFilters(), hotel_type_ids: [42] }}/>);
+  const user = userEvent.setup();
+  await user.click(screen.getByText(/Property type, amenities & cancellation/));
+  expect(await screen.findByRole('alert')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Selected type 42' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Search refundable rates only' }));
+  expect(screen.getByRole('checkbox').checked).toBe(true);
+  travelRequest.mockResolvedValue({ items: [] });
+  await user.click(screen.getByRole('button', { name: 'Retry filters' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  expect(await screen.findAllByText('No options available.')).toHaveLength(2);
+  expect(screen.getByRole('checkbox').checked).toBe(true);
+});
 test('chips toggle multiple selections with click and keyboard, without textboxes', async () => {
   travelRequest.mockImplementation(async (_plan, _action, { kind }) => ({ items: kind === 'hotel_types' ? [{ id: 1, name: 'Hotel' }, { id: 2, name: 'Apartment' }] : [{ id: 3, name: 'Pool' }, { id: 4, name: 'Kitchen' }] }));
   render(<Form/>);

@@ -3,11 +3,12 @@ import { travelRequest } from './travelApi';
 
 export const emptyStayFilters = () => ({ hotel_type_ids: [], facility_ids: [], strict_facility_filtering: true, refundable_rates_only: false });
 
-export function StaySearchFilters({ planId, active, value, onChange, onExpired, onCatalogs, applied }) {
+export function StaySearchFilters({ planId, active, value, onChange, onExpired, onCatalogs }) {
   const [open, setOpen] = useState(false), [catalogs, setCatalogs] = useState(null), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [expanded, setExpanded] = useState({ hotel_type_ids: false, facility_ids: false });
   useEffect(() => {
-    if (!active || (!open && !applied?.hotel_type_ids?.length && !applied?.facility_ids?.length)) return;
+    // Prepare catalogs before opening; toggling the panel must not restart them.
+    if (!active) return;
     if (catalogs) return;
     const controller = new AbortController();
     let live = true;
@@ -16,7 +17,7 @@ export function StaySearchFilters({ planId, active, value, onChange, onExpired, 
       .then(([types, facilities]) => { if (live) { if (!Array.isArray(types.items) || !Array.isArray(facilities.items)) throw new Error('Invalid catalog'); const next = { hotel_type_ids: types.items, facility_ids: facilities.items }; setCatalogs(next); onCatalogs?.(next); } })
       .catch(err => { if (live && err.name !== 'AbortError') { if (err.status === 401) onExpired?.(); setError('Property types and amenities could not load. Retry to choose filters.'); } });
     return () => { live = false; controller.abort(); };
-  }, [open, active, planId, retry, Boolean(applied?.hotel_type_ids?.length || applied?.facility_ids?.length)]);
+  }, [active, planId, retry]);
   const count = value.hotel_type_ids.length + value.facility_ids.length + Number(value.refundable_rates_only);
   function picker(field, label) {
     const chosen = value[field];
@@ -48,11 +49,11 @@ export function StaySearchFilters({ planId, active, value, onChange, onExpired, 
       </>}
     </fieldset>;
   }
-  return <details className="travel-provider-filters" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
-    <summary>Property type, amenities & cancellation{count > 0 ? ` · ${count} selected` : ''}</summary>
+  return <details className="travel-provider-filters" open={open}>
+    <summary onClick={event => { event.preventDefault(); setOpen(current => !current); }}>Property type, amenities & cancellation{count > 0 ? ` · ${count} selected` : ''}</summary>
+    {open && (!catalogs && !error ? <p role="status">Loading property types and amenities…</p> : <>
     <p>Select any that fit. Tap again to remove. Applied to your next search.</p>
-    {!catalogs && !error && open && <p role="status">Loading property types and amenities…</p>}
-    {error && <p role="alert">{error} <button type="button" onClick={() => setRetry(n => n + 1)}>Retry filters</button></p>}
+    {error && <p role="alert">{error} <button type="button" onClick={() => { setError(''); setRetry(n => n + 1); }}>Retry filters</button></p>}
     <div className="travel-provider-filter-grid">
       {picker('hotel_type_ids', 'Property types')}
       {picker('facility_ids', 'Amenities')}
@@ -61,5 +62,6 @@ export function StaySearchFilters({ planId, active, value, onChange, onExpired, 
     <label className="travel-check"><input type="checkbox" checked={value.refundable_rates_only} onChange={event => onChange({ ...value, refundable_rates_only: event.target.checked })}/> Search refundable rates only</label>
     <p className="travel-note">Amenities describe the property. Check the room details for a private kitchen or other room features.</p>
     {count > 0 && <button type="button" onClick={() => onChange(emptyStayFilters())}>Clear search filters</button>}
+    </>)}
   </details>;
 }
