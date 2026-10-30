@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-30T18:09:33.388533+00:00"
+last_updated: "2026-10-30T23:12:42.122682+00:00"
 last_activity: 2026-10-30
-last_activity_desc: Shared authenticated agent gateway setup; 88 tests passed; memory retained
+last_activity_desc: Approved guided flight review C implemented and verified; 244 tests passed, 12 fixture skips
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261030-xau | Implement approved guided flight review C | 2026-10-31 | 132a1af | [261030-xau](./quick/261030-xau-implement-approved-guided-flight-review-/) |
 | 261030-vld | Match Recently deleted to My plans as uniform rows; remove old view | 2026-10-30 | 22071ae | [261030-vld](./quick/261030-vld-use-my-plans-card-styling-for-recently-d/) |
 | 261030-qip | Share authenticated agent gateway setup | 2026-10-30 | 36c4b2f | [261030-qip](./quick/261030-qip-share-authenticated-agent-gateway-setup-/) |
 | 261030-qec | Remove obsolete docs and inspect backend cleanup candidates | 2026-10-30 | 14b8a64 | [261030-qec](./quick/261030-qec-remove-obsolete-docs-directory-and-ident/) |
@@ -490,3 +491,7 @@ User explicitly authorized merge to main. PR #27: https://github.com/Merthadam/t
 ### Recently deleted and accommodation flicker shipment — 30 October 2026
 
 User explicitly authorized merging vivid-sunspot into main. PR #28: https://github.com/Merthadam/travella/pull/28. Source 4ac7019 on base c1a9f7e contains uniform Recently deleted journal rows, old grid/card removal, pre-paint chat scroll restoration and coherent View rooms loading. Existing focused tests/build and authenticated desktop/mobile evidence remain applicable; scoped security gate passes with zero introduced threats. Shipment record: .planning/quick/261030-plans-ui-ship/VERIFICATION.md. Rebuild canonical localhost from merged main so the running preview retains the accepted changes. Preserve dirty primary main checkout, unrelated stacks and volumes; wider phase acceptance unchanged.
+
+### Guided flight review C — 31 October 2026
+
+User selected C and requested implementation. Application commit 132a1af on feat/guided-flight-review adds two-stage itinerary/fare review with persistent checkout footer and exact existing actions. 244 travel tests passed, 12 fixture skips; build, canonical Docker auth/source checks and authenticated Chrome DevTools sandbox journeys passed. Evidence: artifacts/testing/2026-10-30-guided-flight-review/verification.md. Temporary test Plan cleaned; no booking/payment, push or merge. Wider Phase18 acceptance unchanged.
