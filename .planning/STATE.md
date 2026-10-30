@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261030-vld | Match Recently deleted to My plans as uniform rows; remove old view | 2026-10-30 | 22071ae | [261030-vld](./quick/261030-vld-use-my-plans-card-styling-for-recently-d/) |
 | 261030-qip | Share authenticated agent gateway setup | 2026-10-30 | 36c4b2f | [261030-qip](./quick/261030-qip-share-authenticated-agent-gateway-setup-/) |
 | 261030-qec | Remove obsolete docs and inspect backend cleanup candidates | 2026-10-30 | 14b8a64 | [261030-qec](./quick/261030-qec-remove-obsolete-docs-directory-and-ident/) |
 | 261030-q1u | Separate flight and stay option details | 2026-10-30 | 07586d4 | [261030-q1u](./quick/261030-q1u-separate-flight-and-stay-option-details-/) |
@@ -60,7 +61,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-30 — Integrating merged frontend cleanup PR #27 into cleanup PR #26 for the user-authorized merge. Both quick-task histories retained; wider phase acceptance unchanged.
+Last activity: 2026-10-30 — Completed quick task 261030-vld: uniform Recently deleted journal list and retired old card view; wider phase acceptance unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
