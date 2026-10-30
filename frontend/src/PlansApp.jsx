@@ -4,6 +4,8 @@ import { readCanvasView, writeCanvasView, forgetCanvasView } from './features/pl
 import { usePlanAction } from './features/plans/usePlanAction';
 import { PlanDrawer } from './features/plans/components/PlanDrawers';
 import { PlansJournal } from './features/plans/components/PlansJournal';
+import { DestinationPhoto } from './features/plans/components/DestinationPhoto';
+import { planStage, tripDates } from './features/plans/planJournal';
 import { PlanningCanvas } from './features/plans/components/PlanningCanvas';
 import { PlanConversation } from './features/plans/components/PlanConversation';
 import { AppHeader } from './components/AppHeader';
@@ -230,23 +232,27 @@ export function PlansApp({ travelerProfile, onExpired, onSignOut, onAccount, acc
         {!conversationPage && <AccountMenu disabled={accountBusy || busy || inactive} onAccount={onAccount} onSignOut={() => { if (leaveCanvas()) onSignOut(); }} />}
     </AppHeader>
     {planDrawerOpen && <PlanDrawer accountBusy={accountBusy || busy || inactive} onAccount={() => { closePlanDrawer(); onAccount(); }} onSignOut={() => { if (leaveCanvas()) { closePlanDrawer(); onSignOut(); } }} drawerRef={planDrawerElement} closeRef={drawerCloseButton} plans={drawerPlans} loading={drawerLoading} selected={selected} api={api} onExpired={onExpired} onDone={drawerCompleted} onLockedChange={setDrawerLocked} error={drawerError} hasMore={Boolean(drawerCursor)} onLoadMore={() => loadDrawerPlans(drawerCursor)} onRetry={() => loadDrawerPlans(drawerCursor)} onClose={closePlanDrawer} onOpen={(event, id) => link(event, () => { closePlanDrawer(); id ? open(id) : load(); })} onNew={() => { closePlanDrawer(); createPlan(); }} />}
-    {conversationPage && selected ? (canvasPage ? <PlanningCanvas key={selected.plan_id} travelerProfile={travelerProfile} selected={selected} api={api} onExpired={onExpired} autoGenerate={generateCanvas} onBack={() => { canvasDirty.current = false; canvasBusy.current = false; load(); }} onDirtyChange={dirty => { canvasDirty.current = dirty; }} onBusyChange={active => { canvasBusy.current = active; }} onSaved={result => setSelected(current => current ? { ...current, revision: result.revision } : current)} /> : <PlanConversation key={selected.plan_id} inactive={inactive} selected={selected} api={api} onExpired={onExpired} onCanvas={showCanvas} />) : !selected && view === 'active' && !conversationPage ? <PlansJournal plans={plans} loading={loading} busy={busy} cursor={cursor} onMore={() => load(view, cursor)} onNew={createPlan} onOpen={(event, id) => link(event, () => open(id))} onDeleted={event => link(event, () => load('deleted'))} onDone={completed} onExpired={onExpired} api={api} notice={notice} error={error} accountError={accountError} headingRef={heading}/> : <main id="plans-main" className="plans-main" tabIndex={-1}>
-      <div className="plans-heading"><h1 ref={heading} tabIndex={-1}>{conversationPage ? (loading ? 'Opening plan…' : 'Plan unavailable') : 'Recently deleted'}</h1></div>
+    {conversationPage && selected ? (canvasPage ? <PlanningCanvas key={selected.plan_id} travelerProfile={travelerProfile} selected={selected} api={api} onExpired={onExpired} autoGenerate={generateCanvas} onBack={() => { canvasDirty.current = false; canvasBusy.current = false; load(); }} onDirtyChange={dirty => { canvasDirty.current = dirty; }} onBusyChange={active => { canvasBusy.current = active; }} onSaved={result => setSelected(current => current ? { ...current, revision: result.revision } : current)} /> : <PlanConversation key={selected.plan_id} inactive={inactive} selected={selected} api={api} onExpired={onExpired} onCanvas={showCanvas} />) : !selected && view === 'active' && !conversationPage ? <PlansJournal plans={plans} loading={loading} busy={busy} cursor={cursor} onMore={() => load(view, cursor)} onNew={createPlan} onOpen={(event, id) => link(event, () => open(id))} onDeleted={event => link(event, () => load('deleted'))} onDone={completed} onExpired={onExpired} api={api} notice={notice} error={error} accountError={accountError} headingRef={heading}/> : <main id="plans-main" className={conversationPage ? 'plans-main' : 'plans-journal plans-deleted'} tabIndex={-1}>
+      {conversationPage ? <div className="plans-heading"><h1 ref={heading} tabIndex={-1}>{loading ? 'Opening plan…' : 'Plan unavailable'}</h1></div> : <header className="journal-heading"><div><p className="journal-kicker">YOUR JOURNEYS, KEPT A LITTLE LONGER</p><h1 ref={heading} tabIndex={-1}>Recently deleted<span aria-hidden="true">.</span></h1><p>Restore a plan within seven days of deleting it.</p></div><a className="journal-back" href="/plans" onClick={event => link(event, () => load())}>Back to My plans</a></header>}
       {notice && <p className="plan-notice" role="status">{notice}</p>}
       {accountError && <p role="alert" className="error">{accountError.message}</p>}
       {error && <div role="alert" className="error"><p>{error.message}</p>{error.retry && <button onClick={error.retry} disabled={busy || loading}>{error.message.startsWith('Your plan was restored') ? 'Open plan' : 'Retry'}</button>}</div>}
       {loading && <p role="status">{conversationPage ? 'Opening plan…' : 'Loading recently deleted plans…'}</p>}
       {conversationPage ? <a href="/plans" onClick={event => link(event, () => load())}>Return to My plans</a> : <>
-        <ul className="plan-grid" aria-label="Deleted plans" aria-busy={loading}>
-          {plans.map(plan => <li key={plan.plan_id} className="plan-card"><span className="plan-badge">Draft plan</span>
-            <h2>{plan.title}</h2>
-            <p>Restore before <time dateTime={plan.recovery_deadline}>{date(plan.recovery_deadline)}</time></p>
-            <p className="meta">{remaining(plan.recovery_deadline)}</p>
-            <div className="plan-actions"><button className="primary" onClick={() => setDialog({ operation: 'restore', plan })}>Restore plan<span className="sr-only"> {plan.title}</span></button></div>
-          </li>)}
+        <ul className="journal-deleted-list" aria-label="Deleted plans" aria-busy={loading}>
+          {plans.map(plan => <li key={plan.plan_id}><article className="journal-card journal-deleted-card">
+            <DestinationPhoto destination={plan.destination_summary} generated={planStage(plan) === 'Canvas'}/>
+            <div className="journal-card-body">
+              <span className={`journal-stage ${planStage(plan) === 'Canvas' ? 'is-canvas' : ''}`}>{planStage(plan)}</span>
+              <div className="journal-name"><h2>{plan.title}</h2></div>
+              <p className="journal-destination">{plan.destination_summary || 'Destination undecided'}</p>
+              <p className="journal-summary"><span>{tripDates(plan)}</span><span aria-hidden="true">·</span><span>{plan.saved_places_count ? `${plan.saved_places_count} ${plan.saved_places_count === 1 ? 'place' : 'places'} saved` : 'No saved places yet'}</span></p>
+              <div className="journal-recovery"><div><p>Restore before <time dateTime={plan.recovery_deadline}>{date(plan.recovery_deadline)}</time></p><p>{remaining(plan.recovery_deadline)}</p></div><button className="journal-primary" disabled={busy || loading} onClick={() => setDialog({ operation: 'restore', plan })}>Restore plan<span className="sr-only"> {plan.title}</span></button></div>
+            </div>
+          </article></li>)}
         </ul>
-        {!loading && !error && !plans.length && <section className="plan-empty"><h2>No recently deleted plans</h2><p>Plans you delete appear here for seven days.</p></section>}
-        {cursor && <button disabled={loading || busy} onClick={() => load(view, cursor)}>Load more plans</button>}
+        {!loading && !error && !plans.length && <section className="journal-empty"><h2>No recently deleted plans</h2><p>Plans you delete appear here for seven days.</p></section>}
+        {cursor && <div className="journal-pagination"><button disabled={loading || busy} onClick={() => load(view, cursor)}>Load more plans</button></div>}
       </>}
     </main>}
     {dialog && <RestoreDialog value={dialog} onClose={() => setDialog(null)} onDone={completed} onExpired={onExpired} api={api} />}

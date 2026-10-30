@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatMarkdown } from '../components/ChatMarkdown';
 import { ChatHeader, ChatComposer } from '../components/ChatControls';
 import { TravelContextSummary } from './TravelContextSummary';
@@ -9,7 +9,9 @@ export function TravelConversation({ chat, topic, visible, disabled, contextOpti
   const title = topic === 'stays' ? 'Accommodation assistant' : 'Flight assistant';
   const prompts = topic === 'stays' ? ['Find stays near my activities', 'Help me choose an area', 'Look for an apartment with a kitchen'] : ['Find flights that fit my trip', 'Help me compare baggage and fares', 'Prioritize convenient flight times'];
   function draft(text) { setInput(text); requestAnimationFrame(() => composer.current?.focus()); }
-  useEffect(() => { if (visible && nearBottom.current && history.current) history.current.scrollTop = history.current.scrollHeight; }, [chat.messages, chat.active, visible]);
+  // Restore the transcript before its first visible frame, including hydration
+  // and reopening a mounted workspace. Readers above the bottom stay in place.
+  useLayoutEffect(() => { if (visible && nearBottom.current && history.current) history.current.scrollTop = history.current.scrollHeight; }, [chat.messages, chat.active, visible]);
   useEffect(() => { if (contextOptions.length) composer.current?.focus(); }, [contextOptions]);
   const blocked = disabled || chat.loading || chat.active || Boolean(chat.historyError);
   async function send(event) {

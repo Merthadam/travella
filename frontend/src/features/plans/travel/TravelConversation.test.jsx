@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { act, cleanup, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TravelWorkspace } from './TravelWorkspace';
 import { useTravelConversation } from './useTravelConversation';
+import { TravelConversation } from './TravelConversation';
 
 vi.mock('./TravelSearch', () => ({ TravelSearch: ({ active }) => <section hidden={!active} aria-label="Manual search">Manual search form</section> }));
 const selected = { plan_id: 'plan-1', title: 'A city break', revision: 4 };
@@ -14,6 +15,43 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 afterEach(cleanup);
+
+test('hydrated and reopened accommodation history reaches the bottom before paint', () => {
+  const height = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(1200);
+  const frames = [];
+  const messages = [{ message_id: 'saved', role: 'assistant', content: 'Saved accommodation discussion' }];
+  function Frame({ visible, hydrated }) {
+    useLayoutEffect(() => {
+      if (visible) frames.push(screen.getByLabelText('Accommodation discussion').scrollTop);
+    }, [visible, hydrated]);
+    return <TravelConversation topic="stays" visible={visible} chat={{ messages: hydrated ? messages : [], loading: !hydrated }}/>;
+  }
+  try {
+    const view = render(<Frame visible hydrated={false}/>);
+    const history = screen.getByLabelText('Accommodation discussion');
+    history.scrollTop = 0;
+    view.rerender(<Frame visible hydrated/>);
+    expect(frames.at(-1)).toBe(1200);
+    view.rerender(<Frame visible={false} hydrated/>);
+    history.scrollTop = 0;
+    view.rerender(<Frame visible hydrated/>);
+    expect(frames.at(-1)).toBe(1200);
+  } finally { height.mockRestore(); }
+});
+
+test('new accommodation messages preserve the position of a reader above the bottom', () => {
+  const height = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(1200);
+  const viewport = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(300);
+  const messages = [{ message_id: 'saved', role: 'assistant', content: 'Earlier discussion' }];
+  try {
+    const view = render(<TravelConversation topic="stays" visible chat={{ messages, loading: false }}/>);
+    const history = screen.getByLabelText('Accommodation discussion');
+    history.scrollTop = 200;
+    fireEvent.scroll(history);
+    view.rerender(<TravelConversation topic="stays" visible chat={{ messages: [...messages, { message_id: 'new', role: 'assistant', content: 'New reply' }], loading: false }}/>);
+    expect(history.scrollTop).toBe(200);
+  } finally { height.mockRestore(); viewport.mockRestore(); }
+});
 
 test('reply completion preserves focus moved to a manual control', async () => {
   const user = userEvent.setup(); let finish;

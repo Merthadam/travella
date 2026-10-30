@@ -451,6 +451,16 @@
   background: #172d2166;
   backdrop-filter: blur(3px);
 }
+/* Keep View rooms steady while its details and room availability arrive together. */
+.travel-stay-dialog {
+  height: 85vh;
+}
+.travel-details-loading { padding: 28px 0; }
+.travel-details-placeholder { display: grid; gap: 16px; margin-top: 24px; }
+.travel-details-placeholder span { display: block; border-radius: 8px; background: var(--ds-soft, #f0f4eb); }
+.travel-details-placeholder span:nth-child(1) { height: 170px; }
+.travel-details-placeholder span:nth-child(2) { height: 14px; width: 75%; }
+.travel-details-placeholder span:nth-child(3) { height: 100px; }
 .travel-dialog h2 {
   font-family: Georgia, serif;
   font-weight: 400;

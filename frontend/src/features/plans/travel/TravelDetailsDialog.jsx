@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 
 export const offerExpired = expiresAt => !Number.isFinite(Date.parse(expiresAt)) || Date.now() >= Date.parse(expiresAt);
 
-export function TravelDetailsDialog({ observation, detached, evidenceExpired, refreshedAt, onClose, children }) {
+export function TravelDetailsDialog({ observation, detached, evidenceExpired, refreshedAt, onClose, children, className = '', busy = false }) {
   const { item, snapshot, historical, reference } = observation;
   const { criteria, sandbox, searched_at: observedAt } = snapshot;
   const stay = snapshot.mode === "stays";
@@ -16,8 +16,9 @@ export function TravelDetailsDialog({ observation, detached, evidenceExpired, re
   return (
     <dialog
       ref={ref}
-      className="travel-dialog"
+      className={`travel-dialog ${className}`.trim()}
       aria-labelledby="travel-detail-title"
+      aria-busy={busy}
       onCancel={(e) => {
         e.preventDefault();
         onClose();

@@ -61,11 +61,17 @@ test('stay refresh replaces rooms, exact reference and expiry together', async (
   const onCompare = vi.fn(), onChoose = vi.fn(), onCheckout = vi.fn();
   render(<StayDetails planId="plan" observation={observation()} onClose={vi.fn()} onCompare={onCompare} onChoose={onChoose} onCheckout={onCheckout}/>);
   expect(screen.getByText('Refreshing hotel and room details…')).toBeTruthy();
-  expect(screen.getByText('original-room')).toBeTruthy();
+  expect(screen.queryByText('original-room')).toBeNull();
+  expect(screen.queryByText('Fresh hotel description')).toBeNull();
+  expect(screen.queryByText('Choose for trip')).toBeNull();
+  expect(screen.queryByText('Compare room')).toBeNull();
+  expect(screen.getByRole('dialog').getAttribute('aria-busy')).toBe('true');
   expect(screen.queryByText('Continue to stay checkout')).toBeNull();
   await act(async () => resolve(refresh({ expiresAt: '2000-01-01' })));
   expect(screen.queryByText('original-room')).toBeNull();
   expect(screen.getByText('fresh-room')).toBeTruthy();
+  expect(screen.getByText('Fresh hotel description')).toBeTruthy();
+  expect(screen.getByRole('dialog').getAttribute('aria-busy')).toBe('false');
   expect(screen.getByText(/This offer has expired/)).toBeTruthy();
   expect(screen.queryByText('Choose for trip')).toBeNull();
   expect(screen.queryByText('Continue to stay checkout')).toBeNull();
