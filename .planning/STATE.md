@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261030-q5m | Remove unused agent chat frontend components and legacy styles | 2026-10-30 | dbc705b | [261030-q5m](./quick/261030-q5m-remove-unused-agent-chat-frontend-compon/) |
 | 261030-ptr | Remove retired Plans prototypes, legacy workspace and unused styles | 2026-10-30 | 1d5bdcc | [261030-ptr](./quick/261030-ptr-remove-retired-plans-prototypes-and-lega/) |
 | 261030-pjp | Remove unused legacy login/onboarding styles and compatibility export | 2026-10-30 | 152d9bf | [261030-pjp](./quick/261030-pjp-remove-unused-login-frontend-components-/) |
 | 261029-ufv | Integrate focused travel header, drawer account access and maple-cake defaults | 2026-10-29 | eb71152 | [261029-ufv](./quick/261029-ufv-implement-approved-focused-travel-ui-wit/) |
@@ -52,7 +53,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-30 — Completed quick task 261030-ptr: retired Plans UI cleanup; 77 tests, build and authenticated browser lifecycle/responsive/error checks passed. Wider phase acceptance unchanged.
+Last activity: 2026-10-30 — Completed quick task 261030-q5m: unused agent chat cleanup; 158 tests and authenticated desktop/mobile chat checks passed, 12 existing fixture skips. Wider phase acceptance unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
