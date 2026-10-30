@@ -96,8 +96,11 @@ export function StayDetails({ planId, observation, detached, booked, onClose, on
     };
   }, [planId, item.hotel_id, snapshot, observedOnly, retry]);
   return (
-    <TravelDetailsDialog observation={observation} detached={detached} evidenceExpired={evidenceExpired} refreshedAt={roomObservation.observedAt} onClose={onClose}>
-      {loading && <p role="status">Refreshing hotel and room details…</p>}
+    <TravelDetailsDialog observation={observation} detached={detached} evidenceExpired={evidenceExpired} refreshedAt={roomObservation.observedAt} onClose={onClose} className={!observedOnly ? 'travel-stay-dialog' : ''} busy={loading}>
+      {loading ? <div className="travel-details-loading" role="status">
+        <p>Refreshing hotel and room details…</p>
+        <div className="travel-details-placeholder" aria-hidden="true"><span/><span/><span/></div>
+      </div> : <>
       {error && (
         <p role="alert">
           {error}{" "}
@@ -128,6 +131,7 @@ export function StayDetails({ planId, observation, detached, booked, onClose, on
       {!loading && !rooms.length && (
         <p>No room offers are available for these dates.</p>
       )}
+      </>}
     </TravelDetailsDialog>
   );
 }
