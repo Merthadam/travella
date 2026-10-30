@@ -38,9 +38,9 @@
 }
 :root[data-theme], :root[data-theme] body { color: var(--app-text); background: var(--app-bg); }
 :root[data-theme=dark] :is(.plans-app, .travel-studio) { color: var(--app-text); background: radial-gradient(circle at 12% 0%, rgb(77 226 190 / 8%), transparent 30rem), radial-gradient(circle at 94% 8%, rgb(115 104 255 / 8%), transparent 28rem), var(--app-bg); }
-:root[data-theme=dark] :is(.plan-card, .plan-empty, .plan-dialog, .chat-composer) { color: var(--app-text); background: var(--app-panel); border-color: var(--app-line); }
+:root[data-theme=dark] :is(.plan-dialog, .chat-composer) { color: var(--app-text); background: var(--app-panel); border-color: var(--app-line); }
 :root[data-theme=dark] :is(.plans-heading h1, .chat-empty h2, .chat-message-text, .trip-brief, .trip-brief-header h1, .trip-brief-group > summary, .trip-brief-section-heading h2, .trip-brief-need-heading strong) { color: var(--app-text); }
-:root[data-theme=dark] :is(.quiet, .meta, .plans-heading p, .eyebrow, .chat-empty p:last-child, .chat-message-author, .chat-status, .trip-brief-kicker, .trip-brief-progress p, .trip-brief-group > summary small, .trip-brief-label, .trip-brief-muted, .trip-brief-add, .trip-brief-field, .trip-brief-date-fields label, .trip-brief-inline-check, .trip-brief-state, .trip-brief-lock-note) { color: var(--app-muted); }
+:root[data-theme=dark] :is(.quiet, .eyebrow, .chat-empty p:last-child, .chat-message-author, .chat-status, .trip-brief-kicker, .trip-brief-progress p, .trip-brief-group > summary small, .trip-brief-label, .trip-brief-muted, .trip-brief-add, .trip-brief-field, .trip-brief-date-fields label, .trip-brief-inline-check, .trip-brief-state, .trip-brief-lock-note) { color: var(--app-muted); }
 :root[data-theme=dark] :is(.plans-main > a, .plan-notice, .chat-sources a, .chat-retry, .trip-brief-state.is-set) { color: var(--app-link); }
 :root[data-theme=dark] :is(.plans-app, .plan-dialog, .travel-studio) :is(input:not([type=checkbox]), textarea, select) { color: var(--app-text); background: var(--app-panel); border-color: var(--app-control); }
 :root[data-theme=dark] :is(input, textarea)::placeholder { color: var(--app-muted); opacity: 1; }
