@@ -476,4 +476,4 @@ Product owner explicitly authorized merge of the current version, with substanti
 User approved the corrected consistent Canvas/Flights/Stays header and explicitly requested merge/conflict resolution. Quick261029-w2k integrated origin/main ab84e88 in a7cc96b, preserving current traveler picker and stay checkout. Frontend274 and backend264 tests passed (12 existing frontend skips), build and actual Chrome desktop/mobile checks passed. Evidence: artifacts/testing/2026-10-29-header-merge/verification.md. GitHub PR merge record supplies the final shipment SHA; wider Phase18 acceptance unchanged.
 
 
-Cleanup shipment (2026-10-30): User authorized merging voltaic-slope into main. Source 3a03612 on base cbbedb5 passed scoped verification and security review in .planning/quick/261030-cleanup-ship/. Memory retained; broader phase acceptance unchanged.
+Cleanup shipment (2026-10-30): User authorized merging voltaic-slope into main through PR #26 (https://github.com/Merthadam/travella/pull/26). Source 3a03612 on base cbbedb5 passed scoped verification and security review in .planning/quick/261030-cleanup-ship/. Memory retained; broader phase acceptance unchanged.

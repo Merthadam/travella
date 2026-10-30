@@ -14,3 +14,5 @@ Authenticated Chrome DevTools evidence and actual test-Plan canvas persistence/r
 Ship-time checks: git diff --check origin/main...HEAD passed; removed booking hook names have no frontend callers; docs/ absent; current instruction references resolve. Scoped security review SECURITY.md passed with threats_open: 0. No configured external review command or ship:post hook. All commits lack TDD gate-status trailers, so the informational TDD table is omitted. No new tests were rerun solely for the shipping step.
 
 This shipment does not mark Phase 18 or the broader milestone complete. The separate local main worktree and existing running stacks are preserved.
+
+PR: https://github.com/Merthadam/travella/pull/26. User-authorized merge into main; scoped verification query returned passed and security predicate returned block: false.
