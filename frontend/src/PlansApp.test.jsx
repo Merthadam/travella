@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PlansApp } from './PlansApp';
 
@@ -21,14 +21,11 @@ function makeApi(initial = []) {
     conversationMessages: vi.fn(async () => []),
     researchContext: vi.fn(async () => ({})),
     researchOffer: vi.fn(async () => ({ readiness: { eligible: false, reasons: ['destination_required'] }, offer: null, deferred: false })),
-    agentTurn: vi.fn(async (item, message, eventId) => ({ status: 'shortlist_ready', plan_id: item.plan_id, event_id: eventId, assistant_text: `Ideas for ${message}`, candidates: [{ candidate_id: 'crete', name: 'Crete', summary: 'A relaxed island stay' }] })),
     agentTurnStream: vi.fn(async (item, message, eventId, { onEvent }) => {
       onEvent({ type: 'TEXT_MESSAGE_CONTENT', delta: `Ideas for ${message}` });
       onEvent({ type: 'TERMINAL', status: 'complete' });
       return { status: 'complete', event_id: eventId };
     }),
-    brief: vi.fn(async item => ({ plan_id: item.plan_id, revision: item.revision, interests: '', start_date: '', end_date: '', travelers: 1, budget: '', transport_tolerance: '', accessibility_needs: '' })),
-    updateBrief: vi.fn(async (item, data) => ({ plan_id: item.plan_id, revision: item.revision + 1, ...data })),
     prepare: vi.fn(async (item, operation, title) => ({ challenge: 'challenge', operation, revision: item.revision, title })),
     commit: vi.fn(async ({ plan: item, operation, title }) => {
       const updated = { ...item, revision: item.revision + 1, ...(operation === 'rename' ? { title, title_source: 'manual' } : {}), ...(operation === 'delete' ? { lifecycle: 'deleted', recovery_deadline: '2026-10-05T10:00:00Z' } : {}), ...(operation === 'restore' ? { lifecycle: 'active', recovery_deadline: null } : {}) };
@@ -287,4 +284,55 @@ test('saving retains field focus and a filtered renamed card stays visible until
   await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Forest holiday' })).toBe(document.activeElement));
   await user.type(screen.getByLabelText('Find a trip'), 'x');
   expect(screen.queryByRole('button', { name: 'Rename Forest holiday' })).toBeNull();
+});
+
+test('opening a plan shows only its loading state and never fetches retired workspace data', async () => {
+  const item = plan('a', 'Current journey');
+  const api = makeApi([item]);
+  // These legacy endpoints must not be called by the current Conversation route.
+  api.brief = vi.fn(); api.destinations = vi.fn();
+  let finish;
+  api.get.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('link', { name: 'Current journey' }));
+  expect(screen.getByRole('heading', { name: 'Opening plan…' })).toBeTruthy();
+  expect(screen.queryByRole('list', { name: 'Active plans' })).toBeNull();
+  expect(screen.queryByRole('list', { name: 'Deleted plans' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Current journey' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Skip to conversation' }).getAttribute('href')).toBe('#plans-main');
+  await act(async () => finish(item));
+  expect(await screen.findByRole('textbox', { name: 'Message Travella' })).toBeTruthy();
+  expect(api.brief).not.toHaveBeenCalled(); expect(api.destinations).not.toHaveBeenCalled();
+});
+
+test('failed plan opening exposes a return to the journal instead of the retired grid', async () => {
+  const api = makeApi([plan('a', 'Current journey')]);
+  api.get.mockRejectedValue(Object.assign(new Error('unavailable'), { status: 503 }));
+  const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('link', { name: 'Current journey' }));
+  expect(await screen.findByRole('heading', { name: 'Plan unavailable' })).toBeTruthy();
+  expect(screen.queryByRole('link', { name: 'Current journey' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Restore plan/ })).toBeNull();
+  await user.click(screen.getByRole('link', { name: 'Return to My plans' }));
+  expect(await screen.findByRole('link', { name: 'Current journey' })).toBeTruthy();
+});
+
+test('a restored plan that fails to open retries the read without restoring a second time', async () => {
+  const item = plan('a', 'Recoverable journey', 1, 'deleted');
+  const api = makeApi([item]);
+  api.get.mockRejectedValueOnce(Object.assign(new Error('unavailable'), { status: 503 }));
+  history.replaceState({}, '', '/plans/deleted');
+  const user = userEvent.setup();
+  render(<PlansApp api={api} onExpired={vi.fn()} onSignOut={vi.fn()} onAccount={vi.fn()} />);
+  await user.click(await screen.findByRole('button', { name: 'Restore plan Recoverable journey' }));
+  await user.click(screen.getByRole('button', { name: 'Restore plan', exact: true }));
+  expect(await screen.findByRole('heading', { name: 'Plan unavailable' })).toBeTruthy();
+  expect(screen.getByRole('alert').textContent).toContain('Your plan was restored');
+  expect(screen.queryByRole('list', { name: 'Deleted plans' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Open plan' }));
+  expect(await screen.findByRole('textbox', { name: 'Message Travella' })).toBeTruthy();
+  expect(api.commit).toHaveBeenCalledTimes(1);
+  expect(api.commit.mock.calls[0][0].operation).toBe('restore');
 });

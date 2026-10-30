@@ -40,7 +40,7 @@ function SourceLinks({ sources }) {
 function messageKey(message) { return message.message_id || `${message.role}-${message.event_id || message.sequence || message.created_at}`; }
 const flightContext = value => JSON.stringify(['dateStart', 'dateEnd', 'flexibleDates', 'travelers', 'finalDestination'].map(key => value?.[key]));
 
-export function PlanConversation({ selected, api, onExpired, onBack, onCanvas, inactive = false }) {
+export function PlanConversation({ selected, api, onExpired, onCanvas, inactive = false }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);

@@ -1,0 +1,6 @@
+Emulating viewport: {"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"isLandscape":false,"width":1440,"height":1000}
+## Network requests
+Showing 1-3 of 3 (Page 1 of 1).
+reqid=927 GET http://localhost:5200/auth/session [200]
+reqid=928 GET http://localhost:5200/v1/traveler-profile [200]
+reqid=930 GET http://localhost:5200/auth/account [200]

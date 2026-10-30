@@ -31,5 +31,4 @@ export async function readSession() {
 }
 
 export const readTravelerProfile = () => request('/v1/traveler-profile');
-export const saveTravelerProfile = (profile) => request('/v1/traveler-profile', profile, { method: 'PUT' });
 export const saveOnboardingStep = (step) => request('/v1/traveler-profile/onboarding', step, { method: 'PATCH' });

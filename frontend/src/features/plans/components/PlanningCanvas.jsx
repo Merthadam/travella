@@ -339,7 +339,7 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
     {!screen && <PlanHeaderSlot slot="actions"><PlanChatToggle ref={chatCollapseButton} expanded={chatVisible} label={`${chatVisible ? 'Collapse' : 'Expand'} plan chat`} controls="plan-chat-panel" replying={chat.active} disabled={generating} onClick={chatVisible ? collapseChat : openChat}/></PlanHeaderSlot>}
     <div className="canvas-workspace-body" hidden={generating} inert={generating}>
     <div ref={planContent} hidden={Boolean(screen)} className="planning-canvas-inner" tabIndex={0} role="region" aria-label="Plan content" onScroll={event => { if (!screen && restoredScroll.current) writeCanvasView(selected.plan_id, { scrollTop: event.currentTarget.scrollTop }); }}>
-      <PlanStages canvas/>
+      <PlanStages/>
       <header className="canvas-page-heading" inert={Boolean(screen)}>
         <div className="canvas-trip-title"><span className="canvas-destination-monogram" aria-hidden="true">{(canvas.data?.map.destination || selected.title || 'T').charAt(0)}</span><div><span className="ds-eyebrow">{canvas.data?.map.destination || 'YOUR PLAN'}</span><h1>{selected.title === 'Untitled plan' && canvas.data?.map.destination ? `Your time in ${canvas.data.map.destination}` : selected.title || 'Your travel plan'}</h1></div></div>
         {canvas.data?.essentials && <TripEssentials compact preview={false} data={canvas.data.essentials} disabled={busy} onAction={(name, payload) => action('essentials', name, payload)}/>}

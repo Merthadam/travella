@@ -26,6 +26,11 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261030-qon | Ship frontend cleanup; PR #27, user-authorized merge | 2026-10-30 | 00dec7f | [261030-qon](./quick/261030-qon-ship-verified-frontend-dead-code-cleanup/) |
+| 261030-qjo | Remove unused onboarding place helpers and styles | 2026-10-30 | f5bc702 | [261030-qjo](./quick/261030-qjo-remove-unused-onboarding-place-helpers-a/) |
+| 261030-q5m | Remove unused agent chat frontend components and legacy styles | 2026-10-30 | dbc705b | [261030-q5m](./quick/261030-q5m-remove-unused-agent-chat-frontend-compon/) |
+| 261030-ptr | Remove retired Plans prototypes, legacy workspace and unused styles | 2026-10-30 | 1d5bdcc | [261030-ptr](./quick/261030-ptr-remove-retired-plans-prototypes-and-lega/) |
+| 261030-pjp | Remove unused legacy login/onboarding styles and compatibility export | 2026-10-30 | 152d9bf | [261030-pjp](./quick/261030-pjp-remove-unused-login-frontend-components-/) |
 | 261029-ufv | Integrate focused travel header, drawer account access and maple-cake defaults | 2026-10-29 | eb71152 | [261029-ufv](./quick/261029-ufv-implement-approved-focused-travel-ui-wit/) |
 | 261027-rif | Refine trip essentials into one compact whole-trip briefing prototype | 2026-10-27 | 3871fc4 | [261027-rif](./quick/261027-rif-refine-trip-essentials-into-one-compact-/) |
 | 261027-rwm | Tailor compact briefing sources to city transport and matching sights | 2026-10-27 | ea0dee8 | [261027-rwm](./quick/261027-rwm-tailor-compact-briefing-source-links-to-/) |
@@ -50,7 +55,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-28 — Executed shared-workspace plans18-06–18-12, fixed browser-discovered exact-room integration defects, and recorded automated/API/browser evidence. Bounded goal reconciliation is recorded; independent exhaustive review and traveler acceptance remain pending.
+Last activity: 2026-10-30 — Frontend cleanup ready for user-authorized merge in PR #27; 440 tests passed, one reproduced baseline failure, 12 existing skips. Wider phase acceptance unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
@@ -469,3 +474,7 @@ Product owner explicitly authorized merge of the current version, with substanti
 ### Consistent header integration shipment — 29 October 2026
 
 User approved the corrected consistent Canvas/Flights/Stays header and explicitly requested merge/conflict resolution. Quick261029-w2k integrated origin/main ab84e88 in a7cc96b, preserving current traveler picker and stay checkout. Frontend274 and backend264 tests passed (12 existing frontend skips), build and actual Chrome desktop/mobile checks passed. Evidence: artifacts/testing/2026-10-29-header-merge/verification.md. GitHub PR merge record supplies the final shipment SHA; wider Phase18 acceptance unchanged.
+
+### Frontend cleanup shipment — 30 October 2026
+
+User explicitly authorized merge to main. PR #27: https://github.com/Merthadam/travella/pull/27 (pollen-syringa → main). Login, Plans, chat and onboarding dead-code cleanup: 946 net frontend lines removed, current design preserved. All targeted tests/build and scoped browser checks passed. Full suite 440 passed, 12 existing fixture skips, one unchanged TripBrief failure reproduced on main cbbedb5. Scoped security review: zero introduced findings. Source reviewed at 3009abc; shipping commits are documentation only. PR merge record is authoritative for final merge status/SHA. Broader phase acceptance unchanged.

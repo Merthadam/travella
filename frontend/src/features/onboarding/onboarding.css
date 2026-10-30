@@ -57,15 +57,7 @@
 .ts-fields > label:first-child { @apply mt-0; }
 .travel-studio .ts-help { @apply mt-3 text-xs leading-[1.65] text-[#61715d]; }
 .travel-studio .ts-text-button { @apply min-h-11 px-0 text-xs text-[#536e56] underline underline-offset-4; }
-.ts-city-results { @apply mt-2 max-h-64 list-none overflow-y-auto rounded-xl border border-[#d8e0d1] p-0; }
-.ts-city-results li { @apply flex min-h-14 cursor-pointer items-center gap-3 border-b border-[#edf0e9] px-4 py-3; }
-.ts-city-results li:last-child { @apply border-b-0; }
-.ts-city-results li:hover, .ts-city-results li[aria-selected=true] { @apply bg-[#edf4e9]; }
-.ts-city-results strong { @apply block text-sm font-medium; }
-.ts-city-results small { @apply mt-1 block text-xs text-[#677660]; }
-.ts-city-results li > span:last-child { @apply ml-auto text-[#6f886b]; }
 .ts-google-attribution { @apply mt-2 flex items-center justify-end gap-1 text-xs text-[#64735e]; }
-.travel-studio .ts-chosen-home { @apply mt-4 text-sm leading-relaxed text-[#316c4c]; }
 .ts-field-heading { @apply mb-3 mt-6 flex items-center justify-between gap-3; }
 .travel-studio .ts-field-heading h3 { @apply mb-1 text-sm font-medium; }
 .ts-field-heading p, .ts-field-heading > span { @apply text-xs leading-relaxed text-[#66785f]; }
