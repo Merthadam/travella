@@ -486,3 +486,7 @@ Cleanup shipment (2026-10-30): User authorized merging voltaic-slope into main t
 ### Frontend cleanup shipment — 30 October 2026
 
 User explicitly authorized merge to main. PR #27: https://github.com/Merthadam/travella/pull/27 (pollen-syringa → main). Login, Plans, chat and onboarding dead-code cleanup: 946 net frontend lines removed, current design preserved. All targeted tests/build and scoped browser checks passed. Full suite 440 passed, 12 existing fixture skips, one unchanged TripBrief failure reproduced on main cbbedb5. Scoped security review: zero introduced findings. Source reviewed at 3009abc; shipping commits are documentation only. PR merge record is authoritative for final merge status/SHA. Broader phase acceptance unchanged.
+
+### Recently deleted and accommodation flicker shipment — 30 October 2026
+
+User explicitly authorized merging vivid-sunspot into main. PR #28: https://github.com/Merthadam/travella/pull/28. Source 4ac7019 on base c1a9f7e contains uniform Recently deleted journal rows, old grid/card removal, pre-paint chat scroll restoration and coherent View rooms loading. Existing focused tests/build and authenticated desktop/mobile evidence remain applicable; scoped security gate passes with zero introduced threats. Shipment record: .planning/quick/261030-plans-ui-ship/VERIFICATION.md. Rebuild canonical localhost from merged main so the running preview retains the accepted changes. Preserve dirty primary main checkout, unrelated stacks and volumes; wider phase acceptance unchanged.
