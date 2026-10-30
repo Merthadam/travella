@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-29T22:09:39.637Z"
-last_activity: 2026-10-29
-last_activity_desc: Travel search defaults and controls verified and shipped in PR24; user-authorized merge after readiness checks; broader phase acceptance remains open
+last_updated: "2026-10-30T18:09:33.388533+00:00"
+last_activity: 2026-10-30
+last_activity_desc: Shared authenticated agent gateway setup; 88 tests passed; memory retained
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,11 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261030-qip | Share authenticated agent gateway setup | 2026-10-30 | 36c4b2f | [261030-qip](./quick/261030-qip-share-authenticated-agent-gateway-setup-/) |
+| 261030-qec | Remove obsolete docs and inspect backend cleanup candidates | 2026-10-30 | 14b8a64 | [261030-qec](./quick/261030-qec-remove-obsolete-docs-directory-and-ident/) |
+| 261030-q1u | Separate flight and stay option details | 2026-10-30 | 07586d4 | [261030-q1u](./quick/261030-q1u-separate-flight-and-stay-option-details-/) |
+| 261030-phy | Consolidate flight and stay booking status recovery polling | 2026-10-30 | 7c8b7e9 | [261030-phy](./quick/261030-phy-consolidate-flight-and-stay-booking-stat/) |
+| 261030-pcb | Remove redundant traveler profile memory lookup from agent turns | 2026-10-30 | f92f938 | [261030-pcb](./quick/261030-pcb-remove-redundant-traveler-profile-memory/) |
 | 261030-qon | Ship frontend cleanup; PR #27, user-authorized merge | 2026-10-30 | 00dec7f | [261030-qon](./quick/261030-qon-ship-verified-frontend-dead-code-cleanup/) |
 | 261030-qjo | Remove unused onboarding place helpers and styles | 2026-10-30 | f5bc702 | [261030-qjo](./quick/261030-qjo-remove-unused-onboarding-place-helpers-a/) |
 | 261030-q5m | Remove unused agent chat frontend components and legacy styles | 2026-10-30 | dbc705b | [261030-q5m](./quick/261030-q5m-remove-unused-agent-chat-frontend-compon/) |
@@ -55,7 +60,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-30 — Frontend cleanup ready for user-authorized merge in PR #27; 440 tests passed, one reproduced baseline failure, 12 existing skips. Wider phase acceptance unchanged.
+Last activity: 2026-10-30 — Integrating merged frontend cleanup PR #27 into cleanup PR #26 for the user-authorized merge. Both quick-task histories retained; wider phase acceptance unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
@@ -475,6 +480,8 @@ Product owner explicitly authorized merge of the current version, with substanti
 
 User approved the corrected consistent Canvas/Flights/Stays header and explicitly requested merge/conflict resolution. Quick261029-w2k integrated origin/main ab84e88 in a7cc96b, preserving current traveler picker and stay checkout. Frontend274 and backend264 tests passed (12 existing frontend skips), build and actual Chrome desktop/mobile checks passed. Evidence: artifacts/testing/2026-10-29-header-merge/verification.md. GitHub PR merge record supplies the final shipment SHA; wider Phase18 acceptance unchanged.
 
+
+Cleanup shipment (2026-10-30): User authorized merging voltaic-slope into main through PR #26 (https://github.com/Merthadam/travella/pull/26). Source 3a03612 on base cbbedb5 passed scoped verification and security review in .planning/quick/261030-cleanup-ship/. Memory retained; broader phase acceptance unchanged.
 ### Frontend cleanup shipment — 30 October 2026
 
 User explicitly authorized merge to main. PR #27: https://github.com/Merthadam/travella/pull/27 (pollen-syringa → main). Login, Plans, chat and onboarding dead-code cleanup: 946 net frontend lines removed, current design preserved. All targeted tests/build and scoped browser checks passed. Full suite 440 passed, 12 existing fixture skips, one unchanged TripBrief failure reproduced on main cbbedb5. Scoped security review: zero introduced findings. Source reviewed at 3009abc; shipping commits are documentation only. PR merge record is authoritative for final merge status/SHA. Broader phase acceptance unchanged.

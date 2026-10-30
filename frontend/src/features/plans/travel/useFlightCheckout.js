@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { travelRequest } from './travelApi';
-import { flightCheckoutKey, flightCheckoutUpdated } from './useFlightBookingSync';
+import { flightCheckoutKey, flightCheckoutUpdated } from './bookingReceipts';
 import { savedFlightResult } from './flightItinerary';
 
-export function readFlightReceipt(planId) {
-  try { return sessionStorage.getItem(flightCheckoutKey(planId)); } catch { return null; }
-}
 function remember(planId, token) {
   if (!token) return;
   try { sessionStorage.setItem(flightCheckoutKey(planId), token); } catch { /* Optional recovery. */ }

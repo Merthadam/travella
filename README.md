@@ -11,7 +11,7 @@ the local services intentionally refuse production mode.
 
 ## Planning and verification
 
-The project plan lives in `docs/planning/` and `.planning/`. Run `bash scripts/check.sh`
+The project plan lives in `.planning/`. Run `bash scripts/check.sh`
 for the locked Python/React checks, frontend build, and Compose configuration check.
 The local Plan API and gateway verification record is in
 `artifacts/testing/2026-09-28-phase-2/verification.md`. The check does not contact
@@ -19,6 +19,6 @@ AWS and does not prove live Cognito or production deployment readiness.
 
 ## Repository layout
 
-- `docs/planning/` — product and delivery planning
+- `.planning/` — product and delivery planning
 - `src/` — application code (to be added after the MVP is defined)
 - `tests/` — automated tests (to be added with the application)

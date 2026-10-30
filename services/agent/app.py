@@ -73,7 +73,6 @@ def create_app(
         graph=workflow,
         runs=runs,
         receipts=ProcessReceiptCache(cache_size),
-        memory=memory,
     )
     app = FastAPI(title="Travella agent service", docs_url=None, redoc_url=None)
 

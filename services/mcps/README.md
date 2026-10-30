@@ -5,7 +5,7 @@ These private FastMCP servers expose provider tools:
 - `map_server.py` resolves candidate names, resolves destination bounds, searches Google Places inside a geographic rectangle, and retrieves compact place details. The canvas editor uses these tools through `services/agent/maps_client.py`.
 - `travel_server.py` exposes LiteAPI searches and the read-only inspection tools below. The current Claude Canvas agent uses these through the existing private travel client.
 - `research_server.py` is a retained legacy Tavily server. Current chat/research uses Claude Agent SDK native web tools and does not call it.
-- Traveler memory is handled separately by `services/agent/memory.py`; see `docs/agent/llm-flow.md` for the current profile and memory behavior.
+- Traveler memory is handled separately by `services/agent/memory.py`.
 
 Copy `.env.example` to `.env` and fill in the provider keys. The keys are read only by these server processes and are never returned by a tool. Keep the Google server key separate from the browser key used by the frontend.
 

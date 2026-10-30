@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { travelRequest } from './travelApi';
-import { rememberStayReceipt, stayCheckoutUpdated } from './useStayBookingSync';
+import { rememberStayReceipt, stayCheckoutUpdated } from './bookingReceipts';
 import { savedStayResult } from './stayReservation';
 export function useStayCheckout({ planId, offerToken, recoveryToken, savedBooking, onBookingResult, onExpired }) {
   const [result, setResult] = useState(() => savedStayResult(savedBooking));
