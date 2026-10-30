@@ -8,7 +8,7 @@ const titles = {
   neutral_confirmation: 'Check your inbox.', reset_password: 'Choose a new password.',
   mfa_challenge: 'One more step.', mfa_recovery: 'Use a recovery code.',
   mfa_enrollment: 'Set up your authenticator.', mfa_recovery_enrollment: 'Replace your authenticator.',
-  recovery_codes: 'Keep these somewhere safe.', loading: 'Opening your account…',
+  recovery_codes: 'Keep these somewhere safe.',
 };
 const descriptions = {
   sign_in: 'Sign in to pick up where your plans left off.',
@@ -114,7 +114,7 @@ export function AccountAccess({ step, heading, email, firstName, lastName, busy,
           : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" /></svg>}
       </button>
       <section className="auth-form-section" aria-labelledby="auth-heading">
-        {!['sign_in', 'loading'].includes(step) && <button className="auth-back" disabled={busy} onClick={() => onNavigate('sign_in')}><span aria-hidden="true">← </span>Back to sign in</button>}
+        {step !== 'sign_in' && <button className="auth-back" disabled={busy} onClick={() => onNavigate('sign_in')}><span aria-hidden="true">← </span>Back to sign in</button>}
         <h1 id="auth-heading" ref={heading} tabIndex={-1}>{titles[step] || 'Account access'}</h1>
         {descriptions[step] && <p className="auth-description" role={step === 'neutral_confirmation' ? 'status' : undefined}>{step === 'neutral_confirmation' ? notice || descriptions[step] : descriptions[step]}</p>}
         {notice && step !== 'neutral_confirmation' && <p role="status" className="auth-notice">{notice}</p>}

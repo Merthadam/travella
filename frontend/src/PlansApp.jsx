@@ -12,6 +12,7 @@ import { AppHeader } from './components/AppHeader';
 import { PlanHeaderContext } from './components/PlanHeaderContext';
 import './components/focused-header.css';
 import { AccountMenu } from './components/AccountMenu';
+import { AppLoading } from './components/AppLoading';
 
 const unknown = error => !error.status || error.status >= 500 || error.code === 'request_pending';
 const date = value => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'long' });
@@ -57,11 +58,12 @@ export function PlansApp({ travelerProfile, onExpired, onSignOut, onAccount, acc
   inactiveView.current = inactive;
   const initialized = useRef(false);
   const mountedRoute = useRef(window.location.pathname);
-  const [view, setView] = useState('active'), [plans, setPlans] = useState([]), [selected, setSelected] = useState(null);
+  const [initialRoute] = useState(route);
+  const [view, setView] = useState(initialRoute.view || 'detail'), [plans, setPlans] = useState([]), [selected, setSelected] = useState(null);
   const [cursor, setCursor] = useState(null), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [notice, setNotice] = useState(''), [dialog, setDialog] = useState(null);
   const [renameNotice, setRenameNotice] = useState('');
-  const [conversationPage, setConversationPage] = useState(false);
+  const [conversationPage, setConversationPage] = useState(Boolean(initialRoute.id));
   const [canvasPage, setCanvasPage] = useState(false);
   const [generateCanvas, setGenerateCanvas] = useState(false);
   const canvasDirty = useRef(false), canvasBusy = useRef(false);
@@ -221,6 +223,7 @@ export function PlansApp({ travelerProfile, onExpired, onSignOut, onAccount, acc
     else { setRenameNotice(`Plan name updated to ${plan.title}.`); if (selected) setSelected(plan); else setPlans(current => current.map(item => item.plan_id === plan.plan_id ? plan : item)); }
   }
   const link = (event, callback) => { event.preventDefault(); if (!busy) callback(); };
+  if (conversationPage && loading && !selected && !error) return <AppLoading label="Opening plan…" />;
   return <PlanHeaderContext.Provider value={headerShell}><div className={`plans-app${conversationPage ? ' chat-app' : ''}`}>
     <p className="sr-only" role="status">{renameNotice}</p>
     <a className="skip-link" href={conversationPage && selected ? (canvasPage ? '#canvas-main' : '#conversation-main') : '#plans-main'}>{conversationPage ? (canvasPage ? 'Skip to plan canvas' : 'Skip to conversation') : 'Skip to plans'}</a>

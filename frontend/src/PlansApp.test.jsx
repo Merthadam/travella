@@ -300,7 +300,7 @@ test('opening a plan shows only its loading state and never fetches retired work
   expect(screen.queryByRole('list', { name: 'Active plans' })).toBeNull();
   expect(screen.queryByRole('list', { name: 'Deleted plans' })).toBeNull();
   expect(screen.queryByRole('link', { name: 'Current journey' })).toBeNull();
-  expect(screen.getByRole('link', { name: 'Skip to conversation' }).getAttribute('href')).toBe('#plans-main');
+  expect(document.querySelector('.app-loading')).toBeTruthy();
   await act(async () => finish(item));
   expect(await screen.findByRole('textbox', { name: 'Message Travella' })).toBeTruthy();
   expect(api.brief).not.toHaveBeenCalled(); expect(api.destinations).not.toHaveBeenCalled();

@@ -532,7 +532,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
             </label>
           )}
         </div>
-        {stay && <StaySearchFilters key={planId} planId={planId} active={active} value={stayFilters} onChange={setStayFilters} onExpired={onExpired} onCatalogs={setStayCatalogs} applied={applied}/>}
+        {stay && <StaySearchFilters key={planId} planId={planId} active={active} value={stayFilters} onChange={setStayFilters} onExpired={onExpired} onCatalogs={setStayCatalogs}/>}
         {stay ? (
           <details className="travel-party">
             <summary>

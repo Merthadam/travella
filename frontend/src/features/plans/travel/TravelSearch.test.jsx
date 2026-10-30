@@ -16,9 +16,12 @@ import { bindTravelRecoveryScope, clearCanvasViews, writeTravelWorkspace } from 
 import { draftFromCriteria, initialWorkspace } from './useTravelWorkspace';
 vi.mock("./travelApi", () => ({ travelRequest: vi.fn() }));
 const searchRequest = vi.fn();
+const catalogRequest = vi.fn();
 beforeEach(() => {
   const registered = new Map();
+  catalogRequest.mockResolvedValue({ items: [] });
   travelRequest.mockImplementation(async (plan, action, criteria, signal) => {
+    if (action === 'hotels/catalog') return catalogRequest(criteria);
     if (action === 'research/snapshot') return registered.get(criteria.search_id);
     if (action === 'places') return {
           places: [{ place_id: "rome-place", name: "Rome", address: "Italy" }],
@@ -80,7 +83,7 @@ test("explicit submit sends room criteria, shows sandbox totals and retains last
     .mockResolvedValueOnce(response("First hotel"))
     .mockRejectedValueOnce(new Error("Search failed"));
   render(<TravelSearch {...props} />);
-  expect(travelRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   const user = await fill();
   await user.click(screen.getByRole("button", { name: "Search stays" }));
   expect(await screen.findByText("First hotel")).toBeTruthy();
@@ -131,7 +134,7 @@ test("confirmed airport choices are required even when both text inputs are fill
   expect(
     await screen.findByText("Choose both airports from the suggestions."),
   ).toBeTruthy();
-  expect(travelRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
 });
 test("editing a selected city or its country requires selecting a destination again", async () => {
   render(<TravelSearch {...props} />);
@@ -200,7 +203,7 @@ test('flight traveler picker sends exact counts, age selections and the existing
   await user.selectOptions(screen.getByLabelText('Infant 2 age'), '0');
   await user.click(screen.getByRole('button', { name: 'Done' }));
   expect(screen.getByRole('button', { name: /Travelers.*7 travelers/i }).getAttribute('aria-expanded')).toBe('false');
-  expect(searchRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   await user.click(screen.getByRole('button', { name: 'Search flights' }));
   await screen.findByRole('heading', { name: 'family-search' });
   expect(searchRequest.mock.calls.find(call => call[1] === 'flights/search')[2]).toEqual({
@@ -219,7 +222,7 @@ test.each(['child', 'infant'])('closed flight picker exposes a missing %s age be
   await user.keyboard('{Escape}');
   expect(screen.getByRole('button', { name: /Travelers.*3 travelers/i }).getAttribute('aria-expanded')).toBe('false');
   await user.click(screen.getByRole('button', { name: 'Search flights' }));
-  expect(searchRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   const label = `${kind[0].toUpperCase()}${kind.slice(1)} 1 age`;
   await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(label)));
   expect(screen.getByRole('button', { name: /Travelers.*3 travelers/i }).getAttribute('aria-expanded')).toBe('true');
@@ -244,7 +247,7 @@ test('flight traveler edits recover on remount with their exact ages and cabin',
     expect(screen.getByLabelText('Child 1 age').value).toBe('8');
     expect(screen.getByLabelText('Infant 1 age').value).toBe('0');
     expect(screen.getByLabelText('Cabin').value).toBe('PREMIUM_ECONOMY');
-    expect(searchRequest).not.toHaveBeenCalled();
+    expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   } finally {
     cleanup();
     clearCanvasViews();
@@ -263,7 +266,7 @@ test('an incomplete adult count recovered from the old flight form cannot submit
     expect(screen.getByRole('button', { name: /Travelers.*0 travelers/i })).toBeTruthy();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Search flights' }));
     expect((await screen.findByRole('alert')).textContent).toContain('Choose at least one adult');
-    expect(travelRequest).not.toHaveBeenCalled();
+    expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   } finally {
     cleanup();
     clearCanvasViews();
@@ -279,7 +282,7 @@ test.each(['accommodation','flights'])('new %s import defeats an older manual re
   searchRequest.mockImplementationOnce(()=>new Promise(resolve=>{resolveOld=resolve;})).mockResolvedValueOnce({...next,preview_ids:['manual'],results:[{...next.results[0],id:'manual',...(mode === 'accommodation' ? {name:'Manual current'} : {airlines:['Manual current']})}]});
   const view=render(<TravelSearch {...props} mode={mode} importedSnapshot={first}/>);
   await screen.findByRole('heading',{name:'import-1'});
-  expect(travelRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   const stay=mode==='accommodation', button=stay?'Search stays':'Search flights', start=stay?'Check-in':'Departure';
   expect(screen.getByLabelText(start).value).toBe('2027-11-13');
   expect(screen.getByLabelText('Currency').value).toBe('USD');
@@ -320,7 +323,7 @@ test('stay import uses observed hotel ID and search criteria only after View roo
   await screen.findByRole('heading',{name:s.search_id});
   fireEvent.click(screen.getByLabelText('Compare'));
   expect(screen.getByText('Your comparison (1/3)')).toBeTruthy();
-  expect(travelRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   fireEvent.click(screen.getByRole('button',{name:'View rooms →'}));
   await screen.findByText('No room offers are available for these dates.');
   expect(searchRequest.mock.calls.map(x=>x[1])).toEqual(['hotels/detail','hotels/search']);
@@ -337,7 +340,7 @@ test('token-free flight details require explicit search before normal mock check
   await screen.findByRole('heading',{name:s.search_id});
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
   expect(screen.queryByRole('button',{name:'Continue to flight checkout'})).toBeNull();
-  expect(travelRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   fireEvent.click(screen.getByRole('button',{name:'Search again to check current availability'}));
   await waitFor(()=>expect(searchRequest).toHaveBeenCalledTimes(1));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Search flights'}).disabled).toBe(false));
@@ -354,7 +357,7 @@ test.each(['foreign','wrong_mode','expired','superseded'])('invalid %s import ex
   render(<TravelSearch {...props} mode={kind==='wrong_mode'?'flights':'accommodation'} importedSnapshot={s} importReason={kind==='superseded'?'Replaced by newer search':''}/>);
   await screen.findByText(/These results are no longer available/);
   expect(screen.queryByRole('heading',{name:s.search_id})).toBeNull();
-  expect(travelRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
 });
 
 test('photo failure and unsafe URLs show an accessible honest fallback',()=>{
@@ -377,7 +380,7 @@ test('changing Plan on a mounted search removes a previous Plan import',async()=
   view.rerender(<TravelSearch {...props} planId="other-plan" importedSnapshot={s}/>);
   await screen.findByText(/These results are no longer available/);
   expect(screen.queryByRole('heading',{name:s.search_id})).toBeNull();
-  expect(travelRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
 });
 
 
@@ -412,7 +415,7 @@ test.each(['accommodation', 'flights'])('%s paginates ten at a time, preserves c
   view.rerender(<TravelSearch {...props} mode={mode} importedSnapshot={{...data, search_id: 'new-search'}} importRequest={1} />);
   expect(cards()[0].dataset.optionId).toBe('option-1');
   expect(screen.queryByText('Your comparison (1/3)')).toBeNull();
-  expect(travelRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
 });
 
 
@@ -436,9 +439,8 @@ test("manual results can prepare a discussion without replacing browsing or expo
 });
 
 test('provider-backed apartment and amenity filters apply to new searches and can be cleared', async () => {
-  searchRequest.mockImplementation((plan, action, criteria) => Promise.resolve(action === 'hotels/catalog'
-    ? { items: criteria.kind === 'hotel_types' ? [{ id: 201, name: 'Apartments' }, { id: 202, name: 'Hotels' }] : [{ id: 7, name: 'Kitchen' }, { id: 8, name: 'Pool' }] }
-    : response('Filtered apartment')));
+  catalogRequest.mockImplementation(criteria => Promise.resolve({ items: criteria.kind === 'hotel_types' ? [{ id: 201, name: 'Apartments' }, { id: 202, name: 'Hotels' }] : [{ id: 7, name: 'Kitchen' }, { id: 8, name: 'Pool' }] }));
+  searchRequest.mockResolvedValue(response('Filtered apartment'));
   render(<TravelSearch {...props}/>);
   const user = await fill();
   await user.click(screen.getByText('Property type, amenities & cancellation'));
@@ -485,7 +487,8 @@ test('stay cards distinguish property amenities and unknown room or distance evi
 });
 
 test('catalog failure offers retry and keeps ordinary manual search available', async () => {
-  searchRequest.mockImplementation((plan, action) => action === 'hotels/catalog' ? Promise.reject(new Error('Unavailable')) : Promise.resolve(response('Hotel')));
+  catalogRequest.mockRejectedValue(new Error('Unavailable'));
+  searchRequest.mockResolvedValue(response('Hotel'));
   render(<TravelSearch {...props}/>);
   const user = await fill();
   await user.click(screen.getByText('Property type, amenities & cancellation'));
@@ -547,7 +550,7 @@ test('view-only filters and sort perform no supplier request and exclude confirm
   expect(screen.getByText('No options match these filters.')).toBeTruthy();
   fireEvent.click(screen.getAllByRole('button', { name: 'Reset filters' })[0]);
   expect(screen.getByRole('heading', { name: 'import-1' })).toBeTruthy();
-  expect(searchRequest).not.toHaveBeenCalled();
+  expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
 });
 
 test('delayed Trip import cannot replace a manual search made after its navigation request', async () => {

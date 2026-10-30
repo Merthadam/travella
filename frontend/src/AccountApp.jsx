@@ -6,6 +6,7 @@ import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { AccountSettingsPage } from './features/account/AccountSettingsPage';
 import { AppearanceProvider } from './features/appearance/AppearanceProvider';
 import { AccountAccess } from './features/auth/AccountAccess';
+import { AppLoading } from './components/AppLoading';
 
 export function AccountApp() {
   return <AppearanceProvider><AccountContent /></AppearanceProvider>;
@@ -13,6 +14,7 @@ export function AccountApp() {
 
 function AccountContent() {
   const [step, setStep] = useState('loading');
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -72,12 +74,12 @@ function AccountContent() {
     let cancelled = false;
     readSession().then(session => { if (!cancelled) { bindTravelRecoveryScope(session.recovery_scope); return routeAfterSignIn(); } }).catch((err) => {
       if (!cancelled) {
-        go('sign_in');
-        if (err.status !== 401) setError(err);
+        if (err.status === 401) go('sign_in');
+        else setError(err);
       }
     });
     return () => { cancelled = true; generation.current++; };
-  }, []);
+  }, [bootstrapAttempt]);
   useEffect(() => {
     if (!['signed_in', 'account'].includes(step)) return;
     function navigate(event) {
@@ -215,6 +217,8 @@ function AccountContent() {
     catch (err) { setError(err); }
     finally { setBusy(false); }
   }
+
+  if (step === 'loading') return <AppLoading error={error} onRetry={() => { setError(null); setBootstrapAttempt(attempt => attempt + 1); }} />;
 
   if (step === 'onboarding') {
     return <OnboardingFlow initialProfile={travelerProfile || undefined} onExpired={() => go('sign_in')} onComplete={(profile) => {

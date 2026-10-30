@@ -25,7 +25,11 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   const criteria = topic === 'stays' ? { destination: { city: 'Rome', country_code: 'IT', place_id: 'rome' }, check_in: '2027-11-13', check_out: '2027-11-16', rooms: [{ adults: 2, children_ages: [] }], guest_nationality: 'HU', currency: 'EUR', hotel_id: null } : { origin: 'BUD', destination: 'FCO', departure_date: '2027-11-13', return_date: '2027-11-16', adults: 2, children_ages: [], infant_ages: [], cabin_class: 'ECONOMY', country_code: 'HU', currency: 'EUR' };
   return { search_id: searchId, plan_id: 'plan-1', mode: topic, generation: 1, fingerprint: 'a'.repeat(64), draft_facts: draftTravelFacts(initialData), searched_at: new Date().toISOString(), expires_at: new Date(Date.now() + 600000).toISOString(), provider: 'LiteAPI', sandbox: true, returned_count: 1, truncated: false, notices: [], preview_ids: [item.id], search_only_dates: false, criteria, results: [item] };
 }
-beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); HTMLDialogElement.prototype.close = vi.fn(function () { this.removeAttribute("open"); }); HTMLDialogElement.prototype.showModal = vi.fn(function () { this.setAttribute("open", ""); }); });
+// Catalog metadata is prefetched; keep supplier/research requests independently asserted.
+const workspaceRequest = vi.fn();
+beforeEach(() => { workspaceRequest.mockReset(); vi.stubGlobal('fetch', (url, ...args) => url.includes('/hotels/catalog?')
+  ? Promise.resolve({ ok: true, json: async () => ({ items: [] }) })
+  : workspaceRequest(url, ...args)); HTMLDialogElement.prototype.close = vi.fn(function () { this.removeAttribute("open"); }); HTMLDialogElement.prototype.showModal = vi.fn(function () { this.setAttribute("open", ""); }); });
 
 test('stay snapshots preserve long provider cancellation schedules', () => {
   const value = workspaceSnapshot();
@@ -117,7 +121,7 @@ test.each(['fresh', 'expired', 'edited', 'owner-change', 'foreign', 'detail'])('
   state.draftCriteria.city = 'Unsubmitted destination'; state.draftDirty = true;
   if (outcome === 'detail') state.detailsReference = { reference: { search_id: 'search-1', option_id: 'option-1', room_id: null } };
   expect(writeTravelWorkspace(owner, 'plan-1', 'stays', state)).toBe(true);
-  let finish; fetch.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  let finish; workspaceRequest.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
   const { result } = renderHook(() => useTravelWorkspace({ planId: 'plan-1', topic: 'stays', initialData }));
   expect(result.current.state.instanceId).not.toBe(state.instanceId);
   expect(result.current.state.snapshot).toBeNull(); expect(result.current.state.draftCriteria.city).toBe('Unsubmitted destination');
@@ -125,7 +129,7 @@ test.each(['fresh', 'expired', 'edited', 'owner-change', 'foreign', 'detail'])('
   if (outcome === 'edited') act(() => result.current.setDraft('city', 'Newer edit'));
   if (outcome === 'owner-change') act(() => bindTravelRecoveryScope('b'.repeat(32)));
   await act(async () => finish({ ok: outcome !== 'expired', status: outcome === 'expired' ? 409 : 200, json: async () => ({ ...workspaceSnapshot(), ...(outcome === 'foreign' ? { plan_id: 'other' } : {}) }) }));
-  expect(fetch).toHaveBeenCalledTimes(1); expect(fetch.mock.calls[0][0]).toContain('research/snapshot?'); expect(fetch.mock.calls[0][1].method).toBe('GET');
+  expect(workspaceRequest).toHaveBeenCalledTimes(1); expect(workspaceRequest.mock.calls[0][0]).toContain('research/snapshot?'); expect(workspaceRequest.mock.calls[0][1].method).toBe('GET');
   if (['fresh', 'detail'].includes(outcome)) { expect(result.current.state.snapshot.search_id).toBe('search-1'); expect(result.current.state.view.sort).toBe('price'); expect(result.current.state.draftCriteria.city).toBe('Unsubmitted destination'); expect(result.current.state.inverse).toBeNull(); expect(result.current.state.detailsReference).toBeNull(); if (outcome === 'detail') expect(result.current.state.recoveredDetails.reference.option_id).toBe('option-1'); }
   else { expect(result.current.state.snapshot).toBeNull(); if (outcome === 'expired') expect(result.current.state.error).toMatch(/Search again/); if (outcome === 'edited') expect(result.current.state.draftCriteria.city).toBe('Newer edit'); }
   if (outcome === 'owner-change') expect(readTravelWorkspace(owner, 'plan-1', 'stays')).toBeNull();
@@ -157,7 +161,7 @@ test('ordinary followups use displayed exact room comparison across searches and
   const refs = [first, second].map(s => ({ search_id: s.search_id, option_id: 'option-1', room_id: s.results[0].rooms[0].id }));
   const history = { plan_id: 'plan-1', topic: 'stays', revision: 4, brief: { digest: 'brief' }, messages: [{ message_id: 'old', comparison: { options: refs.map((reference, i) => ({ id: String(i), title: reference.room_id, reference })) } }] };
   const api = { travelTopic: vi.fn(async () => history), travelTurn: vi.fn(async () => ({ status: 'complete' })), cancelAgentTurn: vi.fn(async () => ({})) };
-  fetch.mockImplementation(async url => ({ ok: true, json: async () => url.includes('rate-a') ? first : second }));
+  workspaceRequest.mockImplementation(async url => ({ ok: true, json: async () => url.includes('rate-a') ? first : second }));
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData} importedSnapshot={current}/>);
   for (const ref of refs) {
     fireEvent.click(await screen.findByRole('button', { name: `View ${ref.room_id}` }));
@@ -203,7 +207,7 @@ test.each(['filter', 'inactive', 'same-property'])('exact room comparison respec
   const snapshot = workspaceSnapshot('stays', 'original');
   snapshot.results[0].rooms = ['room-a', 'room-b'].map(id => ({ id, name: id, total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }));
   chat.messages = [{ message_id: 'historical', comparison: { options: snapshot.results[0].rooms.map(room => ({ id: room.id, title: room.name, reference: { search_id: 'original', option_id: 'option-1', room_id: room.id } })) } }];
-  fetch.mockResolvedValue({ ok: true, json: async () => snapshot });
+  workspaceRequest.mockResolvedValue({ ok: true, json: async () => snapshot });
   const props = { selected: { plan_id: 'plan-1' }, api: {}, mode: 'accommodation', active: true, initialData, importedSnapshot: snapshot };
   const rendered = render(<TravelWorkspace {...props}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View room-a' }));
@@ -211,7 +215,7 @@ test.each(['filter', 'inactive', 'same-property'])('exact room comparison respec
   expect(within(details).getByText(/Observed room offer · total stay/)).toBeTruthy();
   expect(within(details).queryByText(/Total for all rooms/)).toBeNull();
   let finish;
-  fetch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  workspaceRequest.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
   fireEvent.click(within(details).getByRole('button', { name: 'Compare room' }));
   if (change === 'filter') fireEvent.change(screen.getByPlaceholderText('Any budget'), { target: { value: '700' } });
   if (change === 'inactive') rendered.rerender(<TravelWorkspace {...props} active={false}/>);
@@ -223,7 +227,7 @@ test.each(['filter', 'inactive', 'same-property'])('exact room comparison respec
   expect(screen.getByText('Exact room: room-a')).toBeTruthy(); expect(screen.getByText('Exact room: room-b')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'View room-a' }));
   const reopened = await screen.findByRole('dialog');
-  fetch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  workspaceRequest.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
   fireEvent.click(within(reopened).getByRole('button', { name: 'Compare room' }));
   fireEvent.click(screen.getByRole('button', { name: 'Close comparison' }));
   await act(async () => finish({ ok: true, json: async () => snapshot }));
@@ -235,12 +239,12 @@ test.each(['manual', 'foreign', 'invalid-criteria', 'invalid-draft'])('raw manua
   current.draft_facts = draftTravelFacts({ map: { destination: 'Paris' } });
   original.results[0].rooms = [{ id: 'exact-room', name: 'Observed room', total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }];
   chat.messages = [{ message_id: 'earlier', comparison: { options: [{ id: 'saved', title: 'Saved exact room', reference: { search_id: original.search_id, option_id: 'option-1', room_id: 'exact-room' } }] } }];
-  fetch.mockResolvedValueOnce({ ok: true, json: async () => original });
+  workspaceRequest.mockResolvedValueOnce({ ok: true, json: async () => original });
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="accommodation" active initialData={{ map: { destination: 'Paris' } }} importedSnapshot={current}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View Saved exact room' }));
   const detail = await screen.findByRole('dialog');
   const raw = { ...original, draft_facts: kind === 'invalid-draft' ? { start: 'invalid partial metadata' } : {}, ...(kind === 'foreign' ? { plan_id: 'another-plan' } : {}), ...(kind === 'invalid-criteria' ? { criteria: { ...original.criteria, rooms: [] } } : {}) };
-  fetch.mockResolvedValueOnce({ ok: true, json: async () => raw });
+  workspaceRequest.mockResolvedValueOnce({ ok: true, json: async () => raw });
   fireEvent.click(within(detail).getByRole('button', { name: 'Compare room' }));
   if (kind !== 'manual') {
     expect(await screen.findByText(/This room observation is unavailable/)).toBeTruthy();
@@ -252,7 +256,7 @@ test.each(['manual', 'foreign', 'invalid-criteria', 'invalid-draft'])('raw manua
   expect(within(comparison).getByText('Separate search observation · compare the dates and times below')).toBeTruthy();
   expect(within(comparison).getByText(/2027-11-13 – 2027-11-16/)).toBeTruthy();
   expect(screen.getByRole('heading', { name: 'main-search' })).toBeTruthy();
-  expect(fetch.mock.calls.every(([url]) => url.includes('research/snapshot?'))).toBe(true);
+  expect(workspaceRequest.mock.calls.every(([url]) => url.includes('research/snapshot?'))).toBe(true);
 });
 
 test('opening a raw manual historical exact room keeps current inventory and never starts a supplier search', async () => {
@@ -261,7 +265,7 @@ test('opening a raw manual historical exact room keeps current inventory and nev
   const room = { id: 'exact-room', name: 'Private apartment', total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults, 0 children' };
   original.results[0].rooms = [room, { ...room, id: 'other-room', name: 'Other room', total: { amount: '100', currency: 'EUR' } }];
   chat.messages = [{ message_id: 'historical', comparison: { options: [{ id: 'old', title: 'Earlier private apartment', reference: { search_id: 'original', option_id: 'option-1', room_id: 'exact-room' } }] } }];
-  fetch.mockResolvedValue({ ok: true, json: async () => original });
+  workspaceRequest.mockResolvedValue({ ok: true, json: async () => original });
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="accommodation" active initialData={initialData} importedSnapshot={present}/>);
   fireEvent.change(screen.getByLabelText('Unsent message'), { target: { value: 'Keep this draft' } });
   fireEvent.click(screen.getByRole('button', { name: 'View Earlier private apartment' }));
@@ -269,15 +273,15 @@ test('opening a raw manual historical exact room keeps current inventory and nev
   expect(within(details).getByText('Private apartment')).toBeTruthy();
   expect(within(details).queryByText('Other room')).toBeNull();
   expect(within(details).getByText('Original observed offer · no availability refresh requested.')).toBeTruthy();
-  expect(fetch).toHaveBeenCalledTimes(1);
-  expect(fetch.mock.calls[0][0]).toContain('research/snapshot?search_id=original');
+  expect(workspaceRequest).toHaveBeenCalledTimes(1);
+  expect(workspaceRequest.mock.calls[0][0]).toContain('research/snapshot?search_id=original');
   expect(screen.getByLabelText('Unsent message').value).toBe('Keep this draft');
   expect(screen.getByRole('heading', { name: 'current' })).toBeTruthy();
   fireEvent.click(within(details).getByRole('button', { name: 'Close details' }));
-  fetch.mockResolvedValue({ ok: false, status: 404 });
+  workspaceRequest.mockResolvedValue({ ok: false, status: 404 });
   fireEvent.click(screen.getByRole('button', { name: 'View Earlier private apartment' }));
   expect(await screen.findByText(/This earlier observation is no longer available/)).toBeTruthy();
-  expect(fetch.mock.calls.every(([url]) => url.includes('research/snapshot?'))).toBe(true);
+  expect(workspaceRequest.mock.calls.every(([url]) => url.includes('research/snapshot?'))).toBe(true);
 });
 
 test.each(['review', 'challenge'])('switching away fences a delayed manual %s response', async stage => {
@@ -393,7 +397,7 @@ test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 
   if (race === 'compare') fireEvent.click(screen.getByLabelText('Compare'));
   if (race === 'dismiss') fireEvent.click(screen.getByRole('button', { name: 'Dismiss from results' }));
   if (race === 'manual') {
-    fetch.mockResolvedValue({ ok: true, json: async () => workspaceSnapshot('stays', 'manual-search') });
+    workspaceRequest.mockResolvedValue({ ok: true, json: async () => workspaceSnapshot('stays', 'manual-search') });
     fireEvent.click(screen.getByRole('button', { name: 'Search stays' }));
   }
   if (race === 'brief') saved.brief = { digest: 'c'.repeat(64) };
@@ -412,7 +416,7 @@ test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 
     fireEvent.click(screen.getByRole('button', { name: 'Undo workspace change' }));
     expect(screen.getByRole('heading', { name: 'old-search' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Undo workspace change' })).toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(workspaceRequest).not.toHaveBeenCalled();
   } else expect(screen.queryByRole('heading', { name: 'search-1' })).toBeNull();
 });
 
@@ -426,26 +430,26 @@ test('HTTP stream parser preserves the same strict workspace envelope in state a
     ].map(event => `data: ${JSON.stringify(event)}\n\n`).join(''))); controller.close();
   } }) });
   for (const value of [batch, { ...batch, plan_id: 'foreign' }, { ...batch, raw_payload: 'private' }, { ...batch, run_id: 'old' }]) {
-    fetch.mockResolvedValueOnce(stream(value)); events.length = 0;
+    workspaceRequest.mockResolvedValueOnce(stream(value)); events.length = 0;
     const terminal = await plansApi.travelTurn({ plan_id: 'plan-1' }, 'stays', 'search', 'run-1', { workspaceContext: context, onEvent: event => events.push(event) });
-    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body).workspace_context).toEqual(context);
+    expect(JSON.parse(workspaceRequest.mock.calls.at(-1)[1].body).workspace_context).toEqual(context);
     expect(terminal.workspace_update).toEqual(value === batch ? batch : undefined);
     expect(events[0].snapshot.workspace_update).toEqual(terminal.workspace_update);
   }
-  const calls = fetch.mock.calls.length;
+  const calls = workspaceRequest.mock.calls.length;
   await expect(plansApi.travelTurn({ plan_id: 'plan-1' }, 'stays', 'search', 'run-1', { workspaceContext: { ...context, revision: Infinity }, onEvent: () => {} })).rejects.toThrow();
-  expect(fetch).toHaveBeenCalledTimes(calls);
+  expect(workspaceRequest).toHaveBeenCalledTimes(calls);
 });
 
 test.each(['stays', 'flights'])('mounted %s manual HTTP search works with chat closed and unresolved cancellation; typing rejects late completion', async topic => {
   let finish;
   const fresh = workspaceSnapshot(topic, 'Fresh result');
-  fetch.mockImplementation(() => new Promise(resolve => { finish = () => resolve({ ok: true, json: async () => fresh }); }));
+  workspaceRequest.mockImplementation(() => new Promise(resolve => { finish = () => resolve({ ok: true, json: async () => fresh }); }));
   render(<TravelWorkspace selected={{ plan_id: 'plan-1', owner_id: 'owner' }} api={{}} mode={topic === 'stays' ? 'accommodation' : 'flights'} active initialData={initialData} importedSnapshot={workspaceSnapshot(topic)}/>);
   fireEvent.click(screen.getByText('Close chat'));
   fireEvent.click(screen.getByRole('button', { name: topic === 'stays' ? 'Search stays' : 'Search flights' }));
-  await waitFor(() => expect(fetch).toHaveBeenCalled());
-  const [url, request] = fetch.mock.calls[0];
+  await waitFor(() => expect(workspaceRequest).toHaveBeenCalled());
+  const [url, request] = workspaceRequest.mock.calls[0];
   expect(url).toBe(`/v1/agent/plans/plan-1/travel/${topic === 'stays' ? 'hotels' : 'flights'}/search`);
   expect(request.credentials).toBe('same-origin');
   expect(request.method).toBe('POST');
@@ -453,7 +457,7 @@ test.each(['stays', 'flights'])('mounted %s manual HTTP search works with chat c
   await act(async () => finish());
   expect(screen.queryByRole('heading', { name: 'Fresh result' })).toBeNull();
   expect(screen.getByLabelText(topic === 'stays' ? 'Check-in' : 'Departure').value).toBe('2027-11-14');
-  fetch.mockResolvedValue({ ok: true, json: async () => fresh });
+  workspaceRequest.mockResolvedValue({ ok: true, json: async () => fresh });
   fireEvent.click(screen.getByRole('button', { name: topic === 'stays' ? 'Search stays' : 'Search flights' }));
   expect(await screen.findByRole('heading', { name: 'Fresh result' })).toBeTruthy();
 });
@@ -489,7 +493,7 @@ test('mounted dismissal and restore leave durable choices alone and make no requ
   fireEvent.click(screen.getByRole('button', { name: 'Restore search-1' }));
   expect(screen.getByRole('heading', { name: 'search-1' })).toBeTruthy();
   expect(api.prepareTravelChoice).not.toHaveBeenCalled(); expect(api.commitTravelChoice).not.toHaveBeenCalled();
-  expect(fetch).not.toHaveBeenCalled();
+  expect(workspaceRequest).not.toHaveBeenCalled();
 });
 test('atomic agent batch applies evidence and clean draft once with one inverse; never applies during hydration', () => {
   const state = authorized(), envelope = update();
@@ -531,17 +535,17 @@ test('manual registry completion loses to typing, and malformed or cross-Plan ev
   const first = workspaceSnapshot(), next = workspaceSnapshot('stays', 'next-search');
   const { result } = renderHook(() => useTravelWorkspace({ owner: 'owner', planId: 'plan-1', topic: 'stays', initialData }));
   act(() => result.current.importSnapshot(first, 'first'));
-  fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: next.search_id, results: next.results }) })
+  workspaceRequest.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: next.search_id, results: next.results }) })
     .mockImplementationOnce(() => new Promise(resolve => { finishRegistry = () => resolve({ ok: true, json: async () => next }); }));
   let pending;
   act(() => { pending = result.current.search(first.criteria); });
   await waitFor(() => expect(finishRegistry).toBeTypeOf('function'));
-  expect(fetch.mock.calls[1][0]).toContain('/research/snapshot?search_id=next-search');
+  expect(workspaceRequest.mock.calls[1][0]).toContain('/research/snapshot?search_id=next-search');
   act(() => result.current.setDraft('start', '2027-11-14'));
   await act(async () => { finishRegistry(); await pending; });
   expect(result.current.state.snapshot.search_id).toBe(first.search_id);
   for (const invalid of [{ ...next, plan_id: 'another-plan' }, { ...next, checkout_token: 'private' }, { ...next, results: [{ ...next.results[0], id: 'forged' }] }]) {
-    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: next.search_id }) }).mockResolvedValueOnce({ ok: true, json: async () => invalid });
+    workspaceRequest.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: next.search_id }) }).mockResolvedValueOnce({ ok: true, json: async () => invalid });
     await act(async () => result.current.search(first.criteria));
     expect(result.current.state.snapshot.search_id).toBe(first.search_id);
     expect(result.current.state.error).toContain('could not be verified');
@@ -556,7 +560,7 @@ test('manual mutation revokes authority before cancellation callback; private ch
   act(() => result.current.setDraft('start', '2027-11-14'));
   expect(onManualChange).toHaveBeenCalledOnce();
   const snap = workspaceSnapshot();
-  fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: snap.search_id, results: [{ ...snap.results[0], checkout_token: 'private-handle' }] }) }).mockResolvedValueOnce({ ok: true, json: async () => snap });
+  workspaceRequest.mockResolvedValueOnce({ ok: true, json: async () => ({ search_id: snap.search_id, results: [{ ...snap.results[0], checkout_token: 'private-handle' }] }) }).mockResolvedValueOnce({ ok: true, json: async () => snap });
   await act(async () => result.current.search(snap.criteria));
   expect(JSON.stringify(result.current.state)).not.toContain('private-handle');
   expect(JSON.stringify(result.current.getWorkspaceContext())).not.toContain('private-handle');
@@ -587,7 +591,7 @@ test('workspace retains guided checkout access for an existing flight receipt', 
 test.each([3000, 40000, 40001])('manual checkout handle length %i follows the server contract without entering shared state', async length => {
   const { result } = renderHook(() => useTravelWorkspace({ owner: 'owner', planId: 'plan-1', topic: 'flights', initialData }));
   const snap = workspaceSnapshot('flights'); const handle = 'x'.repeat(length);
-  fetch.mockResolvedValueOnce({ok:true,json:async()=>({search_id:snap.search_id,results:[{...snap.results[0],checkout_token:handle}]})}).mockResolvedValueOnce({ok:true,json:async()=>snap});
+  workspaceRequest.mockResolvedValueOnce({ok:true,json:async()=>({search_id:snap.search_id,results:[{...snap.results[0],checkout_token:handle}]})}).mockResolvedValueOnce({ok:true,json:async()=>snap});
   await act(async()=>result.current.search(snap.criteria));
   expect(result.current.getCheckoutToken({search_id:snap.search_id,option_id:'option-1'})).toBe(length <= 40000 ? handle : undefined);
   expect(JSON.stringify(result.current.state)).not.toContain(handle);
