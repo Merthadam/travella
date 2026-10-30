@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-29T22:09:39.637Z"
 last_activity: 2026-10-30
-last_activity_desc: Removed redundant traveler profile memory lookup; 25 focused regression tests passed
+last_activity_desc: Consolidated booking recovery polling; 196 tests, build and Chrome DevTools checks passed
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261030-phy | Consolidate flight and stay booking status recovery polling | 2026-10-30 | 7c8b7e9 | [261030-phy](./quick/261030-phy-consolidate-flight-and-stay-booking-stat/) |
 | 261030-pcb | Remove redundant traveler profile memory lookup from agent turns | 2026-10-30 | f92f938 | [261030-pcb](./quick/261030-pcb-remove-redundant-traveler-profile-memory/) |
 | 261029-ufv | Integrate focused travel header, drawer account access and maple-cake defaults | 2026-10-29 | eb71152 | [261029-ufv](./quick/261029-ufv-implement-approved-focused-travel-ui-wit/) |
 | 261027-rif | Refine trip essentials into one compact whole-trip briefing prototype | 2026-10-27 | 3871fc4 | [261027-rif](./quick/261027-rif-refine-trip-essentials-into-one-compact-/) |
@@ -51,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-30 — Completed quick task 261030-pcb: remove redundant traveler profile memory lookup; phase acceptance unchanged.
+Last activity: 2026-10-30 — Completed quick task 261030-phy: shared booking recovery; 196 tests, build and browser persistence checks passed; phase acceptance unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
