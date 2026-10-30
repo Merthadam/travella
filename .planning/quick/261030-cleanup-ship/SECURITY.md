@@ -15,3 +15,5 @@ Inline review of cbbedb5..3a03612 for the user-authorized merge. This is the fiv
 - Removed docs contain no runtime code; mandatory testing rules were moved unchanged and active references repaired. No DB migration, IAM, credentials, dependency or deployment change.
 
 No actionable new security findings in the reviewed diff. Existing broader architectural risks and baseline limitations are not certified by this bounded review. Browser supplier inventory was simulated; no live booking was submitted.
+
+Integration follow-up: reviewed the automatic PlanningCanvas merge with main 2f8a32a and resolved planning-log conflicts by preserving both histories. Main removes an unused PlanStages prop; this branch retains receipt isolation and exact choice callbacks. No new runtime resolution or security finding; 202 integration regression tests passed.

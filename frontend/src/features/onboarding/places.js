@@ -4,76 +4,9 @@ const EARTH_RADIUS_KM = 6371.0088;
 const MAX_NEARBY_DISTANCE_KM = 250;
 const NEARBY_LIMIT = 5;
 const AIRPORT_SEARCH_LIMIT = 30;
-const resolvedCityDetails = new WeakMap();
-
-export function createPlacesSession() {
-  return { token: null, latestRequest: 0 };
-}
-
 function textOf(value) {
   if (value == null) return '';
   return typeof value === 'string' ? value : value.toString();
-}
-
-export async function searchCities(input, session) {
-  const query = String(input || '').trim();
-  if (query.length < 2) return [];
-  if (!session || typeof session !== 'object') throw new TypeError('A Places session is required.');
-
-  const requestId = ++session.latestRequest;
-  const { libraries } = await loadGoogleMaps({ libraries: ['places'] });
-  if (requestId !== session.latestRequest) return [];
-  const { AutocompleteSessionToken, AutocompleteSuggestion } = libraries.places;
-  session.token ||= new AutocompleteSessionToken();
-
-  const { suggestions = [] } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
-    input: query,
-    sessionToken: session.token,
-    includedPrimaryTypes: ['(cities)'],
-  });
-  if (requestId !== session.latestRequest) return [];
-
-  return suggestions
-    .filter(item => item?.placePrediction?.placeId)
-    .map(({ placePrediction }) => ({
-      id: placePrediction.placeId,
-      mainText: textOf(placePrediction.mainText) || textOf(placePrediction.text),
-      secondaryText: textOf(placePrediction.secondaryText),
-      prediction: placePrediction,
-    }));
-}
-
-export async function resolveCity(value) {
-  const prediction = value?.prediction || value?.placePrediction || value;
-  const placeId = value?.id || prediction?.placeId;
-  if (!prediction?.toPlace || !placeId) throw new TypeError('Choose a city suggestion before resolving it.');
-  if (typeof prediction === 'object' && resolvedCityDetails.has(prediction)) {
-    return resolvedCityDetails.get(prediction);
-  }
-
-  const result = (async () => {
-    await loadGoogleMaps({ libraries: ['places'] });
-    const place = prediction.toPlace();
-    await place.fetchFields({ fields: ['location', 'addressComponents'] });
-    const location = place.location?.toJSON?.() || place.location;
-    const country = place.addressComponents?.find(component => component.types?.includes('country'));
-    if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) {
-      throw new Error('The selected city did not include a location.');
-    }
-    if (!country?.shortText) throw new Error('The selected city did not include a country code.');
-    return {
-      place_id: placeId,
-      country_code: country.shortText.toUpperCase(),
-      location: { lat: location.lat, lng: location.lng },
-    };
-  })();
-  if (typeof prediction === 'object') resolvedCityDetails.set(prediction, result);
-  try {
-    return await result;
-  } catch (error) {
-    if (typeof prediction === 'object') resolvedCityDetails.delete(prediction);
-    throw error;
-  }
 }
 
 function radians(value) { return value * Math.PI / 180; }
@@ -87,28 +20,6 @@ function distanceKm(a, b) {
   const value = Math.sin(deltaLat / 2) ** 2
     + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(deltaLng / 2) ** 2;
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
-}
-
-// Home address details stay in the confirmed profile; geometry is UI-only.
-export async function searchAddresses(input, session) {
-  const query = String(input || '').trim();
-  if (query.length < 3) return [];
-  const requestId = ++session.latestRequest;
-  const { libraries } = await loadGoogleMaps({ libraries: ['places'] });
-  if (requestId !== session.latestRequest) return [];
-  const { AutocompleteSessionToken, AutocompleteSuggestion } = libraries.places;
-  session.token ||= new AutocompleteSessionToken();
-  const { suggestions = [] } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
-    input: query, sessionToken: session.token,
-    includedPrimaryTypes: ['street_address', 'premise', 'subpremise'],
-  });
-  if (requestId !== session.latestRequest) return [];
-  return suggestions.filter(item => item?.placePrediction?.placeId).map(({ placePrediction }) => ({
-    id: placePrediction.placeId,
-    mainText: textOf(placePrediction.mainText) || textOf(placePrediction.text),
-    secondaryText: textOf(placePrediction.secondaryText),
-    prediction: placePrediction,
-  }));
 }
 
 function plainLocation(value) {

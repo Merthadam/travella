@@ -1,5 +1,4 @@
 /* Keep research controls contained and independent of global form styling. */
-.chat-page .chat-canvas-entry { flex-shrink: 0; align-items: center; padding: 16px 0; border-color: var(--app-line); }
 .chat-page .chat-transcript { overscroll-behavior: contain; scrollbar-width: thin; }
 .chat-page .chat-message { flex-shrink: 0; }
 :root[data-theme] .chat-page .research-composer { display: block; flex-shrink: 0; padding: 12px 0 max(10px, env(safe-area-inset-bottom)); border: 0; background: transparent; }
@@ -25,8 +24,6 @@
   .chat-app .chat-layout { min-height: 0; overflow: hidden; grid-template-rows: minmax(0, min(25dvh, 210px)) minmax(0, 1fr); }
   .chat-layout .chat-page { overflow: hidden; }
   :root[data-theme] .chat-page .research-composer { position: static; }
-  .chat-page .chat-canvas-entry { padding: 12px 0; gap: 8px; flex-wrap: wrap; }
-  .chat-page .chat-canvas-entry button { font-size: 12px; padding: 8px 10px; }
   .research-composer-box { padding: 12px 12px 8px; border-radius: 14px; }
   :root[data-theme] .chat-page .research-composer textarea { font-size: 16px; }
   :root[data-theme] .chat-page .research-composer button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }

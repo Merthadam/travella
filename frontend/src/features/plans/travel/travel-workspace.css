@@ -54,30 +54,8 @@
  .travel-option-actions .ds-button{flex:1}
  .travel-choice-review>div{flex-wrap:wrap}
 }
-
-/* Recommendations are part of the topic conversation. */
-.travel-suggestions-jump{flex-shrink:0;padding:10px 20px;text-align:left;border-bottom:1px solid var(--ds-line)}
-.travel-chat-suggestions{outline:none;scroll-margin-top:12px}
-.travel-suggestions-heading h2,.travel-chat-suggestions section>h2{font-size:16px;margin:18px 0 10px}
-.travel-suggestions-heading p{font-size:12px;color:var(--ds-muted)}
-.travel-suggestions-filter{display:block;font-size:12px;margin-bottom:18px}
-.travel-suggestions-filter input{width:100%;margin-top:7px}
-.travel-chat-suggestions .travel-research-option{padding:14px;margin-bottom:14px}
-.travel-chat-suggestions .travel-option-heading h3{font-size:16px}
 .travel-suggestion-details{margin:12px 0}
 .travel-suggestion-details summary{cursor:pointer;font-size:12px;color:var(--ds-muted)}
-.travel-chat-suggestions .travel-option-actions{gap:6px}
-.travel-chat-suggestions .travel-option-actions .ds-button{font-size:12px;min-height:40px;flex:1}
-.travel-chat-suggestions .travel-option-actions .ds-text-button{width:100%;text-align:left}
-
-/* Reply-attached explorer; compact Canvas-style choices with one detail card. */
-.travel-suggestion-list { display: grid; gap: 6px; margin: 12px 0; }
-.travel-suggestion-row { display: flex; align-items: center; gap: 8px; }
-.travel-suggestion-row > button { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 10px; text-align: left; border: 1px solid var(--ds-line); border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
-.travel-suggestion-row > button[aria-pressed="true"] { background: var(--ds-soft); border-color: var(--ds-green); }
-.travel-suggestion-row > button > span:nth-child(2) { flex: 1; min-width: 0; }
-.travel-suggestion-row strong, .travel-suggestion-row small { display: block; overflow-wrap: anywhere; }
-.travel-suggestion-row small { margin-top: 4px; color: var(--ds-muted); }
 .travel-discussion-context { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; margin-bottom: 8px; border-radius: 10px; background: var(--ds-soft); color: var(--ds-ink); font-size: 13px; }
 .travel-discussion-context span { min-width: 0; overflow-wrap: anywhere; }
 .travel-discussion-context button { flex: none; min-width: 32px; min-height: 32px; }
@@ -87,8 +65,6 @@
 .travel-reply-references p{margin:0 0 6px}.travel-reply-references ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .travel-reply-references li{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;overflow-wrap:anywhere}
 .travel-reply-references li>button:first-child{text-align:left;color:var(--ds-green)}
-.canvas-chat-message .travel-chat-suggestions { padding: 0; }
-.travel-chat-suggestions .travel-option-actions > .ds-button { flex: 1 1 calc(50% - 8px); min-width: 120px; }
 
 .travel-options-pane[hidden] { display:none; }
 .travel-substage-status { display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap; }

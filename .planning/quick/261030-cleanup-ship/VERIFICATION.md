@@ -5,7 +5,7 @@ base: cbbedb5
 ---
 # Cleanup shipment verification
 
-User explicitly requested merge to main. Branch voltaic-slope is clean and based on fetched origin/main cbbedb5; main has no new commits to reconcile. Scope: five completed quick cleanup tasks, preserving the user's decision to retain memory for future Agent-owned context.
+User explicitly requested merge to main. Initial shipment review used base cbbedb5. During merge, PR #27 advanced main to 2f8a32a; the integration verification below supersedes that initial base check. Scope: five completed quick cleanup tasks, preserving the user's decision to retain memory for future Agent-owned context.
 
 Existing executed checks remain applicable: no source changes since those checks and no base changes. Agent turn/API/memory: 25 passed. Booking recovery: 196 distinct focused tests. Details: 139 passed and one pre-existing external Python SSE fixture test skipped. Gateway: 88 passed and targeted Ruff passed. Frontend production builds passed. Frontend suites overlap; counts are not additive. Full repository suite was not run.
 
@@ -16,3 +16,5 @@ Ship-time checks: git diff --check origin/main...HEAD passed; removed booking ho
 This shipment does not mark Phase 18 or the broader milestone complete. The separate local main worktree and existing running stacks are preserved.
 
 PR: https://github.com/Merthadam/travella/pull/26. User-authorized merge into main; scoped verification query returned passed and security predicate returned block: false.
+
+Integration follow-up: merged origin/main 2f8a32a after concurrent PR #27. Only .planning/STATE.md conflicted; retained both task histories and shipment records. PlanningCanvas automatically combines shared receipt recovery with removal of the unused PlanStages canvas prop. No new UI behavior was authored; both branches retain their recorded Chrome evidence. Reran PlansApp, TravelDetails, TravelWorkspace, useBookingSync, TravelSearch, usePlanningCanvas.persistence and PlanningCanvas suites: 202 tests passed across seven files, no skips. Production build passed with the existing chunk-size warning. Source diff inspected and whitespace check passed.
