@@ -16,7 +16,7 @@ from uuid import UUID
 from fastapi import HTTPException
 
 from services.research_offers import DraftOfferProposal, ResearchOffer
-from services.shared.traveler_profile import PROFILE_FIELDS, profile_context
+from services.shared.traveler_profile import profile_context
 from services.trip_context import ContextSnapshot, TurnResult, a2ui_messages
 
 from .editing_contracts import CanvasEditResult
@@ -36,14 +36,12 @@ class AgentTurnService:
         graph: Any,
         runs: PlanRunStore,
         receipts: ProcessReceiptCache,
-        memory: Any | None = None,
     ) -> None:
         self.plan_reader = plan_reader
         self.context_reader = context_reader
         self.graph = graph
         self.runs = runs
         self.receipts = receipts
-        self.memory = memory
         self._evidence_cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
         self._active_streams: dict[tuple[str, str, str], dict[str, Any]] = {}
 
@@ -110,21 +108,6 @@ class AgentTurnService:
                 current = None
             if isinstance(current, dict):
                 traveler_profile = profile_context(current)
-                if self.memory is not None and self.memory.enabled:
-                    try:
-                        remembered = await self.memory.retrieve_relevant_memory(
-                            subject, "traveler profile"
-                        )
-                    except Exception:
-                        remembered = None
-                    # A mirrored copy can only substitute an identical canonical
-                    # snapshot, including explicit empty/null preferences.
-                    if (
-                        remembered
-                        and remembered.get("updated_at") == current.get("updated_at")
-                        and all(remembered.get(key) == current.get(key) for key in PROFILE_FIELDS)
-                    ):
-                        traveler_profile = profile_context(current)
         try:
             reservation = await self.runs.reserve(subject, plan_id, request.event_id, exclusive=True, input_digest=hashlib.sha256(json.dumps(request.model_dump(mode="json"), sort_keys=True).encode()).hexdigest())
         except ValueError:
