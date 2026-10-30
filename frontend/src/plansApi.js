@@ -131,7 +131,6 @@ export const plansApi = {
     if (result.status !== 'complete' || !snapshot) throw new ApiError(result.message || 'Trip details could not be saved. Refresh and try again.', 409);
     return { ...snapshot, a2ui_messages: messages };
   },
-  agentTurn: (plan, message, eventId) => request(`${agentPath(plan)}`, { plan_id: plan.plan_id, event_id: eventId, message }),
   agentTurnStream,
   editCanvas: (plan, context, message, id, stream) => agentTurnStream(plan, message, id, { ...stream, canvasEdit: context }),
   canvas: plan => request(`${path(plan.plan_id)}/canvas`),

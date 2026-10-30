@@ -21,7 +21,6 @@ function makeApi(initial = []) {
     conversationMessages: vi.fn(async () => []),
     researchContext: vi.fn(async () => ({})),
     researchOffer: vi.fn(async () => ({ readiness: { eligible: false, reasons: ['destination_required'] }, offer: null, deferred: false })),
-    agentTurn: vi.fn(async (item, message, eventId) => ({ status: 'shortlist_ready', plan_id: item.plan_id, event_id: eventId, assistant_text: `Ideas for ${message}`, candidates: [{ candidate_id: 'crete', name: 'Crete', summary: 'A relaxed island stay' }] })),
     agentTurnStream: vi.fn(async (item, message, eventId, { onEvent }) => {
       onEvent({ type: 'TEXT_MESSAGE_CONTENT', delta: `Ideas for ${message}` });
       onEvent({ type: 'TERMINAL', status: 'complete' });
