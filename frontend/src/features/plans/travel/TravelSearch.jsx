@@ -950,7 +950,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           onDiscuss={discussionDisabled ? undefined : onDiscuss}
           onChoose={choiceDisabled ? undefined : onChoose}
           booked={Boolean(initialData?.flights?.mockBooking)}
-          onCheckout={value => { setDetail(null); onFlightCheckout?.(value); }}
+          onCheckout={onFlightCheckout ? value => { setDetail(null); onFlightCheckout(value); } : undefined}
           onRefresh={() => { setDetail(null); form.current?.requestSubmit(); }}
         />
       ))}

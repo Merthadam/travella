@@ -10,7 +10,7 @@ beforeEach(() => {
   travelRequest.mockReset();
   HTMLDialogElement.prototype.showModal = function () { this.open = true; };
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 const future = () => new Date(Date.now() + 600000).toISOString();
 const room = (id = 'original-room') => ({ id, name: id, total: { amount: 100, currency: 'EUR' }, checkout_token: 'test-token' });
 function observation(mode = 'stays') {
@@ -28,10 +28,11 @@ function serve(availability) {
 test('flight actions use the original exact reference and perform no hotel requests', () => {
   const onClose = vi.fn(), onDiscuss = vi.fn(), onCheckout = vi.fn();
   render(<FlightDetails observation={observation('flights')} checkoutToken="test-token" onClose={onClose} onDiscuss={onDiscuss} onCheckout={onCheckout}/>);
-  fireEvent.click(screen.getByText('Discuss flight'));
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Discuss flight' }));
   expect(onDiscuss).toHaveBeenCalledWith({ title: 'Test airline', reference: { search_id: 'original-search', option_id: 'flight', room_id: null } });
   expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(onDiscuss.mock.invocationCallOrder[0]);
-  fireEvent.click(screen.getByText('Continue to flight checkout'));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to flight checkout' }));
   expect(onCheckout).toHaveBeenCalledWith({ offerToken: 'test-token' });
   expect(travelRequest).not.toHaveBeenCalled();
 });
@@ -42,16 +43,17 @@ test.each(['expired', 'invalid'])('flight %s evidence hides choose/discuss/check
   expect(screen.getByText(/This offer has expired/)).toBeTruthy();
   expect(screen.queryByText('Choose for trip')).toBeNull();
   expect(screen.queryByText('Discuss flight')).toBeNull();
-  expect(screen.queryByText('Continue to flight checkout')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Continue to flight checkout' })).toBeNull();
 });
 
 test('flight recovery requires a new search and a booked flight cannot enter checkout', () => {
   const entry = observation('flights'), onRefresh = vi.fn();
   const view = render(<FlightDetails observation={entry} onClose={vi.fn()} onRefresh={onRefresh}/>);
-  fireEvent.click(screen.getByText('Search again to check current availability'));
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Search again to check current availability' }));
   expect(onRefresh).toHaveBeenCalledOnce();
   view.rerender(<FlightDetails observation={entry} booked checkoutToken="test-token" onClose={vi.fn()} onCheckout={vi.fn()}/>);
-  expect(screen.getByText('A flight is already booked in this Plan').disabled).toBe(true);
+  expect(screen.getByRole('button', { name: 'A flight is already booked in this Plan' }).disabled).toBe(true);
 });
 
 test('stay refresh replaces rooms, exact reference and expiry together', async () => {
@@ -133,4 +135,74 @@ test('closing aborts a pending refresh, ignores its late auth failure and restor
   await act(async () => reject(Object.assign(new Error('late'), { status: 401 })));
   expect(onExpired).not.toHaveBeenCalled();
   trigger.remove();
+});
+
+test('guided flight review changes steps without choosing or checking out and retains exact offer facts', () => {
+  const entry = observation('flights');
+  entry.item.price = { amount: '762.80', currency: 'EUR', estimated: true, excluded_taxes: [{ amount: '8', currency: 'EUR', name: 'Airport tax' }] };
+  const onChoose = vi.fn(), onCheckout = vi.fn();
+  render(<FlightDetails observation={entry} checkoutToken="exact-token" onClose={vi.fn()} onChoose={onChoose} onCheckout={onCheckout}/>);
+  expect(screen.queryByRole('button', { name: 'Choose for trip' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
+  expect(screen.getByRole('heading', { name: 'Fare & next step' })).toBe(document.activeElement);
+  expect(screen.getByText('Baggage allowance not supplied.')).toBeTruthy();
+  expect(screen.getByText('Cancellation terms unavailable')).toBeTruthy();
+  expect(screen.getByText(/Estimated/)).toBeTruthy();
+  expect(screen.getByText(/Airport tax/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Review itinerary' }));
+  expect(screen.getByRole('heading', { name: 'Your itinerary' })).toBe(document.activeElement);
+  expect(onChoose).not.toHaveBeenCalled(); expect(onCheckout).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Choose for trip' }));
+  expect(onChoose).toHaveBeenCalledWith({ title: 'Test airline', reference: { search_id: 'original-search', option_id: 'flight', room_id: null } });
+});
+
+test('an offer expiring during fare review removes actions and provides explicit recovery', () => {
+  vi.useFakeTimers();
+  const entry = observation('flights'); entry.snapshot.expires_at = new Date(Date.now() + 1000).toISOString();
+  const onCheckout = vi.fn(), onRefresh = vi.fn();
+  render(<FlightDetails observation={entry} checkoutToken="test-token" onClose={vi.fn()} onChoose={vi.fn()} onCheckout={onCheckout} onRefresh={onRefresh}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
+  act(() => vi.advanceTimersByTime(1001));
+  expect(screen.queryByRole('button', { name: 'Continue to flight checkout' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Choose for trip' })).toBeNull();
+  expect(screen.getByText(/This offer has expired/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Search again to check current availability' }));
+  expect(onRefresh).toHaveBeenCalledOnce(); expect(onCheckout).not.toHaveBeenCalled();
+});
+
+test('checkout rechecks expiry even before its background timer can run', () => {
+  vi.useFakeTimers();
+  const entry = observation('flights'), onCheckout = vi.fn();
+  render(<FlightDetails observation={entry} checkoutToken="test-token" onClose={vi.fn()} onCheckout={onCheckout}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
+  vi.setSystemTime(Date.now() + 700000);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to flight checkout' }));
+  expect(onCheckout).not.toHaveBeenCalled();
+  expect(screen.getByText(/This offer has expired/)).toBeTruthy();
+});
+
+test('flight modal Escape calls close and unmount restores its trigger', () => {
+  const trigger = document.createElement('button'); document.body.append(trigger); trigger.focus();
+  const onClose = vi.fn();
+  const view = render(<FlightDetails observation={observation('flights')} onClose={onClose}/>);
+  fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: false, cancelable: true }));
+  expect(onClose).toHaveBeenCalledOnce();
+  view.unmount(); expect(document.activeElement).toBe(trigger); trigger.remove();
+});
+
+test('live provider offers keep planning actions but cannot start sandbox checkout', () => {
+  const entry = observation('flights'); entry.snapshot.sandbox = false;
+  render(<FlightDetails observation={entry} checkoutToken="test-token" onClose={vi.fn()} onChoose={vi.fn()} onCheckout={vi.fn()}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
+  expect(screen.getByRole('button', { name: 'Choose for trip' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Continue to flight checkout' })).toBeNull();
+  expect(screen.getByText('Checkout is unavailable for this offer.')).toBeTruthy();
+  expect(screen.queryByText(/Test checkout/)).toBeNull();
+});
+
+test('checkout remains disabled when its integration is unavailable', () => {
+  render(<FlightDetails observation={observation('flights')} checkoutToken="test-token" onClose={vi.fn()}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
+  expect(screen.getByRole('button', { name: 'Continue to flight checkout' }).disabled).toBe(true);
 });

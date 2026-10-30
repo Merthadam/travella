@@ -339,12 +339,14 @@ test('token-free flight details require explicit search before normal mock check
   render(<TravelSearch {...props} mode="flights" importedSnapshot={s} onFlightCheckout={onFlightCheckout}/>);
   await screen.findByRole('heading',{name:s.search_id});
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
   expect(screen.queryByRole('button',{name:'Continue to flight checkout'})).toBeNull();
   expect(travelRequest.mock.calls.filter(([, action]) => action !== 'hotels/catalog')).toHaveLength(0);
   fireEvent.click(screen.getByRole('button',{name:'Search again to check current availability'}));
   await waitFor(()=>expect(searchRequest).toHaveBeenCalledTimes(1));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Search flights'}).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
   fireEvent.click(screen.getByRole('button',{name:'Continue to flight checkout'}));
   expect(onFlightCheckout).toHaveBeenCalledWith({offerToken:'manual-only-token'});
   expect(searchRequest.mock.calls.map(x=>x[1])).toEqual(['flights/search']);
@@ -526,7 +528,7 @@ test('refresh keeps applied criteria and observation time visible; empty success
 });
 
 test('new results retain open detail original full identity and mark detached evidence', async () => {
-  HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn();
+  HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   const first = imported('flights'), next = imported('flights', 'new-search');
   next.results[0].id = first.results[0].id; next.preview_ids = [first.results[0].id];
   next.criteria.origin = 'VIE';
@@ -539,6 +541,7 @@ test('new results retain open detail original full identity and mark detached ev
   expect(screen.getByText(/Earlier search.*original observation/)).toBeTruthy();
   const dialog = document.querySelector('dialog');
   expect(dialog.textContent).toContain('import-1');
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
   fireEvent.click([...dialog.querySelectorAll('button')].find(button => button.textContent === 'Choose for trip'));
   expect(onChoose).toHaveBeenCalledWith(expect.objectContaining({ reference: { search_id: first.search_id, option_id: first.results[0].id, room_id: null } }));
 });

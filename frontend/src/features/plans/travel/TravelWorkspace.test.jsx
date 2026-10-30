@@ -146,6 +146,7 @@ test.each(['initial', 'changed', 'saved-facts'])('manual review receipt preserve
   const props = { selected: { plan_id: 'plan-1' }, api, mode: 'flights', active: true, initialData, importedSnapshot: data };
   const rendered = render(<TravelWorkspace {...props}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
   await waitFor(() => expect(finish).toBeTruthy());
   if (scenario === 'saved-facts') rendered.rerender(<TravelWorkspace {...props} initialData={{ map: { destination: 'Paris' } }}/>);
@@ -188,6 +189,7 @@ test('manual exact fare review and confirmed receipt survive unavailable chat hi
   const api = { travelTurn: vi.fn(async () => ({ status: 'complete', travel_specialist_result: receipt })), prepareTravelChoice: vi.fn(async () => ({ revision: 8, challenge: 'exact-review' })), commitTravelChoice: vi.fn(async () => committed) };
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={data}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
   await waitFor(() => expect(api.prepareTravelChoice).toHaveBeenCalledWith({ plan_id: 'plan-1' }, 'flights', { action: 'prefer', evidence_id: 'observed-fare' }, 8));
   expect(chat.send).not.toHaveBeenCalled();
@@ -293,7 +295,8 @@ test.each(['review', 'challenge'])('switching away fences a delayed manual %s re
   const api = { travelTurn: vi.fn(() => stage === 'review' ? new Promise(resolve => { resolveReview = resolve; }) : Promise.resolve(terminal)), prepareTravelChoice: vi.fn(() => new Promise(resolve => { resolveChallenge = resolve; })), commitTravelChoice: vi.fn() };
   const props = { selected: { plan_id: 'plan-1' }, api, mode: 'flights', initialData, importedSnapshot: workspaceSnapshot('flights') };
   const view = render(<TravelWorkspace {...props} active/>);
-  fireEvent.click(screen.getByRole('button', { name: 'View flight →' })); fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' })); fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
   await waitFor(() => expect(stage === 'review' ? resolveReview : resolveChallenge).toBeTypeOf('function'));
   view.rerender(<TravelWorkspace {...props} active={false}/>);
   await act(async () => stage === 'review' ? resolveReview(terminal) : resolveChallenge({ revision: 8, challenge: 'late' }));
@@ -357,6 +360,7 @@ test('manual review reports an actual lease rejection without preparing or savin
   const api = { travelTurn: vi.fn(async () => ({ status: 'error', message: 'Another reply is still finishing. Retry after it stops.' })), prepareTravelChoice: vi.fn(), commitTravelChoice: vi.fn() };
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={workspaceSnapshot('flights')}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Review fare' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
   expect(await screen.findByText('Another reply is still finishing. Retry after it stops.')).toBeTruthy();
   expect(chat.stop).toHaveBeenCalled();
