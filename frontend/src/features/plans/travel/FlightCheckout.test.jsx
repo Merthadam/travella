@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { FlightCheckout } from './FlightCheckout';
 import { travelRequest } from './travelApi';
 import { flightBookingSummary, itineraryDocument } from './flightItinerary';
@@ -22,6 +22,46 @@ async function reachPayment() {
   fireEvent.click(await screen.findByRole('button', { name: 'Continue to baggage →' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Continue to review & pay →' }));
 }
+it('keeps the passenger form mounted and disabled until the seat step is ready', async () => {
+  let finish;
+  travelRequest.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to passengers →' }));
+  const name = screen.getByLabelText('Given name');
+  fireEvent.change(name, { target: { value: 'Jamie' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+
+  expect(screen.getByLabelText('Given name')).toBe(name);
+  expect(name.value).toBe('Jamie');
+  expect(name.matches(':disabled')).toBe(true);
+  expect(screen.getByRole('button', { name: 'Please wait…' }).disabled).toBe(true);
+  expect(screen.queryByText('Checking the reservation.')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Check booking status' })).toBeNull();
+  fireEvent.submit(name.closest('form'));
+  expect(travelRequest).toHaveBeenCalledTimes(1);
+
+  await act(async () => finish(ready));
+  expect(screen.getByRole('heading', { name: 'Seats for your journey.' })).toBeTruthy();
+  expect(screen.queryByLabelText('Given name')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Continue to baggage →' }).disabled).toBe(false);
+});
+
+it('keeps the uncertain-reservation warning visible during a recovery status check', async () => {
+  let finish;
+  travelRequest.mockRejectedValueOnce(new Error('Response lost'))
+    .mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  await reserve();
+  await screen.findByText('Checking the reservation.');
+  fireEvent.click(screen.getByRole('button', { name: 'Check booking status' }));
+  expect(screen.getByText('Checking the reservation.')).toBeTruthy();
+  expect(screen.queryByLabelText('Given name')).toBeNull();
+  await act(async () => finish({ ...review, status: 'unknown' }));
+  expect(screen.queryByRole('button', { name: 'Reserve test fare & continue' })).toBeNull();
+  expect(travelRequest.mock.calls.filter(call => call[1].endsWith('/prebook'))).toHaveLength(1);
+});
+
 it('collects transient test passengers, reconfirms the refreshed fare, and waits for provider readback', async () => {
   const notify = vi.fn();
   travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(ready).mockResolvedValueOnce({ ...confirmed, status: 'pending' }).mockResolvedValueOnce(confirmed);
@@ -115,6 +155,8 @@ it('applies selected seats, updates the total and preserves extras in the saved 
   travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce({ ...ready, services: [seat] }).mockResolvedValueOnce(changed);
   render(<FlightCheckout planId="p" offerToken="offer"/>); await reserve();
   fireEvent.click(await screen.findByRole('button', { name: /Seat 12A/ }));
+  expect(screen.getByText('Estimated total')).toBeTruthy();
+  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€187.00');
   fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
   await screen.findByRole('heading', { name: 'Check what you can bring.' });
   expect(travelRequest.mock.calls[2][2]).toEqual({ token: 'prebook', confirm_mock: true, selected_services: [{ id: 'seat', passenger_index: 0, quantity: 1 }] });
@@ -128,7 +170,7 @@ it('applies selected seats, updates the total and preserves extras in the saved 
 
 it('mounts a prepared checkout with its final heading and itinerary, without verifying the token twice', () => {
   render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
-  expect(screen.getByRole('heading', { name: 'Book your flights to FCO.' })).toBeTruthy();
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   expect(screen.getByRole('heading', { name: 'Review your flights.' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Continue to passengers →' }).disabled).toBe(false);
   expect(screen.queryByText('Verifying availability and the current fare…')).toBeNull();
@@ -283,4 +325,72 @@ it('keeps solo traveler and shared contact visible and resets consent on data ch
   fireEvent.change(screen.getByLabelText('Family name'), { target: { value: 'Sample' } });
   expect(screen.getByRole('checkbox').checked).toBe(false);
   expect(screen.getByRole('button', { name: 'Reserve test fare & continue' }).disabled).toBe(true);
+});
+
+it('submits multiple travelers together and removes paid seats on airline assignment', async () => {
+  const seats = ['A', 'B'].map((column, i) => ({ id: `seat-${i}`, kind: 'seat', label: `Seat 12${column}`, seat_row: 12, seat_column: column, segment_index: 0, passenger_indexes: [0, 1], price: { amount: '12', currency: 'EUR' } }));
+  const two = { ...ready, passenger_count: 2, services: seats };
+  const selected = seats.map((s, i) => ({ ...s, passenger_index: i, quantity: 1 }));
+  const paid = { ...two, token: 'paid', selected_services: selected, flight: { ...two.flight, price: { amount: '199', currency: 'EUR' } } };
+  let finish;
+  travelRequest.mockResolvedValueOnce(two)
+    .mockReturnValueOnce(new Promise(resolve => { finish = resolve; }))
+    .mockResolvedValueOnce({ ...two, token: 'cleared', selected_services: [] });
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={{ ...review, passenger_count: 2 }}/>);
+  await reserve();
+  fireEvent.click(await screen.findByRole('button', { name: /^Seat 12A/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^Seat 12B/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
+  expect(screen.getByRole('button', { name: 'Use airline assignment for all flights' }).matches(':disabled')).toBe(true);
+  expect(travelRequest.mock.calls[1][2].selected_services).toEqual([{ id: 'seat-0', passenger_index: 0, quantity: 1 }, { id: 'seat-1', passenger_index: 1, quantity: 1 }]);
+  await act(async () => finish(paid));
+  await screen.findByRole('heading', { name: 'Check what you can bring.' });
+  fireEvent.click(screen.getByRole('button', { name: '3 Seats' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Use airline assignment for all flights' }));
+  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€175.00');
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
+  await screen.findByRole('heading', { name: 'Check what you can bring.' });
+  expect(travelRequest.mock.calls[2][2]).toEqual({ token: 'paid', confirm_mock: true, selected_services: [] });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to review & pay →' }));
+  expect(screen.getByText('No seats selected · airline assignment')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Confirm test booking · €175.00' })).toBeTruthy();
+});
+
+it('requires provider status readback after a seat-update error before allowing another change', async () => {
+  const seat = { id: 'a', kind: 'seat', label: 'Seat 12A', segment_index: 0, passenger_indexes: [0], price: { amount: '12', currency: 'EUR' } };
+  const inventory = { ...ready, services: [seat] };
+  travelRequest.mockResolvedValueOnce(inventory).mockRejectedValueOnce(new Error('Seat update response lost'))
+    .mockResolvedValueOnce({ ...inventory, token: 'recovered', selected_services: [{ ...seat, passenger_index: 0, quantity: 1 }] });
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  await reserve();
+  fireEvent.click(await screen.findByRole('button', { name: /^Seat 12A/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
+  await screen.findByText('Seat update response lost');
+  expect(screen.queryByRole('button', { name: 'Use airline assignment for all flights' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Check booking status' }));
+  await screen.findByRole('heading', { name: 'Review and pay.' });
+  fireEvent.click(screen.getByRole('button', { name: '3 Seats' }));
+  expect((await screen.findByRole('button', { name: /^Seat 12A/ })).getAttribute('aria-pressed')).toBe('true');
+  expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/prebook', 'sandbox/flights/services', 'sandbox/flights/status']);
+});
+
+
+it('discards an unconfirmed removal after status recovery even when the provider reuses its token', async () => {
+  const seat = { id: 'a', kind: 'seat', label: 'Seat 12A', segment_index: 0, passenger_indexes: [0], price: { amount: '12', currency: 'EUR' } };
+  const selected = { ...seat, passenger_index: 0, quantity: 1 };
+  const inventory = { ...ready, services: [seat], selected_services: [selected] };
+  travelRequest.mockResolvedValueOnce(inventory).mockRejectedValueOnce(new Error('Seat removal response lost'))
+    .mockResolvedValueOnce({ ...inventory, selected_services: [{ ...selected }] });
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  await reserve();
+  fireEvent.click(await screen.findByRole('button', { name: 'Use airline assignment for all flights' }));
+  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€163.00');
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
+  await screen.findByText('Seat removal response lost');
+  fireEvent.click(screen.getByRole('button', { name: 'Check booking status' }));
+  await screen.findByRole('heading', { name: 'Review and pay.' });
+  expect(screen.queryByText('Estimated total')).toBeNull();
+  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€175.00');
+  fireEvent.click(screen.getByRole('button', { name: '3 Seats' }));
+  expect(screen.getByRole('button', { name: /^Seat 12A/ }).getAttribute('aria-pressed')).toBe('true');
 });
