@@ -103,13 +103,14 @@ export function PlanningCanvas({ travelerProfile, selected, api, onBack, onExpir
     history.replaceState(state, '', url);
     setVisitedTravel(old => ({ ...old, accommodation: true })); setScreen(toPlan ? null : 'accommodation');
   }
-  async function openFlightCheckout(value) {
-    if (switchingTravel || !await stopTravel()) return;
+  async function openFlightCheckout(value, signal) {
+    if (switchingTravel || !await stopTravel() || signal?.aborted) return false;
     const booked = canvas.data?.flights?.mockBooking;
     setFlightCheckout(booked ? { savedBooking: booked } : value);
     const url = new URL(location.href); url.searchParams.set('checkout', 'flights');
     history.pushState({ ...history.state, flightCheckoutView: true }, '', url);
     setScreen('flight-checkout');
+    return true;
   }
   function closeFlightCheckout(toPlan = false) {
     const url = new URL(location.href); url.searchParams.delete('checkout');

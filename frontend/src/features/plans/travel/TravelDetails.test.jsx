@@ -25,14 +25,14 @@ function serve(availability) {
   travelRequest.mockImplementation(async (_plan, route) => route === 'hotels/detail' ? { hotel: { description: 'Fresh hotel description' } } : availability);
 }
 
-test('flight actions use the original exact reference and perform no hotel requests', () => {
+test('flight actions use the original exact reference and perform no hotel requests', async () => {
   const onClose = vi.fn(), onDiscuss = vi.fn(), onCheckout = vi.fn();
   render(<FlightDetails observation={observation('flights')} checkoutToken="test-token" onClose={onClose} onDiscuss={onDiscuss} onCheckout={onCheckout}/>);
   fireEvent.click(screen.getByRole('button', { name: 'Discuss flight' }));
   expect(onDiscuss).toHaveBeenCalledWith({ title: 'Test airline', reference: { search_id: 'original-search', option_id: 'flight', room_id: null } });
   expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(onDiscuss.mock.invocationCallOrder[0]);
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to flight checkout' }));
-  expect(onCheckout).toHaveBeenCalledWith({ offerToken: 'test-token' });
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Continue to flight checkout' })));
+  expect(onCheckout).toHaveBeenCalledWith({ offerToken: 'test-token' }, expect.any(AbortSignal));
   expect(travelRequest).not.toHaveBeenCalled();
 });
 
@@ -199,4 +199,33 @@ test('live provider offers keep planning actions but cannot start sandbox checko
 test('checkout remains disabled when its integration is unavailable', () => {
   render(<FlightDetails observation={observation('flights')} checkoutToken="test-token" onClose={vi.fn()}/>);
   expect(screen.getByRole('button', { name: 'Continue to flight checkout' }).disabled).toBe(true);
+});
+
+
+test('checkout keeps itinerary visible and prevents duplicate entry while preparing, and aborts on close', async () => {
+  let finish;
+  const onCheckout = vi.fn(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<FlightDetails observation={observation('flights')} checkoutToken="exact-token" onClose={vi.fn()} onChoose={vi.fn()} onCheckout={onCheckout}/>);
+  const button = screen.getByRole('button', { name: 'Continue to flight checkout' });
+  fireEvent.click(button); fireEvent.click(button);
+  expect(onCheckout).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('heading', { name: 'Outbound' })).toBeTruthy();
+  expect(screen.getByText('Checking availability and the current fare…')).toBeTruthy();
+  expect(button.disabled).toBe(true);
+  expect(screen.getByRole('button', { name: 'Choose for trip' }).disabled).toBe(true);
+  const signal = onCheckout.mock.calls[0][1];
+  view.unmount(); expect(signal.aborted).toBe(true);
+  await act(async () => finish(true));
+});
+
+test('checkout preparation failure stays in the itinerary and allows retry', async () => {
+  const onCheckout = vi.fn().mockRejectedValueOnce(new Error('Fare unavailable')).mockResolvedValueOnce(false);
+  render(<FlightDetails observation={observation('flights')} checkoutToken="exact-token" onClose={vi.fn()} onCheckout={onCheckout}/>);
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Continue to flight checkout' })));
+  expect(screen.getByRole('alert').textContent).toBe('Fare unavailable');
+  expect(screen.getByRole('heading', { name: 'Outbound' })).toBeTruthy();
+  const button = screen.getByRole('button', { name: 'Continue to flight checkout' });
+  expect(button.disabled).toBe(false);
+  await act(async () => fireEvent.click(button));
+  expect(screen.getByRole('alert').textContent).toContain('Checkout could not open yet');
 });

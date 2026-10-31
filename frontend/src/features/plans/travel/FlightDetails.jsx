@@ -33,7 +33,9 @@ function ReviewLeg({ leg, label }) {
 export function FlightDetails({ observation, detached, checkoutToken, booked, onClose, onRefresh, onDiscuss, onChoose, onCheckout }) {
   const { item, snapshot, historical } = observation;
   const [evidenceExpired, setEvidenceExpired] = useState(() => offerExpired(snapshot.expires_at));
-  const dialog = useRef(null);
+  const dialog = useRef(null), checkoutRequest = useRef(null);
+  const [preparingCheckout, setPreparingCheckout] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
   const first = item.outbound.segments[0], last = item.outbound.segments.at(-1);
   const route = `${first.origin} ⇄ ${last.destination}`;
   const dates = `${flightDate(first.departure_at)} – ${flightDate(item.inbound.segments[0].departure_at)}`;
@@ -45,7 +47,7 @@ export function FlightDetails({ observation, detached, checkoutToken, booked, on
   useEffect(() => {
     const previous = document.activeElement;
     dialog.current?.showModal();
-    return () => { if (previous?.isConnected) previous.focus?.(); };
+    return () => { checkoutRequest.current?.abort(); if (previous?.isConnected) previous.focus?.(); };
   }, []);
   useEffect(() => {
     let timer;
@@ -70,7 +72,23 @@ export function FlightDetails({ observation, detached, checkoutToken, booked, on
     });
   }
 
-  return createPortal(<dialog ref={dialog} className="flight-review-dialog" aria-labelledby="flight-review-title" onCancel={event => { event.preventDefault(); onClose(); }}>
+  async function startCheckout() {
+    if (checkoutRequest.current) return;
+    if (offerExpired(snapshot.expires_at)) { setEvidenceExpired(true); return; }
+    const controller = new AbortController();
+    checkoutRequest.current = controller;
+    setPreparingCheckout(true); setCheckoutError('');
+    try {
+      const opened = await onCheckout({ offerToken: checkoutToken }, controller.signal);
+      if (!controller.signal.aborted && opened === false) setCheckoutError('Checkout could not open yet. Please try again.');
+    } catch (error) {
+      if (!controller.signal.aborted) setCheckoutError(error.message || 'Unable to verify this fare. Please try again.');
+    } finally {
+      if (!controller.signal.aborted) { checkoutRequest.current = null; setPreparingCheckout(false); }
+    }
+  }
+
+  return createPortal(<dialog ref={dialog} className="flight-review-dialog" aria-busy={preparingCheckout} aria-labelledby="flight-review-title" onCancel={event => { event.preventDefault(); onClose(); }}>
     <header className="flight-review-header">
       <div className="flight-review-eyebrow">FLIGHT REVIEW <span>{snapshot.sandbox ? 'LiteAPI sandbox' : 'LiteAPI results'}</span></div>
       <button type="button" className="flight-review-close" aria-label="Close details" onClick={onClose}>×</button>
@@ -87,18 +105,19 @@ export function FlightDetails({ observation, detached, checkoutToken, booked, on
         <div><dt>Changes & refunds</dt><dd>{refund(item.refundable)}<span>{item.cancellation_summary || 'Detailed fare conditions not supplied.'}</span></dd></div>
       </dl></details>
       {canPlan && (onChoose || onDiscuss) && <div className="flight-review-alternatives">
-        {onChoose && <button type="button" className="flight-review-secondary" onClick={() => attach(onChoose)}>Choose for trip</button>}
-        {onDiscuss && <button type="button" className="flight-review-text" onClick={() => attach(onDiscuss)}>Discuss flight <span aria-hidden="true">↗</span></button>}
+        {onChoose && <button type="button" className="flight-review-secondary" disabled={preparingCheckout} onClick={() => attach(onChoose)}>Choose for trip</button>}
+        {onDiscuss && <button type="button" className="flight-review-text" disabled={preparingCheckout} onClick={() => attach(onDiscuss)}>Discuss flight <span aria-hidden="true">↗</span></button>}
       </div>}
       <p className="flight-review-boundary">{snapshot.sandbox ? 'Test checkout · no real ticket or charge' : 'Availability and prices can change.'}</p>
+      {checkoutError && <p className="flight-review-notice" role="alert">{checkoutError}</p>}
       <p className="flight-review-observed">Observed {new Date(snapshot.searched_at).toLocaleString()} · {snapshot.sandbox ? 'Test inventory' : 'Provider results'}</p>
     </div>
     <footer className="flight-review-footer">
       <div className="flight-review-fare"><span>Return total</span><Price price={item.price} label="All travelers"/></div>
       <div className="flight-review-next">
         {needsSearch ? <><button type="button" className="flight-review-primary" aria-label="Search again to check current availability" disabled={!onRefresh} onClick={onRefresh}>Search again <span aria-hidden="true">→</span></button><small>Check current availability and fare</small></> : canCheckout ? <>
-          <button type="button" className="flight-review-primary" aria-label={booked ? 'A flight is already booked in this Plan' : 'Continue to flight checkout'} disabled={booked || !onCheckout} onClick={() => currentAction(() => onCheckout({ offerToken: checkoutToken }))}>{booked ? 'Flight already booked' : 'Continue to checkout'}{!booked && <span aria-hidden="true">→</span>}</button>
-          <small>{booked ? 'This Plan already has a flight booking' : 'Availability and price are checked again'}</small>
+          <button type="button" className="flight-review-primary" aria-label={booked ? 'A flight is already booked in this Plan' : 'Continue to flight checkout'} disabled={booked || !onCheckout || preparingCheckout} onClick={startCheckout}>{booked ? 'Flight already booked' : 'Continue to checkout'}{!booked && <span aria-hidden="true">→</span>}</button>
+          <small role={preparingCheckout ? 'status' : undefined}>{booked ? 'This Plan already has a flight booking' : preparingCheckout ? 'Checking availability and the current fare…' : 'Availability and price are checked again'}</small>
         </> : <small>Checkout is unavailable for this offer.</small>}
       </div>
     </footer>

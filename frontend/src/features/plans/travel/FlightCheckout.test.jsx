@@ -125,3 +125,13 @@ it('applies selected seats, updates the total and preserves extras in the saved 
   expect(summary.itinerary.extras).toEqual([{ kind: 'seat', label: seat.label, segmentIndex: 0, passengerIndex: 0, quantity: 1, amount: '12', currency: 'EUR' }]);
   expect(itineraryDocument(summary)).toContain('Seat 12A');
 });
+
+it('mounts a prepared checkout with its final heading and itinerary, without verifying the token twice', () => {
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  expect(screen.getByRole('heading', { name: 'Book your flights to FCO.' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Review your flights.' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Continue to passengers →' }).disabled).toBe(false);
+  expect(screen.queryByText('Verifying availability and the current fare…')).toBeNull();
+  expect(travelRequest).not.toHaveBeenCalled();
+  expect(sessionStorage.getItem('travella:mock-flight:p')).toBeNull();
+});

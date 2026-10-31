@@ -950,7 +950,19 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           onDiscuss={discussionDisabled ? undefined : onDiscuss}
           onChoose={choiceDisabled ? undefined : onChoose}
           booked={Boolean(initialData?.flights?.mockBooking)}
-          onCheckout={onFlightCheckout ? value => { setDetail(null); onFlightCheckout(value); } : undefined}
+          onCheckout={onFlightCheckout ? async (value, signal) => {
+            try {
+              const initialReview = await travelRequest(planId, 'sandbox/flights/verify', { token: value.offerToken }, signal);
+              if (signal.aborted) return false;
+              const opened = await onFlightCheckout({ ...value, initialReview }, signal);
+              if (signal.aborted || opened === false) return false;
+              setDetail(null);
+              return true;
+            } catch (error) {
+              if (!signal.aborted && error.status === 401) onExpired?.();
+              throw error;
+            }
+          } : undefined}
           onRefresh={() => { setDetail(null); form.current?.requestSubmit(); }}
         />
       ))}
