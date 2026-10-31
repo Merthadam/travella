@@ -208,3 +208,23 @@ it('validates contact fields inline without a request and clears errors as they 
   expect(input.hasAttribute('aria-invalid')).toBe(false);
   expect(travelRequest).toHaveBeenCalledTimes(1);
 });
+
+it('returns an empty checkout to Flights without rendering the empty page', () => {
+  const onEmpty = vi.fn();
+  render(<FlightCheckout planId="p" onEmpty={onEmpty}/>);
+  expect(onEmpty).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('region', { name: 'Flight checkout' })).toBeNull();
+  expect(travelRequest).not.toHaveBeenCalled();
+});
+
+it('waits for reservation recovery and keeps recovery failures visible instead of redirecting', async () => {
+  let reject;
+  travelRequest.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+  const onEmpty = vi.fn();
+  render(<FlightCheckout planId="p" recoveryToken="receipt" onEmpty={onEmpty}/>);
+  expect(onEmpty).not.toHaveBeenCalled();
+  reject(new Error('Unable to check reservation status.'));
+  await screen.findByText('This flight could not be verified.');
+  expect(onEmpty).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Return to flights' })).toBeTruthy();
+});

@@ -97,7 +97,7 @@ function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
 }
 
 export function FlightCheckout(props) {
-  const { planId, onClose, onBackToPlan, savedBooking, saveState } = props;
+  const { planId, onClose, onEmpty, onBackToPlan, savedBooking, saveState } = props;
   const checkout = useFlightCheckout(props);
   const { result, busy: requestBusy, error, consent, setConsent, attempted, priceChanged, perform } = checkout;
   const [choices, setChoices] = useState([]), [paymentBusy, setPaymentBusy] = useState(false), [paymentReady, setPaymentReady] = useState(false);
@@ -123,6 +123,8 @@ export function FlightCheckout(props) {
   const status = result?.status;
   const locked = reserved.current || (status && status !== 'review');
   const uncertain = attempted && status === 'review';
+  const empty = !result && !busy && !error;
+  useEffect(() => { if (empty) (onEmpty || onClose)?.(); }, [empty, onEmpty, onClose]);
   function move(value) { setStep(value); setReached(old => Math.max(old, value)); setConsent(false); }
   async function submit(event) {
     event.preventDefault(); if (busy) return;
@@ -147,6 +149,7 @@ export function FlightCheckout(props) {
     }
     else move(step + 1);
   }
+  if (empty) return null;
   return <section className="flight-checkout" aria-label="Flight checkout" aria-busy={busy}>
     <div className="flight-sandbox-banner"><b>SANDBOX CHECKOUT</b><span>Test booking · no real ticket or charge</span></div>
     <nav className="flight-checkout-nav"><button disabled={busy} className="flight-text-button" onClick={status === 'confirmed' ? onBackToPlan : onClose}>← {status === 'confirmed' ? 'Back to Plan' : 'Back to flights'}</button><span>{status === 'confirmed' ? 'YOUR ITINERARY' : 'FLIGHT CHECKOUT'}</span></nav>
@@ -154,7 +157,7 @@ export function FlightCheckout(props) {
     {status === 'confirmed' ? <Confirmation result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
       <header className="flight-checkout-title"><p className="flight-eyebrow">YOUR JOURNEY</p><h1 ref={heading} tabIndex={-1}>Book your flights{result ? ` to ${result.flight.outbound.segments.at(-1).destination}` : ''}.</h1><p>Review the journey, add test passengers and confirm the final fare.</p></header>
       {busy && <p className="flight-loading" role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
-      {!result && !busy && <div className="flight-message"><h2>{error ? 'This flight could not be verified.' : 'Choose a flight to start checkout.'}</h2><p>{error ? 'Return to flights for a fresh offer.' : 'Passenger details are not retained after leaving. If a reservation was started, its status can be reopened from Flights in this tab.'}</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}
+      {!result && !busy && error && <div className="flight-message"><h2>This flight could not be verified.</h2><p>Return to flights for a fresh offer.</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}
       {result && <><nav className="flight-steps" aria-label="Checkout steps">{steps.map((label, index) => <button key={label} disabled={busy || index > reached || uncertain || ['pending','unknown','failed','cancelled'].includes(status)} aria-current={index === step ? 'step' : undefined} onClick={() => move(index)}><span>{index + 1}</span>{label}</button>)}</nav>
         <div className="flight-checkout-grid"><div className="flight-step-panel">
           {priceChanged && <p className="flight-warning" role="alert">The provider updated the fare. Your current total is <b>{formatFlightPrice(result.flight.price)}</b>. Review it before confirming.</p>}
