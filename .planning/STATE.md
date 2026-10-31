@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-fa4 | Open checkout review directly from flight results | 2026-10-31 | 0cea83c | [261031-fa4](./quick/261031-fa4-open-flight-checkout-review-directly-fro/) |
 | 261031-evp | Remove choose/discuss from flight review | 2026-10-31 | 1d75f77 | [261031-evp](./quick/261031-evp-remove-choose-and-discuss-actions-from-f/) |
 | 261031-eec | Remove extra fare step; direct itinerary checkout | 2026-10-31 | b93cc6f | [261031-eec](./quick/261031-eec-remove-redundant-fare-step-and-continue-/) |
 | 261030-xau | Implement approved guided flight review C | 2026-10-31 | 132a1af | [261030-xau](./quick/261030-xau-implement-approved-guided-flight-review-/) |
@@ -505,3 +506,7 @@ User removed the redundant fare step. b93cc6f exposes Continue to checkout on it
 ### Manual flight checkout flicker — 31 October 2026
 
 Debug session resolved in b6710e4. Keep itinerary visible while verifying the original offer, then mount fully populated checkout from its in-memory server response. Abort and retry handling preserved. Real Chrome frame sampling showed no intervening results/blank-checkout frame, one verify request; desktop/mobile/error/cancel checks and 272 travel/canvas tests passed (12 external-fixture skips). Canonical Docker auth/source checks passed. Evidence: artifacts/testing/2026-10-31-checkout-flicker/verification.md. Debug record: .planning/debug/resolved/manual-checkout-flicker.md. Test Plan cleaned; no booking/payment, merge or deployment. Wider phase acceptance unchanged.
+
+### Direct results to flight checkout — 31 October 2026
+
+User approved removing the intermediate modal from the live manual flight path. 0cea83c verifies from View flight with results pending/cancel/retry, then mounts checkout fully populated. 273 relevant tests passed (12 existing skips); one rebuild-time canvas timeout passed on rerun. Build, canonical Docker auth/source checks and authenticated Chrome desktop/mobile direct handoff, frame sampling, cancellation, failure/retry, Back to flights and tokenless observation checks passed. Evidence: artifacts/testing/2026-10-31-results-to-checkout/verification.md. Test Plan cleaned; no reservation/payment, push, merge or deployment. Wider Phase18 acceptance unchanged.
