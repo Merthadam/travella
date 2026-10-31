@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
 last_activity: 2026-10-31
-last_activity_desc: Completed quick task 261031-ohs; restored correct local checkout build
+last_activity_desc: Approved checkout shipment via PR 31; final merge state recorded by GitHub
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-oxp | Ship approved flight checkout improvements via PR #31 | 2026-10-31 | 6d22821 (reviewed source) | [261031-oxp](./quick/261031-oxp-ship-approved-flight-checkout-improvemen/) |
 | 261031-ohs | Restore marshy-face local checkout after sibling worktree replaced shared Docker app | 2026-10-31 | 4362110 (restored source) | [261031-ohs](./quick/261031-ohs-restore-correct-local-checkout-build-aft/) |
 | 261031-n1l | Remove repeated checkout journey card; compact total and centered panel | 2026-10-31 | 0488b4d | [261031-n1l](./quick/261031-n1l-remove-repeated-journey-summary-from-che/) |
 | 261031-ndb | Redesign flight checkout from competitor evidence; verify multi-traveler seats and free assignment | 2026-10-31 | 4362110 | [261031-ndb](./quick/261031-ndb-redesign-flight-checkout-from-competitiv/) |
@@ -534,3 +535,7 @@ User requested paging for oversized country dropdowns. c13a431 reuses searchable
 ### Checkout entry loading jump — 31 October 2026
 
 User still observed flicker on View flight. Actual frame geometry confirmed pending message/Cancel rows moved the primary button up 60px and widened its action column; previous content-presence checks missed it. Fixed in 8fc8b31 by keeping idle/cancellable-loading states in the same button footprint. Desktop/mobile geometry stable; actual cancellation/focus/error/retry and complete handoff passed. 274 travel/canvas tests passed (12 existing skips), build and canonical auth/source checks passed. Debug record .planning/debug/resolved/checkout-entry-flicker.md; evidence artifacts/testing/2026-10-31-checkout-layout-flicker/verification.md. Test Plan cleaned; no booking/payment, push or merge. Wider acceptance unchanged.
+
+### Flight checkout shipment — 31 October 2026
+
+User explicitly authorized main merge. PR #31: https://github.com/Merthadam/travella/pull/31 (marshy-face → main). Stable passenger transition, multi-traveler seats, explicit no-charge airline assignment, compact route details and provider-confirmed totals. 326 travel/canvas tests passed, 12 existing skips; build and scoped security review passed. Existing Chrome DevTools evidence applies. Shipment record: .planning/quick/261031-oxp-ship-approved-flight-checkout-improvemen/VERIFICATION.md. GitHub PR merge record supplies final outcome/SHA; broader phase acceptance unchanged.
