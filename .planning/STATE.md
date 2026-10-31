@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
 last_activity: 2026-10-31
-last_activity_desc: Merged approved flight checkout and passenger improvements into GitHub main
+last_activity_desc: Completed quick task 261031-mm5; guided seat selection and airline assignment
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-mm5 | Guided multi-traveler seats and explicit airline assignment; browser/provider verified | 2026-10-31 | 3e93446 | [261031-mm5](./quick/261031-mm5-improve-multi-traveler-seat-selection-an/) |
 | 261031-l0n | Merge approved flight checkout and passenger improvements into GitHub main | 2026-10-31 | 6cd83f4 | [261031-l0n](./quick/261031-l0n-merge-approved-flight-checkout-and-passe/) |
 | 261031-j4y | Polish approved expandable passenger sections (A) | 2026-10-31 | 5bdc207 | [261031-j4y](./quick/261031-j4y-implement-polished-expandable-passenger-/) |
 | 261031-i1k | Replace empty flight checkout with return to Flights | 2026-10-31 | 6dbeb32 | [261031-i1k](./quick/261031-i1k-return-empty-flight-checkout-to-flights-/) |
@@ -73,7 +74,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-30 — Completed quick task 261030-vld: uniform Recently deleted journal list and retired old card view; wider phase acceptance unchanged.
+Last activity: 2026-10-31 — Completed quick task 261031-mm5: guided multi-traveler seat selection and airline assignment; wider phase acceptance unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
