@@ -19,12 +19,12 @@ export const refund = (value) =>
     : value === false
       ? "Non-refundable"
       : "Cancellation terms unavailable";
-export function Price({ price, stay, room = false }) {
+export function Price({ price, stay, room = false, label }) {
   return (
     <div className="travel-price">
       <strong>{price?.estimated ? 'Estimated ' : ''}{priceLabel(price)}</strong>
       <small>
-        {stay ? room ? 'Observed room offer · total stay' : "Total for all rooms & nights" : "Return total · all travelers"}{price?.currency && ` · ${price.currency}`}
+        {label || (stay ? room ? 'Observed room offer · total stay' : "Total for all rooms & nights" : "Return total · all travelers")}{price?.currency && ` · ${price.currency}`}
       </small>
       {price?.excluded_taxes?.map((tax, i) => (
         <small key={i}>

@@ -66,7 +66,7 @@ test('stay refresh replaces rooms, exact reference and expiry together', async (
   expect(screen.queryByText('Choose for trip')).toBeNull();
   expect(screen.queryByText('Compare room')).toBeNull();
   expect(screen.getByRole('dialog').getAttribute('aria-busy')).toBe('true');
-  expect(screen.queryByText('Continue to stay checkout')).toBeNull();
+  expect(screen.queryByText('Continue to checkout')).toBeNull();
   await act(async () => resolve(refresh({ expiresAt: '2000-01-01' })));
   expect(screen.queryByText('original-room')).toBeNull();
   expect(screen.getByText('fresh-room')).toBeTruthy();
@@ -74,18 +74,19 @@ test('stay refresh replaces rooms, exact reference and expiry together', async (
   expect(screen.getByRole('dialog').getAttribute('aria-busy')).toBe('false');
   expect(screen.getByText(/This offer has expired/)).toBeTruthy();
   expect(screen.queryByText('Choose for trip')).toBeNull();
-  expect(screen.queryByText('Continue to stay checkout')).toBeNull();
-  fireEvent.click(screen.getByText('Compare room'));
-  expect(onCompare).toHaveBeenCalledWith({ title: 'Test hotel · fresh-room', reference: { search_id: 'fresh-search', option_id: 'fresh-hotel', room_id: 'fresh-room' } });
+  expect(screen.queryByText('Continue to checkout')).toBeNull();
+  expect(screen.queryByText('Compare room')).toBeNull();
+  expect(onCompare).not.toHaveBeenCalled();
 });
 
-test('fresh room choose and checkout use refreshed identity and token', async () => {
+test('fresh room has one checkout action using its refreshed token', async () => {
   serve(refresh()); const onChoose = vi.fn(), onCheckout = vi.fn();
   render(<StayDetails planId="plan" observation={observation()} onClose={vi.fn()} onChoose={onChoose} onCheckout={onCheckout}/>);
   await screen.findByText('fresh-room');
-  fireEvent.click(screen.getByText('Choose for trip'));
-  expect(onChoose).toHaveBeenCalledWith({ title: 'Test hotel · fresh-room', reference: { search_id: 'fresh-search', option_id: 'fresh-hotel', room_id: 'fresh-room' } });
-  fireEvent.click(screen.getByText('Continue to stay checkout'));
+  expect(screen.queryByText('Choose for trip')).toBeNull();
+  expect(screen.queryByText('Discuss room')).toBeNull();
+  expect(screen.queryByText('Compare room')).toBeNull();
+  fireEvent.click(screen.getByText('Continue to checkout'));
   expect(onCheckout).toHaveBeenCalledWith({ offerToken: 'test-token' });
 });
 
@@ -98,8 +99,8 @@ test.each(['historical', 'room'])('stay %s observation does not refresh', kind =
   expect(travelRequest).not.toHaveBeenCalled();
   expect(screen.getByText(/Original observed offer/)).toBeTruthy();
   expect(screen.getByText(/Earlier search/)).toBeTruthy();
-  fireEvent.click(screen.getAllByText('Discuss room')[0]);
-  expect(onDiscuss).toHaveBeenCalledWith({ title: 'Test hotel · original-room', reference: { search_id: 'original-search', option_id: 'original-hotel', room_id: 'original-room' } });
+  expect(screen.getByText('original-room')).toBeTruthy();
+  expect(onDiscuss).not.toHaveBeenCalled();
   if (kind === 'room') expect(screen.queryByText('other-room')).toBeNull();
 });
 
@@ -109,8 +110,8 @@ test('failed refresh preserves original rooms and reference, reports auth expiry
   render(<StayDetails planId="plan" observation={observation()} onClose={vi.fn()} onExpired={onExpired} onDiscuss={onDiscuss}/>);
   await screen.findByRole('alert');
   expect(onExpired).toHaveBeenCalledOnce();
-  fireEvent.click(screen.getAllByText('Discuss room')[0]);
-  expect(onDiscuss.mock.calls[0][0].reference).toEqual({ search_id: 'original-search', option_id: 'original-hotel', room_id: 'original-room' });
+  expect(screen.getByText('original-room')).toBeTruthy();
+  expect(onDiscuss).not.toHaveBeenCalled();
   serve(refresh({ rooms: [] }));
   fireEvent.click(screen.getByText('Retry details'));
   await screen.findByText('No room offers are available for these dates.');
@@ -133,4 +134,41 @@ test('closing aborts a pending refresh, ignores its late auth failure and restor
   await act(async () => reject(Object.assign(new Error('late'), { status: 401 })));
   expect(onExpired).not.toHaveBeenCalled();
   trigger.remove();
+});
+
+
+test('an open room offer loses checkout when it expires', async () => {
+  vi.useFakeTimers();
+  try {
+    const entry = observation(); entry.historical = true;
+    entry.snapshot.expires_at = new Date(Date.now() + 1000).toISOString();
+    render(<StayDetails observation={entry} onClose={vi.fn()} onCheckout={vi.fn()}/>);
+    expect(screen.getAllByText('Continue to checkout')).toHaveLength(2);
+    await act(async () => vi.advanceTimersByTime(1001));
+    expect(screen.queryByText('Continue to checkout')).toBeNull();
+    expect(screen.getByText(/This offer has expired/)).toBeTruthy();
+  } finally { vi.useRealTimers(); }
+});
+
+test.each(['booked', 'production', 'missing-token'])('%s stays do not expose checkout', async kind => {
+  const entry = observation(); entry.historical = true;
+  if (kind === 'production') entry.snapshot.sandbox = false;
+  if (kind === 'missing-token') entry.item.rooms.forEach(room => { delete room.checkout_token; });
+  render(<StayDetails observation={entry} booked={kind === 'booked'} onClose={vi.fn()} onCheckout={vi.fn()}/>);
+  expect(screen.queryByText('Continue to checkout')).toBeNull();
+});
+
+
+test('photo gallery supports keyboard navigation and returning focus to its trigger', async () => {
+  travelRequest.mockImplementation(async (_plan, route) => route === 'hotels/detail' ? { hotel: { images: [{ url: 'https://images.example.com/one.jpg', caption: 'Exterior' }, { url: 'https://images.example.com/two.jpg', caption: 'Lobby' }] } } : refresh());
+  render(<StayDetails planId="plan" observation={observation()} onClose={vi.fn()}/>);
+  await screen.findByText('fresh-room');
+  const trigger = screen.getByRole('button', { name: 'View Test hotel photos' });
+  trigger.focus(); fireEvent.click(trigger);
+  const gallery = screen.getByRole('dialog', { name: 'Test hotel photos' });
+  fireEvent.keyDown(gallery, { key: 'ArrowRight' });
+  expect(screen.getByAltText('Lobby')).toBeTruthy();
+  fireEvent.click(screen.getByText('← Back to rooms'));
+  expect(screen.queryByRole('dialog', { name: 'Test hotel photos' })).toBeNull();
+  expect(document.activeElement).toBe(trigger);
 });

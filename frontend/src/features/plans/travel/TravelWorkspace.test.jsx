@@ -154,7 +154,7 @@ test.each(['initial', 'changed', 'saved-facts'])('manual review receipt preserve
   if (scenario === 'initial') expect(confirm).toBeTruthy(); else expect(confirm).toBeNull();
 });
 
-test('ordinary followups use displayed exact room comparison across searches and clear on close', async () => {
+test('inspecting historical rooms does not attach a hidden comparison to followups', async () => {
   chat.real = true;
   const current = workspaceSnapshot('stays', 'main-search'), first = workspaceSnapshot('stays', 'rate-a'), second = workspaceSnapshot('stays', 'rate-b');
   for (const [snapshot, id] of [[first, 'room-a'], [second, 'room-b']]) snapshot.results[0].rooms = [{ id, name: id, total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }];
@@ -165,18 +165,15 @@ test('ordinary followups use displayed exact room comparison across searches and
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData} importedSnapshot={current}/>);
   for (const ref of refs) {
     fireEvent.click(await screen.findByRole('button', { name: `View ${ref.room_id}` }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Compare room' }));
-    await screen.findByText(`Exact room: ${ref.room_id}`);
+    const detail = await screen.findByRole('dialog');
+    expect(within(detail).getByText(ref.room_id)).toBeTruthy();
+    fireEvent.click(within(detail).getByRole('button', { name: 'Close details' }));
   }
   fireEvent.click(screen.getByRole('button', { name: 'Send workspace search' }));
   await waitFor(() => expect(api.travelTurn).toHaveBeenCalledTimes(1));
-  expect(api.travelTurn.mock.calls[0][4].travelDiscussion).toEqual({ intent: 'discuss', options: refs });
+  expect(api.travelTurn.mock.calls[0][4].travelDiscussion).toBeUndefined();
   expect(api.travelTurn.mock.calls[0][4].workspaceContext.search_id).toBe('main-search');
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Send workspace search' }).disabled).toBe(false));
-  fireEvent.click(screen.getByRole('button', { name: 'Close comparison' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Send workspace search' }));
-  await waitFor(() => expect(api.travelTurn).toHaveBeenCalledTimes(2));
-  expect(api.travelTurn.mock.calls[1][4].travelDiscussion).toBeUndefined();
+
 });
 
 test('manual exact fare review and confirmed receipt survive unavailable chat history', async () => {
@@ -192,7 +189,7 @@ test('manual exact fare review and confirmed receipt survive unavailable chat hi
   await waitFor(() => expect(api.prepareTravelChoice).toHaveBeenCalledWith({ plan_id: 'plan-1' }, 'flights', { action: 'prefer', evidence_id: 'observed-fare' }, 8));
   expect(chat.send).not.toHaveBeenCalled();
   expect(api.commitTravelChoice).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm choice · not booked' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirm choice · not booked' }));
   expect(await screen.findByText('Ready · selected, not booked')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Confirm choice · not booked' })).toBeNull();
   expect(api.commitTravelChoice).toHaveBeenCalledTimes(1);
@@ -203,61 +200,23 @@ test('manual exact fare review and confirmed receipt survive unavailable chat hi
   await waitFor(() => expect(api.prepareTravelChoice).toHaveBeenLastCalledWith({ plan_id: 'plan-1' }, 'flights', { action: 'remove', evidence_id: 'observed-fare' }, 9));
 });
 
-test.each(['filter', 'inactive', 'same-property'])('exact room comparison respects %s changes', async change => {
+test('historical exact room view keeps its offer isolated and removes room planning actions', async () => {
   const snapshot = workspaceSnapshot('stays', 'original');
   snapshot.results[0].rooms = ['room-a', 'room-b'].map(id => ({ id, name: id, total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }));
   chat.messages = [{ message_id: 'historical', comparison: { options: snapshot.results[0].rooms.map(room => ({ id: room.id, title: room.name, reference: { search_id: 'original', option_id: 'option-1', room_id: room.id } })) } }];
   workspaceRequest.mockResolvedValue({ ok: true, json: async () => snapshot });
-  const props = { selected: { plan_id: 'plan-1' }, api: {}, mode: 'accommodation', active: true, initialData, importedSnapshot: snapshot };
-  const rendered = render(<TravelWorkspace {...props}/>);
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="accommodation" active initialData={initialData} importedSnapshot={snapshot}/>);
   fireEvent.click(screen.getByRole('button', { name: 'View room-a' }));
   const details = await screen.findByRole('dialog');
-  expect(within(details).getByText(/Observed room offer · total stay/)).toBeTruthy();
-  expect(within(details).queryByText(/Total for all rooms/)).toBeNull();
-  let finish;
-  workspaceRequest.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-  fireEvent.click(within(details).getByRole('button', { name: 'Compare room' }));
-  if (change === 'filter') fireEvent.change(screen.getByPlaceholderText('Any budget'), { target: { value: '700' } });
-  if (change === 'inactive') rendered.rerender(<TravelWorkspace {...props} active={false}/>);
-  await act(async () => finish({ ok: true, json: async () => snapshot }));
-  if (change !== 'same-property') { expect(screen.queryByRole('region', { name: 'Option comparison' })).toBeNull(); return; }
-  fireEvent.click(screen.getByRole('button', { name: 'View room-b' }));
-  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Compare room' }));
-  await waitFor(() => expect(within(screen.getByRole('region', { name: 'Option comparison' })).getAllByRole('article')).toHaveLength(2));
-  expect(screen.getByText('Exact room: room-a')).toBeTruthy(); expect(screen.getByText('Exact room: room-b')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'View room-a' }));
-  const reopened = await screen.findByRole('dialog');
-  workspaceRequest.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-  fireEvent.click(within(reopened).getByRole('button', { name: 'Compare room' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Close comparison' }));
-  await act(async () => finish({ ok: true, json: async () => snapshot }));
-  expect(screen.queryByRole('region', { name: 'Option comparison' })).toBeNull();
+  expect(within(details).getByText('room-a')).toBeTruthy();
+  expect(within(details).queryByText('room-b')).toBeNull();
+  expect(within(details).getByText(/Original observed offer/)).toBeTruthy();
+  expect(within(details).queryByRole('button', { name: 'Compare room' })).toBeNull();
+  expect(within(details).queryByRole('button', { name: 'Choose for trip' })).toBeNull();
+  expect(within(details).queryByRole('button', { name: 'Discuss room' })).toBeNull();
 });
 
-test.each(['manual', 'foreign', 'invalid-criteria', 'invalid-draft'])('raw manual registry room comparison validates %s evidence', async kind => {
-  const original = workspaceSnapshot('stays', 'room-search'), current = workspaceSnapshot('stays', 'main-search');
-  current.draft_facts = draftTravelFacts({ map: { destination: 'Paris' } });
-  original.results[0].rooms = [{ id: 'exact-room', name: 'Observed room', total: { amount: '950', currency: 'EUR' }, excluded_taxes: [], refundable: true, board_name: null, cancellation_summary: null, cancellation_deadline: null, occupancy_summary: '2 adults' }];
-  chat.messages = [{ message_id: 'earlier', comparison: { options: [{ id: 'saved', title: 'Saved exact room', reference: { search_id: original.search_id, option_id: 'option-1', room_id: 'exact-room' } }] } }];
-  workspaceRequest.mockResolvedValueOnce({ ok: true, json: async () => original });
-  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={{}} mode="accommodation" active initialData={{ map: { destination: 'Paris' } }} importedSnapshot={current}/>);
-  fireEvent.click(screen.getByRole('button', { name: 'View Saved exact room' }));
-  const detail = await screen.findByRole('dialog');
-  const raw = { ...original, draft_facts: kind === 'invalid-draft' ? { start: 'invalid partial metadata' } : {}, ...(kind === 'foreign' ? { plan_id: 'another-plan' } : {}), ...(kind === 'invalid-criteria' ? { criteria: { ...original.criteria, rooms: [] } } : {}) };
-  workspaceRequest.mockResolvedValueOnce({ ok: true, json: async () => raw });
-  fireEvent.click(within(detail).getByRole('button', { name: 'Compare room' }));
-  if (kind !== 'manual') {
-    expect(await screen.findByText(/This room observation is unavailable/)).toBeTruthy();
-    expect(screen.queryByRole('region', { name: 'Option comparison' })).toBeNull();
-    return;
-  }
-  const comparison = await screen.findByRole('region', { name: 'Option comparison' });
-  expect(within(comparison).getByText('Exact room: Observed room')).toBeTruthy();
-  expect(within(comparison).getByText('Separate search observation · compare the dates and times below')).toBeTruthy();
-  expect(within(comparison).getByText(/2027-11-13 – 2027-11-16/)).toBeTruthy();
-  expect(screen.getByRole('heading', { name: 'main-search' })).toBeTruthy();
-  expect(workspaceRequest.mock.calls.every(([url]) => url.includes('research/snapshot?'))).toBe(true);
-});
+
 
 test('opening a raw manual historical exact room keeps current inventory and never starts a supplier search', async () => {
   const original = workspaceSnapshot('stays', 'original'), present = workspaceSnapshot('stays', 'current');

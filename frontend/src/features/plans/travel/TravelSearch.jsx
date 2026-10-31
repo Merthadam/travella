@@ -8,7 +8,7 @@ import { SearchSelect, Pagination, PAGE_SIZE } from "./SearchSelect";
 import { StaySearchFilters } from "./StaySearchFilters";
 import { FlightTravelers } from "./FlightTravelers";
 import { StayDestination } from "./StayDestination";
-import { travelState, TravelPhoto, parseTravelRegistrySnapshot } from "./CanvasTravel";
+import { travelState, TravelPhoto } from "./CanvasTravel";
 import { CarrierMarks } from "./CarrierMark";
 import { TravelComparison, comparisonEntry, referenceKey } from './TravelComparison';
 import { FlightDetails } from "./FlightDetails";
@@ -241,26 +241,6 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
     const entries = view.comparison_refs.map(ref => comparisonEntry(snapshot, ref)).filter(Boolean);
     if (entries.length < 2 || entries.length > 3) return;
     setComparison(entries); void discussComparison(entries);
-  }
-  async function compareRoom({ reference }) {
-    workspace.setView(current => ({ comparison_refs: current.comparison_refs }));
-    const token = workspace.getWorkspaceContext(), run = ++comparisonRun.current;
-    const current = () => {
-      const now = workspace.getWorkspaceContext();
-      return run === comparisonRun.current && now.instance_id === token.instance_id && now.revision === token.revision;
-    };
-    try {
-      const original = parseTravelRegistrySnapshot(await travelRequest(planId, 'research/snapshot', { search_id: reference.search_id }));
-      if (!current()) return;
-      if (original.plan_id !== planId || original.mode !== 'stays') throw new Error('Invalid room evidence');
-      const entry = comparisonEntry(original, reference);
-      if (!entry) throw new Error('Room evidence unavailable');
-      const base = comparison.length ? comparison : view.comparison_refs.map(ref => comparisonEntry(snapshot, ref)).filter(Boolean);
-      const index = base.findIndex(value => referenceKey(value.reference) === referenceKey(entry.reference));
-      if (index < 0 && base.length >= 3) { setError('Compare up to three options. Remove one to add another.'); return; }
-      setComparison(index < 0 ? [...base, entry] : base.map((value, i) => i === index ? entry : value));
-      setComparisonError(false);
-    } catch (err) { if (!current()) return; if (err.status === 401) onExpired?.(); setError('This room observation is unavailable. Search again to compare current rooms.'); }
   }
   const setError = value => workspace.dispatch({ type: "error", value });
   const detail = detailsReference?.item;
@@ -934,9 +914,6 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           detached={detailsReference.snapshot.search_id !== snapshot?.search_id}
           onClose={() => setDetail(null)}
           onExpired={onExpired}
-          onDiscuss={discussionDisabled ? undefined : onDiscuss}
-          onChoose={choiceDisabled ? undefined : onChoose}
-          onCompare={compareRoom}
           booked={Boolean(initialData?.accommodation?.mockBooking)}
           onCheckout={onStayCheckout ? value => { setDetail(null); onStayCheckout(value); } : undefined}
         />

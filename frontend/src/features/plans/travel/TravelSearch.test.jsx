@@ -2,6 +2,7 @@ import React from "react";
 import { beforeEach, afterEach, expect, test, vi } from "vitest";
 import {
   cleanup,
+  within,
   fireEvent,
   render,
   screen,
@@ -419,7 +420,7 @@ test.each(['accommodation', 'flights'])('%s paginates ten at a time, preserves c
 });
 
 
-test("manual results can prepare a discussion without replacing browsing or exposing offer tokens", async () => {
+test("manual hotel detail keeps browsing and exposes no room discussion or offer tokens", async () => {
   const onDiscuss = vi.fn();
   const data = response("Courtyard apartment");
   data.search_id = "manual-search-1";
@@ -429,12 +430,13 @@ test("manual results can prepare a discussion without replacing browsing or expo
   const user = await fill();
   await user.click(screen.getByRole("button", { name: "Search stays" }));
   await user.click(await screen.findByRole("button", { name: 'View rooms →' }));
-  await user.click(await screen.findByRole('button', { name: 'Discuss room' }));
-  expect(onDiscuss).toHaveBeenCalledTimes(1);
-  const message = onDiscuss.mock.calls[0][0];
-  expect(message).toEqual({ title: "Courtyard apartment · Observed room", reference: { search_id: "manual-search-1", option_id: data.results[0].id, room_id: 'room' } });
-  expect(JSON.stringify(message)).not.toContain("private-offer-token");
-  expect(screen.getByRole("button", { name: /View rooms/ })).toBeTruthy();
+  await screen.findByText('Observed room');
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).queryByRole('button', { name: 'Discuss room' })).toBeNull();
+  expect(onDiscuss).not.toHaveBeenCalled();
+  expect(dialog.textContent).not.toContain('private-offer-token');
+  await user.click(within(dialog).getByRole('button', { name: 'Close details' }));
+  expect(screen.getByRole('button', { name: /View rooms/ })).toBeTruthy();
   expect(searchRequest.mock.calls.map(call => call[1])).toEqual(['hotels/search', 'hotels/detail', 'hotels/search']);
 });
 
