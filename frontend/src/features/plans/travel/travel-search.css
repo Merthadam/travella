@@ -50,6 +50,16 @@
   font-weight: 600;
   padding: 13px 18px;
 }
+/* Both labels share a grid cell so checking a fare never moves the action stack. */
+.travel-search button.flight-review-entry { display: grid; }
+.flight-review-entry > span { grid-area: 1 / 1; white-space: nowrap; }
+.flight-review-entry-cancel { visibility: hidden; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.flight-review-entry[data-pending] .flight-review-entry-label { visibility: hidden; }
+.flight-review-entry[data-pending] .flight-review-entry-cancel { visibility: visible; }
+.flight-review-entry-cancel i { width: 12px; height: 12px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; }
+.flight-review-entry[data-pending] i { animation: flight-fare-check 800ms linear infinite; }
+@keyframes flight-fare-check { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .flight-review-entry[data-pending] i { animation: none; } }
 .travel-search button:hover:not(:disabled) {
   filter: brightness(0.96);
 }

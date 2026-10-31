@@ -351,13 +351,12 @@ test.each(['complete', 'closed', 'failed', 'expired-session', 'left-workspace'])
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
   expect(onFlightCheckout).not.toHaveBeenCalled();
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('button',{name:'Checking fare… →'}).disabled).toBe(true);
-  fireEvent.click(screen.getByRole('button',{name:'Checking fare… →'}));
+  expect(screen.getByRole('button',{name:'Cancel fare check'}).disabled).toBe(false);
   expect(searchRequest.mock.calls.map(x=>x[1])).toEqual(['flights/search', 'sandbox/flights/verify']);
   expect(searchRequest.mock.calls[1][2]).toEqual({token:'manual-only-token'});
   const signal = searchRequest.mock.calls[1][3];
   if (outcome === 'closed' || outcome === 'left-workspace') {
-    if (outcome === 'closed') fireEvent.click(screen.getByRole('button', {name:'Cancel'}));
+    if (outcome === 'closed') fireEvent.click(screen.getByRole('button', {name:'Cancel fare check'}));
     else view.rerender(<TravelSearch {...props} mode="flights" active={false} importedSnapshot={s} onFlightCheckout={onFlightCheckout} onExpired={onExpired}/>);
     expect(signal.aborted).toBe(true);
     await act(async () => finish(review));

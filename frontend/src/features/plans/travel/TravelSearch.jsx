@@ -884,17 +884,21 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                       workspace.dismiss({ search_id: snapshot.search_id, option_id: item.id, room_id: null });
                       if (focused) requestAnimationFrame(() => { if (document.activeElement === document.body || document.activeElement === button) (next?.isConnected ? next : resultsHeading.current)?.focus(); });
                     }}>Dismiss from results</button>}
-                    <button
-                      className="travel-primary"
-                      disabled={!stay && checkoutStatus?.pending}
-                      onClick={() => openDetail(item)}
-                    >
-                      {stay ? "View rooms" : checkoutStatus?.id === item.id && checkoutStatus.pending ? "Checking fare…" : "View flight"} →
-                    </button>
-                    {!stay && checkoutStatus?.id === item.id && (checkoutStatus.pending ? <div>
-                      <p className="travel-note" role="status">Checking availability and the current fare…</p>
-                      <button type="button" onClick={cancelCheckout}>Cancel</button>
-                    </div> : <p className="travel-error" role="alert">{checkoutStatus.error} Select View flight to retry.</p>)}
+                    {stay ? <button className="travel-primary" onClick={() => openDetail(item)}>View rooms →</button> : <>
+                      <button
+                        className="travel-primary flight-review-entry"
+                        aria-label={checkoutStatus?.id === item.id && checkoutStatus.pending ? 'Cancel fare check' : 'View flight →'}
+                        data-pending={checkoutStatus?.id === item.id && checkoutStatus.pending || undefined}
+                        disabled={checkoutStatus?.pending && checkoutStatus.id !== item.id}
+                        onClick={() => checkoutStatus?.id === item.id && checkoutStatus.pending ? cancelCheckout() : openDetail(item)}
+                      >
+                        <span className="flight-review-entry-label" aria-hidden="true">View flight →</span>
+                        <span className="flight-review-entry-cancel" aria-hidden="true"><i/>Cancel check</span>
+                      </button>
+                      {checkoutStatus?.id === item.id && (checkoutStatus.pending
+                        ? <span className="sr-only" role="status">Checking availability and the current fare. Select Cancel check to stop.</span>
+                        : <p className="travel-error" role="alert">{checkoutStatus.error} Select View flight to retry.</p>)}
+                    </>}
                     <label className="travel-check">
                       <input
                         type="checkbox"
