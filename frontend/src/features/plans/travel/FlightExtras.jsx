@@ -4,6 +4,20 @@ import { formatFlightPrice } from './flightItinerary';
 export const serviceChoices = (values = []) => values.map(({ id, passenger_index, quantity }) => ({ id, passenger_index, quantity }));
 export const sameChoices = (a, b) => JSON.stringify([...a].sort((x, y) => `${x.id}:${x.passenger_index}`.localeCompare(`${y.id}:${y.passenger_index}`))) === JSON.stringify([...b].sort((x, y) => `${x.id}:${x.passenger_index}`.localeCompare(`${y.id}:${y.passenger_index}`)));
 
+// Provider total is authoritative; the preview applies only known, same-currency changes.
+export function checkoutTotal(result, choices) {
+  const confirmed = result.selected_services || [];
+  if (sameChoices(choices, serviceChoices(confirmed))) return null;
+  const price = result.flight.price;
+  const catalog = new Map([...confirmed, ...(result.services || [])].map(s => [s.id, s]));
+  const sum = values => values.reduce((total, choice) => {
+    const service = choice.price ? choice : catalog.get(choice.id);
+    return total + (service?.price?.currency === price.currency && Number.isFinite(Number(service.price.amount)) ? Math.round(Number(service.price.amount) * 100) * choice.quantity : NaN);
+  }, 0);
+  const cents = Math.round(Number(price.amount) * 100) - sum(confirmed) + sum(choices);
+  return Number.isFinite(cents) && cents >= 0 ? { ...price, amount: (cents / 100).toFixed(2) } : null;
+}
+
 export function ExtrasSummary({ values = [], kind }) {
   const selected = values.filter(s => !kind || s.kind === kind);
   return selected.length ? <ul className="m-0 list-none space-y-2 p-0">{selected.map(s => <li key={`${s.id || s.label}:${s.segment_index}:${s.passenger_index}`}><b>Passenger {s.passenger_index + 1}</b> · {s.quantity > 1 ? `${s.quantity} × ` : ''}{s.label} <span className="whitespace-nowrap">({formatFlightPrice({ ...s.price, amount: Number(s.price.amount) * s.quantity })})</span></li>)}</ul> : <span className="block">{kind === 'seat' ? 'No seats selected · airline assignment' : 'No extra baggage selected'}</span>;

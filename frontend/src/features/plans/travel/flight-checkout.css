@@ -23,3 +23,41 @@
 .flight-submit>span{grid-area:1/1}
 
 .flight-checkout-grid.flight-checkout-single{display:block;max-width:840px;margin:0 auto}
+
+/* The flight flow shares base controls with stays; these changes are flight-only. */
+.flight-flow{max-width:1100px;padding-bottom:12px}
+.flight-flow .flight-sandbox-banner{padding:4px 12px;font-size:10px;flex-direction:row;align-items:center}
+.flight-flow .flight-checkout-nav{margin:2px 0;min-height:30px}.flight-flow .flight-checkout-nav .flight-text-button{min-height:30px;padding:4px 0;font-size:12px}
+.flight-context{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:4px 0 12px;position:relative}
+.flight-context>div{display:flex;align-items:baseline;gap:16px}.flight-context strong{font-size:20px;letter-spacing:-.03em}.flight-context span{font-size:12px;color:var(--ds-muted)}
+.flight-context-details>summary{cursor:pointer;font-size:12px;color:var(--ds-green);padding:8px;min-height:36px}
+.flight-context-details[open]>div{position:absolute;right:0;top:100%;z-index:5;width:min(440px,100%);padding:0 24px 20px;background:var(--ds-surface);border:1px solid var(--ds-line);border-radius:10px;box-shadow:var(--ds-shadow)}
+.flight-flow .flight-steps{padding-bottom:10px;margin-bottom:18px}.flight-flow .flight-steps button:disabled{opacity:1}.flight-flow .flight-steps button{font-size:11px}
+.flight-flow .flight-checkout-single{max-width:none}
+.flight-flow .flight-step-panel{background:none;border:0;border-radius:0;padding:0;max-width:780px;margin:auto}
+.flight-flow .flight-step-panel.flight-seat-panel{max-width:none}
+.flight-stage-heading{margin-bottom:16px}.flight-flow .flight-stage-heading h1{font-size:34px}.flight-stage-heading p{margin-top:8px;font-size:13px}
+.flight-flow .flight-step-content>p{font-size:13px;margin-bottom:20px}
+.flight-flow .flight-leg{background:var(--ds-surface);padding:20px 24px;border:1px solid var(--ds-line);border-radius:10px;margin-top:14px}
+.flight-flow .flight-context-details .flight-leg{border:0;border-bottom:1px solid var(--ds-line);border-radius:0;padding:20px 0;margin:0}
+.flight-checkout-footer{position:sticky;bottom:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--ds-surface);border:1px solid var(--ds-line);border-radius:10px;padding:16px 20px;margin-top:24px;box-shadow:0 -4px 20px rgb(0 0 0 / .04)}
+.flight-footer-price{display:grid;grid-template-columns:auto auto;column-gap:14px;align-items:baseline;flex-shrink:0}.flight-footer-price>span{font-size:12px}.flight-footer-price>strong{font-size:24px;font-weight:600;white-space:nowrap}.flight-footer-price>small{grid-column:1/-1;font-size:10px;color:var(--ds-muted)}
+.flight-flow .flight-actions{margin:0;padding:0;border:0;gap:20px}.flight-flow .flight-actions>.flight-primary{max-width:none}.flight-flow .flight-status-button{font-size:11px;margin-top:10px}
+@media(max-width:760px){
+ .flight-flow .flight-sandbox-banner{font-size:9px;gap:8px}.flight-flow .flight-sandbox-banner b{font-size:9px}.flight-flow .flight-checkout-nav{margin:6px 0}
+ .flight-context{padding:4px 0 14px;gap:8px}.flight-context>div{display:grid;gap:2px}.flight-context strong{font-size:18px}.flight-context span{font-size:11px}
+ .flight-flow .flight-steps{margin-bottom:18px;padding-bottom:12px}.flight-flow .flight-steps button{font-size:9px}.flight-flow .flight-steps button span{height:22px;width:22px;font-size:10px}
+ .flight-flow .flight-stage-heading h1{font-size:29px}.flight-stage-heading{margin-bottom:16px}.flight-stage-heading p{font-size:12px}
+ .flight-checkout-footer{padding:12px;gap:10px;margin-top:16px;flex-wrap:wrap;bottom:-16px;border-radius:10px 10px 0 0}
+ .flight-footer-price{flex:1;display:flex;gap:8px;flex-wrap:wrap}.flight-footer-price>strong{font-size:21px}.flight-footer-price>small{width:100%;font-size:9px}
+ .flight-flow .flight-actions{width:100%;justify-content:space-between;gap:8px}.flight-flow .flight-actions>.flight-primary{max-width:85%;font-size:11px;padding:11px}
+}
+
+@media(max-width:760px){
+ .flight-flow .flight-checkout-nav{margin:2px 0}.flight-flow .flight-context{padding-bottom:10px}.flight-flow .flight-steps{margin-bottom:14px}
+ .flight-seat-panel .flight-stage-heading p{display:none}
+ .flight-checkout-footer{flex-wrap:nowrap;min-height:72px}
+ .flight-footer-price{display:grid;grid-template-columns:1fr;gap:0}.flight-footer-price>span{font-size:10px}.flight-footer-price>small{display:none}
+ .flight-flow .flight-actions{width:auto;max-width:70%}.flight-flow .flight-actions>.flight-text-button{display:none}.flight-flow .flight-actions>.flight-primary{max-width:100%}
+}
+.canvas-travel-screen:has(.flight-flow){scroll-padding-bottom:100px}

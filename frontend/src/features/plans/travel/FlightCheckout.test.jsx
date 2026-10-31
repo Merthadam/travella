@@ -155,6 +155,8 @@ it('applies selected seats, updates the total and preserves extras in the saved 
   travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce({ ...ready, services: [seat] }).mockResolvedValueOnce(changed);
   render(<FlightCheckout planId="p" offerToken="offer"/>); await reserve();
   fireEvent.click(await screen.findByRole('button', { name: /Seat 12A/ }));
+  expect(screen.getByText('Estimated total')).toBeTruthy();
+  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€187.00');
   fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
   await screen.findByRole('heading', { name: 'Check what you can bring.' });
   expect(travelRequest.mock.calls[2][2]).toEqual({ token: 'prebook', confirm_mock: true, selected_services: [{ id: 'seat', passenger_index: 0, quantity: 1 }] });
@@ -168,7 +170,7 @@ it('applies selected seats, updates the total and preserves extras in the saved 
 
 it('mounts a prepared checkout with its final heading and itinerary, without verifying the token twice', () => {
   render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
-  expect(screen.getByRole('heading', { name: 'Book your flights to FCO.' })).toBeTruthy();
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   expect(screen.getByRole('heading', { name: 'Review your flights.' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Continue to passengers →' }).disabled).toBe(false);
   expect(screen.queryByText('Verifying availability and the current fare…')).toBeNull();
@@ -345,6 +347,7 @@ it('submits multiple travelers together and removes paid seats on airline assign
   await screen.findByRole('heading', { name: 'Check what you can bring.' });
   fireEvent.click(screen.getByRole('button', { name: '3 Seats' }));
   fireEvent.click(screen.getByRole('button', { name: 'Use airline assignment for all flights' }));
+  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€175.00');
   fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
   await screen.findByRole('heading', { name: 'Check what you can bring.' });
   expect(travelRequest.mock.calls[2][2]).toEqual({ token: 'paid', confirm_mock: true, selected_services: [] });
@@ -369,4 +372,25 @@ it('requires provider status readback after a seat-update error before allowing 
   fireEvent.click(screen.getByRole('button', { name: '3 Seats' }));
   expect((await screen.findByRole('button', { name: /^Seat 12A/ })).getAttribute('aria-pressed')).toBe('true');
   expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/prebook', 'sandbox/flights/services', 'sandbox/flights/status']);
+});
+
+
+it('discards an unconfirmed removal after status recovery even when the provider reuses its token', async () => {
+  const seat = { id: 'a', kind: 'seat', label: 'Seat 12A', segment_index: 0, passenger_indexes: [0], price: { amount: '12', currency: 'EUR' } };
+  const selected = { ...seat, passenger_index: 0, quantity: 1 };
+  const inventory = { ...ready, services: [seat], selected_services: [selected] };
+  travelRequest.mockResolvedValueOnce(inventory).mockRejectedValueOnce(new Error('Seat removal response lost'))
+    .mockResolvedValueOnce({ ...inventory, selected_services: [{ ...selected }] });
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  await reserve();
+  fireEvent.click(await screen.findByRole('button', { name: 'Use airline assignment for all flights' }));
+  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€163.00');
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
+  await screen.findByText('Seat removal response lost');
+  fireEvent.click(screen.getByRole('button', { name: 'Check booking status' }));
+  await screen.findByRole('heading', { name: 'Review and pay.' });
+  expect(screen.queryByText('Estimated total')).toBeNull();
+  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€175.00');
+  fireEvent.click(screen.getByRole('button', { name: '3 Seats' }));
+  expect(screen.getByRole('button', { name: /^Seat 12A/ }).getAttribute('aria-pressed')).toBe('true');
 });

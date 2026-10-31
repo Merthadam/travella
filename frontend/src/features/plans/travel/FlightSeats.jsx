@@ -78,16 +78,11 @@ export function FlightSeats({ result, choices, onChange, passengers = [] }) {
     return <button key={seat.id} type="button" className={`flight-seat${assigned ? ' is-assigned' : ''}`} aria-pressed={Boolean(assigned)}
       disabled={Boolean(assigned) || !eligible} onClick={() => choose(seat)}
       aria-label={`${seat.label} · ${formatFlightPrice(seat.price)}${assigned ? ` · Selected for ${travelers[assigned.passenger_index].name}` : !eligible && active ? ' · Not available for this traveler' : ''}`}>
-      <b>{seatLabel(seat)}</b><span>{formatFlightPrice(seat.price)}</span>{assigned && <small>P{assigned.passenger_index + 1}</small>}
+      <b>{seatLabel(seat)}</b>{assigned ? <small>P{assigned.passenger_index + 1}</small> : <span>{formatFlightPrice(seat.price)}</span>}
     </button>;
   }
 
   return <section className="flight-seats" aria-label="Choose seats">
-    <div className="flight-seat-airline">
-      <div><h3>Let the airline assign seats</h3><span className="flight-badge">No seat-selection charge</span></div>
-      <p>Skip paid seat selection for everyone, on all flights. Seats together are not guaranteed.</p>
-      <button type="button" className="flight-secondary" onClick={() => assignAirline(true)}>Use airline assignment for all flights</button>
-    </div>
     <div className="flight-seat-flights" role="group" aria-label="Choose flight">
       {segments.map((flight, index) => {
         const count = selectedSeats.filter(c => catalog.get(c.id).segment_index === index).length;
@@ -97,6 +92,7 @@ export function FlightSeats({ result, choices, onChange, passengers = [] }) {
         </button>;
       })}
     </div>
+    <div className="flight-seat-workspace"><aside className="flight-seat-sidebar"><h3>Travelers on this flight</h3>
     <div className="flight-seat-travelers" role="group" aria-label="Choose traveler">
       {travelers.map(t => {
         const choice = selection(choices, segment, t.index), seat = choice && catalog.get(choice.id);
@@ -107,13 +103,22 @@ export function FlightSeats({ result, choices, onChange, passengers = [] }) {
         </button>;
       })}
     </div>
+    <div className="flight-seat-airline">
+      <h3>Prefer not to choose?</h3>
+      <p>Airline assignment for everyone, on all flights. Seats together are not guaranteed.</p>
+      <button type="button" className="flight-secondary" aria-label="Use airline assignment for all flights" onClick={() => assignAirline(true)}>Skip seat selection · no charge</button>
+    </div>
+    <div className="flight-seat-total"><b>Seat selections · all flights</b><strong>{selectedSeats.length ? Object.entries(totals).map(([currency, amount]) => formatFlightPrice({ currency, amount })).join(' + ') : 'No charge'}</strong></div>
+    <p className="flight-seat-note">Selections are confirmed when you continue. Travelers without a chosen seat use airline assignment.</p>
+    </aside><div className="flight-seat-canvas">
     <div className="flight-seat-instructions">
       <h3>{active ? `Choose a seat for ${active.name}` : 'Your seat choices are ready'}</h3>
-      <p>{active ? 'One seat per traveler on this flight. Each selection moves to the next traveler.' : 'Continue with these choices, or select a traveler above to make a change.'}</p>
-      <button type="button" className="flight-text-button" disabled={!active} style={{ visibility: active ? undefined : 'hidden' }} onClick={() => assignAirline()}>Use airline assignment for {active?.name || 'this traveler'} on this flight</button>
+      <p>{active ? 'Each selection moves to the next traveler.' : 'Continue with these choices, or select a traveler to make a change.'}</p>
+      <button type="button" className="flight-text-button" disabled={!active} style={{ visibility: active ? undefined : 'hidden' }} aria-label={`Use airline assignment for ${active?.name || 'this traveler'} on this flight`} onClick={() => assignAirline()}>Let the airline choose for this traveler</button>
       <p role="status" className="flight-seat-announcement">{announcement}</p>
     </div>
-    {!inventory.length || (active && !inventory.some(s => s.passenger_indexes.includes(passenger))) ? <p className="flight-seat-empty">No selectable seats returned for this passenger and flight. You can continue without paid seat selection; sitting together is not guaranteed.</p> : airlineFlight ? <p className="flight-seat-empty">Airline assignment for this flight. No paid seats selected. Select a traveler above if you want to choose a seat.</p> : <div className="flight-seat-map">
+    <div className="flight-seat-viewport" tabIndex={0} role="region" aria-label="Seat map">
+    {!inventory.length || (active && !inventory.some(s => s.passenger_indexes.includes(passenger))) ? <p className="flight-seat-empty">No selectable seats returned for this passenger and flight. You can continue without paid seat selection; sitting together is not guaranteed.</p> : airlineFlight ? <p className="flight-seat-empty">Airline assignment for this flight. No paid seats selected. Select a traveler if you want to choose a seat.</p> : <div className="flight-seat-map">
       <p className="flight-seat-front">FRONT OF CABIN ↑</p>
       <div className="flight-seat-unmapped">{positions.filter(s => !s.seat_row || !s.seat_column).map(seatButton)}</div>
       <div className="flight-seat-map-scroll"><div className="flight-seat-rows" style={{ minWidth: `${Math.max(260, columns.length * 44 + 36)}px` }}>
@@ -124,9 +129,8 @@ export function FlightSeats({ result, choices, onChange, passengers = [] }) {
           })}
         </div>)}
       </div></div>
-      <p className="flight-seat-legend">P1, P2… show your travelers’ seats. Select a traveler above to change their seat.</p>
+      <p className="flight-seat-legend">P1, P2… show your travelers’ seats. Select a traveler to change their seat.</p>
     </div>}
-    <div className="flight-seat-total"><b>Seat selections · all flights</b><strong>{selectedSeats.length ? Object.entries(totals).map(([currency, amount]) => formatFlightPrice({ currency, amount })).join(' + ') : 'No charge'}</strong></div>
-    <p className="flight-seat-note">Travelers without a chosen seat use airline assignment. Selections and the updated total are checked with the provider when you continue.</p>
+    </div></div></div>
   </section>;
 }

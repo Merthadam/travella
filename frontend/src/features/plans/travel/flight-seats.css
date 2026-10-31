@@ -1,36 +1,44 @@
-.flight-seats{display:grid;gap:20px}
-.flight-seat-airline{padding:18px;border:1px solid var(--ds-line);border-radius:10px;background:var(--ds-soft);display:grid;gap:12px}
-.flight-seat-airline>div{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.flight-seat-airline p,.flight-seat-instructions p,.flight-seat-note{font-size:12px}
-.flight-seat-airline>button{justify-self:start;text-align:left}
-.flight-seat-flights,.flight-seat-travelers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.flight-seat-flights>button,.flight-seat-travelers>button{display:flex;flex-direction:column;gap:5px;text-align:left;min-width:0;padding:14px;border:1px solid var(--ds-control);border-radius:9px;background:var(--ds-surface);color:var(--ds-ink);overflow-wrap:anywhere}
-.flight-seat-flights>button[aria-pressed=true],.flight-seat-travelers>button[aria-pressed=true]{border-color:var(--ds-action);box-shadow:inset 0 0 0 1px var(--ds-action);background:var(--ds-active);color:var(--ds-active-text)}
-.flight-seat-flights span,.flight-seat-travelers span,.flight-seat-travelers small{font-size:11px}
-.flight-seat-travelers small{color:var(--ds-muted)}
+.flight-seats{border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-surface);overflow:hidden}
+.flight-seat-flights{display:flex;border-bottom:1px solid var(--ds-line);overflow-x:auto}
+.flight-seat-flights>button{flex:1;display:grid;gap:4px;min-width:150px;padding:12px;border:0;border-radius:0;border-bottom:3px solid transparent;background:var(--ds-surface);color:var(--ds-muted);font-size:13px;text-align:center}
+.flight-seat-flights>button[aria-pressed=true]{background:var(--ds-soft);border-bottom-color:var(--ds-action);color:var(--ds-ink)}
+.flight-seat-flights span{font-size:11px}
+.flight-seat-workspace{display:grid;grid-template-columns:290px minmax(0,1fr)}
+.flight-seat-sidebar{padding:20px;border-right:1px solid var(--ds-line)}
+.flight-seat-sidebar>h3{margin-bottom:14px}
+.flight-seat-travelers{display:grid;gap:8px;max-height:300px;overflow:auto;padding:3px}
+.flight-seat-travelers>button{display:grid;gap:4px;text-align:left;min-width:0;padding:14px 12px;border:1px solid var(--ds-control);border-radius:8px;background:var(--ds-surface);color:var(--ds-ink);overflow-wrap:anywhere}
+.flight-seat-travelers>button[aria-pressed=true]{border-color:var(--ds-action);box-shadow:inset 0 0 0 1px var(--ds-action);background:var(--ds-active);color:var(--ds-active-text)}
+.flight-seat-travelers b{font-size:13px}.flight-seat-travelers span,.flight-seat-travelers small{font-size:11px}.flight-seat-travelers small{display:none}
 .flight-seat-person{display:inline-block;padding:1px 5px;border:1px solid var(--ds-control);border-radius:4px;margin-right:3px}
-.flight-seat-instructions{display:grid;gap:6px}
-.flight-seat-instructions .flight-text-button{font-size:12px}
-
-.flight-seat-empty{padding:18px;border:1px solid var(--ds-line);border-radius:10px;font-size:13px}
-.flight-seat-map{border:1px solid var(--ds-line);border-radius:22px;padding:20px 12px;min-width:0}
-.flight-checkout .flight-seat-front{text-align:center;letter-spacing:.15em;font-size:10px;margin-bottom:20px}
+.flight-seat-airline{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--ds-line);padding-top:20px;margin-top:22px}
+.flight-seat-airline h3{font-size:12px}.flight-seat-airline p{font-size:11px;order:2}.flight-seat-airline .flight-secondary{font-size:12px;padding:11px 8px;text-align:center}
+.flight-seat-total{display:flex;justify-content:space-between;gap:12px;padding:20px 0 10px;font-size:11px}.flight-seat-total strong{font-size:15px;white-space:nowrap}.flight-seat-note{font-size:10px}
+.flight-seat-canvas{background:var(--ds-soft);min-width:0}
+.flight-seat-instructions{padding:18px 24px 12px;min-height:104px;border-bottom:1px solid var(--ds-line)}
+.flight-seat-instructions h3{font-size:14px}.flight-seat-instructions p{font-size:12px;margin-top:4px}.flight-seat-instructions .flight-text-button{font-size:11px;padding:4px 0;min-height:30px}
+.flight-seat-viewport{height:clamp(360px,48vh,580px);overflow:auto;overscroll-behavior:contain;padding:24px;scrollbar-gutter:stable;scroll-padding:16px}
+.flight-seat-viewport:focus-visible{outline:3px solid var(--ds-focus);outline-offset:-3px}
+.flight-seat-empty{padding:24px;font-size:13px;text-align:center}
+.flight-seat-map{border:1px solid var(--ds-line);border-radius:90px 90px 14px 14px;background:var(--ds-surface);padding:32px 18px 20px;max-width:460px;margin:auto;min-width:0}
+.flight-checkout .flight-seat-front{text-align:center;letter-spacing:.15em;font-size:9px;margin-bottom:22px}
 .flight-seat-map-scroll{overflow-x:auto}
-.flight-seat-rows{max-width:440px;margin:0 auto;display:grid;gap:7px}
-.flight-seat-row{display:grid;align-items:center;gap:5px}
+.flight-seat-rows{display:grid;gap:8px}
+.flight-seat-row{display:grid;align-items:center;gap:6px}
 .flight-seat-row-label{font-size:10px;color:var(--ds-muted)}
-.flight-checkout .flight-seat{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:64px;line-height:1.2;min-width:0;padding:6px 2px;border:1px solid var(--ds-control);border-radius:10px 10px 4px 4px;background:var(--ds-surface);color:var(--ds-ink);font-size:12px}
-.flight-seat span{font-size:10px;white-space:nowrap}.flight-seat small{font-size:9px;font-weight:700}
+.flight-checkout .flight-seat{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:50px;line-height:1.2;min-width:0;padding:5px 2px;border:1px solid var(--ds-control);border-bottom-width:3px;border-radius:8px 8px 4px 4px;background:var(--ds-soft);color:var(--ds-ink);font-size:12px}
+.flight-seat span,.flight-seat small{font-size:9px;white-space:nowrap}.flight-seat small{font-weight:700}
 .flight-checkout .flight-seat.is-assigned{background:var(--ds-action);color:var(--ds-on-action);border-color:var(--ds-action);opacity:1}
 .flight-checkout .flight-seat:not(:disabled):hover{background:var(--ds-active);border-color:var(--ds-action)}
-.flight-seat-missing{height:64px;border:1px dashed var(--ds-line);border-radius:10px 10px 4px 4px}
+.flight-seat-missing{height:50px;border:1px dashed var(--ds-line);border-radius:8px 8px 4px 4px}
 .flight-seat-unmapped{display:grid;gap:8px}.flight-seat-unmapped:not(:empty){margin-bottom:16px}
-.flight-checkout .flight-seat-legend{font-size:11px;text-align:center;margin-top:18px}
-.flight-seat-total{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid var(--ds-line);padding-top:16px;font-size:12px}
-.flight-seat-total strong{font-size:16px}
-@media(max-width:480px){.flight-seat-airline{padding:14px}.flight-seat-flights>button,.flight-seat-travelers>button{padding:10px;font-size:12px}.flight-seat-map{padding:16px 6px}.flight-seat-airline>button{font-size:12px;padding:10px}.flight-seat-travelers{grid-template-columns:1fr}.flight-seat-travelers>button{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px}.flight-seat-travelers>button>small{grid-column:1/-1}}
+.flight-checkout .flight-seat-legend{font-size:10px;text-align:center;margin-top:18px}
 .flight-seat-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-
-.flight-seat-travelers{position:sticky;top:8px;z-index:2;align-self:start;background:var(--ds-surface);padding:8px 0;max-height:35vh;overflow-y:auto}
-.flight-seat-instructions{min-height:110px;align-content:start}
-@media(max-width:480px){.flight-seat-instructions{min-height:150px}}
+@media(max-width:760px){
+ .flight-seat-workspace{grid-template-columns:1fr}.flight-seat-sidebar{padding:16px;border-right:0;border-bottom:1px solid var(--ds-line)}
+ .flight-seat-sidebar>h3{display:none}.flight-seat-travelers{display:flex;overflow-x:auto;max-height:none}.flight-seat-travelers>button{flex:1 0 155px;padding:10px}
+ .flight-seat-airline{margin-top:12px;padding-top:12px;gap:6px}.flight-seat-airline h3{display:none}.flight-seat-airline p{font-size:10px}.flight-seat-airline .flight-secondary{padding:8px;min-height:40px}
+ .flight-seat-total{padding:12px 0 0}.flight-seat-note{display:none}.flight-seat-instructions{padding:14px 16px 8px;min-height:80px}
+ .flight-seat-viewport{height:390px;padding:16px 8px}.flight-seat-map{padding:18px 8px 16px}.flight-checkout .flight-seat-front{margin-bottom:14px}.flight-seat-instructions p:not([role=status]){display:none}.flight-seat-row{gap:4px}.flight-seat-flights>button{font-size:11px;padding:12px 8px}.flight-seat-flights span{font-size:10px}
+}
+.flight-seat-viewport:has(.flight-seat-empty){height:auto;min-height:150px}
