@@ -291,6 +291,8 @@ Resume file: None
 | 261026-c0h | Align travel with Canvas sidechat; shared controls, full-height dock, editable questions and mobile composer verified | 2026-10-26 | bb64608 | Verified | [261026-c0h](./quick/261026-c0h-align-travel-sidechat-with-canvas-and-si/) |
 | 261026-d92 | Suggestions in chat and shared provider stay filters implemented; authenticated browser checks await example-account sign-in recovery | 2026-10-26 | c82fb5b | Incomplete — browser auth | [261026-d92](./quick/261026-d92-put-travel-suggestions-in-chat-and-expos/) |
 
+| 261031-j4d | Implement approved compact hotel details A; single checkout action, responsive browser verification | 2026-10-31 | a777cc1 | Verified | [261031-j4d](./quick/261031-j4d-implement-approved-compact-hotel-details/) |
+
 ### Roadmap Evolution — 2026-10-06
 
 - Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.
