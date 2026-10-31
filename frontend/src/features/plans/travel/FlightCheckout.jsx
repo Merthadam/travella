@@ -33,7 +33,7 @@ export function FlightLeg({ leg, label }) {
 }
 function Summary({ result }) {
   const flight = result.flight;
-  return <aside className="flight-summary" aria-label="Booking summary"><p className="flight-eyebrow">YOUR RETURN JOURNEY</p><h2>{flight.outbound.segments[0].origin} ⇄ {flight.outbound.segments.at(-1).destination}</h2><p>{result.passenger_count} passenger{result.passenger_count === 1 ? '' : 's'}</p>
+  return <aside className="flight-summary" aria-label="Booking summary"><p className="flight-eyebrow">YOUR JOURNEY</p><h2>{flight.outbound.segments[0].origin} ⇄ {flight.outbound.segments.at(-1).destination}</h2><p>{result.passenger_count} passenger{result.passenger_count === 1 ? '' : 's'}</p>
     <FlightLeg leg={flight.outbound} label="Outbound"/><FlightLeg leg={flight.inbound} label="Return"/>
     <div className="flight-total"><span>Total · all passengers</span><strong>{formatFlightPrice(flight.price)}</strong></div>
     <p className="flight-muted">Provider total, including any confirmed seat and baggage selections.</p><p className="flight-muted">Sandbox only · no real ticket or charge.</p>
@@ -131,7 +131,7 @@ export function FlightCheckout(props) {
     <nav className="flight-checkout-nav"><button disabled={busy} className="flight-text-button" onClick={status === 'confirmed' ? onBackToPlan : onClose}>← {status === 'confirmed' ? 'Back to Plan' : 'Back to flights'}</button><span>{status === 'confirmed' ? 'YOUR ITINERARY' : 'FLIGHT CHECKOUT'}</span></nav>
     {error && <p className="flight-error" role="alert">{error}</p>}
     {status === 'confirmed' ? <Confirmation result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
-      <header className="flight-checkout-title"><p className="flight-eyebrow">YOUR RETURN JOURNEY</p><h1 ref={heading} tabIndex={-1}>Book your flights{result ? ` to ${result.flight.outbound.segments.at(-1).destination}` : ''}.</h1><p>Review the journey, add test passengers and confirm the final fare.</p></header>
+      <header className="flight-checkout-title"><p className="flight-eyebrow">YOUR JOURNEY</p><h1 ref={heading} tabIndex={-1}>Book your flights{result ? ` to ${result.flight.outbound.segments.at(-1).destination}` : ''}.</h1><p>Review the journey, add test passengers and confirm the final fare.</p></header>
       {busy && <p className="flight-loading" role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
       {!result && !busy && <div className="flight-message"><h2>{error ? 'This flight could not be verified.' : 'Choose a flight to start checkout.'}</h2><p>{error ? 'Return to flights for a fresh offer.' : 'Passenger details are not retained after leaving. If a reservation was started, its status can be reopened from Flights in this tab.'}</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}
       {result && <><nav className="flight-steps" aria-label="Checkout steps">{steps.map((label, index) => <button key={label} disabled={busy || index > reached || uncertain || ['pending','unknown','failed','cancelled'].includes(status)} aria-current={index === step ? 'step' : undefined} onClick={() => move(index)}><span>{index + 1}</span>{label}</button>)}</nav>

@@ -32,7 +32,7 @@ export function TravelDetailsDialog({ observation, detached, evidenceExpired, re
         ×
       </button>
       <span className="travel-kicker">
-        {stay ? "A CLOSER LOOK" : "YOUR RETURN JOURNEY"}
+        {stay ? "A CLOSER LOOK" : "YOUR JOURNEY"}
       </span>
       <p className="travel-note">
         {sandbox ? "LiteAPI sandbox · test inventory" : "LiteAPI results"}
