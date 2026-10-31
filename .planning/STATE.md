@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T09:46:04.391236+00:00"
 last_activity: 2026-10-31
-last_activity_desc: Fixed passenger validation; verified invalid-to-corrected sandbox reservation on desktop/mobile
+last_activity_desc: Removed empty flight checkout; verified refresh return and reservation recovery
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-i1k | Replace empty flight checkout with return to Flights | 2026-10-31 | 6dbeb32 | [261031-i1k](./quick/261031-i1k-return-empty-flight-checkout-to-flights-/) |
 | 261031-ht4 | Align passenger validation and add inline errors/focus | 2026-10-31 | 8ee3113 | [261031-ht4](./quick/261031-ht4-fix-flight-passenger-inline-validation-a/) |
 | 261031-hhn | Remove Flights footer notes and Saved shortlist disclosure | 2026-10-31 | 6bce88c | [261031-hhn](./quick/261031-hhn-remove-flight-results-footer-notes-and-s/) |
 | 261031-fsa | Rename complete itinerary heading to Your journey | 2026-10-31 | e0995ae | [261031-fsa](./quick/261031-fsa-rename-checkout-return-journey-headings-/) |
