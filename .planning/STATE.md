@@ -516,3 +516,7 @@ User approved removing the intermediate modal from the live manual flight path. 
 ### Checkout country pickers — 31 October 2026
 
 User requested paging for oversized country dropdowns. c13a431 reuses searchable ten-option pages for nationality and passport issuing country, with mobile full-width fields. 252 travel tests passed (12 existing skips), build, canonical auth/source checks and actual authenticated Chrome desktop/mobile country selection, paging, search, empty-state and checkout-step retention passed. Evidence: artifacts/testing/2026-10-31-checkout-country-picker/verification.md. Test Plan cleaned; no reservation/booking, push or merge. Wider Phase18 acceptance unchanged.
+
+### Checkout entry loading jump — 31 October 2026
+
+User still observed flicker on View flight. Actual frame geometry confirmed pending message/Cancel rows moved the primary button up 60px and widened its action column; previous content-presence checks missed it. Fixed in 8fc8b31 by keeping idle/cancellable-loading states in the same button footprint. Desktop/mobile geometry stable; actual cancellation/focus/error/retry and complete handoff passed. 274 travel/canvas tests passed (12 existing skips), build and canonical auth/source checks passed. Debug record .planning/debug/resolved/checkout-entry-flicker.md; evidence artifacts/testing/2026-10-31-checkout-layout-flicker/verification.md. Test Plan cleaned; no booking/payment, push or merge. Wider acceptance unchanged.
