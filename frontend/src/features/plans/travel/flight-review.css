@@ -33,14 +33,7 @@
 .flight-review-header p > span { margin: 0 7px; }
 .flight-review-dialog .flight-review-close { position: absolute; right: 20px; top: 20px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--review-muted); font-size: 24px; line-height: 1; }
 .flight-review-close:hover { background: var(--ds-soft, #edf0e9); }
-.flight-review-steps { display: flex; align-items: center; gap: 16px; margin: 22px 32px 0; flex-shrink: 0; }
-.flight-review-steps button { display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; font-size: 11px; color: var(--review-muted); }
-.flight-review-steps button > span { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--review-line); border-radius: 50%; font-size: 10px; }
-.flight-review-steps [aria-current=step] { color: var(--review-ink); font-weight: 600; }
-.flight-review-steps [aria-current=step] > span { background: var(--ds-action, #315641); color: var(--ds-on-action, white); border-color: var(--ds-action, #315641); }
-.flight-review-step-line { height: 1px; background: var(--review-line); flex: 1; }
 .flight-review-content { overflow: auto; min-height: 0; padding: 0 32px; overscroll-behavior: contain; }
-.flight-review-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .flight-review-leg { padding: 17px 0 14px; border-bottom: 1px solid var(--review-line); }
 .flight-review-leg-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 11px; }
 .flight-review-leg-heading h3 { font-size: 12px; line-height: 1.4; font-weight: 600; }
@@ -59,8 +52,9 @@
 .flight-review-leg summary { width: fit-content; cursor: pointer; text-underline-offset: 3px; }
 .flight-review-leg summary:hover { text-decoration: underline; }
 .flight-review-segments { padding-top: 8px; line-height: 1.8; overflow-wrap: anywhere; }
-.flight-review-terms { padding: 20px 0; }
-.flight-review-terms h3 { margin-bottom: 13px; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.flight-review-terms { padding: 0 0 20px; }
+.flight-review-terms summary { width: fit-content; cursor: pointer; font-size: 12px; font-weight: 600; }
+.flight-review-terms[open] summary { margin-bottom: 14px; }
 .flight-review-terms dl { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 0; }
 .flight-review-terms dt { margin-bottom: 5px; font-size: 10px; color: var(--review-muted); }
 .flight-review-terms dd { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
@@ -69,10 +63,6 @@
 .flight-review-dialog .flight-review-secondary { min-height: 40px; border: 1px solid var(--review-line); border-radius: 6px; padding: 9px 13px; background: transparent; color: var(--review-ink); font-size: 12px; }
 .flight-review-dialog .flight-review-text { border: 0; padding: 8px 0; background: transparent; color: var(--review-green); font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
 .flight-review-text > span { margin-left: 5px; }
-.flight-review-recap { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--review-line); padding: 24px 0 20px; }
-.flight-review-recap h3 { font: 400 22px/1.4 Georgia, serif; }
-.flight-review-recap p { margin-top: 7px; font-size: 11px; color: var(--review-muted); }
-.flight-review-recap button { flex-shrink: 0; }
 .flight-review-boundary { border-top: 1px solid var(--review-line); padding-top: 12px; font-size: 11px; }
 .flight-review-local { padding: 14px 0 18px; font-size: 10px; color: var(--review-muted); }
 .flight-review-observed { padding: 12px 0 18px; font-size: 10px; color: var(--review-muted); overflow-wrap: anywhere; }
@@ -95,14 +85,10 @@
   .flight-review-eyebrow > span { font-size: 10px; padding-left: 10px; }
   .flight-review-dialog .flight-review-close { right: 10px; top: 13px; }
   .flight-review-content { padding: 0 20px; }
-  .flight-review-steps { margin: 20px 20px 0; gap: 10px; }
-  .flight-review-steps button { font-size: 10px; gap: 5px; }
   .flight-review-route { gap: 14px; grid-template-columns: 1fr 1.4fr 1fr; }
   .flight-review-route strong { font-size: 25px; }
   .flight-review-terms dl { gap: 12px; }
   .flight-review-terms dd { font-size: 11px; }
-  .flight-review-recap { display: block; }
-  .flight-review-recap .flight-review-text { margin-top: 6px; }
   .flight-review-footer { padding: 16px 20px; gap: 12px; }
   .flight-review-fare .travel-price strong { font-size: 24px; }
   .flight-review-dialog .flight-review-primary { gap: 12px; padding: 11px 12px; font-size: 11px; }
