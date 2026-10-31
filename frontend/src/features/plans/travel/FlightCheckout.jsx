@@ -1,14 +1,11 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
-import { countries } from '../../onboarding/catalogs';
-import { SearchSelect } from './SearchSelect';
+import React, { useEffect, useRef, useState } from 'react';
 import { useFlightCheckout } from './useFlightCheckout';
 import { downloadItinerary, flightBookingSummary, formatFlightPrice } from './flightItinerary';
 import './flight-checkout.css';
-import { passengerErrors, passportMinimum } from './flightPassengerValidation';
+import { PassengerDetails } from './PassengerDetails';
 import { FlightExtras, ExtrasSummary, serviceChoices, sameChoices } from './FlightExtras';
 import { FlightPayment } from './FlightPayment';
 
-const countryOptions = countries.map(({ code, name }) => ({ value: code, label: name }));
 const steps = ['Your flights', 'Passengers', 'Seats', 'Baggage', 'Review & pay'];
 const today = () => new Date().toISOString().slice(0, 10);
 export function testPassengers(result) {
@@ -40,43 +37,6 @@ function Summary({ result }) {
     <p className="flight-muted">Provider total, including any confirmed seat and baggage selections.</p><p className="flight-muted">Sandbox only · no real ticket or charge.</p>
   </aside>;
 }
-function PassengerFields({ passengers, setPassengers, contact, setContact, result, locked, submitted }) {
-  const id = useId();
-  const [touched, setTouched] = useState({});
-  const errors = passengerErrors(passengers, contact, result);
-  const touch = key => setTouched(old => ({ ...old, [key]: true }));
-  const errorFor = key => !locked && (submitted || touched[key]) ? errors[key] : undefined;
-  const update = (index, key, value) => setPassengers(old => old.map((p, i) => i === index ? { ...p, [key]: value } : p));
-  const field = (key, label, value, onChange, props = {}) => {
-    const error = errorFor(key), fieldId = `${id}-${key}`;
-    return <div className="flight-field"><label htmlFor={fieldId}>{label}</label><input id={fieldId} name={key} required autoComplete="off" {...props} value={value} onChange={e => onChange(e.target.value)} onBlur={() => touch(key)} aria-invalid={error ? true : undefined} aria-describedby={error ? `${fieldId}-error` : undefined}/>{error && <span id={`${fieldId}-error`} className="flight-field-error" aria-live="polite">{error}</span>}</div>;
-  };
-  const country = (p, index, key, label) => {
-    const name = `passenger-${index}-${key}`;
-    return <SearchSelect name={name} label={label} value={p[key]} options={countryOptions} onChange={value => update(index, key, value)} onBlur={() => touch(name)} error={errorFor(name)} required placeholder="Search country or code…"/>;
-  };
-  const contactField = (key, label, props = {}) => field(`contact-${key}`, label, contact[key], value => setContact(old => ({ ...old, [key]: value })), props);
-  if (locked && !passengers.length) return <p>Passenger and contact details were supplied when this test reservation was created. They are not stored in your Plan.</p>;
-  return <fieldset disabled={locked} className="flight-passengers"><legend className="visually-hidden">Test passengers and contact</legend>
-    {!locked && <button type="button" className="flight-text-button" onClick={() => { setPassengers(testPassengers(result)); setContact(testContact()); }}>Fill with test passengers</button>}
-    {passengers.map((p, index) => {
-      const passengerField = (key, label, props) => field(`passenger-${index}-${key}`, label, p[key], value => update(index, key, value), props);
-      return <fieldset className="flight-person" key={index}><legend>Passenger {index + 1} <span>{(result.passenger_ages?.[index] ?? 30) >= 12 ? 'Adult' : result.passenger_ages[index] < 2 ? 'Infant' : 'Child'}</span></legend><div className="flight-fields">
-        {passengerField('first_name', 'Given name', { maxLength: 50 })}
-        {passengerField('last_name', 'Family name', { maxLength: 50 })}
-        {passengerField('date_of_birth', 'Date of birth', { type: 'date', max: today() })}
-        <label>Gender on document<select value={p.gender} onChange={e => update(index, 'gender', e.target.value)}><option value="M">Male</option><option value="F">Female</option></select></label>
-        {country(p, index, 'nationality', 'Nationality')}{country(p, index, 'document_issue_country', 'Passport issuing country')}
-        {passengerField('document_number', 'Test passport number', { pattern: 'TEST[A-Z0-9]{4,16}' })}
-        {passengerField('document_expiry', 'Passport valid until', { type: 'date', min: passportMinimum(result) })}
-      </div></fieldset>;
-    })}
-    <h3>Test booking contact</h3><div className="flight-fields">{contactField('first_name', 'Contact given name', { maxLength: 50 })}{contactField('last_name', 'Contact family name', { maxLength: 50 })}
-      {contactField('email', 'Test email', { type: 'email', maxLength: 120 })}
-      {contactField('phone_country_code', 'Phone country code', { inputMode: 'numeric' })}{contactField('phone_number', 'Test phone number', { inputMode: 'numeric' })}
-    </div><p className="flight-muted">Use fictional details. Test email must end in @example.com or @example.test. These details are sent for this sandbox booking and are not saved in your profile or Plan.</p>
-  </fieldset>;
-}
 
 function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
   const [downloaded, setDownloaded] = useState(false);
@@ -101,8 +61,7 @@ export function FlightCheckout(props) {
   const checkout = useFlightCheckout(props);
   const { result, busy: requestBusy, error, consent, setConsent, attempted, priceChanged, perform } = checkout;
   const [choices, setChoices] = useState([]), [paymentBusy, setPaymentBusy] = useState(false), [paymentReady, setPaymentReady] = useState(false);
-  const [passengerSubmitted, setPassengerSubmitted] = useState(false);
-  const payment = useRef(null), submitting = useRef(false);
+  const passengerForm = useRef(null), payment = useRef(null), submitting = useRef(false);
   const busy = requestBusy || paymentBusy;
   useEffect(() => { if (result) setChoices(serviceChoices(result.selected_services)); }, [result?.token]);
   const [step, setStep] = useState(0), [reached, setReached] = useState(0), [passengers, setPassengers] = useState([]), [contact, setContact] = useState(testContact);
@@ -129,10 +88,7 @@ export function FlightCheckout(props) {
   async function submit(event) {
     event.preventDefault(); if (busy) return;
     if (step === 1 && !locked) {
-      setPassengerSubmitted(true);
-      const errors = passengerErrors(passengers, contact, result);
-      const firstInvalid = Object.keys(errors)[0];
-      if (firstInvalid) { event.currentTarget.elements.namedItem(firstInvalid)?.focus(); return; }
+      if (!passengerForm.current?.validateAndFocus()) return;
       if (!consent) return;
       const value = await perform('prebook', { passengers, contact });
       if (value?.status === 'ready_to_book') { reserved.current = true; move(2); }
@@ -159,12 +115,12 @@ export function FlightCheckout(props) {
       {busy && <p className="flight-loading" role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
       {!result && !busy && error && <div className="flight-message"><h2>This flight could not be verified.</h2><p>Return to flights for a fresh offer.</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}
       {result && <><nav className="flight-steps" aria-label="Checkout steps">{steps.map((label, index) => <button key={label} disabled={busy || index > reached || uncertain || ['pending','unknown','failed','cancelled'].includes(status)} aria-current={index === step ? 'step' : undefined} onClick={() => move(index)}><span>{index + 1}</span>{label}</button>)}</nav>
-        <div className="flight-checkout-grid"><div className="flight-step-panel">
+        <div className="flight-checkout-grid"><div className={`flight-step-panel${step === 1 ? ' flight-passenger-panel' : ''}`}>
           {priceChanged && <p className="flight-warning" role="alert">The provider updated the fare. Your current total is <b>{formatFlightPrice(result.flight.price)}</b>. Review it before confirming.</p>}
           {uncertain || ['pending','unknown','failed','cancelled'].includes(status) ? <div className="flight-message" role="status"><h2>{status === 'pending' ? 'Awaiting confirmation.' : ['failed','cancelled'].includes(status) ? `Test booking ${status}.` : 'Checking the reservation.'}</h2><p>{status === 'pending' ? 'LiteAPI is still confirming the test flight. Your Plan will update only after confirmation.' : ['failed','cancelled'].includes(status) ? 'This itinerary is not confirmed for this test booking.' : 'A reservation may have been started. Check its status before doing anything else; we will not create a second reservation.'}</p></div> : <form onSubmit={submit} noValidate={step === 1 && !locked}>
             <fieldset disabled={busy} className="flight-step-content">
               {step === 0 && <><h2>Review your flights.</h2><p>Check the airports, dates, local times and fare conditions.</p><FlightLeg leg={result.flight.outbound} label="Outbound"/><FlightLeg leg={result.flight.inbound} label="Return"/><p className="flight-muted">{result.flight.cancellation_summary || 'Detailed fare conditions not supplied.'}</p></>}
-              {step === 1 && <><h2>Passenger details.</h2><p>{locked ? 'These details are already attached to the test reservation.' : 'Use fictional passenger details for this sandbox booking.'}</p><PassengerFields passengers={passengers} setPassengers={setPassengers} contact={contact} setContact={setContact} result={result} locked={locked} submitted={passengerSubmitted}/>{!locked && <label className="flight-consent"><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)}/><span>I confirm these test passengers and the itinerary at <b>{formatFlightPrice(result.flight.price)}</b>, and authorize a sandbox reservation.</span></label>}</>}
+              {step === 1 && <><h2>Passenger details.</h2><p>{locked ? 'These details are already attached to the test reservation.' : 'Use fictional passenger details for this sandbox booking.'}</p><PassengerDetails ref={passengerForm} onFill={() => { setPassengers(testPassengers(result)); setContact(testContact()); }} passengers={passengers} setPassengers={setPassengers} contact={contact} setContact={setContact} result={result} locked={locked}/>{!locked && <label className="flight-consent"><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)}/><span>I confirm these test passengers and the itinerary at <b>{formatFlightPrice(result.flight.price)}</b>, and authorize a sandbox reservation.</span></label>}</>}
               {step === 2 && <><p className="flight-eyebrow">SEAT ASSIGNMENT</p><h2>Seats for your journey.</h2><FlightExtras key="seats" kind="seat" result={result} choices={choices} onChange={value => { setChoices(value); setReached(2); setConsent(false); }}/></>}
               {step === 3 && <><p className="flight-eyebrow">BAGGAGE ALLOWANCE</p><h2>Check what you can bring.</h2><div className="flight-included"><h3>Included with this fare</h3><p>{result.flight.baggage_summary || 'The provider did not supply a baggage allowance. Do not assume a cabin or checked bag is included.'}</p></div><FlightExtras key="bags" kind="baggage" result={result} choices={choices} onChange={value => { setChoices(value); setReached(3); setConsent(false); }}/></>}
               {step === 4 && <><h2>Review and pay.</h2><p>Confirm the provider’s final itinerary and total.</p><dl className="flight-review"><div><dt>Passengers</dt><dd>{passengers.length ? passengers.map(p => `${p.first_name} ${p.last_name}`).join(' · ') : `${result.passenger_count} test passengers supplied for this reservation`}</dd></div><div><dt>Seats</dt><dd><ExtrasSummary values={result.selected_services} kind="seat"/></dd></div><div><dt>Baggage</dt><dd>{result.flight.baggage_summary || 'Allowance not supplied.'}<ExtrasSummary values={result.selected_services} kind="baggage"/></dd></div><div><dt>Fare conditions</dt><dd>{result.flight.cancellation_summary || 'Detailed fare conditions not supplied.'}</dd></div></dl>{result.payment_secret ? <FlightPayment ref={payment} secret={result.payment_secret} onReady={setPaymentReady}/> : <div className="flight-payment"><h3>Existing test reservation</h3><p>This older reservation uses LiteAPI’s sandbox account payment. No real charge.</p></div>}<label className="flight-consent"><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)}/><span>I confirm this itinerary, its fare conditions and <b>{formatFlightPrice(result.flight.price)}</b> total for a test-only booking, and want its confirmation saved to my Plan.</span></label></>}

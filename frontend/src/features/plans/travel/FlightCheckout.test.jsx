@@ -228,3 +228,59 @@ it('waits for reservation recovery and keeps recovery failures visible instead o
   expect(onEmpty).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Return to flights' })).toBeTruthy();
 });
+
+it('completes travelers independently, opens the next section and preserves edits without reserving', () => {
+  render(<FlightCheckout planId="p" initialReview={{ ...review, passenger_count: 2, passenger_ages: [30, 7] }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to passengers →' }));
+  expect(screen.getAllByLabelText('Given name')).toHaveLength(1);
+  expect(screen.queryByLabelText('Test email')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Given name'), { target: { value: 'Robin' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done · next traveler →' }));
+  expect(screen.getByRole('button', { name: /Robin Tester.*Complete.*Edit/ }).getAttribute('aria-expanded')).toBe('false');
+  expect(screen.getByLabelText('Given name').value).toBe('Sam');
+  expect(screen.getByRole('button', { name: /Passenger 2 Child/ })).toBe(document.activeElement);
+  fireEvent.click(screen.getByRole('button', { name: 'Done · booking contact →' }));
+  expect(screen.queryByLabelText('Given name')).toBeNull();
+  expect(screen.getByLabelText('Test email')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /Robin Tester.*Edit/ }));
+  expect(screen.getByLabelText('Given name').value).toBe('Robin');
+  fireEvent.change(screen.getByLabelText('Given name'), { target: { value: 'Jamie' } });
+  expect(screen.queryByRole('button', { name: /Robin Tester/ })).toBeNull();
+  expect(travelRequest).not.toHaveBeenCalled();
+  expect(JSON.stringify(sessionStorage)).not.toMatch(/Robin|Sam|Jamie|TEST00000/);
+});
+
+it('opens and focuses invalid collapsed traveler and contact sections before reservation', () => {
+  render(<FlightCheckout planId="p" initialReview={{ ...review, passenger_count: 2, passenger_ages: [30, 30] }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to passengers →' }));
+  fireEvent.change(screen.getByLabelText('Given name'), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done · next traveler →' }));
+  expect(document.activeElement).toBe(screen.getByLabelText('Given name'));
+  expect(screen.getByText('Enter a name.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /Passenger 2 Adult/ }));
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  expect(document.activeElement).toBe(screen.getByLabelText('Given name'));
+  expect(screen.getByLabelText('Given name').value).toBe('');
+  fireEvent.change(screen.getByLabelText('Given name'), { target: { value: 'Alex' } });
+  fireEvent.click(screen.getByRole('button', { name: /Booking contact One contact/ }));
+  fireEvent.change(screen.getByLabelText('Test email'), { target: { value: 'bad@example.org' } });
+  fireEvent.click(screen.getByRole('button', { name: /Passenger 2 Adult/ }));
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  expect(document.activeElement).toBe(screen.getByLabelText('Test email'));
+  expect(screen.getByLabelText('Test email').getAttribute('aria-invalid')).toBe('true');
+  expect(travelRequest).not.toHaveBeenCalled();
+});
+
+it('keeps solo traveler and shared contact visible and resets consent on data changes', () => {
+  render(<FlightCheckout planId="p" initialReview={review}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to passengers →' }));
+  expect(screen.getByLabelText('Given name')).toBeTruthy();
+  expect(screen.getByLabelText('Test email')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /Done ·/ })).toBeNull();
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.change(screen.getByLabelText('Family name'), { target: { value: 'Sample' } });
+  expect(screen.getByRole('checkbox').checked).toBe(false);
+  expect(screen.getByRole('button', { name: 'Reserve test fare & continue' }).disabled).toBe(true);
+});
