@@ -293,6 +293,8 @@ Resume file: None
 
 | 261031-j4d | Implement approved compact hotel details A; single checkout action, responsive browser verification | 2026-10-31 | a777cc1 | Verified | [261031-j4d](./quick/261031-j4d-implement-approved-compact-hotel-details/) |
 
+| 261031-l14 | Add compact hotel room meal/cancellation filters, price sorting, counts and reset | 2026-10-31 | 06b6e4f | Verified | [261031-l14](./quick/261031-l14-add-meal-plan-and-cancellation-filters-t/) |
+
 ### Roadmap Evolution — 2026-10-06
 
 - Phase 14 added: Standalone A2UI Planning Components. Latest user correction excludes live agent generation/state/persistence/provider integration. Four plans prepared; implementation not started. Previous Phase 12 acceptance remains unchanged.
