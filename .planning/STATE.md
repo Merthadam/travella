@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
 last_activity: 2026-10-31
-last_activity_desc: Merged approved flight checkout and passenger improvements into GitHub main
+last_activity_desc: Removed accommodation checkout summary card; verified locally
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-oce | Remove accommodation checkout summary card; desktop/mobile verified | 2026-10-31 | e358393 | [261031-oce](./quick/261031-oce-remove-the-your-stay-summary-card-from-a/) |
 | 261031-l0n | Merge approved flight checkout and passenger improvements into GitHub main | 2026-10-31 | 6cd83f4 | [261031-l0n](./quick/261031-l0n-merge-approved-flight-checkout-and-passe/) |
 | 261031-j4y | Polish approved expandable passenger sections (A) | 2026-10-31 | 5bdc207 | [261031-j4y](./quick/261031-j4y-implement-polished-expandable-passenger-/) |
 | 261031-i1k | Replace empty flight checkout with return to Flights | 2026-10-31 | 6dbeb32 | [261031-i1k](./quick/261031-i1k-return-empty-flight-checkout-to-flights-/) |
@@ -530,3 +531,7 @@ User requested paging for oversized country dropdowns. c13a431 reuses searchable
 ### Checkout entry loading jump — 31 October 2026
 
 User still observed flicker on View flight. Actual frame geometry confirmed pending message/Cancel rows moved the primary button up 60px and widened its action column; previous content-presence checks missed it. Fixed in 8fc8b31 by keeping idle/cancellable-loading states in the same button footprint. Desktop/mobile geometry stable; actual cancellation/focus/error/retry and complete handoff passed. 274 travel/canvas tests passed (12 existing skips), build and canonical auth/source checks passed. Debug record .planning/debug/resolved/checkout-entry-flicker.md; evidence artifacts/testing/2026-10-31-checkout-layout-flicker/verification.md. Test Plan cleaned; no booking/payment, push or merge. Wider acceptance unchanged.
+
+### Accommodation checkout summary removal — 31 October 2026
+
+User requested direct removal of the YOUR STAY card. e358393 removes it and uses one full-width column. 29 existing checkout tests, build, canonical Docker auth/source checks and authenticated Chrome DevTools desktop/mobile journeys passed. Evidence: artifacts/testing/2026-10-31-stay-checkout-summary/verification.md. Temporary test plans cleaned; no reservation, push or merge. Broader phase acceptance unchanged.
