@@ -30,14 +30,6 @@ export function FlightLeg({ leg, label }) {
     </div>)}
   </section>;
 }
-function Summary({ result }) {
-  const flight = result.flight;
-  return <aside className="flight-summary" aria-label="Booking summary"><p className="flight-eyebrow">YOUR JOURNEY</p><h2>{flight.outbound.segments[0].origin} ⇄ {flight.outbound.segments.at(-1).destination}</h2><p>{result.passenger_count} passenger{result.passenger_count === 1 ? '' : 's'}</p>
-    <FlightLeg leg={flight.outbound} label="Outbound"/><FlightLeg leg={flight.inbound} label="Return"/>
-    <div className="flight-total"><span>Total · all passengers</span><strong>{formatFlightPrice(flight.price)}</strong></div>
-    <p className="flight-muted">Provider total, including any confirmed seat and baggage selections.</p><p className="flight-muted">Sandbox only · no real ticket or charge.</p>
-  </aside>;
-}
 
 function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
   const [downloaded, setDownloaded] = useState(false);
@@ -118,7 +110,7 @@ export function FlightCheckout(props) {
       {busy && <p className={result ? 'flight-loading-announcement' : 'flight-loading'} role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
       {!result && !busy && error && <div className="flight-message"><h2>This flight could not be verified.</h2><p>Return to flights for a fresh offer.</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}
       {result && <><nav className="flight-steps" aria-label="Checkout steps">{steps.map((label, index) => <button key={label} disabled={busy || index > reached || uncertain || ['pending','unknown','failed','cancelled'].includes(status)} aria-current={index === step ? 'step' : undefined} onClick={() => move(index)}><span>{index + 1}</span>{label}</button>)}</nav>
-        <div className="flight-checkout-grid"><div className={`flight-step-panel${step === 1 ? ' flight-passenger-panel' : ''}`}>
+        <div className="flight-checkout-grid flight-checkout-single"><div className={`flight-step-panel${step === 1 ? ' flight-passenger-panel' : ''}`}>
           {priceChanged && <p className="flight-warning" role="alert">The provider updated the fare. Your current total is <b>{formatFlightPrice(result.flight.price)}</b>. Review it before confirming.</p>}
           {uncertain || ['pending','unknown','failed','cancelled'].includes(status) ? <div className="flight-message" role="status"><h2>{status === 'pending' ? 'Awaiting confirmation.' : ['failed','cancelled'].includes(status) ? `Test booking ${status}.` : 'Checking the reservation.'}</h2><p>{status === 'pending' ? 'LiteAPI is still confirming the test flight. Your Plan will update only after confirmation.' : ['failed','cancelled'].includes(status) ? 'This itinerary is not confirmed for this test booking.' : 'A reservation may have been started. Check its status before doing anything else; we will not create a second reservation.'}</p></div> : <form onSubmit={submit} noValidate={step === 1 && !locked}>
             <fieldset disabled={busy} className="flight-step-content">
@@ -127,11 +119,12 @@ export function FlightCheckout(props) {
               {step === 2 && <><p className="flight-eyebrow">SEAT ASSIGNMENT</p><h2>Seats for your journey.</h2><FlightSeats result={result} passengers={passengers} choices={choices} onChange={value => { setChoices(value); setReached(2); setConsent(false); }}/></>}
               {step === 3 && <><p className="flight-eyebrow">BAGGAGE ALLOWANCE</p><h2>Check what you can bring.</h2><div className="flight-included"><h3>Included with this fare</h3><p>{result.flight.baggage_summary || 'The provider did not supply a baggage allowance. Do not assume a cabin or checked bag is included.'}</p></div><FlightExtras key="bags" kind="baggage" result={result} choices={choices} onChange={value => { setChoices(value); setReached(3); setConsent(false); }}/></>}
               {step === 4 && <><h2>Review and pay.</h2><p>Confirm the provider’s final itinerary and total.</p><dl className="flight-review"><div><dt>Passengers</dt><dd>{passengers.length ? passengers.map(p => `${p.first_name} ${p.last_name}`).join(' · ') : `${result.passenger_count} test passengers supplied for this reservation`}</dd></div><div><dt>Seats</dt><dd><ExtrasSummary values={result.selected_services} kind="seat"/></dd></div><div><dt>Baggage</dt><dd>{result.flight.baggage_summary || 'Allowance not supplied.'}<ExtrasSummary values={result.selected_services} kind="baggage"/></dd></div><div><dt>Fare conditions</dt><dd>{result.flight.cancellation_summary || 'Detailed fare conditions not supplied.'}</dd></div></dl>{result.payment_secret ? <FlightPayment ref={payment} secret={result.payment_secret} onReady={setPaymentReady}/> : <div className="flight-payment"><h3>Existing test reservation</h3><p>This older reservation uses LiteAPI’s sandbox account payment. No real charge.</p></div>}<label className="flight-consent"><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)}/><span>I confirm this itinerary, its fare conditions and <b>{formatFlightPrice(result.flight.price)}</b> total for a test-only booking, and want its confirmation saved to my Plan.</span></label></>}
+              <div className="flight-total"><span>Total · all passengers</span><strong>{formatFlightPrice(result.flight.price)}</strong></div>
               <div className="flight-actions"><button type="button" className="flight-text-button" onClick={() => step ? move(step - 1) : onClose()}>← {step ? 'Back' : 'Back to flights'}</button><button type="submit" className="flight-primary flight-submit" disabled={busy || (step === 4 && result.payment_secret && !paymentReady) || ((step === 1 && !locked || step === 4) && !consent)}><span aria-hidden={busy} style={{ visibility: busy ? 'hidden' : 'visible' }}>{step === 4 ? `Confirm test booking · ${formatFlightPrice(result.flight.price)}` : step === 1 && !locked ? 'Reserve test fare & continue' : `Continue to ${steps[step + 1].toLowerCase()} →`}</span><span aria-hidden={!busy} style={{ visibility: busy ? 'visible' : 'hidden' }}>{paymentBusy ? 'Authorizing test payment…' : 'Please wait…'}</span></button></div>
             </fieldset>
           </form>}
           {attempted && !reserving && result.token && <button type="button" className="flight-text-button flight-status-button" disabled={busy} onClick={async () => { const value = await perform('status'); if (value?.status === 'ready_to_book') { reserved.current = true; move(4); } }}>Check booking status</button>}
-        </div><Summary result={result}/></div>
+        </div></div>
       </>}
     </>}
   </section>;
