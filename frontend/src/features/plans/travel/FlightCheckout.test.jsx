@@ -164,3 +164,47 @@ it('keeps passenger country choices independent and submits only selected countr
   fireEvent.click(screen.getByRole('button', { name: /2\s*Passengers/ }));
   expect(screen.getByRole('combobox', { name: 'Nationality' }).matches(':disabled')).toBe(true);
 });
+
+it('shows inline errors after blur, blocks invalid submission and focuses the first invalid field', async () => {
+  travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(ready);
+  render(<FlightCheckout planId="p" offerToken="offer"/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue to passengers →' }));
+  const name = screen.getByLabelText('Given name');
+  fireEvent.change(name, { target: { value: '   ' } });
+  expect(screen.queryByText('Enter a name.')).toBeNull();
+  fireEvent.blur(name);
+  expect(name.getAttribute('aria-invalid')).toBe('true');
+  expect(document.getElementById(name.getAttribute('aria-describedby')).textContent).toBe('Enter a name.');
+  fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '2020-01-01' } });
+  const expiry = screen.getByLabelText('Passport valid until');
+  expect(expiry.min).toBe('2027-02-08');
+  fireEvent.change(expiry, { target: { value: '2027-02-07' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  expect(document.activeElement).toBe(name);
+  expect(screen.getByText(/adult fare requires age 12/)).toBeTruthy();
+  expect(screen.getByText(/Passport expiry must be after/)).toBeTruthy();
+  expect(travelRequest).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Fill with test passengers' }));
+  expect(screen.queryByText('Enter a name.')).toBeNull();
+  expect(name.hasAttribute('aria-invalid')).toBe(false);
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  await screen.findByText(/No selectable seats returned/);
+  expect(travelRequest.mock.calls.filter(call => call[1].endsWith('/prebook'))).toHaveLength(1);
+});
+
+it('validates contact fields inline without a request and clears errors as they are corrected', async () => {
+  travelRequest.mockResolvedValueOnce(review);
+  render(<FlightCheckout planId="p" offerToken="offer"/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue to passengers →' }));
+  for (const [label, value] of [['Contact family name', ' '], ['Test email', 'real@domain.com'], ['Phone country code', '+36'], ['Test phone number', '123']]) {
+    const input = screen.getByLabelText(label);
+    fireEvent.change(input, { target: { value } }); fireEvent.blur(input);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+  }
+  const input = screen.getByLabelText('Test email');
+  fireEvent.change(input, { target: { value: 'test@example.com' } });
+  expect(input.hasAttribute('aria-invalid')).toBe(false);
+  expect(travelRequest).toHaveBeenCalledTimes(1);
+});

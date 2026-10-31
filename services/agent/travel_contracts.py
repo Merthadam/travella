@@ -201,7 +201,15 @@ class SandboxFlightServices(SandboxFlightConfirm):
     selected_services: list[FlightServiceSelection] = Field(max_length=64)
 
 
+def flight_name(value: str) -> str:
+    value = value.strip()
+    if not value:
+        raise ValueError("Enter a name.")
+    return value
+
+
 class TestFlightPassenger(TestGuest):
+    _names = field_validator("first_name", "last_name")(flight_name)
     date_of_birth: date
     gender: Literal["M", "F"]
     nationality: Country
@@ -213,6 +221,7 @@ class TestFlightPassenger(TestGuest):
 
 
 class TestFlightContact(TestGuest):
+    _names = field_validator("first_name", "last_name")(flight_name)
     # Sandbox contacts cannot address real travelers. Never checkpoint these fields.
     email: str = Field(max_length=120, pattern=r"^[A-Za-z0-9._%+-]+@example\.(com|test)$")
     phone_country_code: str = Field(pattern=r"^[1-9][0-9]{0,2}$")

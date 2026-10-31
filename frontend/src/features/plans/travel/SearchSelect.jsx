@@ -20,7 +20,7 @@ export function Pagination({ page, total, onChange, label, announce = true }) {
 
 // Draft query text never replaces the chosen value. Leaving the control restores
 // that value; only choosing a listed option changes the submitted criteria.
-export function SearchSelect({ label, value, options, onChange, required = false, placeholder = "Search…" }) {
+export function SearchSelect({ label, name, error, onBlur, value, options, onChange, required = false, placeholder = "Search…" }) {
   const id = useId();
   const input = useRef(null);
   const [open, setOpen] = useState(false);
@@ -41,11 +41,11 @@ export function SearchSelect({ label, value, options, onChange, required = false
   function changePage(next) { setPage(next); setHighlight(-1); }
   return (
     <div className="travel-search-select" onBlur={(event) => {
-      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      if (!event.currentTarget.contains(event.relatedTarget)) { setOpen(false); onBlur?.(); }
     }}>
       <label htmlFor={id}>{label}</label>
       <input
-        ref={input} id={id} role="combobox" autoComplete="off"
+        ref={input} id={id} name={name} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined} role="combobox" autoComplete="off"
         required={required} placeholder={placeholder}
         value={open ? query : selected?.label || ""}
         aria-expanded={open} aria-controls={`${id}-options`} aria-autocomplete="list"
@@ -68,6 +68,7 @@ export function SearchSelect({ label, value, options, onChange, required = false
           }
         }}
       />
+      {error && <span id={`${id}-error`} className="flight-field-error" aria-live="polite">{error}</span>}
       {open && <div className="travel-select-popover">
         <ul id={`${id}-options`} role="listbox" aria-label={`${label} choices`}>
           {visible.map((option, index) => <li

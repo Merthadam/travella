@@ -14,3 +14,7 @@
 .flight-checkout .travel-select-popover .travel-pagination button{border:1px solid var(--ds-control);border-radius:5px;background:var(--ds-surface);color:var(--ds-ink);min-height:32px}
 .flight-checkout .travel-select-popover [role="option"]:hover,.flight-checkout .travel-select-popover .is-highlighted,.flight-checkout .travel-select-popover [aria-selected="true"]{background:var(--ds-soft)}
 @media(max-width:760px){.flight-fields>.travel-search-select{grid-column:1/-1}}
+
+.flight-field{display:flex;flex-direction:column;gap:7px;min-width:0}
+.flight-checkout .flight-field-error{color:var(--ds-danger);font-size:12px;line-height:1.4;font-weight:400}
+.flight-checkout .flight-fields [aria-invalid=true]{border-color:var(--ds-danger)}
