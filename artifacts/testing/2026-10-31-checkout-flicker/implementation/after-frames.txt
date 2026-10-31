@@ -1,0 +1,5 @@
+Script ran on page and returned:
+```json
+{"frames":[{"t":7,"dialog":true,"checkout":false,"title":"","loading":"","grid":false,"scroll":0},{"t":1205,"dialog":false,"checkout":true,"title":"Book your flights to LIS.","loading":"","grid":true,"scroll":0}],"verifyCount":1}
+```
+Page navigated to http://localhost:5174/plans/33b03cc2-df23-4b16-9f9c-3d5ca2bf745f?checkout=flights.

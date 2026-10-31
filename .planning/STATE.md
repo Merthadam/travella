@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-31T09:27:29.144285+00:00"
+last_updated: "2026-10-31T09:38:45.119583+00:00"
 last_activity: 2026-10-31
-last_activity_desc: Removed extra fare step; direct itinerary checkout verified
+last_activity_desc: Fixed manual flight checkout flicker; browser frame verification passed
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -500,3 +500,7 @@ User selected C and requested implementation. Application commit 132a1af on feat
 ### Direct flight checkout refinement — 31 October 2026
 
 User removed the redundant fare step. b93cc6f exposes Continue to checkout on itinerary and keeps optional fare disclosure. 244 travel tests passed (12 fixture skips), build and actual authenticated Chrome sandbox direct handoff/mobile/expiry checks passed. Evidence: artifacts/testing/2026-10-31-direct-flight-checkout/verification.md. Canonical localhost:5174 rebuilt and source-verified. Test Plan cleaned. No push/merge/deployment; broader phase acceptance unchanged.
+
+### Manual flight checkout flicker — 31 October 2026
+
+Debug session resolved in b6710e4. Keep itinerary visible while verifying the original offer, then mount fully populated checkout from its in-memory server response. Abort and retry handling preserved. Real Chrome frame sampling showed no intervening results/blank-checkout frame, one verify request; desktop/mobile/error/cancel checks and 272 travel/canvas tests passed (12 external-fixture skips). Canonical Docker auth/source checks passed. Evidence: artifacts/testing/2026-10-31-checkout-flicker/verification.md. Debug record: .planning/debug/resolved/manual-checkout-flicker.md. Test Plan cleaned; no booking/payment, merge or deployment. Wider phase acceptance unchanged.
