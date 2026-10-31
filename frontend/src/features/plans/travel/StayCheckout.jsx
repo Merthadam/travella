@@ -13,9 +13,6 @@ export function StayRooms({ reservation }) {
     {room.excludedTaxes.map((tax, index) => <p key={index}>Pay at property: {tax.name} · {formatStayPrice(tax)}</p>)}
   </section>)}</>;
 }
-function Summary({ result }) {
-  return <aside className="flight-summary"><p className="flight-eyebrow">YOUR STAY</p><h2>{result.hotel_name}</h2><p>{result.reservation?.address || 'Address not supplied'}</p><p>{result.check_in} – {result.check_out}</p><p>{result.room_count} room(s) · {Math.round((Date.parse(result.check_out) - Date.parse(result.check_in)) / 86400000)} nights</p><div className="flight-total"><span>Total</span><strong>{formatStayPrice(result.reservation?.total || result.total)}</strong></div><p>Total for all rooms and nights. Any excluded taxes are shown with each room.</p><p className="flight-muted">LiteAPI sandbox · no real reservation or charge.</p></aside>;
-}
 function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
   const [downloaded, setDownloaded] = useState(false);
   const receipt = useRef(null), printDetails = useRef(null);
@@ -81,7 +78,7 @@ export function StayCheckout(props) {
           <div className="flight-actions"><button type="button" className="flight-text-button" onClick={() => step ? move(step - 1) : onClose()}>← {step ? 'Back' : 'Back to stays'}</button><button className="flight-primary" type="submit" disabled={busy || (step === 2 && !consent)}>{step === 2 ? `Confirm test booking · ${formatStayPrice(result.total)}` : `Continue to ${steps[step + 1].toLowerCase()} →`}</button></div>
         </fieldset></form>}
         {attempted && result.token && <button className="flight-text-button flight-status-button" disabled={busy} onClick={() => perform('status')}>Check reservation status</button>}
-      </div><Summary result={result}/></div></>}
+      </div></div></>}
     </>}
   </section>;
 }
