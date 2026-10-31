@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T09:46:04.391236+00:00"
 last_activity: 2026-10-31
-last_activity_desc: Implemented approved passenger accordion A; verified desktop, mobile, validation, and sandbox reservation
+last_activity_desc: Merged approved flight checkout and passenger improvements into GitHub main
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-l0n | Merge approved flight checkout and passenger improvements into GitHub main | 2026-10-31 | 6cd83f4 | [261031-l0n](./quick/261031-l0n-merge-approved-flight-checkout-and-passe/) |
 | 261031-j4y | Polish approved expandable passenger sections (A) | 2026-10-31 | 5bdc207 | [261031-j4y](./quick/261031-j4y-implement-polished-expandable-passenger-/) |
 | 261031-i1k | Replace empty flight checkout with return to Flights | 2026-10-31 | 6dbeb32 | [261031-i1k](./quick/261031-i1k-return-empty-flight-checkout-to-flights-/) |
 | 261031-ht4 | Align passenger validation and add inline errors/focus | 2026-10-31 | 8ee3113 | [261031-ht4](./quick/261031-ht4-fix-flight-passenger-inline-validation-a/) |
