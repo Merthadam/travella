@@ -172,3 +172,43 @@ test('photo gallery supports keyboard navigation and returning focus to its trig
   expect(screen.queryByRole('dialog', { name: 'Test hotel photos' })).toBeNull();
   expect(document.activeElement).toBe(trigger);
 });
+
+test('room filters update counts, preserve exact checkout identity, and clear without refetching', async () => {
+  const offers = [
+    { ...room('room-only'), board_name: 'Room Only', refundable: true, total: { amount: '90', currency: 'EUR' } },
+    { ...room('breakfast-flexible'), board_name: 'Breakfast Included', refundable: true, checkout_token: 'exact-breakfast-token', total: { amount: '120', currency: 'EUR' } },
+    { ...room('breakfast-fixed'), board_name: 'Breakfast Included', refundable: false, total: { amount: '100', currency: 'EUR' } },
+    { ...room('unknown'), board_name: null, refundable: null, total: { amount: null, currency: 'EUR' } },
+  ];
+  const entry = observation(); entry.snapshot.criteria.currency = 'EUR';
+  serve(refresh({ rooms: offers })); const onCheckout = vi.fn();
+  render(<StayDetails planId="plan" observation={entry} onClose={vi.fn()} onCheckout={onCheckout}/>);
+  await screen.findByText('4 of 4 offers');
+  const names = () => screen.getAllByRole('article').map(article => article.querySelector('h4').textContent);
+  expect(names()).toEqual(['room-only', 'breakfast-fixed', 'breakfast-flexible', 'unknown']);
+  fireEvent.change(screen.getByLabelText('Meal plan'), { target: { value: 'breakfast' } });
+  expect(screen.getByText('2 of 4 offers')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Cancellation'), { target: { value: 'refundable' } });
+  expect(screen.getByText('1 of 4 offers')).toBeTruthy();
+  expect(screen.getByText(/Refundable offers may have fees/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to checkout' }));
+  expect(onCheckout).toHaveBeenCalledWith({ offerToken: 'exact-breakfast-token' });
+  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+  expect(screen.getByText('4 of 4 offers')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'provider' } });
+  expect(names()).toEqual(offers.map(room => room.name));
+  expect(travelRequest).toHaveBeenCalledTimes(2);
+});
+
+test('no matching rooms offers a clear reset without pretending provider inventory is empty', async () => {
+  serve(refresh({ rooms: [{ ...room(), board_name: 'Room Only', refundable: false }] }));
+  render(<StayDetails planId="plan" observation={observation()} onClose={vi.fn()} onCheckout={vi.fn()}/>);
+  await screen.findByText('1 of 1 offers');
+  fireEvent.change(screen.getByLabelText('Cancellation'), { target: { value: 'refundable' } });
+  expect(screen.getByText('0 of 1 offers')).toBeTruthy();
+  expect(screen.getByText(/No room offers match these filters/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Continue to checkout' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+  expect(screen.getByText('1 of 1 offers')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Continue to checkout' })).toBeTruthy();
+});

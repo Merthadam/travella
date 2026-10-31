@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { safeTravelImage } from "./CanvasTravel";
+import { filterStayRooms } from "./stayRoomFilters";
 import { travelRequest } from "./travelApi";
 import { Price, refund } from "./TravelPresentation";
 import { TravelDetailsDialog, offerExpired } from "./TravelDetailsDialog";
@@ -79,6 +80,12 @@ export function StayDetails({ planId, observation, detached, booked, onClose, on
     observedAt: null,
   }));
   const { rooms } = roomObservation;
+  const [meal, setMeal] = useState('all');
+  const [cancellation, setCancellation] = useState('all');
+  const [sort, setSort] = useState('price');
+  const visibleRooms = filterStayRooms(rooms, { meal, cancellation, sort, currency: criteria.currency });
+  const filtersChanged = meal !== 'all' || cancellation !== 'all' || sort !== 'price';
+  const clearFilters = () => { setMeal('all'); setCancellation('all'); setSort('price'); };
   const evidenceExpired = offerExpired(roomObservation.expiresAt);
   const [, updateExpiry] = useState(0);
   useEffect(() => {
@@ -169,7 +176,7 @@ export function StayDetails({ planId, observation, detached, booked, onClose, on
         </details>
       </aside>
       <section className="stay-rooms" aria-labelledby="stay-rooms-title">
-        <div className="stay-rooms-heading"><div><span className="travel-kicker">YOUR STAY</span><h3 id="stay-rooms-title">Choose your room</h3></div>{!loading && <small>{rooms.length} room {rooms.length === 1 ? 'offer' : 'offers'}</small>}</div>
+        <div className="stay-rooms-heading"><div><span className="travel-kicker">YOUR STAY</span><h3 id="stay-rooms-title">Choose your room</h3></div></div>
         <p className="stay-trip">{dateLabel(criteria.check_in)} – {dateLabel(criteria.check_out)}{nights > 0 && ` · ${nights} nights`}{guests > 0 && ` · ${guests} guests · ${party.length} ${party.length === 1 ? 'room' : 'rooms'}`}</p>
         {detached && <p className="travel-notice" role="status">Earlier search · inspecting its original observation. The main results have changed.</p>}
         {observedOnly && <p className="travel-notice" role="status">Original observed offer · no availability refresh requested.</p>}
@@ -177,7 +184,18 @@ export function StayDetails({ planId, observation, detached, booked, onClose, on
         {booked && <p className="travel-notice" role="status">A stay is already booked in this Plan.</p>}
         {loading ? <div className="travel-details-loading" role="status"><p>Refreshing hotel and room details…</p><div className="travel-details-placeholder" aria-hidden="true"><span/><span/><span/></div></div> : <>
           {error && <p className="travel-notice travel-error" role="alert">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Retry details</button></p>}
-          {rooms.map(room => <Room key={room.id} room={room} nights={nights > 0 ? nights : null} onCheckout={canCheckout ? checkout : null}/>)}
+          {rooms.length > 0 && <>
+            <div className="stay-room-filters" role="group" aria-label="Filter room offers">
+              <label>Meal plan<select value={meal} onChange={event => setMeal(event.target.value)}><option value="all">All</option><option value="room">Room only</option><option value="breakfast">Breakfast included</option></select></label>
+              <label>Cancellation<select value={cancellation} onChange={event => setCancellation(event.target.value)}><option value="all">All</option><option value="refundable">Refundable</option></select></label>
+              <label>Sort by<select value={sort} onChange={event => setSort(event.target.value)}><option value="price">Lowest total price</option><option value="provider">Provider order</option></select></label>
+            </div>
+            <div className="stay-filter-summary"><span role="status" aria-live="polite">{visibleRooms.length} of {rooms.length} offers</span><button type="button" disabled={!filtersChanged} onClick={clearFilters}>Clear filters</button></div>
+            {cancellation === 'refundable' && <p className="stay-filter-note">Refundable offers may have fees or deadlines. Check the cancellation policy.</p>}
+            {sort === 'price' && <p className="stay-filter-note">Includes supplied extra taxes. Offers with incomplete prices appear last.</p>}
+          </>}
+          {visibleRooms.map(room => <Room key={room.id} room={room} nights={nights > 0 ? nights : null} onCheckout={canCheckout ? checkout : null}/>)}
+          {rooms.length > 0 && !visibleRooms.length && <p className="travel-notice">No room offers match these filters. Clear filters to see all offers.</p>}
           {!rooms.length && <p className="travel-notice">No room offers are available for these dates.</p>}
           <p className="stay-assurance">{sandbox ? 'You’ll review the final total and guest details at checkout. Sandbox bookings are test-only.' : 'Availability and prices can change.'}</p>
         </>}
