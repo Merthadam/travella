@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-fsa | Rename complete itinerary heading to Your journey | 2026-10-31 | e0995ae | [261031-fsa](./quick/261031-fsa-rename-checkout-return-journey-headings-/) |
 | 261031-fly | Compact paginated checkout country pickers | 2026-10-31 | c13a431 | [261031-fly](./quick/261031-fly-replace-oversized-checkout-country-menus/) |
 | 261031-fa4 | Open checkout review directly from flight results | 2026-10-31 | 0cea83c | [261031-fa4](./quick/261031-fa4-open-flight-checkout-review-directly-fro/) |
 | 261031-evp | Remove choose/discuss from flight review | 2026-10-31 | 1d75f77 | [261031-evp](./quick/261031-evp-remove-choose-and-discuss-actions-from-f/) |
