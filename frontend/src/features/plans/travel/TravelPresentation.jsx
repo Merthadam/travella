@@ -24,7 +24,7 @@ export function Price({ price, stay, room = false, label }) {
     <div className="travel-price">
       <strong>{price?.estimated ? 'Estimated ' : ''}{priceLabel(price)}</strong>
       <small>
-        {label || (stay ? room ? 'Observed room offer · total stay' : "Total for all rooms & nights" : "Return total · all travelers")}{price?.currency && ` · ${price.currency}`}
+        {label ?? (stay ? room ? 'Observed room offer · total stay' : "Total for all rooms & nights" : "Return total · all travelers")}{price?.currency && ` · ${price.currency}`}
       </small>
       {price?.excluded_taxes?.map((tax, i) => (
         <small key={i}>

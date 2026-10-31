@@ -204,7 +204,7 @@ def test_supplied_passengers_reach_provider_but_never_enter_receipt_or_projectio
     assert verified['passenger_ages'] == [30] * FLIGHT['adults']
 
 
-@pytest.mark.parametrize('invalid', ['count', 'age', 'expiry', 'real_email', 'real_document', 'partial'])
+@pytest.mark.parametrize('invalid', ['count', 'age', 'expiry', 'real_email', 'real_document', 'partial', 'blank_passenger', 'blank_contact'])
 def test_invalid_passengers_never_claim_or_reserve(setup, invalid):
     api, supplier, token = setup
     verified = call(api, 'verify', token)
@@ -215,6 +215,8 @@ def test_invalid_passengers_never_claim_or_reserve(setup, invalid):
     if invalid == 'real_email': data['contact']['email'] = 'person@real-domain.com'
     if invalid == 'real_document': data['passengers'][0]['document_number'] = 'AB1234567'
     if invalid == 'partial': del data['contact']
+    if invalid == 'blank_passenger': data['passengers'][0]['first_name'] = '  '
+    if invalid == 'blank_contact': data['contact']['last_name'] = '\u00a0 '
     with pytest.raises((ProviderUnavailable, ValidationError)):
         run(api.call('sandbox/flights/prebook', {"token": verified['token'], "confirm_mock": True, **data}))
     assert supplier.prebooks == 0

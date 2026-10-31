@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { FlightCheckout } from './FlightCheckout';
 import { travelRequest } from './travelApi';
 import { flightBookingSummary, itineraryDocument } from './flightItinerary';
@@ -124,4 +124,163 @@ it('applies selected seats, updates the total and preserves extras in the saved 
   const summary = flightBookingSummary({ ...changed, status: 'confirmed', booking_id: 'TEST' });
   expect(summary.itinerary.extras).toEqual([{ kind: 'seat', label: seat.label, segmentIndex: 0, passengerIndex: 0, quantity: 1, amount: '12', currency: 'EUR' }]);
   expect(itineraryDocument(summary)).toContain('Seat 12A');
+});
+
+it('mounts a prepared checkout with its final heading and itinerary, without verifying the token twice', () => {
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  expect(screen.getByRole('heading', { name: 'Book your flights to FCO.' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Review your flights.' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Continue to passengers →' }).disabled).toBe(false);
+  expect(screen.queryByText('Verifying availability and the current fare…')).toBeNull();
+  expect(travelRequest).not.toHaveBeenCalled();
+  expect(sessionStorage.getItem('travella:mock-flight:p')).toBeNull();
+});
+
+it('keeps passenger country choices independent and submits only selected country codes', async () => {
+  travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(ready);
+  render(<FlightCheckout planId="p" offerToken="offer"/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue to passengers →' }));
+  const nationality = screen.getByRole('combobox', { name: 'Nationality' });
+  const issuer = screen.getByRole('combobox', { name: 'Passport issuing country' });
+  expect(nationality.value).toBe('Hungary');
+  fireEvent.click(nationality);
+  expect(within(screen.getByRole('listbox', { name: 'Nationality choices' })).getAllByRole('option')).toHaveLength(10);
+  fireEvent.click(screen.getByRole('button', { name: 'Next Nationality choices' }));
+  expect(screen.getByText('Page 2 of 25')).toBeTruthy();
+  fireEvent.change(nationality, { target: { value: 'Iceland' } });
+  fireEvent.keyDown(nationality, { key: 'Enter' });
+  expect(nationality.value).toBe('Iceland');
+  expect(issuer.value).toBe('Hungary');
+  fireEvent.click(issuer);
+  fireEvent.change(issuer, { target: { value: 'no-such-country' } });
+  expect(screen.getByText('No matches. Try another search.')).toBeTruthy();
+  fireEvent.keyDown(issuer, { key: 'Escape' });
+  expect(issuer.value).toBe('Hungary');
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  await waitFor(() => expect(travelRequest).toHaveBeenCalledTimes(2));
+  expect(travelRequest.mock.calls[1][2].passengers[0]).toMatchObject({ nationality: 'IS', document_issue_country: 'HU' });
+  await screen.findByRole('button', { name: 'Continue to baggage →' });
+  fireEvent.click(screen.getByRole('button', { name: /2\s*Passengers/ }));
+  expect(screen.getByRole('combobox', { name: 'Nationality' }).matches(':disabled')).toBe(true);
+});
+
+it('shows inline errors after blur, blocks invalid submission and focuses the first invalid field', async () => {
+  travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(ready);
+  render(<FlightCheckout planId="p" offerToken="offer"/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue to passengers →' }));
+  const name = screen.getByLabelText('Given name');
+  fireEvent.change(name, { target: { value: '   ' } });
+  expect(screen.queryByText('Enter a name.')).toBeNull();
+  fireEvent.blur(name);
+  expect(name.getAttribute('aria-invalid')).toBe('true');
+  expect(document.getElementById(name.getAttribute('aria-describedby')).textContent).toBe('Enter a name.');
+  fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '2020-01-01' } });
+  const expiry = screen.getByLabelText('Passport valid until');
+  expect(expiry.min).toBe('2027-02-08');
+  fireEvent.change(expiry, { target: { value: '2027-02-07' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  expect(document.activeElement).toBe(name);
+  expect(screen.getByText(/adult fare requires age 12/)).toBeTruthy();
+  expect(screen.getByText(/Passport expiry must be after/)).toBeTruthy();
+  expect(travelRequest).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Fill with test passengers' }));
+  expect(screen.queryByText('Enter a name.')).toBeNull();
+  expect(name.hasAttribute('aria-invalid')).toBe(false);
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  await screen.findByText(/No selectable seats returned/);
+  expect(travelRequest.mock.calls.filter(call => call[1].endsWith('/prebook'))).toHaveLength(1);
+});
+
+it('validates contact fields inline without a request and clears errors as they are corrected', async () => {
+  travelRequest.mockResolvedValueOnce(review);
+  render(<FlightCheckout planId="p" offerToken="offer"/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue to passengers →' }));
+  for (const [label, value] of [['Contact family name', ' '], ['Test email', 'real@domain.com'], ['Phone country code', '+36'], ['Test phone number', '123']]) {
+    const input = screen.getByLabelText(label);
+    fireEvent.change(input, { target: { value } }); fireEvent.blur(input);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+  }
+  const input = screen.getByLabelText('Test email');
+  fireEvent.change(input, { target: { value: 'test@example.com' } });
+  expect(input.hasAttribute('aria-invalid')).toBe(false);
+  expect(travelRequest).toHaveBeenCalledTimes(1);
+});
+
+it('returns an empty checkout to Flights without rendering the empty page', () => {
+  const onEmpty = vi.fn();
+  render(<FlightCheckout planId="p" onEmpty={onEmpty}/>);
+  expect(onEmpty).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('region', { name: 'Flight checkout' })).toBeNull();
+  expect(travelRequest).not.toHaveBeenCalled();
+});
+
+it('waits for reservation recovery and keeps recovery failures visible instead of redirecting', async () => {
+  let reject;
+  travelRequest.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+  const onEmpty = vi.fn();
+  render(<FlightCheckout planId="p" recoveryToken="receipt" onEmpty={onEmpty}/>);
+  expect(onEmpty).not.toHaveBeenCalled();
+  reject(new Error('Unable to check reservation status.'));
+  await screen.findByText('This flight could not be verified.');
+  expect(onEmpty).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Return to flights' })).toBeTruthy();
+});
+
+it('completes travelers independently, opens the next section and preserves edits without reserving', () => {
+  render(<FlightCheckout planId="p" initialReview={{ ...review, passenger_count: 2, passenger_ages: [30, 7] }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to passengers →' }));
+  expect(screen.getAllByLabelText('Given name')).toHaveLength(1);
+  expect(screen.queryByLabelText('Test email')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Given name'), { target: { value: 'Robin' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done · next traveler →' }));
+  expect(screen.getByRole('button', { name: /Robin Tester.*Complete.*Edit/ }).getAttribute('aria-expanded')).toBe('false');
+  expect(screen.getByLabelText('Given name').value).toBe('Sam');
+  expect(screen.getByRole('button', { name: /Passenger 2 Child/ })).toBe(document.activeElement);
+  fireEvent.click(screen.getByRole('button', { name: 'Done · booking contact →' }));
+  expect(screen.queryByLabelText('Given name')).toBeNull();
+  expect(screen.getByLabelText('Test email')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /Robin Tester.*Edit/ }));
+  expect(screen.getByLabelText('Given name').value).toBe('Robin');
+  fireEvent.change(screen.getByLabelText('Given name'), { target: { value: 'Jamie' } });
+  expect(screen.queryByRole('button', { name: /Robin Tester/ })).toBeNull();
+  expect(travelRequest).not.toHaveBeenCalled();
+  expect(JSON.stringify(sessionStorage)).not.toMatch(/Robin|Sam|Jamie|TEST00000/);
+});
+
+it('opens and focuses invalid collapsed traveler and contact sections before reservation', () => {
+  render(<FlightCheckout planId="p" initialReview={{ ...review, passenger_count: 2, passenger_ages: [30, 30] }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to passengers →' }));
+  fireEvent.change(screen.getByLabelText('Given name'), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done · next traveler →' }));
+  expect(document.activeElement).toBe(screen.getByLabelText('Given name'));
+  expect(screen.getByText('Enter a name.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /Passenger 2 Adult/ }));
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  expect(document.activeElement).toBe(screen.getByLabelText('Given name'));
+  expect(screen.getByLabelText('Given name').value).toBe('');
+  fireEvent.change(screen.getByLabelText('Given name'), { target: { value: 'Alex' } });
+  fireEvent.click(screen.getByRole('button', { name: /Booking contact One contact/ }));
+  fireEvent.change(screen.getByLabelText('Test email'), { target: { value: 'bad@example.org' } });
+  fireEvent.click(screen.getByRole('button', { name: /Passenger 2 Adult/ }));
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  expect(document.activeElement).toBe(screen.getByLabelText('Test email'));
+  expect(screen.getByLabelText('Test email').getAttribute('aria-invalid')).toBe('true');
+  expect(travelRequest).not.toHaveBeenCalled();
+});
+
+it('keeps solo traveler and shared contact visible and resets consent on data changes', () => {
+  render(<FlightCheckout planId="p" initialReview={review}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to passengers →' }));
+  expect(screen.getByLabelText('Given name')).toBeTruthy();
+  expect(screen.getByLabelText('Test email')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /Done ·/ })).toBeNull();
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.change(screen.getByLabelText('Family name'), { target: { value: 'Sample' } });
+  expect(screen.getByRole('checkbox').checked).toBe(false);
+  expect(screen.getByRole('button', { name: 'Reserve test fare & continue' }).disabled).toBe(true);
 });

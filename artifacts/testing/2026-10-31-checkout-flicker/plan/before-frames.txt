@@ -1,0 +1,4 @@
+Script ran on page and returned:
+```json
+[{"t":32,"dialog":false,"checkout":false,"title":"","loading":"","grid":false,"scroll":0},{"t":66,"dialog":false,"checkout":true,"title":"Book your flights.","loading":"Verifying availability and the current fare…","grid":false,"scroll":0},{"t":1037,"dialog":false,"checkout":true,"title":"Book your flights to LIS.","loading":"","grid":true,"scroll":0}]
+```

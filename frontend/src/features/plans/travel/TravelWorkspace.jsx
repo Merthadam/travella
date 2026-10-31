@@ -166,7 +166,7 @@ export function TravelWorkspace({ backNavigation, travelerProfile, sandbox, sele
     {historicalOption && <section aria-label="Earlier research details"><button type="button" onClick={() => setHistoricalOption(null)}>Close earlier details</button>{card(historicalOption)}</section>}
     {snapshot?.readiness === 'needs_review' && <p className="canvas-notice">Your trip details changed. Research again before confirming the previous choice still fits.</p>}
     {preferred && <details className="travel-saved-options"><summary>Your choice · {preferred.title}</summary><section aria-label="Preferred option">{card(preferred, true)}</section></details>}
-    {shortlist.filter(item => optionId(item) !== optionId(preferred || {})).length > 0 && <details className="travel-saved-options"><summary>Saved shortlist</summary>{shortlist.filter(item => optionId(item) !== optionId(preferred || {})).map(item => card(item, true))}</details>}
+    {topic === 'stays' && shortlist.filter(item => optionId(item) !== optionId(preferred || {})).length > 0 && <details className="travel-saved-options"><summary>Saved shortlist</summary>{shortlist.filter(item => optionId(item) !== optionId(preferred || {})).map(item => card(item, true))}</details>}
     {choiceError && !review && <p role="alert" className="canvas-chat-error">{choiceError}</p>}
   </>;
   const notes = <>{snapshot?.notes?.items?.length > 0 && <details className="travel-research-notes"><summary>What we’ve learned</summary><ul>{snapshot.notes.items.map((note, index) => <li key={index}><strong>{noteLabels[note.kind] || 'Research note'}:</strong> {note.text}</li>)}</ul></details>}</>;

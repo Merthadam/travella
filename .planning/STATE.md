@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-30T18:09:33.388533+00:00"
-last_activity: 2026-10-30
-last_activity_desc: Shared authenticated agent gateway setup; 88 tests passed; memory retained
+last_updated: "2026-10-31T09:46:04.391236+00:00"
+last_activity: 2026-10-31
+last_activity_desc: Merged approved flight checkout and passenger improvements into GitHub main
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,17 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-l0n | Merge approved flight checkout and passenger improvements into GitHub main | 2026-10-31 | 6cd83f4 | [261031-l0n](./quick/261031-l0n-merge-approved-flight-checkout-and-passe/) |
+| 261031-j4y | Polish approved expandable passenger sections (A) | 2026-10-31 | 5bdc207 | [261031-j4y](./quick/261031-j4y-implement-polished-expandable-passenger-/) |
+| 261031-i1k | Replace empty flight checkout with return to Flights | 2026-10-31 | 6dbeb32 | [261031-i1k](./quick/261031-i1k-return-empty-flight-checkout-to-flights-/) |
+| 261031-ht4 | Align passenger validation and add inline errors/focus | 2026-10-31 | 8ee3113 | [261031-ht4](./quick/261031-ht4-fix-flight-passenger-inline-validation-a/) |
+| 261031-hhn | Remove Flights footer notes and Saved shortlist disclosure | 2026-10-31 | 6bce88c | [261031-hhn](./quick/261031-hhn-remove-flight-results-footer-notes-and-s/) |
+| 261031-fsa | Rename complete itinerary heading to Your journey | 2026-10-31 | e0995ae | [261031-fsa](./quick/261031-fsa-rename-checkout-return-journey-headings-/) |
+| 261031-fly | Compact paginated checkout country pickers | 2026-10-31 | c13a431 | [261031-fly](./quick/261031-fly-replace-oversized-checkout-country-menus/) |
+| 261031-fa4 | Open checkout review directly from flight results | 2026-10-31 | 0cea83c | [261031-fa4](./quick/261031-fa4-open-flight-checkout-review-directly-fro/) |
+| 261031-evp | Remove choose/discuss from flight review | 2026-10-31 | 1d75f77 | [261031-evp](./quick/261031-evp-remove-choose-and-discuss-actions-from-f/) |
+| 261031-eec | Remove extra fare step; direct itinerary checkout | 2026-10-31 | b93cc6f | [261031-eec](./quick/261031-eec-remove-redundant-fare-step-and-continue-/) |
+| 261030-xau | Implement approved guided flight review C | 2026-10-31 | 132a1af | [261030-xau](./quick/261030-xau-implement-approved-guided-flight-review-/) |
 | 261030-vld | Match Recently deleted to My plans as uniform rows; remove old view | 2026-10-30 | 22071ae | [261030-vld](./quick/261030-vld-use-my-plans-card-styling-for-recently-d/) |
 | 261030-qip | Share authenticated agent gateway setup | 2026-10-30 | 36c4b2f | [261030-qip](./quick/261030-qip-share-authenticated-agent-gateway-setup-/) |
 | 261030-qec | Remove obsolete docs and inspect backend cleanup candidates | 2026-10-30 | 14b8a64 | [261030-qec](./quick/261030-qec-remove-obsolete-docs-directory-and-ident/) |
@@ -494,3 +505,27 @@ User explicitly authorized merge to main. PR #27: https://github.com/Merthadam/t
 ### Recently deleted and accommodation flicker shipment — 30 October 2026
 
 User explicitly authorized merging vivid-sunspot into main. PR #28: https://github.com/Merthadam/travella/pull/28. Source 4ac7019 on base c1a9f7e contains uniform Recently deleted journal rows, old grid/card removal, pre-paint chat scroll restoration and coherent View rooms loading. Existing focused tests/build and authenticated desktop/mobile evidence remain applicable; scoped security gate passes with zero introduced threats. Shipment record: .planning/quick/261030-plans-ui-ship/VERIFICATION.md. Rebuild canonical localhost from merged main so the running preview retains the accepted changes. Preserve dirty primary main checkout, unrelated stacks and volumes; wider phase acceptance unchanged.
+
+### Guided flight review C — 31 October 2026
+
+User selected C and requested implementation. Application commit 132a1af on feat/guided-flight-review adds two-stage itinerary/fare review with persistent checkout footer and exact existing actions. 244 travel tests passed, 12 fixture skips; build, canonical Docker auth/source checks and authenticated Chrome DevTools sandbox journeys passed. Evidence: artifacts/testing/2026-10-30-guided-flight-review/verification.md. Temporary test Plan cleaned; no booking/payment, push or merge. Wider Phase18 acceptance unchanged.
+
+### Direct flight checkout refinement — 31 October 2026
+
+User removed the redundant fare step. b93cc6f exposes Continue to checkout on itinerary and keeps optional fare disclosure. 244 travel tests passed (12 fixture skips), build and actual authenticated Chrome sandbox direct handoff/mobile/expiry checks passed. Evidence: artifacts/testing/2026-10-31-direct-flight-checkout/verification.md. Canonical localhost:5174 rebuilt and source-verified. Test Plan cleaned. No push/merge/deployment; broader phase acceptance unchanged.
+
+### Manual flight checkout flicker — 31 October 2026
+
+Debug session resolved in b6710e4. Keep itinerary visible while verifying the original offer, then mount fully populated checkout from its in-memory server response. Abort and retry handling preserved. Real Chrome frame sampling showed no intervening results/blank-checkout frame, one verify request; desktop/mobile/error/cancel checks and 272 travel/canvas tests passed (12 external-fixture skips). Canonical Docker auth/source checks passed. Evidence: artifacts/testing/2026-10-31-checkout-flicker/verification.md. Debug record: .planning/debug/resolved/manual-checkout-flicker.md. Test Plan cleaned; no booking/payment, merge or deployment. Wider phase acceptance unchanged.
+
+### Direct results to flight checkout — 31 October 2026
+
+User approved removing the intermediate modal from the live manual flight path. 0cea83c verifies from View flight with results pending/cancel/retry, then mounts checkout fully populated. 273 relevant tests passed (12 existing skips); one rebuild-time canvas timeout passed on rerun. Build, canonical Docker auth/source checks and authenticated Chrome desktop/mobile direct handoff, frame sampling, cancellation, failure/retry, Back to flights and tokenless observation checks passed. Evidence: artifacts/testing/2026-10-31-results-to-checkout/verification.md. Test Plan cleaned; no reservation/payment, push, merge or deployment. Wider Phase18 acceptance unchanged.
+
+### Checkout country pickers — 31 October 2026
+
+User requested paging for oversized country dropdowns. c13a431 reuses searchable ten-option pages for nationality and passport issuing country, with mobile full-width fields. 252 travel tests passed (12 existing skips), build, canonical auth/source checks and actual authenticated Chrome desktop/mobile country selection, paging, search, empty-state and checkout-step retention passed. Evidence: artifacts/testing/2026-10-31-checkout-country-picker/verification.md. Test Plan cleaned; no reservation/booking, push or merge. Wider Phase18 acceptance unchanged.
+
+### Checkout entry loading jump — 31 October 2026
+
+User still observed flicker on View flight. Actual frame geometry confirmed pending message/Cancel rows moved the primary button up 60px and widened its action column; previous content-presence checks missed it. Fixed in 8fc8b31 by keeping idle/cancellable-loading states in the same button footprint. Desktop/mobile geometry stable; actual cancellation/focus/error/retry and complete handoff passed. 274 travel/canvas tests passed (12 existing skips), build and canonical auth/source checks passed. Debug record .planning/debug/resolved/checkout-entry-flicker.md; evidence artifacts/testing/2026-10-31-checkout-layout-flicker/verification.md. Test Plan cleaned; no booking/payment, push or merge. Wider acceptance unchanged.

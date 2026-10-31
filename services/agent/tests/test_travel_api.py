@@ -225,3 +225,21 @@ def test_saved_stay_blocks_another_checkout_before_provider_access():
             result=client.post(f'/v1/agent/plans/{pid}/travel/sandbox/{action}',json={'token':'opaque'})
             assert result.status_code==409 and result.json()['code']=='stay_already_booked'
     assert not calls
+
+
+def test_blank_flight_names_rejected_before_provider_call():
+    pid = str(uuid4())
+    travel = Travel()
+    def verifier(token):
+        return ValidatedIdentity("owner", "client", frozenset({"aws.cognito.signin.user.admin"}), 1, 9999999999)
+    app = create_app(verifier=verifier, plan_reader=lambda *_: {"lifecycle": "active", "traveler_subject": "owner"}, adapter=object(), travel_client=travel)
+    path = f"/v1/agent/plans/{pid}/travel/sandbox/flights/prebook"
+    with TestClient(app) as client:
+        for owner in ("passenger", "contact"):
+            for key in ("first_name", "last_name"):
+                data = {"passengers": [{"first_name": "Alex", "last_name": "Tester", "date_of_birth": "1990-01-01", "gender": "M", "nationality": "HU", "document_issue_country": "HU", "document_number": "TEST00001", "document_expiry": "2032-01-01"}], "contact": {"first_name": "Alex", "last_name": "Tester", "email": "test@example.com", "phone_country_code": "36", "phone_number": "2025550123"}}
+                target = data["passengers"][0] if owner == "passenger" else data["contact"]
+                target[key] = "   "
+                response = client.post(path, headers={"Authorization": "Bearer valid"}, json={"token": "x" * 60, "confirm_mock": True, **data})
+                assert response.status_code == 422
+        assert travel.calls == []

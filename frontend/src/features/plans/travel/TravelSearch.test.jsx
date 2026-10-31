@@ -332,12 +332,16 @@ test('stay import uses observed hotel ID and search criteria only after View roo
   expect(searchRequest.mock.calls[1][2]).toEqual({...s.criteria,hotel_id:'observed-hotel'});
 });
 
-test('token-free flight details require explicit search before normal mock checkout becomes eligible',async()=>{
+test.each(['complete', 'closed', 'failed', 'expired-session', 'left-workspace'])('manual checkout preparation %s keeps the original view until ready',async(outcome)=>{
   HTMLDialogElement.prototype.showModal=function(){this.open=true;};
   const s=imported('flights');
-  searchRequest.mockResolvedValue({...s,results:[{...s.results[0],checkout_token:'manual-only-token'}]});
-  const onFlightCheckout = vi.fn();
-  render(<TravelSearch {...props} mode="flights" importedSnapshot={s} onFlightCheckout={onFlightCheckout}/>);
+  const review = {sandbox:true,mode:'flights',status:'review',token:'verified-token',flight:s.results[0]};
+  let finish, fail;
+  searchRequest.mockImplementation(async (_plan, action) => action === 'flights/search'
+    ? {...s,results:[{...s.results[0],checkout_token:'manual-only-token'}]}
+    : new Promise((resolve,reject) => {finish=resolve;fail=reject;}));
+  const onFlightCheckout = vi.fn(), onExpired = vi.fn();
+  const view = render(<TravelSearch {...props} mode="flights" importedSnapshot={s} onFlightCheckout={onFlightCheckout} onExpired={onExpired}/>);
   await screen.findByRole('heading',{name:s.search_id});
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
   expect(screen.queryByRole('button',{name:'Continue to flight checkout'})).toBeNull();
@@ -346,9 +350,33 @@ test('token-free flight details require explicit search before normal mock check
   await waitFor(()=>expect(searchRequest).toHaveBeenCalledTimes(1));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Search flights'}).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
-  fireEvent.click(screen.getByRole('button',{name:'Continue to flight checkout'}));
-  expect(onFlightCheckout).toHaveBeenCalledWith({offerToken:'manual-only-token'});
-  expect(searchRequest.mock.calls.map(x=>x[1])).toEqual(['flights/search']);
+  expect(onFlightCheckout).not.toHaveBeenCalled();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('button',{name:'Cancel fare check'}).disabled).toBe(false);
+  expect(searchRequest.mock.calls.map(x=>x[1])).toEqual(['flights/search', 'sandbox/flights/verify']);
+  expect(searchRequest.mock.calls[1][2]).toEqual({token:'manual-only-token'});
+  const signal = searchRequest.mock.calls[1][3];
+  if (outcome === 'closed' || outcome === 'left-workspace') {
+    if (outcome === 'closed') fireEvent.click(screen.getByRole('button', {name:'Cancel fare check'}));
+    else view.rerender(<TravelSearch {...props} mode="flights" active={false} importedSnapshot={s} onFlightCheckout={onFlightCheckout} onExpired={onExpired}/>);
+    expect(signal.aborted).toBe(true);
+    await act(async () => finish(review));
+    expect(onFlightCheckout).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  } else if (outcome === 'failed' || outcome === 'expired-session') {
+    await act(async () => fail(Object.assign(new Error('Verification failed'), {status:outcome === 'expired-session' ? 401 : 503})));
+    expect(onFlightCheckout).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toContain('Verification failed');
+    expect(screen.getByRole('button',{name:'View flight →'}).disabled).toBe(false);
+    expect(onExpired).toHaveBeenCalledTimes(outcome === 'expired-session' ? 1 : 0);
+    fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
+    await act(async () => finish(review));
+    expect(onFlightCheckout).toHaveBeenCalledTimes(1);
+  } else {
+    await act(async () => finish(review));
+    expect(onFlightCheckout).toHaveBeenCalledWith({offerToken:'manual-only-token',initialReview:review},signal);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  }
 });
 
 test.each(['foreign','wrong_mode','expired','superseded'])('invalid %s import exposes no offers and makes no requests',async(kind)=>{
@@ -528,7 +556,7 @@ test('refresh keeps applied criteria and observation time visible; empty success
 });
 
 test('new results retain open detail original full identity and mark detached evidence', async () => {
-  HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = vi.fn();
+  HTMLDialogElement.prototype.close = vi.fn(); HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   const first = imported('flights'), next = imported('flights', 'new-search');
   next.results[0].id = first.results[0].id; next.preview_ids = [first.results[0].id];
   next.criteria.origin = 'VIE';
@@ -541,8 +569,9 @@ test('new results retain open detail original full identity and mark detached ev
   expect(screen.getByText(/Earlier search.*original observation/)).toBeTruthy();
   const dialog = document.querySelector('dialog');
   expect(dialog.textContent).toContain('import-1');
-  fireEvent.click([...dialog.querySelectorAll('button')].find(button => button.textContent === 'Choose for trip'));
-  expect(onChoose).toHaveBeenCalledWith(expect.objectContaining({ reference: { search_id: first.search_id, option_id: first.results[0].id, room_id: null } }));
+  expect(dialog.textContent).not.toContain('Choose for trip');
+  expect(dialog.textContent).not.toContain('Discuss flight');
+  expect(onChoose).not.toHaveBeenCalled();
 });
 
 test('view-only filters and sort perform no supplier request and exclude confirmed violations', async () => {

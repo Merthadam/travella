@@ -25,6 +25,21 @@ export function workspaceSnapshot(topic = 'stays', searchId = 'search-1') {
   const criteria = topic === 'stays' ? { destination: { city: 'Rome', country_code: 'IT', place_id: 'rome' }, check_in: '2027-11-13', check_out: '2027-11-16', rooms: [{ adults: 2, children_ages: [] }], guest_nationality: 'HU', currency: 'EUR', hotel_id: null } : { origin: 'BUD', destination: 'FCO', departure_date: '2027-11-13', return_date: '2027-11-16', adults: 2, children_ages: [], infant_ages: [], cabin_class: 'ECONOMY', country_code: 'HU', currency: 'EUR' };
   return { search_id: searchId, plan_id: 'plan-1', mode: topic, generation: 1, fingerprint: 'a'.repeat(64), draft_facts: draftTravelFacts(initialData), searched_at: new Date().toISOString(), expires_at: new Date(Date.now() + 600000).toISOString(), provider: 'LiteAPI', sandbox: true, returned_count: 1, truncated: false, notices: [], preview_ids: [item.id], search_only_dates: false, criteria, results: [item] };
 }
+function flightComparisonSnapshot() {
+  const data = workspaceSnapshot('flights');
+  data.results.push({ ...structuredClone(data.results[0]), id: 'option-2' });
+  data.returned_count = 2; data.preview_ids.push('option-2');
+  return data;
+}
+async function chooseFirstComparedFlight() {
+  chat.send = vi.fn(async () => false);
+  for (const checkbox of screen.getAllByRole('checkbox', { name: 'Compare' })) fireEvent.click(checkbox);
+  fireEvent.click(screen.getByRole('button', { name: 'Compare selected (2)' }));
+  const comparison = await screen.findByRole('region', { name: 'Option comparison' });
+  // Comparison discussion is setup; the following assertions concern choosing.
+  chat.send.mockClear();
+  fireEvent.click(within(comparison).getAllByRole('button', { name: 'Choose for trip' })[0]);
+}
 // Catalog metadata is prefetched; keep supplier/research requests independently asserted.
 const workspaceRequest = vi.fn();
 beforeEach(() => { workspaceRequest.mockReset(); vi.stubGlobal('fetch', (url, ...args) => url.includes('/hotels/catalog?')
@@ -138,15 +153,14 @@ test.each(['fresh', 'expired', 'edited', 'owner-change', 'foreign', 'detail'])('
 test.each(['initial', 'changed', 'saved-facts'])('manual review receipt preserves initial hydration but invalidates changed brief: %s', async scenario => {
   chat.active = false;
   if (scenario === 'changed') chat.snapshot = { revision: 7, brief: { digest: 'before' } };
-  const data = workspaceSnapshot('flights'), reference = { search_id: data.search_id, option_id: 'option-1', room_id: null };
+  const data = flightComparisonSnapshot(), reference = { search_id: data.search_id, option_id: 'option-1', room_id: null };
   const option = { id: 'observed-fare', title: 'Exact return fare', reference, observed_at: new Date().toISOString(), facts: [], unknowns: [] };
   const receipt = { plan_id: 'plan-1', topic: 'flights', revision: 8, brief: { digest: 'after' }, comparison: { options: [option] }, shortlist: [], preferred: null };
   let finish;
   const api = { travelTurn: vi.fn(async () => ({ status: 'complete', travel_specialist_result: receipt })), prepareTravelChoice: vi.fn(() => new Promise(resolve => { finish = resolve; })) };
   const props = { selected: { plan_id: 'plan-1' }, api, mode: 'flights', active: true, initialData, importedSnapshot: data };
   const rendered = render(<TravelWorkspace {...props}/>);
-  fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  await chooseFirstComparedFlight();
   await waitFor(() => expect(finish).toBeTruthy());
   if (scenario === 'saved-facts') rendered.rerender(<TravelWorkspace {...props} initialData={{ map: { destination: 'Paris' } }}/>);
   await act(async () => finish({ revision: 8, challenge: 'exact-review' }));
@@ -178,14 +192,13 @@ test('inspecting historical rooms does not attach a hidden comparison to followu
 
 test('manual exact fare review and confirmed receipt survive unavailable chat history', async () => {
   chat.active = false; chat.send = vi.fn(); chat.refresh = vi.fn(async () => { throw new Error('History unavailable'); });
-  const data = workspaceSnapshot('flights'), reference = { search_id: data.search_id, option_id: 'option-1', room_id: null };
+  const data = flightComparisonSnapshot(), reference = { search_id: data.search_id, option_id: 'option-1', room_id: null };
   const option = { id: 'observed-fare', title: 'Exact return fare', reference, price_label: 'EUR 100', observed_at: new Date().toISOString(), facts: ['Return fare for 2 adults'], unknowns: [], provider: 'LiteAPI' };
   const receipt = { plan_id: 'plan-1', topic: 'flights', revision: 8, comparison: { options: [option] }, shortlist: [], preferred: null, readiness: 'researching' };
   const committed = { ...receipt, revision: 9, preferred: option, shortlist: [option], readiness: 'ready' };
   const api = { travelTurn: vi.fn(async () => ({ status: 'complete', travel_specialist_result: receipt })), prepareTravelChoice: vi.fn(async () => ({ revision: 8, challenge: 'exact-review' })), commitTravelChoice: vi.fn(async () => committed) };
   render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={data}/>);
-  fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  await chooseFirstComparedFlight();
   await waitFor(() => expect(api.prepareTravelChoice).toHaveBeenCalledWith({ plan_id: 'plan-1' }, 'flights', { action: 'prefer', evidence_id: 'observed-fare' }, 8));
   expect(chat.send).not.toHaveBeenCalled();
   expect(api.commitTravelChoice).not.toHaveBeenCalled();
@@ -250,9 +263,9 @@ test.each(['review', 'challenge'])('switching away fences a delayed manual %s re
   const receipt = { plan_id: 'plan-1', topic: 'flights', revision: 8, comparison: { options: [{ id: 'exact', title: 'Exact fare', reference }] } };
   const terminal = { status: 'complete', travel_specialist_result: receipt };
   const api = { travelTurn: vi.fn(() => stage === 'review' ? new Promise(resolve => { resolveReview = resolve; }) : Promise.resolve(terminal)), prepareTravelChoice: vi.fn(() => new Promise(resolve => { resolveChallenge = resolve; })), commitTravelChoice: vi.fn() };
-  const props = { selected: { plan_id: 'plan-1' }, api, mode: 'flights', initialData, importedSnapshot: workspaceSnapshot('flights') };
+  const props = { selected: { plan_id: 'plan-1' }, api, mode: 'flights', initialData, importedSnapshot: flightComparisonSnapshot() };
   const view = render(<TravelWorkspace {...props} active/>);
-  fireEvent.click(screen.getByRole('button', { name: 'View flight →' })); fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  await chooseFirstComparedFlight();
   await waitFor(() => expect(stage === 'review' ? resolveReview : resolveChallenge).toBeTypeOf('function'));
   view.rerender(<TravelWorkspace {...props} active={false}/>);
   await act(async () => stage === 'review' ? resolveReview(terminal) : resolveChallenge({ revision: 8, challenge: 'late' }));
@@ -314,9 +327,8 @@ test.each(['origin', 'actual currency'])('comparison flags different %s even whe
 test('manual review reports an actual lease rejection without preparing or saving a choice', async () => {
   chat.active = true; chat.stop.mockResolvedValueOnce(false); chat.send = vi.fn();
   const api = { travelTurn: vi.fn(async () => ({ status: 'error', message: 'Another reply is still finishing. Retry after it stops.' })), prepareTravelChoice: vi.fn(), commitTravelChoice: vi.fn() };
-  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={workspaceSnapshot('flights')}/>);
-  fireEvent.click(screen.getByRole('button', { name: 'View flight →' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Choose for trip' }));
+  render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="flights" active initialData={initialData} importedSnapshot={flightComparisonSnapshot()}/>);
+  await chooseFirstComparedFlight();
   expect(await screen.findByText('Another reply is still finishing. Retry after it stops.')).toBeTruthy();
   expect(chat.stop).toHaveBeenCalled();
   expect(api.prepareTravelChoice).not.toHaveBeenCalled(); expect(api.commitTravelChoice).not.toHaveBeenCalled(); expect(chat.send).not.toHaveBeenCalled();

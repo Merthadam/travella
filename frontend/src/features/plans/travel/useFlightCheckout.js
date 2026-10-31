@@ -9,9 +9,9 @@ function remember(planId, token) {
   window.dispatchEvent(new CustomEvent(flightCheckoutUpdated, { detail: planId }));
 }
 
-export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBooking, onBookingResult, onExpired }) {
-  const [result, setResult] = useState(() => savedFlightResult(savedBooking));
-  const [busy, setBusy] = useState(Boolean(offerToken || recoveryToken));
+export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBooking, initialReview, onBookingResult, onExpired }) {
+  const [result, setResult] = useState(() => savedFlightResult(savedBooking) || initialReview || null);
+  const [busy, setBusy] = useState(Boolean((offerToken && !initialReview) || recoveryToken));
   const [error, setError] = useState('');
   const [consent, setConsent] = useState(false);
   const [attempted, setAttempted] = useState(Boolean(recoveryToken));
@@ -32,12 +32,12 @@ export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBook
   }
   function failed(e) { setError(e.message || 'Unable to check this booking. Try checking its status.'); if (e.status === 401) callbacks.current.onExpired?.(); }
   useEffect(() => {
-    if (!offerToken && !recoveryToken) return;
+    if ((!offerToken && !recoveryToken) || (initialReview && !recoveryToken)) return;
     let live = true;
     if (!started.current) started.current = travelRequest(planId, `sandbox/flights/${recoveryToken ? 'status' : 'verify'}`, { token: recoveryToken || offerToken });
     started.current.then(value => { if (live) accept(value); }).catch(e => { if (live) failed(e); }).finally(() => { if (live) setBusy(false); });
     return () => { live = false; };
-  }, [planId, offerToken, recoveryToken]);
+  }, [planId, offerToken, recoveryToken, initialReview]);
   useEffect(() => {
     if (result?.status !== 'pending') return;
     let live = true, timer, attempts = 0;

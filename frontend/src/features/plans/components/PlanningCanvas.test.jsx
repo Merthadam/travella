@@ -568,3 +568,17 @@ test('canvas, flights and stays retain the same shell navigation and chat contro
     expect(header.contains(screen.getByRole('button', { name: 'Collapse plan chat' }))).toBe(true);
   }
 });
+
+test('an empty flight checkout URL returns to Flights and removes its history marker', async () => {
+  const previous = location.href;
+  history.replaceState({ flightCheckoutView: true }, '', '?checkout=flights');
+  try {
+    setup();
+    await screen.findByText('Choose a flight to continue.');
+    expect(await screen.findByRole('region', { name: 'flights search' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Flight checkout' })).toBeNull();
+    expect(new URLSearchParams(location.search).has('checkout')).toBe(false);
+    expect(history.state.flightCheckoutView).toBeUndefined();
+    expect(travelRequest.mock.calls.some(call => call[1] === 'sandbox/flights/verify')).toBe(false);
+  } finally { history.replaceState({}, '', previous); }
+});

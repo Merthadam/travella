@@ -1,0 +1,4 @@
+Script ran on page and returned:
+```json
+[{"ms":38,"dialog":false,"checkout":false,"grid":false},{"ms":891,"dialog":false,"checkout":true,"grid":true}]
+```
