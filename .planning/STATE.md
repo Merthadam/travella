@@ -4,10 +4,10 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-31T09:46:04.391236+00:00"
+last_updated: "2026-10-31T14:41:15.046Z"
 last_activity: 2026-10-31
 last_activity_desc: Merged approved flight checkout and passenger improvements into GitHub main
-state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
+state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
   completed_phases: 1
@@ -59,6 +59,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 | 261029-v70 | Replace flight passenger boxes with compact traveler picker | 2026-10-29 | 11ac5d8 | [261029-v70](./quick/261029-v70-replace-flight-passenger-boxes-with-a-co/) |
 | 261029-vlr | Refine traveler picker density and counters | 2026-10-29 | 456034f | [261029-vlr](./quick/261029-vlr-refine-traveler-picker-density-and-verif/) |
 | 261029-w2k | Integrate approved consistent header with latest main; resolve conflicts and verify for authorized merge | 2026-10-29 | a7cc96b | [261029-w2k-merge-consistent-plan-header-with-latest](./quick/261029-w2k-merge-consistent-plan-header-with-latest/) |
+| 261031-lpp | Integrate approved stay details and filters with main; 287 tests and browser checks passed | 2026-10-31 | 6ce099b | [261031-lpp-merge-approved-stay-details-and-filters-](./quick/261031-lpp-merge-approved-stay-details-and-filters-/) |
 
 ## Project Reference
 
@@ -496,8 +497,8 @@ Product owner explicitly authorized merge of the current version, with substanti
 
 User approved the corrected consistent Canvas/Flights/Stays header and explicitly requested merge/conflict resolution. Quick261029-w2k integrated origin/main ab84e88 in a7cc96b, preserving current traveler picker and stay checkout. Frontend274 and backend264 tests passed (12 existing frontend skips), build and actual Chrome desktop/mobile checks passed. Evidence: artifacts/testing/2026-10-29-header-merge/verification.md. GitHub PR merge record supplies the final shipment SHA; wider Phase18 acceptance unchanged.
 
-
 Cleanup shipment (2026-10-30): User authorized merging voltaic-slope into main through PR #26 (https://github.com/Merthadam/travella/pull/26). Source 3a03612 on base cbbedb5 passed scoped verification and security review in .planning/quick/261030-cleanup-ship/. Memory retained; broader phase acceptance unchanged.
+
 ### Frontend cleanup shipment — 30 October 2026
 
 User explicitly authorized merge to main. PR #27: https://github.com/Merthadam/travella/pull/27 (pollen-syringa → main). Login, Plans, chat and onboarding dead-code cleanup: 946 net frontend lines removed, current design preserved. All targeted tests/build and scoped browser checks passed. Full suite 440 passed, 12 existing fixture skips, one unchanged TripBrief failure reproduced on main cbbedb5. Scoped security review: zero introduced findings. Source reviewed at 3009abc; shipping commits are documentation only. PR merge record is authoritative for final merge status/SHA. Broader phase acceptance unchanged.
