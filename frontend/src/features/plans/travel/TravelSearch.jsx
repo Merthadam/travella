@@ -953,13 +953,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
               </div>
             </section>
           )}
-          {snapshot.truncated && !stay && (
-            <p className="travel-note">
-              Showing the first 100 returned itineraries. Filters apply to these
-              results.
-            </p>
-          )}
-          {snapshot.notices.map((notice, i) => (
+          {snapshot.notices.filter(notice => stay || notice !== 'Times are local to each airport. Prices cover all travelers on the return journey.').map((notice, i) => (
             <p className="travel-note" key={i}>
               {notice}
             </p>
@@ -976,9 +970,9 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           <p>Choose your travel details above to search LiteAPI.</p>
         </div>
       )}
-      <p className="travel-note">
+      {stay && <p className="travel-note">
         Search results are not saved to your Plan. Sandbox flights and stays support test-only mock checkout. For flight testing, choose Nuitée Air when available.
-      </p>
+      </p>}
       <TravelComparison entries={comparison} currentSearchId={snapshot?.search_id} onChoose={onChoose} onShortlist={onShortlist} choiceDisabled={choiceDisabled} onClose={() => { setComparison([]); comparisonRun.current++; setDiscussing(false); }} onDetails={entry => workspace.dispatch({ type: 'details', value: entry })} onDiscuss={onCompare ? () => discussComparison(comparison) : null} discussionError={comparisonError} discussing={discussing}/>
       {detail && (stay ? (
         <StayDetails
