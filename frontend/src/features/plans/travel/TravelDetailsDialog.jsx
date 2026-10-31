@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 
 export const offerExpired = expiresAt => !Number.isFinite(Date.parse(expiresAt)) || Date.now() >= Date.parse(expiresAt);
 
-export function TravelDetailsDialog({ observation, detached, evidenceExpired, refreshedAt, onClose, children, className = '', busy = false }) {
+export function TravelDetailsDialog({ observation, detached, evidenceExpired, refreshedAt, onClose, children, className = '', busy = false, compactStay = false }) {
   const { item, snapshot, historical, reference } = observation;
   const { criteria, sandbox, searched_at: observedAt } = snapshot;
   const stay = snapshot.mode === "stays";
@@ -24,7 +24,11 @@ export function TravelDetailsDialog({ observation, detached, evidenceExpired, re
         onClose();
       }}
     >
-      <button
+      {compactStay ? <header className="stay-detail-bar">
+        <button type="button" aria-label="Close details" onClick={onClose}>← Back to results</button>
+        <span>Hotel &amp; rooms</span>
+        <small>{sandbox ? 'Sandbox · test inventory' : 'LiteAPI results'}</small>
+      </header> : <><button
         className="travel-close"
         aria-label="Close details"
         onClick={onClose}
@@ -45,10 +49,11 @@ export function TravelDetailsDialog({ observation, detached, evidenceExpired, re
       <h2 id="travel-detail-title">
         {stay ? item.name : item.airlines.join(" · ") || "Flight details"}
       </h2>
+      </>}
       {children}
-      <p className="travel-note">
+      {!compactStay && <p className="travel-note">
         Availability and prices can change. Mock bookings are test-only; save your canvas to keep the confirmed test booking.
-      </p>
+      </p>}
     </dialog>
   );
 }

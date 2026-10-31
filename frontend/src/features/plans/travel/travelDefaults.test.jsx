@@ -4,7 +4,7 @@ import { destinationCountry, preferredAirport } from './travelDefaults';
 import { loadGoogleMaps } from '../../../lib/googleMaps';
 import { initialWorkspace, useTravelWorkspace } from './useTravelWorkspace';
 import { travelRequest } from './travelApi';
-import { bindTravelRecoveryScope, clearCanvasViews } from '../canvasViewState';
+import { bindTravelRecoveryScope, clearCanvasViews, writeTravelWorkspace } from '../canvasViewState';
 vi.mock('./travelApi', () => ({ travelRequest: vi.fn() }));
 vi.mock('../../../lib/googleMaps', () => ({ loadGoogleMaps: vi.fn() }));
 const profile = { home_city: { name: 'Budapest', country_code: 'HU' }, default_airport: 'BUD', citizenships: ['AT'] };
@@ -113,6 +113,31 @@ test('qualified destination country resolves without geocoding', async () => {
   expect(await destinationCountry('Milan, Italy')).toBe('IT');
   expect(await destinationCountry('Milan, IT')).toBe('IT');
   expect(loadGoogleMaps).not.toHaveBeenCalled();
+});
+
+test.each(['Lisbon, Portugal', 'Lisbon, PT', ' Lisbon , Portugal '])('stay default separates city and country from %s', async destination => {
+  const initialData = { ...data, map: { destination } };
+  const { result } = renderHook(() => useTravelWorkspace({ ...params, topic: 'stays', initialData }));
+  await waitFor(() => expect(result.current.state.draftCriteria.country).toBe('PT'));
+  expect(result.current.state.draftCriteria.city).toBe('Lisbon');
+  expect(result.current.state.draftCriteria.place).toBeNull();
+  expect(result.current.state.draftDirty).toBe(false);
+  expect(initialData.map.destination).toBe(destination);
+  expect(loadGoogleMaps).not.toHaveBeenCalled();
+});
+
+test.each([false, true])('recovered qualified default is repaired only when untouched (dirty=%s)', async draftDirty => {
+  const owner = 'c'.repeat(32);
+  bindTravelRecoveryScope(owner);
+  const options = { ...params, owner, topic: 'stays', initialData: { ...data, map: { destination: 'Lisbon, Portugal' } } };
+  const saved = initialWorkspace(options);
+  saved.draftCriteria = { ...saved.draftCriteria, city: 'Lisbon, Portugal', country: 'PT' };
+  saved.draftDirty = draftDirty;
+  writeTravelWorkspace(owner, options.planId, 'stays', saved);
+  const { result } = renderHook(() => useTravelWorkspace(options));
+  await act(async () => {});
+  expect(result.current.state.draftCriteria.city).toBe(draftDirty ? 'Lisbon, Portugal' : 'Lisbon');
+  expect(result.current.state.draftCriteria.country).toBe('PT');
 });
 
 test.each([

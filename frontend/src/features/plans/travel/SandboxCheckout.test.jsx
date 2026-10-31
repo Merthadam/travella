@@ -20,7 +20,7 @@ describe('sandbox checkout', () => {
   fireEvent.click(screen.getByRole('checkbox'));
   fireEvent.click(screen.getByRole('button',{name:'Confirm mock booking'}));
   await screen.findByText('Mock booking confirmed');
-  expect(onBookingResult).toHaveBeenCalledWith('p1', expect.objectContaining({ status: 'confirmed', booking_id: 'TEST123' }));
+  await waitFor(() => expect(onBookingResult).toHaveBeenCalledWith('p1', expect.objectContaining({ status: 'confirmed', booking_id: 'TEST123' })));
   expect(travelRequest.mock.calls[1][1]).toBe('sandbox/book');
   expect(travelRequest.mock.calls[1][2].confirm_mock).toBe(true);
   expect(sessionStorage.getItem('travella:mock-checkout:p1')).toBe('opaque');
@@ -37,7 +37,7 @@ describe('sandbox checkout', () => {
   expect(onBookingResult).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Check mock booking status'}));
   await screen.findByText('Mock booking confirmed');
-  expect(onBookingResult).toHaveBeenCalledOnce();
+  await waitFor(() => expect(onBookingResult).toHaveBeenCalledOnce());
   expect(travelRequest.mock.calls.map(c => c[1])).toEqual(['sandbox/prebook','sandbox/book','sandbox/status']);
  });
  it('recovered confirmation notifies the canvas once, even after repeated status checks', async () => {
@@ -45,10 +45,10 @@ describe('sandbox checkout', () => {
   travelRequest.mockResolvedValue({...review,status:'confirmed',booking_id:'TEST123'});
   render(<SandboxCheckout planId="p1" recoveryToken="saved" onClose={() => {}} onBookingResult={onBookingResult} />);
   await screen.findByText('Mock booking confirmed');
-  expect(onBookingResult).toHaveBeenCalledOnce();
+  await waitFor(() => expect(onBookingResult).toHaveBeenCalledOnce());
   fireEvent.click(screen.getByRole('button',{name:'Check mock booking status'}));
   await waitFor(() => expect(travelRequest).toHaveBeenCalledTimes(2));
-  expect(onBookingResult).toHaveBeenCalledOnce();
+  await waitFor(() => expect(onBookingResult).toHaveBeenCalledOnce());
   expect(travelRequest.mock.calls.every(c => c[1] === 'sandbox/status')).toBe(true);
  });
  it('reopens via read-only status and displays expired offer failure', async () => {

@@ -850,3 +850,101 @@
   :root .travel-search .flight-travelers .flight-travelers-done{min-height:44px;padding:10px 20px}
   :root .travel-search .flight-travelers-ages select{height:44px}
 }
+
+/* Compact hotel overview and room offers (approved design A). */
+.travel-dialog.travel-stay-dialog {
+  width: min(1240px, calc(100vw - 48px));
+  height: auto;
+  max-height: 88dvh;
+  padding: 0;
+  font-family: var(--ds-font, sans-serif);
+  --stay-line: #d7dfd0;
+  --stay-muted: #657060;
+  --stay-soft: #f1f4ec;
+}
+.stay-detail-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 24px; border-bottom: 1px solid var(--stay-line); }
+.stay-detail-bar > span { font-size: 13px; color: var(--stay-muted); }
+.stay-detail-bar > small { font-size: 11px; background: var(--stay-soft); padding: 6px 8px; border-radius: 5px; }
+.travel-dialog .stay-detail-bar > button { border: 0; background: transparent; font-size: 13px; min-height: 36px; padding: 6px 4px; }
+.stay-detail-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 40px; padding: 32px; }
+.stay-property { min-width: 0; border-right: 1px solid var(--stay-line); padding-right: 30px; }
+.travel-stay-dialog .stay-property h2 { font-size: 29px; line-height: 1.15; margin: 10px 0; padding: 0; }
+.stay-property p { color: var(--stay-muted); margin: 10px 0; line-height: 1.6; }
+.stay-property .stay-stars { font-size: 11px; margin: 20px 0 12px; }
+.travel-dialog .stay-cover { display: block; position: relative; width: 100%; height: 190px; overflow: hidden; padding: 0; border: 0; border-radius: 9px; background: var(--stay-soft); }
+.stay-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.stay-cover .stay-photo-label { position: absolute; bottom: 12px; left: 12px; padding: 6px 9px; background: #fffef9ed; border-radius: 4px; color: #2b4030; font-size: 11px; }
+.stay-photo-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; }
+.stay-photo-controls button { min-width: 44px; min-height: 44px; }
+.stay-no-photo { display: grid; place-items: center; min-height: 130px; background: var(--stay-soft); font-size: 13px; border-radius: 8px; }
+.stay-about { border-top: 1px solid var(--stay-line); margin-top: 24px; padding-top: 8px; }
+.stay-about summary { font-weight: 600; font-size: 13px; }
+.stay-source { margin-top: 16px; color: var(--stay-muted); }
+.stay-source summary, .stay-source p { font-size: 11px; }
+.travel-stay-dialog summary { cursor: pointer; padding: 12px 0; }
+.travel-stay-dialog :focus-visible { outline: 3px solid var(--ds-focus, #5ed6ad); outline-offset: 3px; }
+.stay-rooms { min-width: 0; }
+.stay-rooms-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.stay-rooms-heading h3 { font: 400 30px/1.2 Georgia, serif; margin: 10px 0 0; }
+.stay-rooms-heading > small { border: 1px solid var(--stay-line); border-radius: 20px; padding: 6px 10px; white-space: nowrap; font-size: 11px; color: var(--stay-muted); }
+.stay-rooms .stay-trip { color: var(--stay-muted); margin: 18px 0; line-height: 1.7; }
+.stay-room { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; border-top: 1px solid var(--stay-line); padding: 24px 0; }
+.stay-room h4 { font-size: 17px; margin: 0; line-height: 1.4; }
+.stay-room-copy > p { margin: 8px 0 14px; line-height: 1.5; color: var(--stay-muted); }
+.stay-refund { font-size: 12px; font-weight: 600; }
+.stay-policy { margin-top: 8px; font-size: 12px; }
+.stay-policy summary { color: var(--stay-muted); text-decoration: underline; text-underline-offset: 3px; }
+.stay-policy p { background: var(--stay-soft); padding: 14px; border-radius: 7px; overflow-wrap: anywhere; margin: 0; }
+.stay-room-action { display: flex; flex-direction: column; align-items: flex-end; gap: 16px; align-self: start; }
+.stay-room-action .travel-price { text-align: right; min-width: 0; }
+.stay-room-action .travel-price strong { font-size: 26px; letter-spacing: -.03em; }
+.stay-room-action .travel-price small { font-size: 11px; color: var(--stay-muted); margin-top: 4px; display: block; }
+.travel-dialog .stay-room-action .travel-primary { display: flex; align-items: center; justify-content: center; gap: 14px; background: #355c46; color: #fff; border: 1px solid #355c46; border-radius: 7px; font-size: 13px; font-weight: 600; min-height: 48px; padding: 12px 15px; width: auto; white-space: nowrap; }
+.travel-dialog .stay-room-action .travel-primary:hover { background: #294e39; }
+.stay-checkout-unavailable { font-size: 12px; color: var(--stay-muted); text-align: right; }
+.stay-rooms .stay-assurance { border-top: 1px solid var(--stay-line); padding-top: 16px; font-size: 12px; color: var(--stay-muted); margin: 0; }
+:root[data-theme="dark"] .travel-stay-dialog { --stay-line: var(--app-line); --stay-muted: var(--app-muted); --stay-soft: var(--app-soft); }
+:root[data-theme="dark"] .travel-dialog .stay-room-action .travel-primary { background: #397157; color: #fff; border-color: #61987b; }
+@media (max-width: 1050px) {
+  .stay-detail-layout { grid-template-columns: 240px minmax(0, 1fr); gap: 26px; }
+  .stay-property { padding-right: 22px; }
+  .stay-room { grid-template-columns: 1fr; gap: 16px; }
+  .stay-room-action { flex-direction: row; align-items: center; justify-content: space-between; }
+  .stay-room-action .travel-price { text-align: left; }
+}
+@media (max-width: 700px) {
+  .travel-dialog.travel-stay-dialog { width: calc(100vw - 20px); max-height: 94dvh; }
+  .stay-detail-bar { padding: 10px 18px; gap: 8px; }
+  .stay-detail-bar > span { display: none; }
+  .stay-detail-bar > small { font-size: 10px; }
+  .stay-detail-layout { display: block; padding: 22px 18px; }
+  .stay-property { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 14px; padding: 0 0 20px; border-right: 0; border-bottom: 1px solid var(--stay-line); margin-bottom: 24px; }
+  .travel-dialog .stay-cover { height: 105px; }
+  .stay-cover .stay-photo-label { bottom: 5px; left: 5px; padding: 4px; font-size: 9px; }
+  .travel-stay-dialog .stay-property h2 { font-size: 23px; margin: 6px 0; }
+  .stay-property-heading p { font-size: 11px; }
+  .stay-property .stay-stars { margin: 0 0 6px; font-size: 10px; }
+  .stay-about, .stay-source { grid-column: 1 / -1; margin: 0; padding: 0; }
+  .stay-source summary { padding: 0 0 4px; }
+  .stay-rooms-heading h3 { font-size: 26px; }
+  .stay-rooms .stay-trip { font-size: 11px; }
+  .stay-room-action { flex-wrap: wrap; gap: 12px; }
+  .stay-room-action .travel-price strong { font-size: 24px; }
+  .travel-dialog .stay-room-action .travel-primary { font-size: 12px; padding: 12px; gap: 8px; }
+  .stay-room-action .travel-price { flex: 1; }
+  .stay-photo-controls { flex-wrap: wrap; justify-content: center; }
+}
+.travel-dialog.stay-photo-dialog { width: min(1000px, calc(100vw - 32px)); padding: 20px; }
+.stay-full-photo { height: min(65dvh, 650px); display: grid; place-items: center; margin-top: 16px; }
+.stay-full-photo img { width: 100%; height: 100%; object-fit: contain; min-height: 0; }
+.stay-photo-dialog .stay-photo-controls { max-width: 300px; margin: auto; }
+.stay-room-filters { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 12px; border-top: 1px solid var(--stay-line); padding-top: 16px; }
+.travel-stay-dialog .stay-room-filters label { display: block; color: var(--stay-muted); font-size: 11px; font-weight: 500; min-width: 0; }
+.travel-stay-dialog .stay-room-filters select { display: block; width: 100%; margin-top: 6px; padding: 10px 28px 10px 10px; min-height: 44px; border: 1px solid var(--stay-line); border-radius: 7px; background-color: #fffefa; color: inherit; font: 13px var(--ds-font, sans-serif); }
+.stay-filter-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; font-size: 12px; color: var(--stay-muted); }
+.travel-stay-dialog .stay-filter-summary button { background: transparent; border: 0; padding: 10px 0; min-height: 44px; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.travel-stay-dialog .stay-filter-summary button:disabled { opacity: .45; cursor: default; }
+.stay-rooms .stay-filter-note { margin: 0 0 12px; font-size: 11px; line-height: 1.5; color: var(--stay-muted); }
+:root[data-theme="dark"] .travel-stay-dialog .stay-room-filters select { background-color: var(--app-soft); color: var(--app-text); }
+@media (max-width: 1050px) { .stay-room-filters { grid-template-columns: 1fr 1fr; } .stay-room-filters label:last-child { grid-column: 1/-1; } }
+@media (max-width: 700px) { .travel-stay-dialog .stay-room-filters select { font-size: 12px; padding-right: 20px; padding-left: 8px; } }

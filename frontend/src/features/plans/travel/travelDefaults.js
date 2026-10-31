@@ -4,6 +4,8 @@ import { loadGoogleMaps } from '../../../lib/googleMaps';
 const normalized = value => String(value || '').normalize('NFKD').replace(/\p{Diacritic}/gu, '').trim().toLowerCase();
 export const allAirports = airport => /\ball airports\b/i.test(airport?.name || '');
 export const airportSelection = airport => ({ iata: airport.iata, label: `${airport.city || airport.name}${allAirports(airport) ? ' · All airports' : ''} (${airport.iata})` });
+// Plan destinations are display labels; place lookup takes city and country separately.
+export const stayCityDefault = destination => String(destination || '').split(',')[0].trim();
 
 export async function destinationCountry(destination) {
   const query = String(destination || '').trim();

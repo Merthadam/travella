@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { travelRequest } from './travelApi';
-import { destinationCountry, preferredAirport, profileTravelDefaults } from './travelDefaults';
+import { destinationCountry, preferredAirport, profileTravelDefaults, stayCityDefault } from './travelDefaults';
 import { emptyStayFilters } from './StaySearchFilters';
 import { draftTravelFacts, travelSnapshotSchema, travelState } from './CanvasTravel';
 import { emptyWorkspaceView, travelReferenceSchema, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
@@ -13,7 +13,7 @@ export function initialWorkspace({ owner = 'session', planId, topic, initialData
   const adults = Number.isInteger(travelers) && travelers >= 1 && travelers <= (topic === 'stays' ? 16 : 9) ? travelers : 2;
   const rooms = Array.from({ length: Math.ceil(adults / 6) }, (_, index) => ({ adults: Math.min(6, adults - index * 6), children_ages: [] }));
   return { owner, planId, topic, instanceId, revision: 0, requestGeneration: 0,
-    draftCriteria: { city: initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms, adults, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters(), ...profileTravelDefaults(travelerProfile, topic) },
+    draftCriteria: { city: topic === 'stays' ? stayCityDefault(initialData?.map?.destination) : initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms, adults, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters(), ...profileTravelDefaults(travelerProfile, topic) },
     draftTouched: {}, draftDirty: false, appliedCriteria: null, searchId: null, snapshot: null, view: emptyWorkspaceView(),
     detailsReference: null, loading: false, error: '', imported: false, importIdentity: null, authority: null, inverse: null, inverseRevision: null, notice: '', appliedActions: [],
   };
@@ -88,6 +88,10 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
     pending.current?.abort(); checkout.current.clear();
     const saved = enabled && readTravelWorkspace(owner, planId, topic);
     ref.current = { ...initialWorkspace({ owner, planId, topic, initialData, travelerProfile }), ...(saved ? { draftCriteria: saved.draftCriteria, draftDirty: saved.draftDirty, appliedCriteria: saved.appliedCriteria, searchId: saved.searchId, view: saved.view, recovery: saved } : {}) };
+    // Repair only an untouched legacy default, never an edited or applied search.
+    if (topic === 'stays' && saved && !saved.draftDirty && !saved.appliedCriteria && !saved.draftCriteria.place && saved.draftCriteria.city === initialData?.map?.destination) {
+      ref.current.draftCriteria = { ...saved.draftCriteria, city: stayCityDefault(initialData.map.destination) };
+    }
   }
   function dispatch(action) { const previous = ref.current; ref.current = travelWorkspaceReducer(previous, action); if (previous !== ref.current) render(n => n + 1); return ref.current; }
   function invalidate(action) {
@@ -105,13 +109,14 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
   const defaultAirport = travelerProfile?.default_airport || '';
   const nationality = travelerProfile?.citizenships?.[0] || homeCountry;
   const destinationCity = initialData?.map?.destination || '';
+  const stayCity = stayCityDefault(destinationCity);
   useEffect(() => {
     const state = ref.current;
-    if (!enabled || !active || topic !== 'stays' || !destinationCity || state.draftCriteria.country || state.draftTouched?.country || state.draftTouched?.city || state.draftCriteria.city !== destinationCity || state.appliedCriteria || state.recovery?.draftDirty) return;
+    if (!enabled || !active || topic !== 'stays' || !destinationCity || state.draftCriteria.country || state.draftTouched?.country || state.draftTouched?.city || state.draftCriteria.city !== stayCity || state.appliedCriteria || state.recovery?.draftDirty) return;
     const instanceId = state.instanceId;
     let live = true;
     destinationCountry(destinationCity).then(country => {
-      if (live && !ref.current.draftTouched?.city && ref.current.draftCriteria.city === destinationCity) {
+      if (live && !ref.current.draftTouched?.city && ref.current.draftCriteria.city === stayCity) {
         dispatch({ type: 'defaults', instanceId, patch: { country } });
       }
     }).catch(() => { /* Keep the country picker editable when location lookup is unavailable. */ });
