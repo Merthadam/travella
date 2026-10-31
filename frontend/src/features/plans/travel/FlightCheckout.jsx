@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { countries } from '../../onboarding/catalogs';
+import { SearchSelect } from './SearchSelect';
 import { useFlightCheckout } from './useFlightCheckout';
 import { downloadItinerary, flightBookingSummary, formatFlightPrice } from './flightItinerary';
 import './flight-checkout.css';
 import { FlightExtras, ExtrasSummary, serviceChoices, sameChoices } from './FlightExtras';
 import { FlightPayment } from './FlightPayment';
 
+const countryOptions = countries.map(({ code, name }) => ({ value: code, label: name }));
 const steps = ['Your flights', 'Passengers', 'Seats', 'Baggage', 'Review & pay'];
 const today = () => new Date().toISOString().slice(0, 10);
 export function testPassengers(result) {
@@ -39,7 +41,7 @@ function Summary({ result }) {
 }
 function PassengerFields({ passengers, setPassengers, contact, setContact, result, locked }) {
   const update = (index, key, value) => setPassengers(old => old.map((p, i) => i === index ? { ...p, [key]: value } : p));
-  const country = (p, index, key, label) => <label>{label}<select value={p[key]} onChange={e => update(index, key, e.target.value)}>{countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select></label>;
+  const country = (p, index, key, label) => <SearchSelect label={label} value={p[key]} options={countryOptions} onChange={value => update(index, key, value)} required placeholder="Search country or code…"/>;
   const contactField = (key, label, props = {}) => <label>{label}<input required autoComplete="off" {...props} value={contact[key]} onChange={e => setContact(old => ({ ...old, [key]: e.target.value }))}/></label>;
   if (locked && !passengers.length) return <p>Passenger and contact details were supplied when this test reservation was created. They are not stored in your Plan.</p>;
   return <fieldset disabled={locked} className="flight-passengers"><legend className="visually-hidden">Test passengers and contact</legend>

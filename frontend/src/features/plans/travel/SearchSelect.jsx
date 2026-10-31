@@ -1,4 +1,5 @@
 import React, { useId, useRef, useState } from "react";
+import "./search-select.css";
 
 export const PAGE_SIZE = 10;
 

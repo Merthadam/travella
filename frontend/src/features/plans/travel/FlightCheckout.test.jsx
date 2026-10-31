@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { FlightCheckout } from './FlightCheckout';
 import { travelRequest } from './travelApi';
 import { flightBookingSummary, itineraryDocument } from './flightItinerary';
@@ -134,4 +134,33 @@ it('mounts a prepared checkout with its final heading and itinerary, without ver
   expect(screen.queryByText('Verifying availability and the current fare…')).toBeNull();
   expect(travelRequest).not.toHaveBeenCalled();
   expect(sessionStorage.getItem('travella:mock-flight:p')).toBeNull();
+});
+
+it('keeps passenger country choices independent and submits only selected country codes', async () => {
+  travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(ready);
+  render(<FlightCheckout planId="p" offerToken="offer"/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue to passengers →' }));
+  const nationality = screen.getByRole('combobox', { name: 'Nationality' });
+  const issuer = screen.getByRole('combobox', { name: 'Passport issuing country' });
+  expect(nationality.value).toBe('Hungary');
+  fireEvent.click(nationality);
+  expect(within(screen.getByRole('listbox', { name: 'Nationality choices' })).getAllByRole('option')).toHaveLength(10);
+  fireEvent.click(screen.getByRole('button', { name: 'Next Nationality choices' }));
+  expect(screen.getByText('Page 2 of 25')).toBeTruthy();
+  fireEvent.change(nationality, { target: { value: 'Iceland' } });
+  fireEvent.keyDown(nationality, { key: 'Enter' });
+  expect(nationality.value).toBe('Iceland');
+  expect(issuer.value).toBe('Hungary');
+  fireEvent.click(issuer);
+  fireEvent.change(issuer, { target: { value: 'no-such-country' } });
+  expect(screen.getByText('No matches. Try another search.')).toBeTruthy();
+  fireEvent.keyDown(issuer, { key: 'Escape' });
+  expect(issuer.value).toBe('Hungary');
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+  await waitFor(() => expect(travelRequest).toHaveBeenCalledTimes(2));
+  expect(travelRequest.mock.calls[1][2].passengers[0]).toMatchObject({ nationality: 'IS', document_issue_country: 'HU' });
+  await screen.findByRole('button', { name: 'Continue to baggage →' });
+  fireEvent.click(screen.getByRole('button', { name: /2\s*Passengers/ }));
+  expect(screen.getByRole('combobox', { name: 'Nationality' }).matches(':disabled')).toBe(true);
 });
