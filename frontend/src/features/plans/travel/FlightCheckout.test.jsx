@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { FlightCheckout } from './FlightCheckout';
 import { travelRequest } from './travelApi';
 import { flightBookingSummary, itineraryDocument } from './flightItinerary';
@@ -22,6 +22,46 @@ async function reachPayment() {
   fireEvent.click(await screen.findByRole('button', { name: 'Continue to baggage →' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Continue to review & pay →' }));
 }
+it('keeps the passenger form mounted and disabled until the seat step is ready', async () => {
+  let finish;
+  travelRequest.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to passengers →' }));
+  const name = screen.getByLabelText('Given name');
+  fireEvent.change(name, { target: { value: 'Jamie' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Reserve test fare & continue' }));
+
+  expect(screen.getByLabelText('Given name')).toBe(name);
+  expect(name.value).toBe('Jamie');
+  expect(name.matches(':disabled')).toBe(true);
+  expect(screen.getByRole('button', { name: 'Please wait…' }).disabled).toBe(true);
+  expect(screen.queryByText('Checking the reservation.')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Check booking status' })).toBeNull();
+  fireEvent.submit(name.closest('form'));
+  expect(travelRequest).toHaveBeenCalledTimes(1);
+
+  await act(async () => finish(ready));
+  expect(screen.getByRole('heading', { name: 'Seats for your journey.' })).toBeTruthy();
+  expect(screen.queryByLabelText('Given name')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Continue to baggage →' }).disabled).toBe(false);
+});
+
+it('keeps the uncertain-reservation warning visible during a recovery status check', async () => {
+  let finish;
+  travelRequest.mockRejectedValueOnce(new Error('Response lost'))
+    .mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  render(<FlightCheckout planId="p" offerToken="offer" initialReview={review}/>);
+  await reserve();
+  await screen.findByText('Checking the reservation.');
+  fireEvent.click(screen.getByRole('button', { name: 'Check booking status' }));
+  expect(screen.getByText('Checking the reservation.')).toBeTruthy();
+  expect(screen.queryByLabelText('Given name')).toBeNull();
+  await act(async () => finish({ ...review, status: 'unknown' }));
+  expect(screen.queryByRole('button', { name: 'Reserve test fare & continue' })).toBeNull();
+  expect(travelRequest.mock.calls.filter(call => call[1].endsWith('/prebook'))).toHaveLength(1);
+});
+
 it('collects transient test passengers, reconfirms the refreshed fare, and waits for provider readback', async () => {
   const notify = vi.fn();
   travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(ready).mockResolvedValueOnce({ ...confirmed, status: 'pending' }).mockResolvedValueOnce(confirmed);

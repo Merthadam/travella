@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useFlightCheckout } from './useFlightCheckout';
 import { downloadItinerary, flightBookingSummary, formatFlightPrice } from './flightItinerary';
 import './flight-checkout.css';
@@ -59,7 +59,7 @@ function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
 export function FlightCheckout(props) {
   const { planId, onClose, onEmpty, onBackToPlan, savedBooking, saveState } = props;
   const checkout = useFlightCheckout(props);
-  const { result, busy: requestBusy, error, consent, setConsent, attempted, priceChanged, perform } = checkout;
+  const { result, busy: requestBusy, error, consent, setConsent, attempted, pendingAction, priceChanged, perform } = checkout;
   const [choices, setChoices] = useState([]), [paymentBusy, setPaymentBusy] = useState(false), [paymentReady, setPaymentReady] = useState(false);
   const passengerForm = useRef(null), payment = useRef(null), submitting = useRef(false);
   const busy = requestBusy || paymentBusy;
@@ -72,7 +72,7 @@ export function FlightCheckout(props) {
     if (result.status === 'review' && !attempted) setPassengers(testPassengers(result));
     else { setStep(4); setReached(4); reserved.current = true; }
   }, [result]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const target = result?.status === 'confirmed' ? document.querySelector('.flight-confirmation h1') : heading.current;
     target?.focus({ preventScroll: true });
     target?.closest('.canvas-travel-screen')?.scrollTo?.({ top: 0 });
@@ -81,7 +81,9 @@ export function FlightCheckout(props) {
   useEffect(() => { setConsent(false); }, [passengers, contact]);
   const status = result?.status;
   const locked = reserved.current || (status && status !== 'review');
-  const uncertain = attempted && status === 'review';
+  // An in-flight reservation is still the passenger step, not an unknown outcome.
+  const reserving = pendingAction === 'prebook';
+  const uncertain = attempted && status === 'review' && !reserving;
   const empty = !result && !busy && !error;
   useEffect(() => { if (empty) (onEmpty || onClose)?.(); }, [empty, onEmpty, onClose]);
   function move(value) { setStep(value); setReached(old => Math.max(old, value)); setConsent(false); }
@@ -112,7 +114,7 @@ export function FlightCheckout(props) {
     {error && <p className="flight-error" role="alert">{error}</p>}
     {status === 'confirmed' ? <Confirmation result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
       <header className="flight-checkout-title"><p className="flight-eyebrow">YOUR JOURNEY</p><h1 ref={heading} tabIndex={-1}>Book your flights{result ? ` to ${result.flight.outbound.segments.at(-1).destination}` : ''}.</h1><p>Review the journey, add test passengers and confirm the final fare.</p></header>
-      {busy && <p className="flight-loading" role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
+      {busy && <p className={result ? 'flight-loading-announcement' : 'flight-loading'} role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
       {!result && !busy && error && <div className="flight-message"><h2>This flight could not be verified.</h2><p>Return to flights for a fresh offer.</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}
       {result && <><nav className="flight-steps" aria-label="Checkout steps">{steps.map((label, index) => <button key={label} disabled={busy || index > reached || uncertain || ['pending','unknown','failed','cancelled'].includes(status)} aria-current={index === step ? 'step' : undefined} onClick={() => move(index)}><span>{index + 1}</span>{label}</button>)}</nav>
         <div className="flight-checkout-grid"><div className={`flight-step-panel${step === 1 ? ' flight-passenger-panel' : ''}`}>
@@ -124,10 +126,10 @@ export function FlightCheckout(props) {
               {step === 2 && <><p className="flight-eyebrow">SEAT ASSIGNMENT</p><h2>Seats for your journey.</h2><FlightExtras key="seats" kind="seat" result={result} choices={choices} onChange={value => { setChoices(value); setReached(2); setConsent(false); }}/></>}
               {step === 3 && <><p className="flight-eyebrow">BAGGAGE ALLOWANCE</p><h2>Check what you can bring.</h2><div className="flight-included"><h3>Included with this fare</h3><p>{result.flight.baggage_summary || 'The provider did not supply a baggage allowance. Do not assume a cabin or checked bag is included.'}</p></div><FlightExtras key="bags" kind="baggage" result={result} choices={choices} onChange={value => { setChoices(value); setReached(3); setConsent(false); }}/></>}
               {step === 4 && <><h2>Review and pay.</h2><p>Confirm the provider’s final itinerary and total.</p><dl className="flight-review"><div><dt>Passengers</dt><dd>{passengers.length ? passengers.map(p => `${p.first_name} ${p.last_name}`).join(' · ') : `${result.passenger_count} test passengers supplied for this reservation`}</dd></div><div><dt>Seats</dt><dd><ExtrasSummary values={result.selected_services} kind="seat"/></dd></div><div><dt>Baggage</dt><dd>{result.flight.baggage_summary || 'Allowance not supplied.'}<ExtrasSummary values={result.selected_services} kind="baggage"/></dd></div><div><dt>Fare conditions</dt><dd>{result.flight.cancellation_summary || 'Detailed fare conditions not supplied.'}</dd></div></dl>{result.payment_secret ? <FlightPayment ref={payment} secret={result.payment_secret} onReady={setPaymentReady}/> : <div className="flight-payment"><h3>Existing test reservation</h3><p>This older reservation uses LiteAPI’s sandbox account payment. No real charge.</p></div>}<label className="flight-consent"><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)}/><span>I confirm this itinerary, its fare conditions and <b>{formatFlightPrice(result.flight.price)}</b> total for a test-only booking, and want its confirmation saved to my Plan.</span></label></>}
-              <div className="flight-actions"><button type="button" className="flight-text-button" onClick={() => step ? move(step - 1) : onClose()}>← {step ? 'Back' : 'Back to flights'}</button><button type="submit" className="flight-primary" disabled={busy || (step === 4 && result.payment_secret && !paymentReady) || ((step === 1 && !locked || step === 4) && !consent)}>{busy ? (paymentBusy ? 'Authorizing test payment…' : 'Please wait…') : step === 4 ? `Confirm test booking · ${formatFlightPrice(result.flight.price)}` : step === 1 && !locked ? 'Reserve test fare & continue' : `Continue to ${steps[step + 1].toLowerCase()} →`}</button></div>
+              <div className="flight-actions"><button type="button" className="flight-text-button" onClick={() => step ? move(step - 1) : onClose()}>← {step ? 'Back' : 'Back to flights'}</button><button type="submit" className="flight-primary flight-submit" disabled={busy || (step === 4 && result.payment_secret && !paymentReady) || ((step === 1 && !locked || step === 4) && !consent)}><span aria-hidden={busy} style={{ visibility: busy ? 'hidden' : 'visible' }}>{step === 4 ? `Confirm test booking · ${formatFlightPrice(result.flight.price)}` : step === 1 && !locked ? 'Reserve test fare & continue' : `Continue to ${steps[step + 1].toLowerCase()} →`}</span><span aria-hidden={!busy} style={{ visibility: busy ? 'visible' : 'hidden' }}>{paymentBusy ? 'Authorizing test payment…' : 'Please wait…'}</span></button></div>
             </fieldset>
           </form>}
-          {attempted && result.token && <button type="button" className="flight-text-button flight-status-button" disabled={busy} onClick={async () => { const value = await perform('status'); if (value?.status === 'ready_to_book') { reserved.current = true; move(4); } }}>Check booking status</button>}
+          {attempted && !reserving && result.token && <button type="button" className="flight-text-button flight-status-button" disabled={busy} onClick={async () => { const value = await perform('status'); if (value?.status === 'ready_to_book') { reserved.current = true; move(4); } }}>Check booking status</button>}
         </div><Summary result={result}/></div>
       </>}
     </>}

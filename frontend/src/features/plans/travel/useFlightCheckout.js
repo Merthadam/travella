@@ -15,6 +15,7 @@ export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBook
   const [error, setError] = useState('');
   const [consent, setConsent] = useState(false);
   const [attempted, setAttempted] = useState(Boolean(recoveryToken));
+  const [pendingAction, setPendingAction] = useState(null);
   const [priceChanged, setPriceChanged] = useState(false);
   const started = useRef(null), submitting = useRef(false), notified = useRef(null), latest = useRef(result);
   const callbacks = useRef({ onBookingResult, onExpired }); callbacks.current = { onBookingResult, onExpired };
@@ -55,14 +56,14 @@ export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBook
   }, [planId, result?.status, result?.token]);
   async function perform(action, payload = {}) {
     if (submitting.current || !result?.token) return null;
-    submitting.current = true; setBusy(true); setError(''); setConsent(false);
+    submitting.current = true; setBusy(true); setPendingAction(action); setError(''); setConsent(false);
     if (action !== 'status') { setAttempted(true); remember(planId, result.token); }
     try {
       const value = await travelRequest(planId, `sandbox/flights/${action}`, { token: result.token, ...(action !== 'status' ? { confirm_mock: true } : {}), ...payload });
       // Keep confirmation delivery alive if the user left while submitting.
       accept(value); return value;
     } catch (e) { if (action === 'services') { setResult(old => ({ ...old, status: 'unknown' })); setConsent(false); } if (action === 'prebook' && e.status === 422) setAttempted(false); failed(e); return null; }
-    finally { submitting.current = false; setBusy(false); }
+    finally { submitting.current = false; setBusy(false); setPendingAction(null); }
   }
-  return { result, busy, error, consent, setConsent, attempted, priceChanged, perform };
+  return { result, busy, error, consent, setConsent, attempted, pendingAction, priceChanged, perform };
 }
