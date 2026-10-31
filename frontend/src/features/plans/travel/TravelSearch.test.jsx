@@ -564,8 +564,9 @@ test('new results retain open detail original full identity and mark detached ev
   expect(screen.getByText(/Earlier search.*original observation/)).toBeTruthy();
   const dialog = document.querySelector('dialog');
   expect(dialog.textContent).toContain('import-1');
-  fireEvent.click([...dialog.querySelectorAll('button')].find(button => button.textContent === 'Choose for trip'));
-  expect(onChoose).toHaveBeenCalledWith(expect.objectContaining({ reference: { search_id: first.search_id, option_id: first.results[0].id, room_id: null } }));
+  expect(dialog.textContent).not.toContain('Choose for trip');
+  expect(dialog.textContent).not.toContain('Discuss flight');
+  expect(onChoose).not.toHaveBeenCalled();
 });
 
 test('view-only filters and sort perform no supplier request and exclude confirmed violations', async () => {

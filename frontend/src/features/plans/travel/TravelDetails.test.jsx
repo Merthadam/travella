@@ -25,14 +25,14 @@ function serve(availability) {
   travelRequest.mockImplementation(async (_plan, route) => route === 'hotels/detail' ? { hotel: { description: 'Fresh hotel description' } } : availability);
 }
 
-test('flight actions use the original exact reference and perform no hotel requests', async () => {
-  const onClose = vi.fn(), onDiscuss = vi.fn(), onCheckout = vi.fn();
-  render(<FlightDetails observation={observation('flights')} checkoutToken="test-token" onClose={onClose} onDiscuss={onDiscuss} onCheckout={onCheckout}/>);
-  fireEvent.click(screen.getByRole('button', { name: 'Discuss flight' }));
-  expect(onDiscuss).toHaveBeenCalledWith({ title: 'Test airline', reference: { search_id: 'original-search', option_id: 'flight', room_id: null } });
-  expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(onDiscuss.mock.invocationCallOrder[0]);
+test('flight review exposes checkout without choose or discuss actions', async () => {
+  const onCheckout = vi.fn(), onChoose = vi.fn(), onDiscuss = vi.fn();
+  render(<FlightDetails observation={observation('flights')} checkoutToken="test-token" onClose={vi.fn()} onChoose={onChoose} onDiscuss={onDiscuss} onCheckout={onCheckout}/>);
+  expect(screen.queryByRole('button', { name: 'Choose for trip' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Discuss flight' })).toBeNull();
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Continue to flight checkout' })));
   expect(onCheckout).toHaveBeenCalledWith({ offerToken: 'test-token' }, expect.any(AbortSignal));
+  expect(onChoose).not.toHaveBeenCalled(); expect(onDiscuss).not.toHaveBeenCalled();
   expect(travelRequest).not.toHaveBeenCalled();
 });
 
@@ -151,8 +151,7 @@ test('itinerary offers direct checkout and optional fare details without implici
   expect(screen.getByText(/Estimated/)).toBeTruthy();
   expect(screen.getByText(/Airport tax/)).toBeTruthy();
   expect(onChoose).not.toHaveBeenCalled(); expect(onCheckout).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Choose for trip' }));
-  expect(onChoose).toHaveBeenCalledWith({ title: 'Test airline', reference: { search_id: 'original-search', option_id: 'flight', room_id: null } });
+  expect(screen.queryByRole('button', { name: 'Choose for trip' })).toBeNull();
 });
 
 test('an offer expiring during itinerary review removes actions and provides explicit recovery', () => {
@@ -187,10 +186,10 @@ test('flight modal Escape calls close and unmount restores its trigger', () => {
   view.unmount(); expect(document.activeElement).toBe(trigger); trigger.remove();
 });
 
-test('live provider offers keep planning actions but cannot start sandbox checkout', () => {
+test('live provider offers cannot start sandbox checkout', () => {
   const entry = observation('flights'); entry.snapshot.sandbox = false;
   render(<FlightDetails observation={entry} checkoutToken="test-token" onClose={vi.fn()} onChoose={vi.fn()} onCheckout={vi.fn()}/>);
-  expect(screen.getByRole('button', { name: 'Choose for trip' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Choose for trip' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Continue to flight checkout' })).toBeNull();
   expect(screen.getByText('Checkout is unavailable for this offer.')).toBeTruthy();
   expect(screen.queryByText(/Test checkout/)).toBeNull();
@@ -212,7 +211,7 @@ test('checkout keeps itinerary visible and prevents duplicate entry while prepar
   expect(screen.getByRole('heading', { name: 'Outbound' })).toBeTruthy();
   expect(screen.getByText('Checking availability and the current fare…')).toBeTruthy();
   expect(button.disabled).toBe(true);
-  expect(screen.getByRole('button', { name: 'Choose for trip' }).disabled).toBe(true);
+  expect(screen.queryByRole('button', { name: 'Choose for trip' })).toBeNull();
   const signal = onCheckout.mock.calls[0][1];
   view.unmount(); expect(signal.aborted).toBe(true);
   await act(async () => finish(true));

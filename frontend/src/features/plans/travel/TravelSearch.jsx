@@ -947,8 +947,6 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           detached={detailsReference.snapshot.search_id !== snapshot?.search_id}
           checkoutToken={workspace.getCheckoutToken(detailsReference.reference)}
           onClose={() => setDetail(null)}
-          onDiscuss={discussionDisabled ? undefined : onDiscuss}
-          onChoose={choiceDisabled ? undefined : onChoose}
           booked={Boolean(initialData?.flights?.mockBooking)}
           onCheckout={onFlightCheckout ? async (value, signal) => {
             try {

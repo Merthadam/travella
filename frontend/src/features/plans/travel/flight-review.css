@@ -59,10 +59,6 @@
 .flight-review-terms dt { margin-bottom: 5px; font-size: 10px; color: var(--review-muted); }
 .flight-review-terms dd { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
 .flight-review-terms dd span { display: block; margin-top: 4px; font-size: 11px; color: var(--review-muted); }
-.flight-review-alternatives { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; padding-bottom: 22px; }
-.flight-review-dialog .flight-review-secondary { min-height: 40px; border: 1px solid var(--review-line); border-radius: 6px; padding: 9px 13px; background: transparent; color: var(--review-ink); font-size: 12px; }
-.flight-review-dialog .flight-review-text { border: 0; padding: 8px 0; background: transparent; color: var(--review-green); font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
-.flight-review-text > span { margin-left: 5px; }
 .flight-review-boundary { border-top: 1px solid var(--review-line); padding-top: 12px; font-size: 11px; }
 .flight-review-local { padding: 14px 0 18px; font-size: 10px; color: var(--review-muted); }
 .flight-review-observed { padding: 12px 0 18px; font-size: 10px; color: var(--review-muted); overflow-wrap: anywhere; }

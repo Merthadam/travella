@@ -30,7 +30,7 @@ function ReviewLeg({ leg, label }) {
   </article>;
 }
 
-export function FlightDetails({ observation, detached, checkoutToken, booked, onClose, onRefresh, onDiscuss, onChoose, onCheckout }) {
+export function FlightDetails({ observation, detached, checkoutToken, booked, onClose, onRefresh, onCheckout }) {
   const { item, snapshot, historical } = observation;
   const [evidenceExpired, setEvidenceExpired] = useState(() => offerExpired(snapshot.expires_at));
   const dialog = useRef(null), checkoutRequest = useRef(null);
@@ -40,7 +40,6 @@ export function FlightDetails({ observation, detached, checkoutToken, booked, on
   const route = `${first.origin} ⇄ ${last.destination}`;
   const dates = `${flightDate(first.departure_at)} – ${flightDate(item.inbound.segments[0].departure_at)}`;
   const airlines = item.airlines.join(' · ') || 'Airline unavailable';
-  const canPlan = !evidenceExpired && Boolean(snapshot.search_id);
   const canCheckout = snapshot.sandbox && checkoutToken && !evidenceExpired;
   const needsSearch = evidenceExpired || !checkoutToken;
 
@@ -59,18 +58,6 @@ export function FlightDetails({ observation, detached, checkoutToken, booked, on
     check();
     return () => clearTimeout(timer);
   }, [snapshot.expires_at]);
-
-  function currentAction(callback) {
-    // Recheck at the event boundary as timers can be delayed in background tabs.
-    if (offerExpired(snapshot.expires_at)) { setEvidenceExpired(true); return; }
-    callback();
-  }
-  function attach(callback) {
-    currentAction(() => {
-      onClose();
-      callback({ title: item.airlines.join(' / '), reference: { search_id: snapshot.search_id, option_id: item.id, room_id: null } });
-    });
-  }
 
   async function startCheckout() {
     if (checkoutRequest.current) return;
@@ -97,17 +84,13 @@ export function FlightDetails({ observation, detached, checkoutToken, booked, on
     <div className="flight-review-content" role="region" aria-label="Flight itinerary and fare">
       {detached && <p className="flight-review-notice" role="status">Earlier search · inspecting its original observation. The main results have changed.</p>}
       {historical && <p className="flight-review-notice" role="status">Original observed offer · no availability refresh requested.</p>}
-      {evidenceExpired && <p className="flight-review-notice" role="status">This offer has expired. Search again before choosing it.</p>}
+      {evidenceExpired && <p className="flight-review-notice" role="status">This offer has expired. Search again before continuing.</p>}
       <ReviewLeg leg={item.outbound} label="Outbound"/><ReviewLeg leg={item.inbound} label="Return"/>
       <p className="flight-review-local">All times are local to each airport.</p>
       <details className="flight-review-terms"><summary>Baggage & fare conditions</summary><dl>
         <div><dt>Baggage</dt><dd>{item.baggage_summary || 'Baggage allowance not supplied.'}</dd></div>
         <div><dt>Changes & refunds</dt><dd>{refund(item.refundable)}<span>{item.cancellation_summary || 'Detailed fare conditions not supplied.'}</span></dd></div>
       </dl></details>
-      {canPlan && (onChoose || onDiscuss) && <div className="flight-review-alternatives">
-        {onChoose && <button type="button" className="flight-review-secondary" disabled={preparingCheckout} onClick={() => attach(onChoose)}>Choose for trip</button>}
-        {onDiscuss && <button type="button" className="flight-review-text" disabled={preparingCheckout} onClick={() => attach(onDiscuss)}>Discuss flight <span aria-hidden="true">↗</span></button>}
-      </div>}
       <p className="flight-review-boundary">{snapshot.sandbox ? 'Test checkout · no real ticket or charge' : 'Availability and prices can change.'}</p>
       {checkoutError && <p className="flight-review-notice" role="alert">{checkoutError}</p>}
       <p className="flight-review-observed">Observed {new Date(snapshot.searched_at).toLocaleString()} · {snapshot.sandbox ? 'Test inventory' : 'Provider results'}</p>
