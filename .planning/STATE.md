@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-fly | Compact paginated checkout country pickers | 2026-10-31 | c13a431 | [261031-fly](./quick/261031-fly-replace-oversized-checkout-country-menus/) |
 | 261031-fa4 | Open checkout review directly from flight results | 2026-10-31 | 0cea83c | [261031-fa4](./quick/261031-fa4-open-flight-checkout-review-directly-fro/) |
 | 261031-evp | Remove choose/discuss from flight review | 2026-10-31 | 1d75f77 | [261031-evp](./quick/261031-evp-remove-choose-and-discuss-actions-from-f/) |
 | 261031-eec | Remove extra fare step; direct itinerary checkout | 2026-10-31 | b93cc6f | [261031-eec](./quick/261031-eec-remove-redundant-fare-step-and-continue-/) |
@@ -510,3 +511,7 @@ Debug session resolved in b6710e4. Keep itinerary visible while verifying the or
 ### Direct results to flight checkout — 31 October 2026
 
 User approved removing the intermediate modal from the live manual flight path. 0cea83c verifies from View flight with results pending/cancel/retry, then mounts checkout fully populated. 273 relevant tests passed (12 existing skips); one rebuild-time canvas timeout passed on rerun. Build, canonical Docker auth/source checks and authenticated Chrome desktop/mobile direct handoff, frame sampling, cancellation, failure/retry, Back to flights and tokenless observation checks passed. Evidence: artifacts/testing/2026-10-31-results-to-checkout/verification.md. Test Plan cleaned; no reservation/payment, push, merge or deployment. Wider Phase18 acceptance unchanged.
+
+### Checkout country pickers — 31 October 2026
+
+User requested paging for oversized country dropdowns. c13a431 reuses searchable ten-option pages for nationality and passport issuing country, with mobile full-width fields. 252 travel tests passed (12 existing skips), build, canonical auth/source checks and actual authenticated Chrome desktop/mobile country selection, paging, search, empty-state and checkout-step retention passed. Evidence: artifacts/testing/2026-10-31-checkout-country-picker/verification.md. Test Plan cleaned; no reservation/booking, push or merge. Wider Phase18 acceptance unchanged.
