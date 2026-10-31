@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-30T23:12:42.122682+00:00"
-last_activity: 2026-10-30
-last_activity_desc: Approved guided flight review C implemented and verified; 244 tests passed, 12 fixture skips
+last_updated: "2026-10-31T09:27:29.144285+00:00"
+last_activity: 2026-10-31
+last_activity_desc: Removed extra fare step; direct itinerary checkout verified
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-eec | Remove extra fare step; direct itinerary checkout | 2026-10-31 | b93cc6f | [261031-eec](./quick/261031-eec-remove-redundant-fare-step-and-continue-/) |
 | 261030-xau | Implement approved guided flight review C | 2026-10-31 | 132a1af | [261030-xau](./quick/261030-xau-implement-approved-guided-flight-review-/) |
 | 261030-vld | Match Recently deleted to My plans as uniform rows; remove old view | 2026-10-30 | 22071ae | [261030-vld](./quick/261030-vld-use-my-plans-card-styling-for-recently-d/) |
 | 261030-qip | Share authenticated agent gateway setup | 2026-10-30 | 36c4b2f | [261030-qip](./quick/261030-qip-share-authenticated-agent-gateway-setup-/) |
@@ -495,3 +496,7 @@ User explicitly authorized merging vivid-sunspot into main. PR #28: https://gith
 ### Guided flight review C — 31 October 2026
 
 User selected C and requested implementation. Application commit 132a1af on feat/guided-flight-review adds two-stage itinerary/fare review with persistent checkout footer and exact existing actions. 244 travel tests passed, 12 fixture skips; build, canonical Docker auth/source checks and authenticated Chrome DevTools sandbox journeys passed. Evidence: artifacts/testing/2026-10-30-guided-flight-review/verification.md. Temporary test Plan cleaned; no booking/payment, push or merge. Wider Phase18 acceptance unchanged.
+
+### Direct flight checkout refinement — 31 October 2026
+
+User removed the redundant fare step. b93cc6f exposes Continue to checkout on itinerary and keeps optional fare disclosure. 244 travel tests passed (12 fixture skips), build and actual authenticated Chrome sandbox direct handoff/mobile/expiry checks passed. Evidence: artifacts/testing/2026-10-31-direct-flight-checkout/verification.md. Canonical localhost:5174 rebuilt and source-verified. Test Plan cleaned. No push/merge/deployment; broader phase acceptance unchanged.
