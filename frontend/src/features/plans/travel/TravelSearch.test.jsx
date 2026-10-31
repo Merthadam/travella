@@ -331,7 +331,7 @@ test('stay import uses observed hotel ID and search criteria only after View roo
   expect(searchRequest.mock.calls[1][2]).toEqual({...s.criteria,hotel_id:'observed-hotel'});
 });
 
-test.each(['complete', 'closed', 'failed', 'expired-session'])('manual checkout preparation %s keeps the original view until ready',async(outcome)=>{
+test.each(['complete', 'closed', 'failed', 'expired-session', 'left-workspace'])('manual checkout preparation %s keeps the original view until ready',async(outcome)=>{
   HTMLDialogElement.prototype.showModal=function(){this.open=true;};
   const s=imported('flights');
   const review = {sandbox:true,mode:'flights',status:'review',token:'verified-token',flight:s.results[0]};
@@ -340,7 +340,7 @@ test.each(['complete', 'closed', 'failed', 'expired-session'])('manual checkout 
     ? {...s,results:[{...s.results[0],checkout_token:'manual-only-token'}]}
     : new Promise((resolve,reject) => {finish=resolve;fail=reject;}));
   const onFlightCheckout = vi.fn(), onExpired = vi.fn();
-  render(<TravelSearch {...props} mode="flights" importedSnapshot={s} onFlightCheckout={onFlightCheckout} onExpired={onExpired}/>);
+  const view = render(<TravelSearch {...props} mode="flights" importedSnapshot={s} onFlightCheckout={onFlightCheckout} onExpired={onExpired}/>);
   await screen.findByRole('heading',{name:s.search_id});
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
   expect(screen.queryByRole('button',{name:'Continue to flight checkout'})).toBeNull();
@@ -349,15 +349,16 @@ test.each(['complete', 'closed', 'failed', 'expired-session'])('manual checkout 
   await waitFor(()=>expect(searchRequest).toHaveBeenCalledTimes(1));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Search flights'}).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
-  fireEvent.click(screen.getByRole('button',{name:'Continue to flight checkout'}));
   expect(onFlightCheckout).not.toHaveBeenCalled();
-  expect(screen.getByRole('dialog')).toBeTruthy();
-  expect(screen.getByRole('button',{name:'Continue to flight checkout'}).disabled).toBe(true);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('button',{name:'Checking fare… →'}).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button',{name:'Checking fare… →'}));
   expect(searchRequest.mock.calls.map(x=>x[1])).toEqual(['flights/search', 'sandbox/flights/verify']);
   expect(searchRequest.mock.calls[1][2]).toEqual({token:'manual-only-token'});
   const signal = searchRequest.mock.calls[1][3];
-  if (outcome === 'closed') {
-    fireEvent.click(screen.getByRole('button', {name:'Close details'}));
+  if (outcome === 'closed' || outcome === 'left-workspace') {
+    if (outcome === 'closed') fireEvent.click(screen.getByRole('button', {name:'Cancel'}));
+    else view.rerender(<TravelSearch {...props} mode="flights" active={false} importedSnapshot={s} onFlightCheckout={onFlightCheckout} onExpired={onExpired}/>);
     expect(signal.aborted).toBe(true);
     await act(async () => finish(review));
     expect(onFlightCheckout).not.toHaveBeenCalled();
@@ -365,9 +366,12 @@ test.each(['complete', 'closed', 'failed', 'expired-session'])('manual checkout 
   } else if (outcome === 'failed' || outcome === 'expired-session') {
     await act(async () => fail(Object.assign(new Error('Verification failed'), {status:outcome === 'expired-session' ? 401 : 503})));
     expect(onFlightCheckout).not.toHaveBeenCalled();
-    expect(screen.getByText('Verification failed')).toBeTruthy();
-    expect(screen.getByRole('button',{name:'Continue to flight checkout'}).disabled).toBe(false);
+    expect(screen.getByRole('alert').textContent).toContain('Verification failed');
+    expect(screen.getByRole('button',{name:'View flight →'}).disabled).toBe(false);
     expect(onExpired).toHaveBeenCalledTimes(outcome === 'expired-session' ? 1 : 0);
+    fireEvent.click(screen.getByRole('button',{name:'View flight →'}));
+    await act(async () => finish(review));
+    expect(onFlightCheckout).toHaveBeenCalledTimes(1);
   } else {
     await act(async () => finish(review));
     expect(onFlightCheckout).toHaveBeenCalledWith({offerToken:'manual-only-token',initialReview:review},signal);

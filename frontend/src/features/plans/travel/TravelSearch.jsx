@@ -12,6 +12,7 @@ import { travelState, TravelPhoto, parseTravelRegistrySnapshot } from "./CanvasT
 import { CarrierMarks } from "./CarrierMark";
 import { TravelComparison, comparisonEntry, referenceKey } from './TravelComparison';
 import { FlightDetails } from "./FlightDetails";
+import { offerExpired } from "./TravelDetailsDialog";
 import { StayDetails } from "./StayDetails";
 import { Leg, Price, refund, duration } from "./TravelPresentation";
 import "./travel-search.css";
@@ -224,6 +225,44 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   const compared = view.comparison_refs.filter(ref => ref.search_id === snapshot?.search_id).map(ref => ref.option_id);
   const setCompared = value => workspace.setView(current => ({ comparison_refs: (typeof value === "function" ? value(current.comparison_refs.map(ref => ref.option_id)) : value).map(option_id => current.comparison_refs.find(ref => ref.search_id === snapshot.search_id && ref.option_id === option_id) || ({ search_id: snapshot.search_id, option_id, room_id: null })) }));
   const [comparison, setComparison] = useState([]), [comparisonError, setComparisonError] = useState(false), [discussing, setDiscussing] = useState(false);
+  const checkoutRequest = useRef(null);
+  const [checkoutStatus, setCheckoutStatus] = useState(null);
+  function cancelCheckout() {
+    checkoutRequest.current?.abort();
+    checkoutRequest.current = null;
+    setCheckoutStatus(null);
+  }
+  useEffect(() => {
+    cancelCheckout();
+    return () => { checkoutRequest.current?.abort(); checkoutRequest.current = null; };
+  }, [planId, mode, active, snapshot?.search_id, workspace.state.instanceId, loading]);
+  async function prepareCheckout(value, signal) {
+    try {
+      const initialReview = await travelRequest(planId, 'sandbox/flights/verify', { token: value.offerToken }, signal);
+      if (signal.aborted) return false;
+      const opened = await onFlightCheckout({ ...value, initialReview }, signal);
+      if (signal.aborted || opened === false) return false;
+      setDetail(null);
+      return true;
+    } catch (error) {
+      if (!signal.aborted && error.status === 401) onExpired?.();
+      throw error;
+    }
+  }
+  async function openFlightReview(item, offerToken) {
+    if (checkoutRequest.current) return;
+    const controller = new AbortController();
+    checkoutRequest.current = controller;
+    setCheckoutStatus({ id: item.id, pending: true });
+    try {
+      const opened = await prepareCheckout({ offerToken }, controller.signal);
+      if (!controller.signal.aborted) setCheckoutStatus(opened ? null : { id: item.id, error: 'Checkout could not open yet. Please try again.' });
+    } catch (error) {
+      if (!controller.signal.aborted) setCheckoutStatus({ id: item.id, error: error.message || 'Unable to verify this fare. Please try again.' });
+    } finally {
+      if (checkoutRequest.current === controller) checkoutRequest.current = null;
+    }
+  }
   const comparisonRun = useRef(0);
   useEffect(() => {
     onComparisonChange?.(comparison.map(entry => entry.reference));
@@ -289,6 +328,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   }
   async function search(event) {
     event.preventDefault();
+    cancelCheckout();
     setError("");
     if (stay && !place) {
       setError("Choose a destination from the suggestions before searching.");
@@ -369,6 +409,11 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   function editSearch() { form.current?.querySelector('input')?.focus(); form.current?.scrollIntoView?.({ block: 'start' }); }
   function openDetail(item) {
     if (imported && (importReason || travelState(snapshot, initialData))) { setImportClock(Date.now()); return; }
+    const token = !stay && workspace.getCheckoutToken({ search_id: snapshot.search_id, option_id: item.id, room_id: null });
+    if (!stay && active && !loading && snapshot.sandbox && token && !offerExpired(snapshot.expires_at) && onFlightCheckout && !initialData?.flights?.mockBooking) {
+      void openFlightReview(item, token);
+      return;
+    }
     setDetail(item);
   }
   const results = filterResults(unavailable ? [] : (snapshot?.results || []).filter(item => !view.dismissed_ids.includes(item.id)), {
@@ -841,10 +886,15 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                     }}>Dismiss from results</button>}
                     <button
                       className="travel-primary"
+                      disabled={!stay && checkoutStatus?.pending}
                       onClick={() => openDetail(item)}
                     >
-                      {stay ? "View rooms" : "View flight"} →
+                      {stay ? "View rooms" : checkoutStatus?.id === item.id && checkoutStatus.pending ? "Checking fare…" : "View flight"} →
                     </button>
+                    {!stay && checkoutStatus?.id === item.id && (checkoutStatus.pending ? <div>
+                      <p className="travel-note" role="status">Checking availability and the current fare…</p>
+                      <button type="button" onClick={cancelCheckout}>Cancel</button>
+                    </div> : <p className="travel-error" role="alert">{checkoutStatus.error} Select View flight to retry.</p>)}
                     <label className="travel-check">
                       <input
                         type="checkbox"
@@ -891,7 +941,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                           ? refund(item.rooms[0]?.refundable)
                           : `${duration(item.outbound.duration_minutes)} out · ${duration(item.inbound.duration_minutes)} back`}
                       </p>
-                      <button onClick={() => openDetail(item)}>
+                      <button disabled={!stay && checkoutStatus?.pending} onClick={() => openDetail(item)}>
                         View details
                       </button>
                     </article>
@@ -948,19 +998,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           checkoutToken={workspace.getCheckoutToken(detailsReference.reference)}
           onClose={() => setDetail(null)}
           booked={Boolean(initialData?.flights?.mockBooking)}
-          onCheckout={onFlightCheckout ? async (value, signal) => {
-            try {
-              const initialReview = await travelRequest(planId, 'sandbox/flights/verify', { token: value.offerToken }, signal);
-              if (signal.aborted) return false;
-              const opened = await onFlightCheckout({ ...value, initialReview }, signal);
-              if (signal.aborted || opened === false) return false;
-              setDetail(null);
-              return true;
-            } catch (error) {
-              if (!signal.aborted && error.status === 401) onExpired?.();
-              throw error;
-            }
-          } : undefined}
+          onCheckout={onFlightCheckout ? prepareCheckout : undefined}
           onRefresh={() => { setDetail(null); form.current?.requestSubmit(); }}
         />
       ))}
