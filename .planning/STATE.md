@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-31T09:38:45.119583+00:00"
+last_updated: "2026-10-31T09:46:04.391236+00:00"
 last_activity: 2026-10-31
-last_activity_desc: Fixed manual flight checkout flicker; browser frame verification passed
+last_activity_desc: Removed flight-review choose/discuss controls; verified desktop/mobile checkout
 state_head: a7cc96b88cbf7ccb0814b6094064c5b0d3a8a9d7
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261031-evp | Remove choose/discuss from flight review | 2026-10-31 | 1d75f77 | [261031-evp](./quick/261031-evp-remove-choose-and-discuss-actions-from-f/) |
 | 261031-eec | Remove extra fare step; direct itinerary checkout | 2026-10-31 | b93cc6f | [261031-eec](./quick/261031-eec-remove-redundant-fare-step-and-continue-/) |
 | 261030-xau | Implement approved guided flight review C | 2026-10-31 | 132a1af | [261030-xau](./quick/261030-xau-implement-approved-guided-flight-review-/) |
 | 261030-vld | Match Recently deleted to My plans as uniform rows; remove old view | 2026-10-30 | 22071ae | [261030-vld](./quick/261030-vld-use-my-plans-card-styling-for-recently-d/) |
