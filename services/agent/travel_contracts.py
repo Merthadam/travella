@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from services.shared.traveler_profile import reference_catalog
 from services.mock_booking import StayReservation
@@ -176,11 +176,34 @@ class SandboxHandle(Strict):
 class TestGuest(Strict):
     first_name: str = Field(min_length=1, max_length=50, pattern=r"^[^<>\x00-\x1f]+$")
     last_name: str = Field(min_length=1, max_length=50, pattern=r"^[^<>\x00-\x1f]+$")
+    requests: str = Field(default="", max_length=500, pattern=r"^[^\x00-\x08\x0b\x0c\x0e-\x1f\x7f]*$")
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def trim_name(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("requests")
+    @classmethod
+    def trim_requests(cls, value):
+        return value.strip()
+
+
+class StayBookingContact(Strict):
+    first_name: str = Field(min_length=1, max_length=50, pattern=r"^[^<>\x00-\x1f]+$")
+    last_name: str = Field(min_length=1, max_length=50, pattern=r"^[^<>\x00-\x1f]+$")
+    email: EmailStr = Field(max_length=254)
+
+    @field_validator("first_name", "last_name", "email", mode="before")
+    @classmethod
+    def trim_contact(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
 
 class SandboxBook(SandboxHandle):
     confirm_mock: Literal[True]
     guests: list[TestGuest] = Field(min_length=1, max_length=4)
+    contact: StayBookingContact | None = None
 
 
 class SandboxFlightConfirm(SandboxHandle):

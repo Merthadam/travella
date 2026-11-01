@@ -51,8 +51,8 @@ def register_travel_routes(app, identity_dependency, read_plan, client=None, rea
         except (ValidationError, KeyError):
             return JSONResponse(
                 {
-                    "code": "invalid_search",
-                    "message": "Check your search criteria and travel dates.",
+                    "code": "invalid_stay_guests" if invocation.action == "sandbox/book" else "invalid_search",
+                    "message": "Check the booking contact, guest names and requests." if invocation.action == "sandbox/book" else "Check your search criteria and travel dates.",
                 },
                 status_code=422,
             )

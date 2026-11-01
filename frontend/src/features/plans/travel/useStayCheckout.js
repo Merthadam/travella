@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { travelRequest } from './travelApi';
-import { rememberStayReceipt, stayCheckoutUpdated } from './bookingReceipts';
+import { rememberStayReceipt, forgetUnsubmittedStayReceipt, stayCheckoutUpdated } from './bookingReceipts';
 import { savedStayResult } from './stayReservation';
 export function useStayCheckout({ planId, offerToken, recoveryToken, savedBooking, onBookingResult, onExpired }) {
   const [result, setResult] = useState(() => savedStayResult(savedBooking));
@@ -34,14 +34,20 @@ export function useStayCheckout({ planId, offerToken, recoveryToken, savedBookin
     }
     timer = setTimeout(poll, 5000); return () => { live = false; clearTimeout(timer); };
   }, [planId, attempted, result?.status, result?.token]);
-  async function perform(action, guests) {
+  async function perform(action, guests, contact) {
     if (submitting.current || !result?.token) return;
     submitting.current = true; setBusy(true); setError('');
     if (action === 'book') { setAttempted(true); rememberStayReceipt(planId, result.token); }
     try {
-      const value = await travelRequest(planId, `sandbox/${action}`, { token: result.token, ...(action === 'book' ? { confirm_mock: true, guests } : {}) });
+      const value = await travelRequest(planId, `sandbox/${action}`, { token: result.token, ...(action === 'book' ? { confirm_mock: true, guests, contact } : {}) });
       accept(value); return value;
-    } catch (error) { failed(error); }
+    } catch (error) {
+      // Only this public-boundary validation code proves the supplier was never called.
+      if (action === 'book' && error.status === 422 && error.code === 'invalid_stay_guests') {
+        setAttempted(false); forgetUnsubmittedStayReceipt(planId, result.token);
+      }
+      failed(error);
+    }
     finally { submitting.current = false; setBusy(false); window.dispatchEvent(new CustomEvent(stayCheckoutUpdated, { detail: planId })); }
   }
   return { result, busy, error, attempted, perform };

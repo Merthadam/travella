@@ -18,7 +18,7 @@ it('reviews multiple rooms, requires exact consent and saves only after provider
  const book=screen.getByRole('button',{name:'Confirm test booking · €450.50'}); expect(book.disabled).toBe(true);
  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(book);
  await screen.findByText('Awaiting reservation confirmation.'); expect(notify).not.toHaveBeenCalled();
- expect(travelRequest.mock.calls[1][2]).toEqual({token:'PRIVATE',confirm_mock:true,guests:[{first_name:'Alex',last_name:'Tester'},{first_name:'Sam',last_name:'Tester'}]});
+ expect(travelRequest.mock.calls[1][2]).toEqual({token:'PRIVATE',confirm_mock:true,guests:[{first_name:'Alex',last_name:'Tester'},{first_name:'Sam',last_name:'Tester'}],contact:{first_name:'Alex',last_name:'Tester',email:'sandbox-guest@example.com'}});
  fireEvent.click(screen.getByRole('button',{name:'Check reservation status'})); await screen.findByText('Your test stay is confirmed.');
  expect(notify).toHaveBeenCalledOnce(); expect(screen.getByText('Room 2: Sam Tester')).toBeTruthy();
  expect(JSON.stringify(sessionStorage)).not.toMatch(/Alex|Tester|email/);
@@ -106,4 +106,66 @@ it('does not treat prebook failure as a reservation and keeps saved state unchan
  const notify=vi.fn();travelRequest.mockRejectedValue(new Error('This room is unavailable'));
  render(<StayCheckout planId="p" offerToken="offer" onBookingResult={notify}/>);
  await screen.findByText('This stay could not be verified.');expect(notify).not.toHaveBeenCalled();expect(sessionStorage.length).toBe(0);
+});
+
+it('keeps booking contact separate, reviews per-room requests and submits the exact details', async () => {
+ travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(confirmed);
+ render(<StayCheckout planId="p" offerToken="offer"/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Continue to guests →'}));
+ fireEvent.change(screen.getByLabelText('Email address'),{target:{value:'booker@example.com'}});
+ fireEvent.click(screen.getByLabelText('Someone else'));
+ fireEvent.change(document.getElementById('stay-room-1-first'),{target:{value:'Jamie'}});
+ fireEvent.change(screen.getByLabelText('Room 1 special requests'),{target:{value:'Quiet room, please.\nLate arrival.'}});
+ fireEvent.change(screen.getByLabelText('Room 2 special requests'),{target:{value:'  Twin beds, if possible.  '}});
+ fireEvent.click(screen.getByRole('button',{name:'Continue to review & pay →'}));
+ expect(screen.getByText(/booker@example.com/)).toBeTruthy();
+ expect(screen.getByText('Jamie Tester')).toBeTruthy();
+ expect(screen.getByText('Twin beds, if possible.')).toBeTruthy();
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:/Guests/}));
+ expect(screen.getByLabelText('Room 1 special requests').value).toBe('Quiet room, please.\nLate arrival.');
+ fireEvent.click(screen.getByRole('button',{name:'Continue to review & pay →'}));
+ expect(screen.getByRole('button',{name:/Confirm test booking/}).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/}));
+ await screen.findByText('Your test stay is confirmed.');
+ expect(travelRequest.mock.calls[1][2]).toEqual({token:'PRIVATE',confirm_mock:true,contact:{first_name:'Alex',last_name:'Tester',email:'booker@example.com'},guests:[{first_name:'Jamie',last_name:'Tester',requests:'Quiet room, please.\nLate arrival.'},{first_name:'Sam',last_name:'Tester',requests:'Twin beds, if possible.'}]});
+ expect(JSON.stringify(sessionStorage)).not.toMatch(/booker|Quiet|Twin beds/);
+});
+it('uses the contact for room one only and omits empty requests', async () => {
+ travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(confirmed);
+ render(<StayCheckout planId="p" offerToken="offer"/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Continue to guests →'}));
+ fireEvent.change(document.getElementById('stay-contact-first'),{target:{value:'Robin'}});
+ fireEvent.change(screen.getByLabelText('Room 1 special requests'),{target:{value:'   '}});
+ expect(screen.getByLabelText('Room 1 special requests').maxLength).toBe(500);
+ fireEvent.click(screen.getByRole('button',{name:'Continue to review & pay →'}));
+ expect(screen.getAllByText(/Robin Tester/)).toHaveLength(2);
+ expect(screen.getByText('Sam Tester')).toBeTruthy();
+ expect(screen.queryByText('Room 1 requests')).toBeNull();
+ fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/}));
+ await screen.findByText('Your test stay is confirmed.');
+ expect(travelRequest.mock.calls[1][2].guests).toEqual([{first_name:'Robin',last_name:'Tester'},{first_name:'Sam',last_name:'Tester'}]);
+});
+it('requires valid contact details before proceeding', async () => {
+ travelRequest.mockResolvedValueOnce(review);render(<StayCheckout planId="p" offerToken="offer"/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Continue to guests →'}));
+ const email=screen.getByLabelText('Email address');fireEvent.change(email,{target:{value:'invalid'}});expect(email.checkValidity()).toBe(false);
+ const first=document.getElementById('stay-contact-first');fireEvent.change(first,{target:{value:'  '}});expect(first.checkValidity()).toBe(false);
+});
+
+it('allows correction only when public validation proves no booking was submitted', async () => {
+ travelRequest.mockResolvedValueOnce(review).mockRejectedValueOnce(Object.assign(new Error('Check guest details'),{status:422,code:'invalid_stay_guests'}));
+ render(<StayCheckout planId="p" offerToken="offer"/>);await payment();fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/}));
+ await screen.findByText('Check guest details');expect(sessionStorage.length).toBe(0);
+ fireEvent.click(screen.getByRole('button',{name:/Guests/}));
+ expect(screen.getByLabelText('Email address')).toBeTruthy();
+ expect(travelRequest.mock.calls.filter(c=>c[1]==='sandbox/book')).toHaveLength(1);
+});
+it('does not allow step navigation to bypass invalid guest contact details', async () => {
+ travelRequest.mockResolvedValueOnce(review);render(<StayCheckout planId="p" offerToken="offer"/>);await payment();
+ fireEvent.click(screen.getByRole('button',{name:/Guests/}));
+ fireEvent.change(screen.getByLabelText('Email address'),{target:{value:'invalid'}});
+ fireEvent.click(screen.getByRole('button',{name:'3 Review & pay'}));
+ expect(screen.getByLabelText('Email address')).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Confirm test booking/})).toBeNull();
 });
