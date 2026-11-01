@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
 last_activity: 2026-11-01
-last_activity_desc: Implemented selected stay guest layout A with per-room requests; sandbox journey verified
+last_activity_desc: Approved stay guest checkout shipment via PR 32; final merge state recorded by GitHub
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261101-e0w | Ship approved guest details and per-room requests via PR #32 | 2026-11-01 | d284365 (integrated source) | [261101-e0w](./quick/261101-e0w-ship-approved-stay-guest-details-and-req/) |
 | 261101-dm3 | Selected A guest details, booking contact and per-room requests; verified sandbox journey | 2026-11-01 | be5e319 | [261101-dm3](./quick/261101-dm3-implement-selected-accommodation-guest-l/) |
 | 261101-dbo | Competitor guest-details research and three verified interactive layouts; A selected and implemented in dm3 | 2026-11-01 | 017c36f (prototype) | [261101-dbo](./quick/261101-dbo-research-competitor-accommodation-guest-/) |
 | 261031-oce | Remove accommodation checkout summary card; desktop/mobile verified | 2026-10-31 | e358393 | [261031-oce](./quick/261031-oce-remove-the-your-stay-summary-card-from-a/) |
