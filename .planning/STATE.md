@@ -5,8 +5,8 @@ current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
-last_activity: 2026-10-31
-last_activity_desc: Removed accommodation checkout summary card; verified locally
+last_activity: 2026-11-01
+last_activity_desc: Implemented selected stay guest layout A with per-room requests; sandbox journey verified
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -26,7 +26,8 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 261101-dbo | Competitor guest-details research and three verified interactive layouts; selection pending | 2026-11-01 | 017c36f (prototype) | [261101-dbo](./quick/261101-dbo-research-competitor-accommodation-guest-/) |
+| 261101-dm3 | Selected A guest details, booking contact and per-room requests; verified sandbox journey | 2026-11-01 | be5e319 | [261101-dm3](./quick/261101-dm3-implement-selected-accommodation-guest-l/) |
+| 261101-dbo | Competitor guest-details research and three verified interactive layouts; A selected and implemented in dm3 | 2026-11-01 | 017c36f (prototype) | [261101-dbo](./quick/261101-dbo-research-competitor-accommodation-guest-/) |
 | 261031-oce | Remove accommodation checkout summary card; desktop/mobile verified | 2026-10-31 | e358393 | [261031-oce](./quick/261031-oce-remove-the-your-stay-summary-card-from-a/) |
 | 261031-l0n | Merge approved flight checkout and passenger improvements into GitHub main | 2026-10-31 | 6cd83f4 | [261031-l0n](./quick/261031-l0n-merge-approved-flight-checkout-and-passe/) |
 | 261031-j4y | Polish approved expandable passenger sections (A) | 2026-10-31 | 5bdc207 | [261031-j4y](./quick/261031-j4y-implement-polished-expandable-passenger-/) |
@@ -539,4 +540,8 @@ User requested direct removal of the YOUR STAY card. e358393 removes it and uses
 
 ### Accommodation guest-details design — 1 November 2026
 
-User requested competitor research and selected three interactive layouts. Delivered A continuous form, B guided steps and C editable review, with separate booking contact and room leads. Primary source prototype/stay-guests-20261101 at 017c36f; preview localhost:5199/plans?prototype=stay-guests&variant=A. Actual Chrome DevTools example-account desktop/mobile interactions and build passed; evidence artifacts/testing/2026-11-01-stay-guest-prototypes/verification.md. Recommendation A, user selection pending. Production guest form unchanged; no booking or Plan mutations. Wider phase acceptance unchanged.
+User requested competitor research and selected three interactive layouts. Delivered A continuous form, B guided steps and C editable review, with separate booking contact and room leads. Primary source prototype/stay-guests-20261101 at 017c36f; preview localhost:5199/plans?prototype=stay-guests&variant=A. Actual Chrome DevTools example-account desktop/mobile interactions and build passed; evidence artifacts/testing/2026-11-01-stay-guest-prototypes/verification.md. User subsequently selected A with per-room requests; implemented in quick261101-dm3 below. Wider phase acceptance unchanged.
+
+### Accommodation guest details A and requests — 1 November 2026
+
+User selected A and authorized implementation. Source be5e319 adds distinct contact/room guests, optional 500-character requests per room, exact review and provider remarks mapping. 61 frontend and 79 backend focused tests, build, canonical auth/source checks and actual authenticated Chrome desktop/narrow-viewport flow passed. One fictional two-room LiteAPI sandbox booking submitted both requests once, saved/downloaded confirmation and recovered on reload. Supplier room assignments were explicitly unverified; requests remain subject to availability and are not retained in durable confirmation data. Test Plan deleted and absence verified. Evidence: artifacts/testing/2026-11-01-stay-guest-details/verification.md. Local app localhost:5174 and prototype localhost:5199 retained; no merge/push/deployment. Broader acceptance unchanged.
