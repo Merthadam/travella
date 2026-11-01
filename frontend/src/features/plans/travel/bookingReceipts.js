@@ -14,3 +14,7 @@ export function rememberStayReceipt(planId, token) {
   if (!token) return;
   try { sessionStorage.setItem(stayCheckoutKey(planId), token); } catch { /* Optional tab recovery. */ }
 }
+
+export function forgetUnsubmittedStayReceipt(planId, token) {
+  try { if (readStayReceipt(planId) === token) sessionStorage.removeItem(stayCheckoutKey(planId)); } catch { /* Optional tab recovery. */ }
+}

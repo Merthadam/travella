@@ -5,8 +5,8 @@ current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
-last_activity: 2026-10-31
-last_activity_desc: Approved checkout shipment via PR 31; final merge state recorded by GitHub
+last_activity: 2026-11-01
+last_activity_desc: Approved stay guest checkout shipment via PR 32; final merge state recorded by GitHub
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -26,6 +26,10 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261101-e0w | Ship approved guest details and per-room requests via PR #32 | 2026-11-01 | d284365 (integrated source) | [261101-e0w](./quick/261101-e0w-ship-approved-stay-guest-details-and-req/) |
+| 261101-dm3 | Selected A guest details, booking contact and per-room requests; verified sandbox journey | 2026-11-01 | be5e319 | [261101-dm3](./quick/261101-dm3-implement-selected-accommodation-guest-l/) |
+| 261101-dbo | Competitor guest-details research and three verified interactive layouts; A selected and implemented in dm3 | 2026-11-01 | 017c36f (prototype) | [261101-dbo](./quick/261101-dbo-research-competitor-accommodation-guest-/) |
+| 261031-oce | Remove accommodation checkout summary card; desktop/mobile verified | 2026-10-31 | e358393 | [261031-oce](./quick/261031-oce-remove-the-your-stay-summary-card-from-a/) |
 | 261031-oxp | Ship approved flight checkout improvements via PR #31 | 2026-10-31 | 6d22821 (reviewed source) | [261031-oxp](./quick/261031-oxp-ship-approved-flight-checkout-improvemen/) |
 | 261031-ohs | Restore marshy-face local checkout after sibling worktree replaced shared Docker app | 2026-10-31 | 4362110 (restored source) | [261031-ohs](./quick/261031-ohs-restore-correct-local-checkout-build-aft/) |
 | 261031-n1l | Remove repeated checkout journey card; compact total and centered panel | 2026-10-31 | 0488b4d | [261031-n1l](./quick/261031-n1l-remove-repeated-journey-summary-from-che/) |
@@ -536,6 +540,17 @@ User requested paging for oversized country dropdowns. c13a431 reuses searchable
 
 User still observed flicker on View flight. Actual frame geometry confirmed pending message/Cancel rows moved the primary button up 60px and widened its action column; previous content-presence checks missed it. Fixed in 8fc8b31 by keeping idle/cancellable-loading states in the same button footprint. Desktop/mobile geometry stable; actual cancellation/focus/error/retry and complete handoff passed. 274 travel/canvas tests passed (12 existing skips), build and canonical auth/source checks passed. Debug record .planning/debug/resolved/checkout-entry-flicker.md; evidence artifacts/testing/2026-10-31-checkout-layout-flicker/verification.md. Test Plan cleaned; no booking/payment, push or merge. Wider acceptance unchanged.
 
+### Accommodation checkout summary removal — 31 October 2026
+
+User requested direct removal of the YOUR STAY card. e358393 removes it and uses one full-width column. 29 existing checkout tests, build, canonical Docker auth/source checks and authenticated Chrome DevTools desktop/mobile journeys passed. Evidence: artifacts/testing/2026-10-31-stay-checkout-summary/verification.md. Temporary test plans cleaned; no reservation, push or merge. Broader phase acceptance unchanged.
+
+### Accommodation guest-details design — 1 November 2026
+
+User requested competitor research and selected three interactive layouts. Delivered A continuous form, B guided steps and C editable review, with separate booking contact and room leads. Primary source prototype/stay-guests-20261101 at 017c36f; preview localhost:5199/plans?prototype=stay-guests&variant=A. Actual Chrome DevTools example-account desktop/mobile interactions and build passed; evidence artifacts/testing/2026-11-01-stay-guest-prototypes/verification.md. User subsequently selected A with per-room requests; implemented in quick261101-dm3 below. Wider phase acceptance unchanged.
+
+### Accommodation guest details A and requests — 1 November 2026
+
+User selected A and authorized implementation. Source be5e319 adds distinct contact/room guests, optional 500-character requests per room, exact review and provider remarks mapping. 61 frontend and 79 backend focused tests, build, canonical auth/source checks and actual authenticated Chrome desktop/narrow-viewport flow passed. One fictional two-room LiteAPI sandbox booking submitted both requests once, saved/downloaded confirmation and recovered on reload. Supplier room assignments were explicitly unverified; requests remain subject to availability and are not retained in durable confirmation data. Test Plan deleted and absence verified. Evidence: artifacts/testing/2026-11-01-stay-guest-details/verification.md. Local app localhost:5174 and prototype localhost:5199 retained; no merge/push/deployment. Broader acceptance unchanged.
 ### Flight checkout shipment — 31 October 2026
 
 User explicitly authorized main merge. PR #31: https://github.com/Merthadam/travella/pull/31 (marshy-face → main). Stable passenger transition, multi-traveler seats, explicit no-charge airline assignment, compact route details and provider-confirmed totals. 326 travel/canvas tests passed, 12 existing skips; build and scoped security review passed. Existing Chrome DevTools evidence applies. Shipment record: .planning/quick/261031-oxp-ship-approved-flight-checkout-improvemen/VERIFICATION.md. GitHub PR merge record supplies final outcome/SHA; broader phase acceptance unchanged.

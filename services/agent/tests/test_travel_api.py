@@ -166,7 +166,14 @@ def test_sandbox_http_flow_auth_validation_and_readback():
         r=c.post(root+'sandbox/prebook',json={'token':token},headers=h)
         assert r.status_code==200 and r.json()['status']=='review'
         token=r.json()['token']
-        body={'token':token,'confirm_mock':True,'guests':[{'first_name':'Test','last_name':'Guest'}]}
+        supplier.expected_email = 'contact@example.com'
+        body={'token':token,'confirm_mock':True,'contact':{'first_name':'Robin','last_name':'Booker','email':supplier.expected_email},'guests':[{'first_name':'Test','last_name':'Guest','requests':'Quiet room, please.'}]}
+        invalid = {**body, 'contact': {**body['contact'], 'email':'invalid'}}
+        rejected = c.post(root+'sandbox/book',json=invalid,headers=h)
+        assert rejected.status_code == 422 and rejected.json()['code'] == 'invalid_stay_guests'
+        invalid = {**body, 'guests':[{**body['guests'][0], 'requests':'x'*501}]}
+        rejected = c.post(root+'sandbox/book',json=invalid,headers=h)
+        assert rejected.status_code == 422 and rejected.json()['code'] == 'invalid_stay_guests'
         plan['traveler_subject']='other'
         assert c.post(root+'sandbox/book',json=body,headers=h).status_code==404
         plan['traveler_subject']='owner'
@@ -176,6 +183,9 @@ def test_sandbox_http_flow_auth_validation_and_readback():
         r=c.post(root+'sandbox/status',json={'token':token},headers=h)
         assert r.status_code==200 and r.json()['booking_id']=='TEST123'
         assert len(supplier.posts)==1 and 'PRIVATE' not in r.text
+        assert supplier.posts[0]['holder']['firstName'] == 'Robin'
+        assert supplier.posts[0]['guests'][0]['remarks'] == 'Quiet room, please.'
+        assert supplier.expected_email not in r.text and 'Quiet room' not in r.text
 
 
 def test_flight_services_validate_scope_inputs_and_public_projection():

@@ -158,13 +158,16 @@ async def _checkout(api, action, data):
     unseal(api, token, "checkout")
     if len(data["guests"]) != state["room_count"]:
         raise ProviderUnavailable("provider_response_invalid")
+    contact = data.get("contact") or {**data["guests"][0], "email": "sandbox-guest@example.com"}
+    holder = {"firstName": contact["first_name"], "lastName": contact["last_name"], "email": contact["email"]}
     guests = [{"occupancyNumber": i + 1, "firstName": g["first_name"], "lastName": g["last_name"],
-               "email": "sandbox-guest@example.com"} for i, g in enumerate(data["guests"])]
+               "email": contact["email"], **({"remarks": g["requests"]} if g.get("requests") else {})}
+              for i, g in enumerate(data["guests"])]
     stored_checkout(api, token)
     try:
         raw = await api.request("POST", BOOK + "/rates/book", json={
             "prebookId": state["prebook"], "clientReference": state["reference"],
-            "sandbox": True, "holder": {k: guests[0][k] for k in ("firstName", "lastName", "email")},
+            "sandbox": True, "holder": holder,
             "guests": guests, "payment": {"method": "ACC_CREDIT_CARD"},
         })
         booking = obj(raw.get("data"))

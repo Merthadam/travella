@@ -1,1 +1,26 @@
-.stay-checkout .stay-room{padding:20px 0;border-bottom:1px solid var(--ds-line);overflow-wrap:anywhere}.stay-checkout .stay-room h3{font-size:15px;margin-bottom:10px}.stay-checkout .stay-room p{font-size:12px;margin:7px 0}.stay-checkout .stay-guests-heading{margin-top:24px}.stay-checkout .stay-terms{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;margin-top:12px}.stay-checkout details{margin-top:20px}.stay-checkout summary{cursor:pointer}.stay-checkout .flight-summary h2{overflow-wrap:anywhere}.stay-checkout .flight-receipt{overflow-wrap:anywhere}
+.stay-checkout .flight-checkout-grid{grid-template-columns:minmax(0,1fr)}
+.stay-checkout .stay-guests-grid{max-width:820px;margin-inline:auto}
+.stay-checkout .stay-guest-context{font-size:12px;color:var(--ds-muted);margin-top:20px}
+.stay-details-section+.stay-details-section{border-top:1px solid var(--ds-line);margin-top:28px;padding-top:28px}
+.stay-section-heading{display:flex;gap:15px;align-items:flex-start;margin-bottom:24px}
+.stay-section-heading>span{display:grid;place-items:center;border:1px solid var(--ds-active-line);background:var(--ds-active);color:var(--ds-green);width:30px;height:30px;border-radius:50%;flex-shrink:0;font-size:12px}
+.stay-checkout .stay-section-heading h2{font-size:28px;margin:0}.stay-section-heading p{font-size:12px;margin:7px 0 0;color:var(--ds-muted)}
+.stay-checkout .stay-field-help{font-size:12px;color:var(--ds-muted);line-height:1.6;margin:10px 0}
+.stay-checkout .stay-email{display:grid;gap:7px;margin:16px 0 0;font-size:11px}
+.stay-checkout .stay-email input,.stay-checkout .stay-guest-room textarea{width:100%;min-width:0;border:1px solid var(--ds-control);border-radius:7px;background:var(--ds-surface);color:var(--ds-ink);padding:11px;font:inherit;font-size:13px}
+.stay-checkout .stay-guest-room textarea{resize:vertical;min-height:90px}
+.stay-booking-for{border:0;padding:0;margin:0 0 22px;display:flex;gap:12px;min-width:0}.stay-booking-for legend{padding:0;margin-bottom:12px;font-size:12px;font-weight:600}
+.stay-checkout .stay-booking-for label{display:flex;align-items:center;gap:9px;margin:0;border:1px solid var(--ds-control);border-radius:7px;padding:12px 16px;font-size:12px;cursor:pointer}
+.stay-checkout .stay-booking-for label.is-selected{background:var(--ds-active);border-color:var(--ds-active-line)}.stay-booking-for input{width:15px;height:15px;accent-color:var(--ds-action);margin:0}
+.stay-guest-room{border:1px solid var(--ds-line);border-radius:10px;background:var(--ds-soft);padding:18px 20px;margin:20px 0;min-width:0}.stay-guest-room legend{font-size:14px;font-weight:600;padding:0 5px}.stay-guest-room .flight-fields{margin:18px 0}
+.stay-contact-reuse{display:flex;justify-content:space-between;gap:10px;margin:18px 0;font-size:13px}.stay-contact-reuse span{font-size:11px;color:var(--ds-muted)}
+.stay-checkout .stay-request-label{display:flex;gap:8px;align-items:baseline;font-size:12px;margin:20px 0 8px}.stay-request-label span{font-size:11px;font-weight:400;color:var(--ds-muted)}
+.stay-request-help{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;font-size:11px;color:var(--ds-muted);margin-top:7px;line-height:1.6}.stay-request-help>span:last-child{white-space:nowrap}
+.stay-details-review dd{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}.stay-details-review dd small{display:block;margin-top:8px;font-size:11px}.stay-checkout .stay-details-review dt{flex-shrink:1}
+@media(max-width:760px){.stay-checkout .stay-guest-details .flight-fields{grid-template-columns:1fr}.stay-section-heading{gap:10px}.stay-checkout .stay-section-heading h2{font-size:25px}.stay-guest-room{padding:15px 13px}.stay-contact-reuse{flex-direction:column;gap:4px}.stay-checkout .stay-booking-for label{padding:10px 12px}.stay-booking-for{gap:8px}}
+.stay-checkout .stay-room{padding:20px 0;border-bottom:1px solid var(--ds-line);overflow-wrap:anywhere}.stay-checkout .stay-room h3{font-size:15px;margin-bottom:10px}.stay-checkout .stay-room p{font-size:12px;margin:7px 0}.stay-checkout .stay-guests-heading{margin-top:24px}.stay-checkout .stay-terms{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;margin-top:12px}.stay-checkout details{margin-top:20px}.stay-checkout summary{cursor:pointer}.stay-checkout .flight-receipt{overflow-wrap:anywhere}
+
+.stay-guests-active .flight-checkout-title,.stay-guests-active .flight-steps{max-width:820px;margin-inline:auto}
+.stay-checkout .stay-guest-details .flight-fields label{margin:0}
+.stay-checkout .stay-guest-details input,.stay-checkout .stay-guest-details textarea{font-weight:400}
+.stay-checkout .stay-guest-details textarea:focus-visible{outline:3px solid var(--ds-focus);outline-offset:3px}

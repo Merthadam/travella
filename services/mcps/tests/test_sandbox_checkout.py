@@ -22,6 +22,7 @@ class Supplier:
         self.posts = []
         self.booking = None
         self.lose_response = False
+        self.expected_email = 'sandbox-guest@example.com'
 
     def __call__(self, req):
         path = req.url.path
@@ -40,7 +41,7 @@ class Supplier:
         assert path.endswith('/book') and req.url.host == 'book.liteapi.travel'
         body = json.loads(req.content)
         assert body['sandbox'] is True and body['payment'] == {'method': 'ACC_CREDIT_CARD'}
-        assert body['holder']['email'] == 'sandbox-guest@example.com'
+        assert body['holder']['email'] == self.expected_email
         self.posts.append(body)
         self.booking = {'bookingId': 'TEST123', 'status': 'CONFIRMED', 'clientReference': body['clientReference'],
                         'hotelConfirmationCode': 'TEST456', 'holder': {'email': 'PRIVATE_EMAIL'},
@@ -203,3 +204,67 @@ def test_unknown_submission_is_not_sent_again_even_without_visible_provider_book
     result=run(api.call('sandbox/book',{'token':first['token'],'confirm_mock':True,
         'guests':[{'first_name':'Alex','last_name':'Tester'}]}))
     assert result['status']=='not_found' and supplier.posts==[]
+
+
+def test_contact_and_room_requests_reach_supplier_without_leaking_into_receipt():
+    api, supplier, token = setup()
+    supplier.expected_email = 'booker@example.com'
+    prebook = run(api.call('sandbox/prebook', {'token': token}))
+    body = {'token': prebook['token'], 'confirm_mock': True,
+            'contact': {'first_name': ' Robin ', 'last_name': 'Booker', 'email': supplier.expected_email},
+            'guests': [{'first_name': 'Jamie', 'last_name': 'Guest', 'requests': ' Quiet room.\nLate arrival. '}]}
+    booked = run(api.call('sandbox/book', body))
+    assert supplier.posts[0]['holder'] == {'firstName': 'Robin', 'lastName': 'Booker', 'email': supplier.expected_email}
+    assert supplier.posts[0]['guests'] == [{'occupancyNumber': 1, 'firstName': 'Jamie', 'lastName': 'Guest',
+                                          'email': supplier.expected_email, 'remarks': 'Quiet room.\nLate arrival.'}]
+    assert booked['reservation']['guests'] == [{'room': 1, 'firstName': 'Jamie', 'lastName': 'Guest'}]
+    assert 'booker@example.com' not in json.dumps(booked) and 'Quiet room' not in json.dumps(booked)
+    assert 'requests' not in unseal(api, prebook['token'], 'checkout')
+    assert run(api.call('sandbox/book', body)) == booked and len(supplier.posts) == 1
+
+
+def test_empty_requests_are_omitted_from_supplier():
+    api, supplier, token = setup()
+    prebook = run(api.call('sandbox/prebook', {'token': token}))
+    run(api.call('sandbox/book', {'token': prebook['token'], 'confirm_mock': True,
+        'guests': [{'first_name': 'Alex', 'last_name': 'Tester', 'requests': '  \n ' }]}))
+    assert 'remarks' not in supplier.posts[0]['guests'][0]
+
+
+@pytest.mark.parametrize('changes', [
+    {'contact': {'first_name': 'Alex', 'last_name': 'Tester', 'email': 'invalid'}},
+    {'contact': {'first_name': ' ', 'last_name': 'Tester', 'email': 'test@example.com'}},
+    {'guests': [{'first_name': 'Alex', 'last_name': 'Tester', 'requests': 'x' * 501}]},
+    {'guests': [{'first_name': 'Alex', 'last_name': 'Tester', 'requests': 'bad\x00text'}]},
+    {'guests': [{'first_name': ' ', 'last_name': 'Tester'}]},
+])
+def test_invalid_contact_requests_rejected_before_supplier(changes):
+    from pydantic import ValidationError
+    api, supplier, token = setup()
+    body = {'token': token, 'confirm_mock': True, 'guests': [{'first_name': 'Alex', 'last_name': 'Tester'}], **changes}
+    with pytest.raises(ValidationError):
+        run(api.call('sandbox/book', body))
+    assert supplier.posts == []
+
+
+def test_two_room_requests_keep_their_occupancy_mapping():
+    supplier = Supplier()
+    supplier.expected_email = 'contact@example.com'
+    def multi_room(req):
+        response = supplier(req)
+        if req.url.path.endswith('/prebook'):
+            value = response.json()
+            rate = value['data']['roomTypes'][0]['rates'][0]
+            value['data']['roomTypes'][0]['rates'].append({**rate, 'occupancyNumber': 2})
+            return httpx.Response(200, json=value)
+        return response
+    api = LiteApi('sand_TEST', scope=('owner','two-rooms'), transport=httpx.MockTransport(multi_room))
+    search = run(api.call('hotels/search', {**HOTEL, 'rooms': [{'adults': 2}, {'adults': 2}]}))
+    token = search['results'][0]['rooms'][0]['checkout_token']
+    prebook = run(api.call('sandbox/prebook', {'token': token}))
+    booked = run(api.call('sandbox/book', {'token':prebook['token'],'confirm_mock':True,
+        'contact':{'first_name':'Robin','last_name':'Booker','email':supplier.expected_email},
+        'guests':[{'first_name':'Jamie','last_name':'Tester','requests':'Quiet room.'},
+                  {'first_name':'Sam','last_name':'Tester','requests':'Twin beds.'}]}))
+    assert booked['status'] == 'confirmed'
+    assert [(g['occupancyNumber'],g['firstName'],g['remarks']) for g in supplier.posts[0]['guests']] == [(1,'Jamie','Quiet room.'),(2,'Sam','Twin beds.')]
