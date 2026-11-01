@@ -29,6 +29,11 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 | 261101-dm3 | Selected A guest details, booking contact and per-room requests; verified sandbox journey | 2026-11-01 | be5e319 | [261101-dm3](./quick/261101-dm3-implement-selected-accommodation-guest-l/) |
 | 261101-dbo | Competitor guest-details research and three verified interactive layouts; A selected and implemented in dm3 | 2026-11-01 | 017c36f (prototype) | [261101-dbo](./quick/261101-dbo-research-competitor-accommodation-guest-/) |
 | 261031-oce | Remove accommodation checkout summary card; desktop/mobile verified | 2026-10-31 | e358393 | [261031-oce](./quick/261031-oce-remove-the-your-stay-summary-card-from-a/) |
+| 261031-oxp | Ship approved flight checkout improvements via PR #31 | 2026-10-31 | 6d22821 (reviewed source) | [261031-oxp](./quick/261031-oxp-ship-approved-flight-checkout-improvemen/) |
+| 261031-ohs | Restore marshy-face local checkout after sibling worktree replaced shared Docker app | 2026-10-31 | 4362110 (restored source) | [261031-ohs](./quick/261031-ohs-restore-correct-local-checkout-build-aft/) |
+| 261031-n1l | Remove repeated checkout journey card; compact total and centered panel | 2026-10-31 | 0488b4d | [261031-n1l](./quick/261031-n1l-remove-repeated-journey-summary-from-che/) |
+| 261031-ndb | Redesign flight checkout from competitor evidence; verify multi-traveler seats and free assignment | 2026-10-31 | 4362110 | [261031-ndb](./quick/261031-ndb-redesign-flight-checkout-from-competitiv/) |
+| 261031-mm5 | Guided multi-traveler seats and explicit airline assignment; browser/provider verified | 2026-10-31 | 3e93446 | [261031-mm5](./quick/261031-mm5-improve-multi-traveler-seat-selection-an/) |
 | 261031-l0n | Merge approved flight checkout and passenger improvements into GitHub main | 2026-10-31 | 6cd83f4 | [261031-l0n](./quick/261031-l0n-merge-approved-flight-checkout-and-passe/) |
 | 261031-j4y | Polish approved expandable passenger sections (A) | 2026-10-31 | 5bdc207 | [261031-j4y](./quick/261031-j4y-implement-polished-expandable-passenger-/) |
 | 261031-i1k | Replace empty flight checkout with return to Flights | 2026-10-31 | 6dbeb32 | [261031-i1k](./quick/261031-i1k-return-empty-flight-checkout-to-flights-/) |
@@ -76,7 +81,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase:18 (Focused Flights and Accommodation Agents) — HUMAN NEEDED
 Plan:18-06–18-12 executed. Manual/assisted browser journeys, exact choices and recovery exercised; full live-quality/nativezoom/browser-concurrency limits remain documented.
 Status: Available at localhost:5174 for traveler review.236frontend tests and705Python tests passed; one baseline onboarding-route failure remains. Technical evidence and traveler acceptance are separate.
-Last activity: 2026-10-30 — Completed quick task 261030-vld: uniform Recently deleted journal list and retired old card view; wider phase acceptance unchanged.
+Last activity: 2026-10-31 — Completed quick task 261031-ohs: restored correct local checkout build; runtime hashes, served modules, auth readiness and fresh Chrome checkout verified. Wider phase acceptance unchanged.
 
 Prior evidence preserved: Phase18 plans01–05 and quick261026-ksg retain their historical implementation/test evidence. Full Phase18 live-quality matrix and traveler UAT remain pending. Phase17 desktop UAT/live-model acceptance and Phase15 live-generation/remaining acceptance gaps remain open. This planning pass closes none of those gaps.
 
@@ -545,3 +550,6 @@ User requested competitor research and selected three interactive layouts. Deliv
 ### Accommodation guest details A and requests — 1 November 2026
 
 User selected A and authorized implementation. Source be5e319 adds distinct contact/room guests, optional 500-character requests per room, exact review and provider remarks mapping. 61 frontend and 79 backend focused tests, build, canonical auth/source checks and actual authenticated Chrome desktop/narrow-viewport flow passed. One fictional two-room LiteAPI sandbox booking submitted both requests once, saved/downloaded confirmation and recovered on reload. Supplier room assignments were explicitly unverified; requests remain subject to availability and are not retained in durable confirmation data. Test Plan deleted and absence verified. Evidence: artifacts/testing/2026-11-01-stay-guest-details/verification.md. Local app localhost:5174 and prototype localhost:5199 retained; no merge/push/deployment. Broader acceptance unchanged.
+### Flight checkout shipment — 31 October 2026
+
+User explicitly authorized main merge. PR #31: https://github.com/Merthadam/travella/pull/31 (marshy-face → main). Stable passenger transition, multi-traveler seats, explicit no-charge airline assignment, compact route details and provider-confirmed totals. 326 travel/canvas tests passed, 12 existing skips; build and scoped security review passed. Existing Chrome DevTools evidence applies. Shipment record: .planning/quick/261031-oxp-ship-approved-flight-checkout-improvemen/VERIFICATION.md. GitHub PR merge record supplies final outcome/SHA; broader phase acceptance unchanged.

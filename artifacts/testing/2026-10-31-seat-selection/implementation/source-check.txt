@@ -1,0 +1,4 @@
+frontend/src/features/plans/travel/FlightSeats.jsx MATCH
+frontend/src/features/plans/travel/flight-seats.css MATCH
+frontend/src/features/plans/travel/FlightCheckout.jsx MATCH
+frontend/src/features/plans/travel/FlightExtras.jsx MATCH
