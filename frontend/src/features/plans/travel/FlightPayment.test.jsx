@@ -19,16 +19,26 @@ async function setup() { const ref=createRef(), ready=vi.fn(); render(<FlightPay
 it('requires all three hosted fields and sends billing directly to Stripe, never storage', async () => {
  const {ref,ready}=await setup();
  expect(Object.keys(fields)).toEqual(['cardNumber','cardExpiry','cardCvc']);
- expect(document.querySelectorAll('input')).toHaveLength(2);
  act(() => fields.cardNumber.events.change({complete:true})); expect(ready).toHaveBeenLastCalledWith(false);
  act(() => { fields.cardExpiry.events.change({complete:true}); fields.cardCvc.events.change({complete:true}); }); expect(ready).toHaveBeenLastCalledWith(true);
  fireEvent.change(screen.getByLabelText('Name on card'),{target:{value:'Alex Tester'}});
  fireEvent.change(screen.getByLabelText('Postal code'),{target:{value:'1000'}});
+ const country=screen.getByRole('combobox',{name:'Billing country'});
+ fireEvent.click(country);
+ expect(screen.getAllByRole('option')).toHaveLength(10);
+ fireEvent.click(screen.getByRole('button',{name:'Next Billing country choices'}));
+ expect(screen.getByText('Page 2 of 25')).toBeTruthy();
+ fireEvent.change(country,{target:{value:'Hungary'}});
+ fireEvent.click(screen.getByRole('option',{name:'Hungary'}));
+ fireEvent.click(country); fireEvent.change(country,{target:{value:'Not a country'}});
+ expect(screen.getByText('No matches. Try another search.')).toBeTruthy();
+ fireEvent.keyDown(country,{key:'Escape'});
+ expect(country.value).toBe('Hungary');
  stripe.confirmCardPayment.mockResolvedValueOnce({error:{message:'Your card was declined.'}});
  let result; await act(async () => { result=await ref.current.authorize(); }); expect(result).toBe(false); expect(screen.getByRole('alert').textContent).toContain('declined');
  stripe.confirmCardPayment.mockResolvedValueOnce(intent('requires_capture'));
  await act(async () => { result=await ref.current.authorize(); }); expect(result).toBe(true);
- expect(stripe.confirmCardPayment).toHaveBeenLastCalledWith('pi_fixture_secret_test',{payment_method:{card:fields.cardNumber,billing_details:{name:'Alex Tester',address:{country:'US',postal_code:'1000'}}}});
+ expect(stripe.confirmCardPayment).toHaveBeenLastCalledWith('pi_fixture_secret_test',{payment_method:{card:fields.cardNumber,billing_details:{name:'Alex Tester',address:{country:'HU',postal_code:'1000'}}}});
  expect(sessionStorage.length).toBe(0);
 });
 it('recovers a lost authorization response without confirming the same payment again', async () => {

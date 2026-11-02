@@ -1,6 +1,10 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { stripeSandbox } from './stripeSandbox';
 import './flight-payment.css';
+import { SearchSelect } from './SearchSelect';
+import { countries } from '../../onboarding/catalogs';
+
+const countryOptions = countries.map(({ code, name }) => ({ value: code, label: name }));
 
 const authorized = intent => intent && intent.livemode === false && ['succeeded', 'requires_capture'].includes(intent.status);
 // PAN, expiry and CVC live only in provider-hosted iframes. Billing details are
@@ -58,12 +62,10 @@ export const FlightPayment = forwardRef(function FlightPayment({ secret, onReady
       <label htmlFor="flight-card-card-name">Name on card<input id="flight-card-card-name" autoComplete="cc-name" required={!paid} maxLength={120} pattern=".*\S.*" value={billing.name} onChange={e => setBilling(old => ({ ...old, name: e.target.value }))} placeholder="Full name as shown on card"/></label>
       <div className="flight-card-hosted-label">Card number<div ref={element => { hosts.current.cardNumber = element; }} className="flight-card-hosted-field" aria-label="Secure card number"/></div>
       <div className="flight-card-card-row"><div className="flight-card-hosted-label">Expiry date<div ref={element => { hosts.current.cardExpiry = element; }} className="flight-card-hosted-field" aria-label="Secure expiry date"/></div><div className="flight-card-hosted-label">Security code<div ref={element => { hosts.current.cardCvc = element; }} className="flight-card-hosted-field" aria-label="Secure security code"/></div></div>
-      <div className="flight-card-card-row"><label htmlFor="flight-card-card-country">Billing country<select id="flight-card-card-country" autoComplete="country" value={billing.country} onChange={e => setBilling(old => ({ ...old, country: e.target.value }))}>{countries.map(([code,name]) => <option key={code} value={code}>{name}</option>)}</select></label><label htmlFor="flight-card-card-postal">Postal code<input id="flight-card-card-postal" autoComplete="postal-code" required={!paid} maxLength={20} pattern=".*\S.*" value={billing.postal} onChange={e => setBilling(old => ({ ...old, postal: e.target.value }))} placeholder="Billing postal code"/></label></div>
+      <div className="flight-card-card-row flight-card-billing-row"><SearchSelect label="Billing country" name="billing-country" value={billing.country} options={countryOptions} onChange={country => setBilling(old => ({ ...old, country }))} required={!paid} placeholder="Search country or code…"/><label htmlFor="flight-card-card-postal">Postal code<input id="flight-card-card-postal" autoComplete="postal-code" required={!paid} maxLength={20} pattern=".*\S.*" value={billing.postal} onChange={e => setBilling(old => ({ ...old, postal: e.target.value }))} placeholder="Billing postal code"/></label></div>
     </div>
     {message && <p role="status" className="flight-card-payment-status">{message}</p>}
     {error && <div className="flight-error"><p role="alert">{error}</p><button type="button" className="flight-text-button" onClick={() => setRetry(value => value + 1)}>Reload card form</button></div>}
     <p className="flight-card-payment-security">Encrypted card details go directly to Stripe’s test environment. Travella does not store them.</p>
   </section>;
 });
-const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-const countries = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(' ').map(code => [code,regionNames.of(code)]).sort((a,b) => a[1].localeCompare(b[1]));

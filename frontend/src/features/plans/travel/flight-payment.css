@@ -33,3 +33,10 @@
 .flight-payment-active .flight-review>div{flex-direction:column;gap:6px}
 .flight-payment-active .flight-review dd{text-align:left}
 }
+
+/* Match the searchable, ten-country picker used in passenger details. */
+.flight-card-billing-row{align-items:start}
+.flight-card-billing-row>.travel-search-select{margin-top:18px}
+.flight-card-billing-row>.travel-search-select>label{display:block;font-size:12px;font-weight:400;margin:0 0 9px}
+.flight-card-billing-row .travel-select-popover .travel-pagination{font-size:11px}
+@media(max-width:760px){.flight-card-billing-row{grid-template-columns:minmax(0,1fr);gap:0}}
