@@ -556,3 +556,7 @@ User selected A and authorized implementation. Source be5e319 adds distinct cont
 ### Flight checkout shipment — 31 October 2026
 
 User explicitly authorized main merge. PR #31: https://github.com/Merthadam/travella/pull/31 (marshy-face → main). Stable passenger transition, multi-traveler seats, explicit no-charge airline assignment, compact route details and provider-confirmed totals. 326 travel/canvas tests passed, 12 existing skips; build and scoped security review passed. Existing Chrome DevTools evidence applies. Shipment record: .planning/quick/261031-oxp-ship-approved-flight-checkout-improvemen/VERIFICATION.md. GitHub PR merge record supplies final outcome/SHA; broader phase acceptance unchanged.
+
+### Flight payment shipment — 2 November 2026
+
+User authorized merging the verified flight payment layout to main. Clean committed-source validation: 336 passed, 12 existing skips, build and scoped security review passed. Application 97c405c; shipment records in quick/261102-td3-match-flight-final-payment-to-the-select. Uncommitted accommodation/backend work excluded. GitHub PR merge metadata records the final outcome; broader phase acceptance unchanged.
