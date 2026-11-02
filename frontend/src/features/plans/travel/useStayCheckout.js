@@ -11,7 +11,8 @@ export function useStayCheckout({ planId, offerToken, recoveryToken, savedBookin
   callbacks.current = { onBookingResult, onExpired };
   function accept(value) {
     if (savedBooking && value.booking_id !== savedBooking.reference) throw new Error('This checkout does not match your saved stay.');
-    setError(''); setResult(value); if (value.status !== 'review') rememberStayReceipt(planId, value.token);
+    setError(''); setResult(value); if (value.status !== 'review' || value.payment_secret) rememberStayReceipt(planId, value.token);
+    if (value.status === 'review' && value.payment_secret) setAttempted(false);
     if (!value.sandbox || !value.booking_id || !['confirmed','cancelled','failed'].includes(value.status)) return;
     const id = JSON.stringify([value.booking_id, value.status, value.reservation]);
     if (notified.current === id) return;
@@ -44,7 +45,7 @@ export function useStayCheckout({ planId, offerToken, recoveryToken, savedBookin
     } catch (error) {
       // Only this public-boundary validation code proves the supplier was never called.
       if (action === 'book' && error.status === 422 && error.code === 'invalid_stay_guests') {
-        setAttempted(false); forgetUnsubmittedStayReceipt(planId, result.token);
+        setAttempted(false); if (!result.payment_secret) forgetUnsubmittedStayReceipt(planId, result.token);
       }
       failed(error);
     }

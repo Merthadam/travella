@@ -8,14 +8,16 @@ import { stayBookingSummary, stayConfirmationDocument } from './stayReservation'
 vi.mock('./travelApi', () => ({ travelRequest: vi.fn() }));
 const room = {room:1,name:'Double',board:'Breakfast',occupancy:'2 adults',refundable:false,cancellation:'Non-refundable',cancellationDeadline:null,excludedTaxes:[{name:'City tax',amount:'10',currency:'EUR'}]};
 const reservation = {provider:'LiteAPI',sandbox:true,hotelId:'lp1',address:'Test street',confirmationCode:null,roomCount:2,rooms:[room,{...room,room:2,name:'Twin'}],guests:[],total:{amount:'450.50',currency:'EUR'},priceSource:'prebook',roomSource:'prebook',paymentStatus:null,terms:'Exact terms'};
-const review = {sandbox:true,status:'review',token:'PRIVATE',hotel_name:'Lisbon stay',check_in:'2027-05-12',check_out:'2027-05-17',room_count:2,total:reservation.total,reservation};
+const review = {payment_secret:'pi_fixture_secret_test',sandbox:true,status:'review',token:'PRIVATE',hotel_name:'Lisbon stay',check_in:'2027-05-12',check_out:'2027-05-17',room_count:2,total:reservation.total,reservation};
 const confirmed = {...review,status:'confirmed',booking_id:'TEST-123',reservation:{...reservation,confirmationCode:'HOTEL-123',guests:[{room:1,firstName:'Alex',lastName:'Tester'},{room:2,firstName:'Sam',lastName:'Tester'}],priceSource:'booking'}};
-beforeEach(() => { vi.clearAllMocks(); travelRequest.mockReset(); sessionStorage.clear(); }); afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
-async function payment() { fireEvent.click(await screen.findByRole('button',{name:'Continue to guests →'})); fireEvent.click(screen.getByRole('button',{name:'Continue to review & pay →'})); }
+const authorize = vi.hoisted(() => vi.fn());
+vi.mock('./StayPayment', () => ({ StayPayment: function MockPayment({consent,onAuthorized,buttonText}) { return <button type="button" disabled={!consent} onClick={async () => { if (await authorize()) await onAuthorized(); }}>{buttonText}</button>; } }));
+beforeEach(() => { vi.clearAllMocks(); authorize.mockResolvedValue(true); travelRequest.mockReset(); sessionStorage.clear(); }); afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
+async function payment() { fireEvent.click(await screen.findByRole('button',{name:'Continue to guests →'})); fireEvent.click(screen.getByRole('button',{name:'Continue to payment →'})); }
 it('reviews multiple rooms, requires exact consent and saves only after provider confirmation', async () => {
  const notify=vi.fn(); travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce({...confirmed,status:'pending'}).mockResolvedValueOnce(confirmed);
  render(<StayCheckout planId="p" offerToken="offer" onBookingResult={notify}/>); await payment();
- const book=screen.getByRole('button',{name:'Confirm test booking · €450.50'}); expect(book.disabled).toBe(true);
+ const book=screen.getByRole('button',{name:'Pay €450.50'}); expect(book.disabled).toBe(true);
  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(book);
  await screen.findByText('Awaiting reservation confirmation.'); expect(notify).not.toHaveBeenCalled();
  expect(travelRequest.mock.calls[1][2]).toEqual({token:'PRIVATE',confirm_mock:true,guests:[{first_name:'Alex',last_name:'Tester'},{first_name:'Sam',last_name:'Tester'}],contact:{first_name:'Alex',last_name:'Tester',email:'sandbox-guest@example.com'}});
@@ -25,8 +27,8 @@ it('reviews multiple rooms, requires exact consent and saves only after provider
 });
 it('does not resubmit after timeout; status recovery is the only action', async () => {
  travelRequest.mockResolvedValueOnce(review).mockRejectedValueOnce(new Error('Interrupted')).mockResolvedValueOnce(confirmed);
- render(<StayCheckout planId="p" offerToken="offer"/>); await payment(); fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/}));
- await screen.findByText('Interrupted'); expect(screen.queryByRole('button',{name:/Confirm test booking/})).toBeNull();
+ render(<StayCheckout planId="p" offerToken="offer"/>); await payment(); fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button',{name:/Pay €/}));
+ await screen.findByText('Interrupted'); expect(screen.queryByRole('button',{name:/Pay €/})).toBeNull();
  fireEvent.click(screen.getByRole('button',{name:'Check reservation status'})); await screen.findByText('Your test stay is confirmed.');
  expect(travelRequest.mock.calls.filter(c=>c[1]==='sandbox/book')).toHaveLength(1);
 });
@@ -35,7 +37,7 @@ it('clears a timeout error when automatic polling confirms the reservation', asy
  render(<StayCheckout planId="p" offerToken="offer"/>); await payment();
  vi.useFakeTimers();
  fireEvent.click(screen.getByRole('checkbox'));
- await act(async () => { fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/})); });
+ await act(async () => { fireEvent.click(screen.getByRole('button',{name:/Pay €/})); });
  expect(screen.getByRole('alert').textContent).toBe('Interrupted');
  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
  expect(screen.getByText('Your test stay is confirmed.')).toBeTruthy();
@@ -48,12 +50,12 @@ it('keeps an unresolved submission locked and explains the provider support path
  await screen.findByText('Reservation status is unresolved.');
  expect(screen.getByText(/provider support may be needed/)).toBeTruthy();
  expect(screen.queryByText(/provider may still be processing/)).toBeNull();
- expect(screen.queryByRole('button',{name:/Confirm test booking/})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Pay €/})).toBeNull();
  expect(screen.getByRole('button',{name:'Check reservation status'})).toBeTruthy();
 });
 it('delivers a submitted confirmation even after leaving checkout', async () => {
  const notify=vi.fn(); let finish; travelRequest.mockResolvedValueOnce(review).mockReturnValueOnce(new Promise(resolve=>{finish=resolve;}));
- const view=render(<StayCheckout planId="p" offerToken="offer" onBookingResult={notify}/>); await payment(); fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/}));
+ const view=render(<StayCheckout planId="p" offerToken="offer" onBookingResult={notify}/>); await payment(); fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button',{name:/Pay €/}));
  await waitFor(()=>expect(finish).toBeTypeOf('function')); view.unmount(); finish(confirmed);
  await waitFor(()=>expect(notify).toHaveBeenCalledExactlyOnceWith('p',expect.objectContaining({status:'confirmed'})));
 });
@@ -117,16 +119,16 @@ it('keeps booking contact separate, reviews per-room requests and submits the ex
  fireEvent.change(document.getElementById('stay-room-1-first'),{target:{value:'Jamie'}});
  fireEvent.change(screen.getByLabelText('Room 1 special requests'),{target:{value:'Quiet room, please.\nLate arrival.'}});
  fireEvent.change(screen.getByLabelText('Room 2 special requests'),{target:{value:'  Twin beds, if possible.  '}});
- fireEvent.click(screen.getByRole('button',{name:'Continue to review & pay →'}));
+ fireEvent.click(screen.getByRole('button',{name:'Continue to payment →'}));
  expect(screen.getByText(/booker@example.com/)).toBeTruthy();
  expect(screen.getByText('Jamie Tester')).toBeTruthy();
  expect(screen.getByText('Twin beds, if possible.')).toBeTruthy();
  fireEvent.click(screen.getByRole('checkbox'));
  fireEvent.click(screen.getByRole('button',{name:/Guests/}));
  expect(screen.getByLabelText('Room 1 special requests').value).toBe('Quiet room, please.\nLate arrival.');
- fireEvent.click(screen.getByRole('button',{name:'Continue to review & pay →'}));
- expect(screen.getByRole('button',{name:/Confirm test booking/}).disabled).toBe(true);
- fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/}));
+ fireEvent.click(screen.getByRole('button',{name:'Continue to payment →'}));
+ expect(screen.getByRole('button',{name:/Pay €/}).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Pay €/}));
  await screen.findByText('Your test stay is confirmed.');
  expect(travelRequest.mock.calls[1][2]).toEqual({token:'PRIVATE',confirm_mock:true,contact:{first_name:'Alex',last_name:'Tester',email:'booker@example.com'},guests:[{first_name:'Jamie',last_name:'Tester',requests:'Quiet room, please.\nLate arrival.'},{first_name:'Sam',last_name:'Tester',requests:'Twin beds, if possible.'}]});
  expect(JSON.stringify(sessionStorage)).not.toMatch(/booker|Quiet|Twin beds/);
@@ -138,11 +140,11 @@ it('uses the contact for room one only and omits empty requests', async () => {
  fireEvent.change(document.getElementById('stay-contact-first'),{target:{value:'Robin'}});
  fireEvent.change(screen.getByLabelText('Room 1 special requests'),{target:{value:'   '}});
  expect(screen.getByLabelText('Room 1 special requests').maxLength).toBe(500);
- fireEvent.click(screen.getByRole('button',{name:'Continue to review & pay →'}));
+ fireEvent.click(screen.getByRole('button',{name:'Continue to payment →'}));
  expect(screen.getAllByText(/Robin Tester/)).toHaveLength(2);
  expect(screen.getByText('Sam Tester')).toBeTruthy();
  expect(screen.queryByText('Room 1 requests')).toBeNull();
- fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/}));
+ fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Pay €/}));
  await screen.findByText('Your test stay is confirmed.');
  expect(travelRequest.mock.calls[1][2].guests).toEqual([{first_name:'Robin',last_name:'Tester'},{first_name:'Sam',last_name:'Tester'}]);
 });
@@ -155,8 +157,8 @@ it('requires valid contact details before proceeding', async () => {
 
 it('allows correction only when public validation proves no booking was submitted', async () => {
  travelRequest.mockResolvedValueOnce(review).mockRejectedValueOnce(Object.assign(new Error('Check guest details'),{status:422,code:'invalid_stay_guests'}));
- render(<StayCheckout planId="p" offerToken="offer"/>);await payment();fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Confirm test booking/}));
- await screen.findByText('Check guest details');expect(sessionStorage.length).toBe(0);
+ render(<StayCheckout planId="p" offerToken="offer"/>);await payment();fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:/Pay €/}));
+ await screen.findByText('Check guest details');expect(sessionStorage.length).toBe(1);
  fireEvent.click(screen.getByRole('button',{name:/Guests/}));
  expect(screen.getByLabelText('Email address')).toBeTruthy();
  expect(travelRequest.mock.calls.filter(c=>c[1]==='sandbox/book')).toHaveLength(1);
@@ -165,7 +167,30 @@ it('does not allow step navigation to bypass invalid guest contact details', asy
  travelRequest.mockResolvedValueOnce(review);render(<StayCheckout planId="p" offerToken="offer"/>);await payment();
  fireEvent.click(screen.getByRole('button',{name:/Guests/}));
  fireEvent.change(screen.getByLabelText('Email address'),{target:{value:'invalid'}});
- fireEvent.click(screen.getByRole('button',{name:'3 Review & pay'}));
+ fireEvent.click(screen.getByRole('button',{name:'3 Payment'}));
  expect(screen.getByLabelText('Email address')).toBeTruthy();
- expect(screen.queryByRole('button',{name:/Confirm test booking/})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Pay €/})).toBeNull();
+});
+
+it('does not book after a card decline and retries payment with the same checkout', async () => {
+ authorize.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+ travelRequest.mockResolvedValueOnce(review).mockResolvedValueOnce(confirmed);
+ render(<StayCheckout planId="p" offerToken="offer"/>); await payment();
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Pay €450.50'}));
+ await waitFor(() => expect(authorize).toHaveBeenCalledOnce());
+ expect(travelRequest).toHaveBeenCalledTimes(1);
+ await waitFor(() => expect(screen.getByRole('button',{name:'Pay €450.50'}).disabled).toBe(false));
+ fireEvent.click(screen.getByRole('button',{name:'Pay €450.50'}));
+ await screen.findByText('Your test stay is confirmed.');
+ expect(travelRequest.mock.calls.filter(c => c[1] === 'sandbox/book')).toHaveLength(1);
+});
+it('recovers an unsubmitted payment for explicit guest review without booking automatically', async () => {
+ travelRequest.mockResolvedValueOnce(review);
+ render(<StayCheckout planId="p" recoveryToken="PRIVATE"/>);
+ await payment();
+ expect(screen.getByRole('button',{name:'Pay €450.50'}).disabled).toBe(true);
+ expect(travelRequest.mock.calls.map(c => c[1])).toEqual(['sandbox/status']);
+ expect(authorize).not.toHaveBeenCalled();
+ expect(JSON.stringify(sessionStorage)).not.toContain('pi_fixture');
 });

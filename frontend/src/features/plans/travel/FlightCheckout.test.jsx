@@ -4,6 +4,7 @@ import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { act, render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { FlightCheckout } from './FlightCheckout';
 import { stripeSandbox } from './stripeSandbox';
+vi.mock('./paymentRecovery', () => ({ rememberPaymentReturn: vi.fn().mockResolvedValue(), forgetPaymentDraft: vi.fn() }));
 vi.mock('./stripeSandbox', () => ({ stripeSandbox: vi.fn() }));
 import { travelRequest } from './travelApi';
 import { flightBookingSummary, itineraryDocument } from './flightItinerary';
@@ -398,36 +399,21 @@ it('discards an unconfirmed removal after status recovery even when the provider
 });
 
 
-it('requires complete hosted fields and exact consent, and books only after test authorization', async () => {
-  const fields = {};
-  const stripe = {
-    retrievePaymentIntent: vi.fn().mockResolvedValue({ paymentIntent: { status: 'requires_payment_method', livemode: false } }),
-    confirmCardPayment: vi.fn().mockResolvedValueOnce({ error: { message: 'Your card was declined.' } })
-      .mockResolvedValueOnce({ paymentIntent: { status: 'requires_capture', livemode: false } }),
-    elements: () => ({ create: type => {
-      const handlers = {};
-      return fields[type] = { handlers, on: (name, fn) => { handlers[name] = fn; }, mount() {}, destroy() {} };
-    } }),
-  };
+it('requires consent and verified SDK return before finalizing the same flight booking', async () => {
+  const stripe = { retrievePaymentIntent: vi.fn().mockResolvedValue({ paymentIntent: { status: 'requires_payment_method', livemode: false } }) };
   stripeSandbox.mockResolvedValue(stripe);
   travelRequest.mockResolvedValueOnce({ ...ready, payment_secret: 'pi_fixture_secret_test' }).mockResolvedValueOnce(confirmed);
   render(<FlightCheckout planId="p" recoveryToken="receipt"/>);
-  const pay = await screen.findByRole('button', { name: 'Pay €175.00' });
-  await waitFor(() => expect(fields.cardCvc).toBeTruthy());
-  expect(pay.disabled).toBe(true);
+  await screen.findByText('Confirm the booking details above to open secure payment.');
+  expect(screen.queryByTitle('Secure payment form')).toBeNull();
   expect(document.querySelector('.flight-payment-details').open).toBe(false);
-  fireEvent.change(screen.getByLabelText('Name on card'), { target: { value: 'Alex Tester' } });
-  fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '1000' } });
-  act(() => Object.values(fields).forEach(field => field.handlers.change({ complete: true })));
-  expect(pay.disabled).toBe(true);
   fireEvent.click(screen.getByRole('checkbox'));
-  expect(pay.disabled).toBe(false);
-  fireEvent.click(pay);
-  await screen.findByText('Your card was declined.');
+  const frame = await screen.findByTitle('Secure payment form');
   expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/status']);
-  fireEvent.click(pay);
+  stripe.retrievePaymentIntent.mockResolvedValue({paymentIntent:{status:'requires_capture',livemode:false}});
+  await act(async () => window.dispatchEvent(new MessageEvent('message',{origin:window.location.origin,source:frame.contentWindow,data:{source:'travella-liteapi',type:'returned'}})));
   await screen.findByText('Your test itinerary is ready.');
   expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/status', 'sandbox/flights/book']);
   expect(travelRequest.mock.calls[1][2]).toEqual({ token: 'prebook', confirm_mock: true });
-  expect(JSON.stringify(sessionStorage)).not.toMatch(/Tester|1000|pi_fixture/);
+  expect(JSON.stringify(sessionStorage)).not.toMatch(/pi_fixture/);
 });

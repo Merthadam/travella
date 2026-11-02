@@ -1,68 +1,52 @@
 // @vitest-environment jsdom
-import React, { createRef } from 'react';
+import React from 'react';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
 import { FlightPayment } from './FlightPayment';
 import { stripeSandbox } from './stripeSandbox';
+vi.mock('./paymentRecovery', () => ({ rememberPaymentReturn: vi.fn().mockResolvedValue(), forgetPaymentDraft: vi.fn() }));
 vi.mock('./stripeSandbox', () => ({ stripeSandbox: vi.fn() }));
-let stripe, fields;
-const intent = status => ({ paymentIntent: { status, livemode: false } });
-beforeEach(() => {
- fields = {};
- stripe = { retrievePaymentIntent: vi.fn().mockResolvedValue(intent('requires_payment_method')), confirmCardPayment: vi.fn(), elements: () => ({ create: type => {
-  const events = {}; const field = { events, on: (name,fn) => { events[name] = fn; }, mount: vi.fn(() => events.ready()), destroy: vi.fn() }; fields[type] = field; return field;
- } }) };
- stripeSandbox.mockResolvedValue(stripe); sessionStorage.clear();
+const intent = (status,livemode=false) => ({paymentIntent:{status,livemode}});
+let stripe;
+beforeEach(() => { stripe={retrievePaymentIntent:vi.fn().mockResolvedValue(intent('requires_payment_method'))};stripeSandbox.mockResolvedValue(stripe);sessionStorage.clear(); });
+afterEach(() => {cleanup();vi.clearAllMocks();vi.useRealTimers();});
+async function message(frame,type,extra={}) {await act(async () => window.dispatchEvent(new MessageEvent('message',{origin:window.location.origin,source:frame.contentWindow,data:{source:'travella-liteapi',type,...extra}})));}
+it('gates SDK mounting on consent and sends its secret only to the frame after a verified handshake',async () => {
+ const props={secret:'pi_fixture_secret_test',onAuthorized:vi.fn()};
+ const view=render(<FlightPayment {...props} consent={false}/>);await act(async()=>{});
+ expect(screen.queryByTitle('Secure payment form')).toBeNull();
+ view.rerender(<FlightPayment {...props} consent/>);
+ const frame=await screen.findByTitle('Secure payment form');const send=vi.spyOn(frame.contentWindow,'postMessage');
+ await message(frame,'ready');expect(send).toHaveBeenCalledWith({type:'start-liteapi',secret:props.secret,buttonText:'Pay'},location.origin);
+ expect(frame.src).not.toContain('secret');expect(sessionStorage.length).toBe(0);expect(props.onAuthorized).not.toHaveBeenCalled();
 });
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
-async function setup() { const ref=createRef(), ready=vi.fn(); render(<FlightPayment ref={ref} secret="pi_fixture_secret_test" onReady={ready}/>); await act(async () => {}); return {ref,ready}; }
-it('requires all three hosted fields and sends billing directly to Stripe, never storage', async () => {
- const {ref,ready}=await setup();
- expect(Object.keys(fields)).toEqual(['cardNumber','cardExpiry','cardCvc']);
- act(() => fields.cardNumber.events.change({complete:true})); expect(ready).toHaveBeenLastCalledWith(false);
- act(() => { fields.cardExpiry.events.change({complete:true}); fields.cardCvc.events.change({complete:true}); }); expect(ready).toHaveBeenLastCalledWith(true);
- fireEvent.change(screen.getByLabelText('Name on card'),{target:{value:'Alex Tester'}});
- fireEvent.change(screen.getByLabelText('Postal code'),{target:{value:'1000'}});
- const country=screen.getByRole('combobox',{name:'Billing country'});
- fireEvent.click(country);
- expect(screen.getAllByRole('option')).toHaveLength(10);
- fireEvent.click(screen.getByRole('button',{name:'Next Billing country choices'}));
- expect(screen.getByText('Page 2 of 25')).toBeTruthy();
- fireEvent.change(country,{target:{value:'Hungary'}});
- fireEvent.click(screen.getByRole('option',{name:'Hungary'}));
- fireEvent.click(country); fireEvent.change(country,{target:{value:'Not a country'}});
- expect(screen.getByText('No matches. Try another search.')).toBeTruthy();
- fireEvent.keyDown(country,{key:'Escape'});
- expect(country.value).toBe('Hungary');
- stripe.confirmCardPayment.mockResolvedValueOnce({error:{message:'Your card was declined.'}});
- let result; await act(async () => { result=await ref.current.authorize(); }); expect(result).toBe(false); expect(screen.getByRole('alert').textContent).toContain('declined');
- stripe.confirmCardPayment.mockResolvedValueOnce(intent('requires_capture'));
- await act(async () => { result=await ref.current.authorize(); }); expect(result).toBe(true);
- expect(stripe.confirmCardPayment).toHaveBeenLastCalledWith('pi_fixture_secret_test',{payment_method:{card:fields.cardNumber,billing_details:{name:'Alex Tester',address:{country:'HU',postal_code:'1000'}}}});
- expect(sessionStorage.length).toBe(0);
+it('ignores forged sources and duplicate returns, verifying the original intent before booking',async () => {
+ const done=vi.fn();render(<FlightPayment secret="pi_fixture_secret_test" consent onAuthorized={done}/>);
+ const frame=await screen.findByTitle('Secure payment form');stripe.retrievePaymentIntent.mockResolvedValue(intent('requires_capture'));
+ await act(async()=>window.dispatchEvent(new MessageEvent('message',{origin:location.origin,source:window,data:{source:'travella-liteapi',type:'returned'}})));
+ expect(done).not.toHaveBeenCalled();
+ await message(frame,'returned');expect(done).toHaveBeenCalledOnce();
+ expect(stripe.retrievePaymentIntent).toHaveBeenLastCalledWith('pi_fixture_secret_test');
 });
-it('recovers a lost authorization response without confirming the same payment again', async () => {
- const {ref}=await setup(); stripe.confirmCardPayment.mockRejectedValueOnce(new Error('network'));
- let result; await act(async () => { result=await ref.current.authorize(); }); expect(result).toBe(false);
- stripe.retrievePaymentIntent.mockResolvedValue(intent('succeeded'));
- await act(async () => { result=await ref.current.authorize(); }); expect(result).toBe(true);
- expect(stripe.confirmCardPayment).toHaveBeenCalledOnce();
+it('does not finalize unconfirmed or live payments and can retry the same intent',async () => {
+ const done=vi.fn();render(<FlightPayment secret="pi_fixture_secret_test" consent onAuthorized={done}/>);
+ const frame=await screen.findByTitle('Secure payment form');stripe.retrievePaymentIntent.mockResolvedValue(intent('processing'));
+ await message(frame,'returned');expect(done).not.toHaveBeenCalled();expect(screen.getByRole('alert').textContent).toContain('not been confirmed');
+ stripe.retrievePaymentIntent.mockResolvedValue(intent('succeeded',true));fireEvent.click(screen.getByText('Check payment again'));await act(async()=>{});
+ expect(done).not.toHaveBeenCalled();expect(screen.getByRole('alert').textContent).toContain('could not be verified');
+ stripe.retrievePaymentIntent.mockResolvedValue(intent('requires_capture'));fireEvent.click(screen.getByText('Check payment again'));await act(async()=>{});
+ expect(done).not.toHaveBeenCalled();fireEvent.click(screen.getByText('Finish test booking'));await act(async()=>{});expect(done).toHaveBeenCalledOnce();
 });
-it('reopens an authorized test intent without requiring new card or billing input', async () => {
- stripe.retrievePaymentIntent.mockResolvedValue(intent('requires_capture'));
- const {ref,ready}=await setup(); expect(Object.keys(fields)).toHaveLength(0); expect(ready).toHaveBeenLastCalledWith(true);
- expect(screen.getByText(/already authorized/)).toBeTruthy();
- let result; await act(async () => { result=await ref.current.authorize(); }); expect(result).toBe(true); expect(stripe.confirmCardPayment).not.toHaveBeenCalled();
+it('preserves the form on decline and bounds resize messages',async()=>{
+ const done=vi.fn(),busy=vi.fn();render(<FlightPayment secret="pi_fixture_secret_test" consent onAuthorized={done} onBusyChange={busy}/>);
+ const frame=await screen.findByTitle('Secure payment form');await message(frame,'submitting');expect(busy).toHaveBeenLastCalledWith(true);
+ await message(frame,'declined');expect(busy).toHaveBeenLastCalledWith(false);expect(done).not.toHaveBeenCalled();expect(screen.getByTitle('Secure payment form')).toBe(frame);
+ await message(frame,'height',{height:999999});expect(frame.style.height).toBe('2400px');
 });
-it('fails closed for live intents and permits retry after a loader failure', async () => {
- stripeSandbox.mockRejectedValueOnce(new Error('offline'));
- await setup(); expect(screen.getByRole('alert').textContent).toContain('could not load');
- stripe.retrievePaymentIntent.mockResolvedValue({paymentIntent:{livemode:true,status:'succeeded'}});
- fireEvent.click(screen.getByRole('button',{name:'Reload card form'})); await act(async () => {});
- expect(screen.getByRole('alert').textContent).toContain('could not load'); expect(stripe.confirmCardPayment).not.toHaveBeenCalled();
-});
-it('does not confirm a processing payment again', async () => {
- const {ref}=await setup(); stripe.retrievePaymentIntent.mockResolvedValue(intent('processing'));
- let result; await act(async () => { result=await ref.current.authorize(); }); expect(result).toBe(false); expect(stripe.confirmCardPayment).not.toHaveBeenCalled();
- expect(screen.getByRole('alert').textContent).toContain('still processing');
+it('removes the frame and ignores its late return after consent is withdrawn',async()=>{
+ const done=vi.fn();const view=render(<FlightPayment secret="pi_fixture_secret_test" consent onAuthorized={done}/>);
+ const frame=await screen.findByTitle('Secure payment form');const source=frame.contentWindow;
+ view.rerender(<FlightPayment secret="pi_fixture_secret_test" consent={false} onAuthorized={done}/>);
+ await act(async()=>window.dispatchEvent(new MessageEvent('message',{origin:location.origin,source,data:{source:'travella-liteapi',type:'returned'}})));
+ expect(done).not.toHaveBeenCalled();expect(screen.queryByTitle('Secure payment form')).toBeNull();
 });

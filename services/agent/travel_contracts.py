@@ -537,6 +537,7 @@ class SandboxResult(Public):
     confirmation_code: str | None = None
     reservation: StayReservation | None = None
     price_changed: bool = False
+    payment_secret: str | None = Field(default=None, max_length=300)
 
 
 class FlightService(Public):
