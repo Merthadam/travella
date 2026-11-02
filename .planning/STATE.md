@@ -560,3 +560,7 @@ User explicitly authorized main merge. PR #31: https://github.com/Merthadam/trav
 ### Flight payment shipment — 2 November 2026
 
 User authorized merging the verified flight payment layout to main. Clean committed-source validation: 336 passed, 12 existing skips, build and scoped security review passed. Application 97c405c; shipment records in quick/261102-td3-match-flight-final-payment-to-the-select. Uncommitted accommodation/backend work excluded. GitHub PR merge metadata records the final outcome; broader phase acceptance unchanged.
+
+### Billing country and alignment — 2 November 2026
+
+Quick261102-tui, source e4ca3b1, reuses searchable paginated country picker and aligns desktop billing fields, stacked on mobile. Chrome DevTools interaction and geometry passed; clean336 tests passed,12 existing skips; build/security passed. Included in authorized PR #33 shipment. Evidence: artifacts/testing/2026-11-02-billing-country/verification.md. Wider phase acceptance unchanged.
