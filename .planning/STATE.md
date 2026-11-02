@@ -564,3 +564,7 @@ User authorized merging the verified flight payment layout to main. Clean commit
 ### Billing country and alignment — 2 November 2026
 
 Quick261102-tui, source e4ca3b1, reuses searchable paginated country picker and aligns desktop billing fields, stacked on mobile. Chrome DevTools interaction and geometry passed; clean336 tests passed,12 existing skips; build/security passed. Included in authorized PR #33 shipment. Evidence: artifacts/testing/2026-11-02-billing-country/verification.md. Wider phase acceptance unchanged.
+
+### LiteAPI payment SDK — 2 November 2026
+
+Quick261102-ud8 replaces custom flight and stay payment fields with the real LiteAPI SDK. Includes pending accommodation payment prerequisite. Actual Chrome desktop/mobile sandbox decline/retry, redirect/recovery, confirmation and reopen passed.343 regression tests plus8 final focused tests,33 backend/API tests and build passed;12 existing frontend skips. Evidence: artifacts/testing/2026-11-02-liteapi-payment/verification.md. Temporary Plan cleaned. No main merge/deployment for this new task. Broader phase acceptance unchanged.
