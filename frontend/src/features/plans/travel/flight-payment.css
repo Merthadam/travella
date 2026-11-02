@@ -1,0 +1,42 @@
+.flight-card-payment-method{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--ds-active);border:1px solid var(--ds-active-line);border-radius:8px;padding:16px;font-size:12px}
+.flight-card-card-brands{display:flex;gap:7px;align-items:center;white-space:nowrap;font-size:9px;font-weight:700}.flight-card-card-brands b{color:#b6773d;letter-spacing:-4px;padding-right:5px;font-size:16px}
+.flight-card-test-card{font-size:11px;color:var(--ds-muted);line-height:1.7;margin:14px 0 20px}
+.flight-card-card-fields>label,.flight-card-hosted-label,.flight-card-card-row>label{display:grid;gap:9px;font-size:12px;margin:18px 0 0;min-width:0;font-weight:400}
+.flight-card-card-fields input,.flight-card-card-fields select{width:100%;min-width:0;padding:12px;border:1px solid var(--ds-control);border-radius:7px;background:var(--ds-surface);color:var(--ds-ink);font:inherit;font-size:16px;min-height:46px}
+.flight-card-hosted-field{background:white;border:1px solid var(--ds-control);border-radius:7px;padding:13px 12px;min-height:46px;color-scheme:light}
+.flight-card-hosted-field:focus-within{outline:2px solid var(--ds-green);outline-offset:2px}
+.flight-card-card-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.flight-card-payment-security,.flight-card-payment-status{font-size:11px;color:var(--ds-muted);line-height:1.7;margin:18px 0}
+
+.flight-payment-active .flight-steps{max-width:840px;margin-inline:auto}
+.flight-flow.flight-payment-active .flight-step-panel{max-width:660px;padding:30px 36px;background:var(--ds-surface);border:1px solid var(--ds-line);border-radius:14px}
+.flight-payment-active .flight-stage-heading{text-align:center;margin-bottom:28px}
+.flight-payment-total{text-align:center;border-bottom:1px solid var(--ds-line);padding-bottom:24px}
+.flight-payment-total>strong{display:block;font-size:44px;letter-spacing:-1.5px;line-height:1.3;margin:8px 0 12px;font-weight:600}
+.flight-payment-total>p{margin:0 0 6px;font-size:14px}.flight-payment-total>small{font-size:11px;color:var(--ds-muted);line-height:1.8}
+.flight-payment-details{margin:0 0 28px;border-bottom:1px solid var(--ds-line);font-size:12px}
+.flight-payment-details>summary{padding:17px 0;cursor:pointer;text-align:center;color:var(--ds-green)}
+.flight-payment-details[open]>summary{text-align:left}
+.flight-payment-details .flight-review dd{overflow-wrap:anywhere;min-width:0}
+.flight-payment-active .flight-step-content>h2{font-size:27px;margin-bottom:18px}
+.flight-payment-active .flight-consent{font-size:11px;line-height:1.8;margin-top:24px}
+.flight-payment-active .flight-checkout-footer{position:static;display:block;border:0;border-top:1px solid var(--ds-line);border-radius:0;box-shadow:none;padding:24px 0 0;margin-top:24px}
+.flight-flow.flight-payment-active .flight-actions{width:100%;max-width:none;flex-direction:column-reverse;gap:16px}
+.flight-flow.flight-payment-active .flight-actions>.flight-primary{width:100%;max-width:100%;padding:16px;font-size:13px}
+.flight-flow.flight-payment-active .flight-actions>.flight-text-button{display:block}
+@media(max-width:760px){
+.flight-flow.flight-payment-active .flight-step-panel{padding:24px 18px}
+.flight-payment-total>strong{font-size:38px}
+.flight-card-payment-method{padding:13px 10px;font-size:11px}
+.flight-card-card-row{gap:12px}
+.flight-payment-total>small{display:block}
+.flight-payment-active .flight-review>div{flex-direction:column;gap:6px}
+.flight-payment-active .flight-review dd{text-align:left}
+}
+
+/* Match the searchable, ten-country picker used in passenger details. */
+.flight-card-billing-row{align-items:start}
+.flight-card-billing-row>.travel-search-select{margin-top:18px}
+.flight-card-billing-row>.travel-search-select>label{display:block;font-size:12px;font-weight:400;margin:0 0 9px}
+.flight-card-billing-row .travel-select-popover .travel-pagination{font-size:11px}
+@media(max-width:760px){.flight-card-billing-row{grid-template-columns:minmax(0,1fr);gap:0}}

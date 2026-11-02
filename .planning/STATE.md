@@ -5,8 +5,8 @@ current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
-last_activity: 2026-11-01
-last_activity_desc: Approved stay guest checkout shipment via PR 32; final merge state recorded by GitHub
+last_activity: 2026-11-02
+last_activity_desc: Matched flight final payment to accommodation B; sandbox payment journey and responsive layout verified
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -26,6 +26,8 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261102-td3 | Flight payment matches accommodation B; hosted card form and real sandbox decline/retry/reload verified | 2026-11-02 | 97c405c | [261102-td3](./quick/261102-td3-match-flight-final-payment-to-the-select/) |
+| 261101-emg | Three interactive accommodation card-payment layouts; verified, selection pending | 2026-11-01 | 31af39d (prototype) | [261101-emg](./quick/261101-emg-compare-three-interactive-accommodation-/) |
 | 261101-e0w | Ship approved guest details and per-room requests via PR #32 | 2026-11-01 | d284365 (integrated source) | [261101-e0w](./quick/261101-e0w-ship-approved-stay-guest-details-and-req/) |
 | 261101-dm3 | Selected A guest details, booking contact and per-room requests; verified sandbox journey | 2026-11-01 | be5e319 | [261101-dm3](./quick/261101-dm3-implement-selected-accommodation-guest-l/) |
 | 261101-dbo | Competitor guest-details research and three verified interactive layouts; A selected and implemented in dm3 | 2026-11-01 | 017c36f (prototype) | [261101-dbo](./quick/261101-dbo-research-competitor-accommodation-guest-/) |
@@ -554,3 +556,11 @@ User selected A and authorized implementation. Source be5e319 adds distinct cont
 ### Flight checkout shipment — 31 October 2026
 
 User explicitly authorized main merge. PR #31: https://github.com/Merthadam/travella/pull/31 (marshy-face → main). Stable passenger transition, multi-traveler seats, explicit no-charge airline assignment, compact route details and provider-confirmed totals. 326 travel/canvas tests passed, 12 existing skips; build and scoped security review passed. Existing Chrome DevTools evidence applies. Shipment record: .planning/quick/261031-oxp-ship-approved-flight-checkout-improvemen/VERIFICATION.md. GitHub PR merge record supplies final outcome/SHA; broader phase acceptance unchanged.
+
+### Flight payment shipment — 2 November 2026
+
+User authorized merging the verified flight payment layout to main. Clean committed-source validation: 336 passed, 12 existing skips, build and scoped security review passed. Application 97c405c; shipment records in quick/261102-td3-match-flight-final-payment-to-the-select. Uncommitted accommodation/backend work excluded. GitHub PR merge metadata records the final outcome; broader phase acceptance unchanged.
+
+### Billing country and alignment — 2 November 2026
+
+Quick261102-tui, source e4ca3b1, reuses searchable paginated country picker and aligns desktop billing fields, stacked on mobile. Chrome DevTools interaction and geometry passed; clean336 tests passed,12 existing skips; build/security passed. Included in authorized PR #33 shipment. Evidence: artifacts/testing/2026-11-02-billing-country/verification.md. Wider phase acceptance unchanged.

@@ -3,6 +3,8 @@ import React from 'react';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { act, render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { FlightCheckout } from './FlightCheckout';
+import { stripeSandbox } from './stripeSandbox';
+vi.mock('./stripeSandbox', () => ({ stripeSandbox: vi.fn() }));
 import { travelRequest } from './travelApi';
 import { flightBookingSummary, itineraryDocument } from './flightItinerary';
 vi.mock('./travelApi', () => ({ travelRequest: vi.fn() }));
@@ -368,7 +370,7 @@ it('requires provider status readback after a seat-update error before allowing 
   await screen.findByText('Seat update response lost');
   expect(screen.queryByRole('button', { name: 'Use airline assignment for all flights' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Check booking status' }));
-  await screen.findByRole('heading', { name: 'Review and pay.' });
+  await screen.findByRole('heading', { name: 'Complete your booking.' });
   fireEvent.click(screen.getByRole('button', { name: '3 Seats' }));
   expect((await screen.findByRole('button', { name: /^Seat 12A/ })).getAttribute('aria-pressed')).toBe('true');
   expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/prebook', 'sandbox/flights/services', 'sandbox/flights/status']);
@@ -388,9 +390,44 @@ it('discards an unconfirmed removal after status recovery even when the provider
   fireEvent.click(screen.getByRole('button', { name: 'Continue to baggage →' }));
   await screen.findByText('Seat removal response lost');
   fireEvent.click(screen.getByRole('button', { name: 'Check booking status' }));
-  await screen.findByRole('heading', { name: 'Review and pay.' });
+  await screen.findByRole('heading', { name: 'Complete your booking.' });
   expect(screen.queryByText('Estimated total')).toBeNull();
-  expect(document.querySelector('.flight-footer-price strong').textContent).toBe('€175.00');
+  expect(document.querySelector('.flight-payment-total strong').textContent).toBe('€175.00');
   fireEvent.click(screen.getByRole('button', { name: '3 Seats' }));
   expect(screen.getByRole('button', { name: /^Seat 12A/ }).getAttribute('aria-pressed')).toBe('true');
+});
+
+
+it('requires complete hosted fields and exact consent, and books only after test authorization', async () => {
+  const fields = {};
+  const stripe = {
+    retrievePaymentIntent: vi.fn().mockResolvedValue({ paymentIntent: { status: 'requires_payment_method', livemode: false } }),
+    confirmCardPayment: vi.fn().mockResolvedValueOnce({ error: { message: 'Your card was declined.' } })
+      .mockResolvedValueOnce({ paymentIntent: { status: 'requires_capture', livemode: false } }),
+    elements: () => ({ create: type => {
+      const handlers = {};
+      return fields[type] = { handlers, on: (name, fn) => { handlers[name] = fn; }, mount() {}, destroy() {} };
+    } }),
+  };
+  stripeSandbox.mockResolvedValue(stripe);
+  travelRequest.mockResolvedValueOnce({ ...ready, payment_secret: 'pi_fixture_secret_test' }).mockResolvedValueOnce(confirmed);
+  render(<FlightCheckout planId="p" recoveryToken="receipt"/>);
+  const pay = await screen.findByRole('button', { name: 'Pay €175.00' });
+  await waitFor(() => expect(fields.cardCvc).toBeTruthy());
+  expect(pay.disabled).toBe(true);
+  expect(document.querySelector('.flight-payment-details').open).toBe(false);
+  fireEvent.change(screen.getByLabelText('Name on card'), { target: { value: 'Alex Tester' } });
+  fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '1000' } });
+  act(() => Object.values(fields).forEach(field => field.handlers.change({ complete: true })));
+  expect(pay.disabled).toBe(true);
+  fireEvent.click(screen.getByRole('checkbox'));
+  expect(pay.disabled).toBe(false);
+  fireEvent.click(pay);
+  await screen.findByText('Your card was declined.');
+  expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/status']);
+  fireEvent.click(pay);
+  await screen.findByText('Your test itinerary is ready.');
+  expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/status', 'sandbox/flights/book']);
+  expect(travelRequest.mock.calls[1][2]).toEqual({ token: 'prebook', confirm_mock: true });
+  expect(JSON.stringify(sessionStorage)).not.toMatch(/Tester|1000|pi_fixture/);
 });
