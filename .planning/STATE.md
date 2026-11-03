@@ -578,4 +578,4 @@ User approved the supported direct Stripe Elements alternative to the wrapped Li
 
 ### Checkout and ticket shipment — 3 November 2026
 
-User authorized merging all completed payment, recovery, confirmation and passenger ticket work. Clean integration with origin/main passed 356 frontend tests (12 existing skips), 73 backend tests, production build and scoped security review. Shipping records: quick/261103-payment-ticket-ship. GitHub PR metadata records the final merge outcome. Broader Phase 18 acceptance remains unchanged; no deployment.
+User authorized merging all completed payment, recovery, confirmation and passenger ticket work. Clean integration with origin/main passed 356 frontend tests (12 existing skips), 73 backend tests, production build and scoped security review. Shipping records: quick/261103-payment-ticket-ship. PR #34: https://github.com/Merthadam/travella/pull/34; GitHub metadata records the final merge outcome. Broader Phase 18 acceptance remains unchanged; no deployment.
