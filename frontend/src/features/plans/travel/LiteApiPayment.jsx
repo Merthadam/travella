@@ -89,7 +89,7 @@ function PaymentForm({ stripe, secret, planId, kind, recoveryData, onAuthorized,
 }
 
 export function LiteApiPayment({ secret, consent, onAuthorized, onBusyChange, planId, kind, recoveryData, buttonText = 'Pay' }) {
-  const session = useRef(null), callbacks = useRef({});
+  const session = useRef(null), callbacks = useRef({}), previousConsent = useRef(consent);
   callbacks.current = { onAuthorized, onBusyChange, consent };
   const [retry, setRetry] = useState(0), [state, setState] = useState('loading'), [stripe, setStripe] = useState(null);
   const [error, setError] = useState(''), [finishing, setFinishing] = useState(false);
@@ -114,7 +114,13 @@ export function LiteApiPayment({ secret, consent, onAuthorized, onBusyChange, pl
     }
     void load();
     return () => { current.active = false; };
-  }, [secret, retry, consent, planId, kind]);
+  }, [secret, retry, planId, kind]);
+  useEffect(() => {
+    // Recheck an intent when the traveler resumes after withdrawing consent.
+    // The parent's reset during booking must not restart an active completion.
+    if (consent && !previousConsent.current) setRetry(value => value + 1);
+    previousConsent.current = consent;
+  }, [consent]);
 
   async function finish() {
     const current = session.current;
@@ -127,16 +133,16 @@ export function LiteApiPayment({ secret, consent, onAuthorized, onBusyChange, pl
       if (!current.active || !callbacks.current.consent) return;
       if (!result.error && authorized(result.paymentIntent)) {
         setState('authorized');
-        await callbacks.current.onAuthorized?.();
-        current.completed = true;
-        forgetPaymentDraft(planId, kind);
+        const booking = await callbacks.current.onAuthorized?.();
+        current.completed = ['confirmed', 'pending'].includes(booking?.status);
+        if (booking?.status === 'confirmed') forgetPaymentDraft(planId, kind);
       } else fail('Payment has not been confirmed. Check its status before continuing.');
     } catch { if (current.active) fail('The payment could not be verified. Try again to check this same payment.'); }
     finally { current.busy = false; if (current.active) { setFinishing(false); callbacks.current.onBusyChange?.(false); } }
   }
   return <section className="liteapi-payment" aria-label="Secure LiteAPI payment">
     <p className="liteapi-payment-note">Test mode · Use <b>4242 4242 4242 4242</b>, a future expiry and any three-digit CVC.</p>
-    {state === 'authorized' ? <><p role="status">Test payment already authorized. Confirm the booking details above to finish without paying again.</p><button className="flight-primary" type="button" disabled={!consent || finishing || session.current?.completed} onClick={finish}>Finish test booking</button></> : !consent ? <p className="liteapi-payment-note">Confirm the booking details above to open secure payment.</p> : <>
+    {finishing ? <p role="status">{state === 'authorized' ? 'Payment authorized. Confirming your test booking…' : 'Verifying your payment…'}</p> : state === 'authorized' ? <><p role="status">Test payment already authorized. Confirm the booking details above to finish without paying again.</p><button className="flight-primary" type="button" disabled={!consent || session.current?.completed} onClick={finish}>Finish test booking</button></> : !consent ? <p className="liteapi-payment-note">Confirm the booking details above to open secure payment.</p> : <>
       {state === 'loading' && <p role="status">Loading secure payment…</p>}
       {state === 'form' && stripe && <PaymentForm key={`${secret}:${retry}`} stripe={stripe} secret={secret} planId={planId} kind={kind} recoveryData={recoveryData} buttonText={buttonText} onAuthorized={finish} onBusyChange={onBusyChange} onUncertain={fail}/>}
     </>}

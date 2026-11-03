@@ -89,8 +89,8 @@ export function StayCheckout(props) {
   async function finishPayment() {
     if (!consent || locked || paymentSubmitting.current) return;
     paymentSubmitting.current = true;
-    try { await perform('book', bookingGuests, bookingContact); }
-    finally { paymentSubmitting.current = false; }
+    try { return await perform('book', bookingGuests, bookingContact); }
+    finally { paymentSubmitting.current = false; setPaying(false); }
   }
   return <section className={`flight-checkout stay-checkout${step === 1 ? ' stay-guests-active' : step === 2 ? ' stay-payment-active' : ''}`} aria-label="Stay checkout" aria-busy={working}>
     <div className="flight-sandbox-banner"><b>SANDBOX CHECKOUT</b><span>Test booking · no real reservation or charge</span></div>

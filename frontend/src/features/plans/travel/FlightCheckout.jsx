@@ -105,7 +105,7 @@ export function FlightCheckout(props) {
   async function finishPayment() {
     if (!consent || result?.status !== 'ready_to_book' || submitting.current) return;
     submitting.current = true;
-    try { await perform('book'); } finally { submitting.current = false; }
+    try { return await perform('book'); } finally { submitting.current = false; setPaymentBusy(false); }
   }
   const pricePreview = result && checkoutTotal(result, choices);
   const extrasChanged = result && !sameChoices(choices, serviceChoices(result.selected_services));

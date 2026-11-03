@@ -4,7 +4,7 @@ import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
 import { FlightPayment } from './FlightPayment';
 import { stripeSandbox } from './stripeSandbox';
-import { rememberPaymentReturn } from './paymentRecovery';
+import { rememberPaymentReturn, forgetPaymentDraft } from './paymentRecovery';
 vi.mock('./paymentRecovery', () => ({ rememberPaymentReturn: vi.fn().mockResolvedValue(), forgetPaymentDraft: vi.fn() }));
 vi.mock('./stripeSandbox', () => ({ stripeSandbox: vi.fn() }));
 const intent = (status, livemode = false) => ({ paymentIntent: { status, livemode } });
@@ -28,6 +28,26 @@ function choose(name = 'Hungary') {
   fireEvent.click(screen.getByRole('option', { name }));
 }
 async function pay() { fireEvent.click(screen.getByRole('button', { name: 'Pay' })); await act(async () => {}); }
+it.each([null, { status: 'pending' }])('retains recovery data until the booking is confirmed (%j)', async outcome => {
+  const done = vi.fn().mockResolvedValue(outcome);
+  await mount({ onAuthorized: done }); choose();
+  stripe.retrievePaymentIntent.mockResolvedValue(intent('requires_capture'));
+  await pay();
+  expect(done).toHaveBeenCalledOnce();
+  expect(forgetPaymentDraft).not.toHaveBeenCalled();
+});
+it('shows booking progress across the parent consent reset and clears recovery only on confirmation', async () => {
+  let resolve;
+  const done = vi.fn(() => new Promise(r => { resolve = r; }));
+  const { view } = await mount({ onAuthorized: done }); choose();
+  stripe.retrievePaymentIntent.mockResolvedValue(intent('requires_capture'));
+  await pay();
+  view.rerender(<FlightPayment secret="pi_fixture_secret_test" consent={false} onAuthorized={done}/>);
+  expect(screen.getByText('Payment authorized. Confirming your test booking…')).toBeTruthy();
+  expect(screen.queryByText(/already authorized/)).toBeNull();
+  await act(async () => resolve({ status: 'confirmed' }));
+  expect(forgetPaymentDraft).toHaveBeenCalledOnce();
+});
 it('gates hosted fields on consent and hides only their native country control', async () => {
   const view = render(<FlightPayment secret="pi_fixture_secret_test" consent={false}/>); await act(async () => {});
   expect(stripe.elements).not.toHaveBeenCalled();
@@ -82,6 +102,11 @@ it('destroys hosted fields and ignores late success after consent is withdrawn',
   view.rerender(<FlightPayment secret="pi_fixture_secret_test" consent={false} onAuthorized={done}/>);
   await act(async () => resolve(intent('requires_capture')));
   expect(payment.destroy).toHaveBeenCalledOnce(); expect(done).not.toHaveBeenCalled(); expect(screen.queryByRole('combobox')).toBeNull();
+  stripe.retrievePaymentIntent.mockResolvedValue(intent('requires_capture'));
+  view.rerender(<FlightPayment secret="pi_fixture_secret_test" consent onAuthorized={done}/>);
+  await screen.findByText('Finish test booking');
+  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(done).not.toHaveBeenCalled(); expect(stripe.confirmPayment).toHaveBeenCalledOnce();
 });
 it('fails closed on recovery-storage failure and offers a status check after a network exception', async () => {
   const { done } = await mount(); choose();

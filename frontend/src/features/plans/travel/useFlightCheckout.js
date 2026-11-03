@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { travelRequest } from './travelApi';
 import { flightCheckoutKey, flightCheckoutUpdated } from './bookingReceipts';
 import { savedFlightResult } from './flightItinerary';
+import { forgetPaymentDraft } from './paymentRecovery';
 
 function remember(planId, token) {
   if (!token) return;
@@ -23,9 +24,10 @@ export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBook
     // A stale receipt from this tab must never replace another saved booking.
     if (savedBooking && value.booking_id !== savedBooking.reference) throw new Error('This checkout does not match the saved itinerary. Your saved document is still available.');
     if (latest.current?.flight?.price && JSON.stringify(latest.current.flight.price) !== JSON.stringify(value.flight?.price)) setPriceChanged(true);
-    latest.current = value; setResult(value); setConsent(false);
+    latest.current = value; setResult(value); setConsent(false); setError('');
     if (value.status !== 'review') remember(planId, value.token);
     if (!value.sandbox || !value.booking_id || !['confirmed', 'cancelled', 'failed'].includes(value.status)) return;
+    if (value.status === 'confirmed') forgetPaymentDraft(planId, 'flights');
     const id = `${value.booking_id}:${value.status}`;
     if (notified.current === id) return;
     notified.current = id;
@@ -40,7 +42,7 @@ export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBook
     return () => { live = false; };
   }, [planId, offerToken, recoveryToken, initialReview]);
   useEffect(() => {
-    if (result?.status !== 'pending') return;
+    if (!['pending', 'unknown'].includes(result?.status)) return;
     let live = true, timer, attempts = 0;
     async function poll() {
       if (submitting.current) { timer = setTimeout(poll, 5000); return; }
@@ -48,8 +50,9 @@ export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBook
         const value = await travelRequest(planId, 'sandbox/flights/status', { token: result.token });
         if (!live) return;
         accept(value);
-        if (value.status === 'pending' && ++attempts < 12) timer = setTimeout(poll, 5000);
+        if (!['pending', 'unknown'].includes(value.status)) return;
       } catch (e) { if (live) failed(e); }
+      if (live && ++attempts < 12) timer = setTimeout(poll, 5000);
     }
     timer = setTimeout(poll, 5000);
     return () => { live = false; clearTimeout(timer); };
@@ -62,7 +65,13 @@ export function useFlightCheckout({ planId, offerToken, recoveryToken, savedBook
       const value = await travelRequest(planId, `sandbox/flights/${action}`, { token: result.token, ...(action !== 'status' ? { confirm_mock: true } : {}), ...payload });
       // Keep confirmation delivery alive if the user left while submitting.
       accept(value); return value;
-    } catch (e) { if (action === 'services') { setResult(old => ({ ...old, status: 'unknown' })); setConsent(false); } if (action === 'prebook' && e.status === 422) setAttempted(false); failed(e); return null; }
+    } catch (e) {
+      // A lost booking/readback response is not permission to pay or book again.
+      // Recover through the same receipt, including after a transient status error.
+      if (action === 'services' || action === 'book') { setResult(old => ({ ...old, status: 'unknown' })); setConsent(false); }
+      if (action === 'prebook' && e.status === 422) setAttempted(false);
+      failed(e); return null;
+    }
     finally { submitting.current = false; setBusy(false); setPendingAction(null); }
   }
   return { result, busy, error, consent, setConsent, attempted, pendingAction, priceChanged, perform };

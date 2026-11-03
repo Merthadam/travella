@@ -15,6 +15,31 @@ const ready = { ...review, status: 'ready_to_book', token: 'prebook', flight: { 
 const confirmed = { ...ready, status: 'confirmed', token: 'booked', booking_id: 'TEST' };
 beforeEach(() => { vi.clearAllMocks(); sessionStorage.clear(); });
 afterEach(cleanup);
+it('recovers a lost booking response and a transient status failure without paying or booking twice', async () => {
+  vi.useFakeTimers();
+  try {
+    const notify = vi.fn();
+    stripeSandbox.mockResolvedValue({ retrievePaymentIntent: vi.fn().mockResolvedValue({ paymentIntent: { status: 'requires_capture', livemode: false } }) });
+    travelRequest.mockResolvedValueOnce({ ...ready, payment_secret: 'pi_fixture_secret_test' })
+      .mockRejectedValueOnce(new Error('Could not verify booking'))
+      .mockRejectedValueOnce(new Error('Temporary status failure'))
+      .mockResolvedValueOnce(confirmed);
+    render(<FlightCheckout planId="p" recoveryToken="receipt" onBookingResult={notify}/>);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('checkbox'));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Finish test booking' }));
+    await act(async () => {});
+    expect(screen.queryByRole('button', { name: 'Finish test booking' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Check booking status' }).disabled).toBe(false);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(screen.getByText('Your test itinerary is ready.')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(notify).toHaveBeenCalledExactlyOnceWith('p', confirmed);
+    expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/status', 'sandbox/flights/book', 'sandbox/flights/status', 'sandbox/flights/status']);
+  } finally { vi.useRealTimers(); }
+});
 async function reserve() {
   fireEvent.click(await screen.findByRole('button', { name: 'Continue to passengers →' }));
   const button = await screen.findByRole('button', { name: 'Reserve test fare & continue' });

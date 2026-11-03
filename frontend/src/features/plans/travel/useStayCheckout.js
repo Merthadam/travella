@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { travelRequest } from './travelApi';
 import { rememberStayReceipt, forgetUnsubmittedStayReceipt, stayCheckoutUpdated } from './bookingReceipts';
 import { savedStayResult } from './stayReservation';
+import { forgetPaymentDraft } from './paymentRecovery';
 export function useStayCheckout({ planId, offerToken, recoveryToken, savedBooking, onBookingResult, onExpired }) {
   const [result, setResult] = useState(() => savedStayResult(savedBooking));
   const [busy, setBusy] = useState(Boolean(!savedBooking && (offerToken || recoveryToken)));
@@ -14,6 +15,7 @@ export function useStayCheckout({ planId, offerToken, recoveryToken, savedBookin
     setError(''); setResult(value); if (value.status !== 'review' || value.payment_secret) rememberStayReceipt(planId, value.token);
     if (value.status === 'review' && value.payment_secret) setAttempted(false);
     if (!value.sandbox || !value.booking_id || !['confirmed','cancelled','failed'].includes(value.status)) return;
+    if (value.status === 'confirmed') forgetPaymentDraft(planId, 'stays');
     const id = JSON.stringify([value.booking_id, value.status, value.reservation]);
     if (notified.current === id) return;
     notified.current = id; callbacks.current.onBookingResult?.(planId, value);
