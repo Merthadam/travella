@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
 last_activity: 2026-11-03
-last_activity_desc: Per-passenger flight ticket records implemented and verified with real sandbox downloads
+last_activity_desc: Verified checkout payment and passenger ticket changes prepared for authorized main merge
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -575,3 +575,7 @@ Quick261102-ud8 replaces custom flight and stay payment fields with the real Lit
 ### Searchable billing country with direct LiteAPI payment — 3 November 2026
 
 User approved the supported direct Stripe Elements alternative to the wrapped LiteAPI SDK. Quick261102-w0m, source95fcd23, restores the shared searchable country picker while Stripe hosts card fields. Actual Chrome flight decline/retry and stay mobile payment, saved confirmations/reload, guest recovery, country changes preserving card values and bounded pagination passed.344 regression tests passed,12 existing skips; build and source hashes passed. Evidence: artifacts/testing/2026-11-02-payment-country/verification.md. Temporary Plans cleaned; no new main merge or deployment. Live wallet/3DS browser acceptance remains unverified; broader phase acceptance unchanged.
+
+### Checkout and ticket shipment — 3 November 2026
+
+User authorized merging all completed payment, recovery, confirmation and passenger ticket work. Clean integration with origin/main passed 356 frontend tests (12 existing skips), 73 backend tests, production build and scoped security review. Shipping records: quick/261103-payment-ticket-ship. GitHub PR metadata records the final merge outcome. Broader Phase 18 acceptance remains unchanged; no deployment.
