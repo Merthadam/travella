@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
-import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, act, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { FlightPayment } from './FlightPayment';
 import { stripeSandbox } from './stripeSandbox';
 import { rememberPaymentReturn, forgetPaymentDraft } from './paymentRecovery';
@@ -20,6 +20,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); vi.useRealTimers(); });
 async function mount(props = {}) {
   const done = vi.fn(); const view = render(<FlightPayment secret="pi_fixture_secret_test" consent onAuthorized={done} {...props}/>);
   await screen.findByRole('combobox', { name: 'Billing country' });
+  await waitFor(() => expect(events.ready).toBeTypeOf('function'));
   act(() => events.ready());
   return { done, view };
 }

@@ -511,6 +511,9 @@ class LiteApi:
         if action.startswith("sandbox/flights/"):
             if not self.flights_enabled:
                 raise ProviderUnavailable()
+            if action == "sandbox/flights/tickets":
+                from .flight_tickets import ticket_records
+                return await ticket_records(self, data["booking_id"])
             from .flight_checkout import checkout
             return await checkout(self, action.rsplit("/", 1)[1], data)
         if action.startswith("sandbox/"):

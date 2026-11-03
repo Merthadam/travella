@@ -7,6 +7,7 @@ import { FlightExtras, ExtrasSummary, serviceChoices, sameChoices, checkoutTotal
 import { FlightSeats } from './FlightSeats';
 import { FlightPayment } from './FlightPayment';
 import { ConfirmationActions } from './ConfirmationActions';
+import { PassengerTickets } from './PassengerTickets';
 
 const steps = ['Your flights', 'Passengers', 'Seats', 'Baggage', 'Review & pay'];
 const stepTitles = ['Review your flights.', 'Passenger details.', 'Seats for your journey.', 'Check what you can bring.', 'Complete your booking.'];
@@ -34,7 +35,7 @@ export function FlightLeg({ leg, label }) {
   </section>;
 }
 
-function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
+function Confirmation({ planId, result, savedBooking, saveState, onBackToPlan }) {
   const [downloaded, setDownloaded] = useState(false);
   const summary = savedBooking || flightBookingSummary(result);
   const saved = saveState?.savedReference === result.booking_id;
@@ -43,6 +44,7 @@ function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
       saveError={!saved && Boolean(saveState?.error)}
       saveMessage={saved || (!saveState && savedBooking) ? 'Saved in your Plan’s Flights component.' : saveState?.error ? 'Your booking is confirmed, but the Plan could not be saved. Download your itinerary now; return to your trip to retry saving.' : 'Your confirmed itinerary is being saved to the Plan.'}
       downloadLabel="Download itinerary" downloadNote="Travella itinerary · HTML · not an airline ticket"
+      ticketActions={<PassengerTickets key={`${planId}:${summary.reference}`} planId={planId} summary={summary}/>}
       onDownload={() => { downloadItinerary(summary); setDownloaded(true); }} onPrint={() => window.print()} downloaded={downloaded ? 'Itinerary download started.' : ''}>
       {!summary.itinerary && <p className="flight-muted">This older booking has only a route and reference saved. Missing flight times and fare details are not reconstructed.</p>}
     </ConfirmationActions><article className="flight-receipt" aria-label="Test flight itinerary"><div className="flight-receipt-heading"><span className="flight-eyebrow">TRAVELLA · FLIGHT ITINERARY</span><b>TEST ONLY</b></div><h2>{summary.origin} ⇄ {summary.destination}</h2><p>{summary.departureDate} – {summary.returnDate}</p>
@@ -117,7 +119,7 @@ export function FlightCheckout(props) {
     <div className="flight-sandbox-banner"><b>SANDBOX CHECKOUT</b><span>Test booking · no real ticket or charge</span></div>
     <nav className="flight-checkout-nav"><button disabled={busy} className="flight-text-button" onClick={status === 'confirmed' ? onBackToPlan : onClose}>← {status === 'confirmed' ? 'Return to my trip' : 'Back to flights'}</button><span>{status === 'confirmed' ? 'YOUR ITINERARY' : 'FLIGHT CHECKOUT'}</span></nav>
     {error && <p className="flight-error" role="alert">{error}</p>}
-    {status === 'confirmed' ? <Confirmation result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
+    {status === 'confirmed' ? <Confirmation planId={props.planId} result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
       {result && step !== 4 && <div className="flight-context"><div><strong>{result.flight.outbound.segments[0].origin} ⇄ {result.flight.outbound.segments.at(-1).destination}</strong><span>{shortDate(result.flight.outbound.segments[0].departure_at)} – {shortDate(result.flight.inbound.segments[0].departure_at, true)} · {result.passenger_count} {result.passenger_count === 1 ? 'traveler' : 'travelers'}</span></div>{step > 0 && <details key={step} className="flight-context-details"><summary>Flight details</summary><div><FlightLeg leg={result.flight.outbound} label="Outbound"/><FlightLeg leg={result.flight.inbound} label="Return"/></div></details>}</div>}
       {busy && <p className={result ? 'flight-loading-announcement' : 'flight-loading'} role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
       {!result && !busy && error && <div className="flight-message"><h2>This flight could not be verified.</h2><p>Return to flights for a fresh offer.</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}

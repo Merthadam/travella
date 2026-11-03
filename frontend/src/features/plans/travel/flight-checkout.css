@@ -72,4 +72,10 @@
 .confirmation-downloads{border-top:1px solid var(--ds-line);padding-top:20px;display:grid;gap:12px}
 .confirmation-downloads>.flight-secondary{width:100%}
 .confirmation-downloads>small{color:var(--ds-muted);font-size:11px;line-height:1.5}
+.passenger-tickets{display:grid;gap:12px;border-top:1px solid var(--ds-line);padding:20px 0;margin-bottom:20px;overflow-wrap:anywhere}
+.flight-confirm-grid>aside .passenger-tickets p{margin:0;font-size:12px}
+.passenger-tickets>small{font-size:11px;line-height:1.5;color:var(--ds-muted)}
+.passenger-ticket{border:1px solid var(--ds-line);border-radius:8px;padding:14px;display:grid;gap:10px;font-size:12px}
+.passenger-ticket>div{display:grid;gap:10px}
+.passenger-tickets .flight-secondary{width:100%;white-space:normal}
 @media(max-width:760px){.flight-confirm-grid{grid-template-areas:"actions" "receipt"}.flight-confirmation>header{margin-bottom:28px}}

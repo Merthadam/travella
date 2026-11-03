@@ -15,6 +15,7 @@ from .travel_contracts import INPUTS, OUTPUTS, POST_ACTIONS, TravelInvocation
 from .travel_registry import travel_registry
 
 ERRORS = {
+    "booking_not_found": (404, "This booking is not available for this Plan."),
     "stay_already_booked": (409, "This Plan already has a stay checkout. Reopen its confirmation."),
     "offer_expired": (409, "This flight option is no longer available to verify. Search again for fresh options."),
     "invalid_services": (422, "These seats or bags are unavailable. Review your selections."),
