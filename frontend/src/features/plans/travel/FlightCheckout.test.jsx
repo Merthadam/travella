@@ -155,7 +155,7 @@ it('reopens a durable itinerary without a browser token and exports only safe do
   const summary = flightBookingSummary({ ...confirmed, passengers: [{ document: 'PRIVATE' }], contact: { email: 'PRIVATE' } });
   const back = vi.fn(); render(<FlightCheckout planId="p" savedBooking={summary} onBackToPlan={back}/>);
   expect(await screen.findByText('Your test itinerary is ready.')).toBeTruthy(); expect(travelRequest).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Back to Plan →' })); expect(back).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole('button', { name: 'Return to my trip' })); expect(back).toHaveBeenCalledOnce();
   const html = itineraryDocument(summary);
   expect(html).toContain('NT123'); expect(html).toContain('175.00'); expect(html).toContain('NOT VALID FOR TRAVEL');
   expect(html).not.toMatch(/PRIVATE|opaque-review|prebook|booked|TEST00000|sandbox-guest/);

@@ -1,3 +1,4 @@
+import { ConfirmationActions } from './ConfirmationActions';
 import React, { useEffect, useRef, useState } from 'react';
 import { StayPayment } from './StayPayment';
 import { recoverPaymentDraft } from './paymentRecovery';
@@ -40,7 +41,11 @@ function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
   const summary = savedBooking || stayBookingSummary(result), r = summary.reservation;
   const saved = saveState?.savedReference === summary.reference || (!saveState && savedBooking);
   return <div className="flight-confirmation"><header><span className="flight-confirm-icon">✓</span><p className="flight-eyebrow">LITEAPI SANDBOX CONFIRMATION</p><h1 tabIndex={-1}>Your test stay is confirmed.</h1><p>Keep your reservation details together, ready to reopen from your Plan.</p></header>
-    <div className="flight-confirm-grid"><article ref={receipt} className="flight-receipt"><div className="flight-receipt-heading"><span className="flight-eyebrow">TRAVELLA · STAY CONFIRMATION</span><b>TEST ONLY</b></div><h2>{summary.hotelName}</h2><p>{r?.address || 'Address not supplied'}</p><p>{summary.checkIn} – {summary.checkOut}</p>
+    <div className="flight-confirm-grid"><ConfirmationActions onReturn={onBackToPlan}
+      saveError={!saved && Boolean(saveState?.error)}
+      saveMessage={saved ? 'Saved in your Plan’s Stays component.' : saveState?.error ? 'Your reservation is confirmed, but the Plan could not be saved. Download your confirmation now; return to your trip to retry saving.' : 'Your confirmed reservation is being saved to the Plan.'}
+      downloadLabel="Download confirmation" downloadNote="Travella confirmation · HTML · opens offline"
+      onDownload={() => { downloadStayConfirmation(summary); setDownloaded(true); }} onPrint={print} downloaded={downloaded ? 'Confirmation download started.' : ''}/><article ref={receipt} className="flight-receipt"><div className="flight-receipt-heading"><span className="flight-eyebrow">TRAVELLA · STAY CONFIRMATION</span><b>TEST ONLY</b></div><h2>{summary.hotelName}</h2><p>{r?.address || 'Address not supplied'}</p><p>{summary.checkIn} – {summary.checkOut}</p>
       <div className="flight-reference"><span>Test booking reference</span><strong>{summary.reference}</strong><span>Hotel confirmation</span><strong>{r?.confirmationCode || 'Not supplied'}</strong><small>Not valid for check-in</small></div>
       <h3 className="stay-guests-heading">Guests</h3>{r?.guests.length ? r.guests.map((g, i) => <p key={i}>{formatStayGuest(g)}</p>) : <p>Guest names were not returned or saved.</p>}
       {r?.guests.some(g => g.room == null) && <p className="flight-warning">{stayGuestAssignmentNote}</p>}
@@ -48,9 +53,7 @@ function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
       {r?.terms && <details><summary>Provider terms</summary><p className="stay-terms">{r.terms}</p></details>}
       <p className="flight-muted">Price source: {r?.priceSource || 'Not saved'}. Room terms source: {r?.roomSource || 'Not saved'}. Generated from LiteAPI evidence; this is not an original supplier voucher or a live status check. Cancellation inside Travella is not available.</p>
       {!r && <p className="flight-muted">This older booking contains only the property, dates and reference. Missing details have not been reconstructed.</p>}
-    </article><aside><h2>Keep your confirmation.</h2><p>Download an offline copy with the guest names and reservation details.</p><button className="flight-primary" onClick={() => { downloadStayConfirmation(summary); setDownloaded(true); }}>Download confirmation</button><small>HTML document · opens offline</small><button className="flight-secondary" onClick={print}>Print / save as PDF</button>{downloaded && <p role="status">Confirmation download started.</p>}
-      <div className="flight-save-status" role="status">{saved ? 'Saved in your Plan’s Stays component.' : saveState?.error ? 'Your reservation is confirmed, but the Plan could not be saved. Download your confirmation now; return to the Plan to retry saving.' : 'Your confirmed reservation is being saved to the Plan.'}</div><button className="flight-text-button" onClick={onBackToPlan}>Back to Plan →</button>
-    </aside></div></div>;
+    </article></div></div>;
 }
 export function StayCheckout(props) {
   const { planId, onClose, onBackToPlan, savedBooking, saveState } = props;
@@ -94,7 +97,7 @@ export function StayCheckout(props) {
   }
   return <section className={`flight-checkout stay-checkout${step === 1 ? ' stay-guests-active' : step === 2 ? ' stay-payment-active' : ''}`} aria-label="Stay checkout" aria-busy={working}>
     <div className="flight-sandbox-banner"><b>SANDBOX CHECKOUT</b><span>Test booking · no real reservation or charge</span></div>
-    <nav className="flight-checkout-nav"><button disabled={working} className="flight-text-button" onClick={result?.status === 'confirmed' ? onBackToPlan : onClose}>← {result?.status === 'confirmed' ? 'Back to Plan' : 'Back to stays'}</button><span>{result?.status === 'confirmed' ? 'YOUR STAY CONFIRMATION' : 'STAY CHECKOUT'}</span></nav>
+    <nav className="flight-checkout-nav"><button disabled={working} className="flight-text-button" onClick={result?.status === 'confirmed' ? onBackToPlan : onClose}>← {result?.status === 'confirmed' ? 'Return to my trip' : 'Back to stays'}</button><span>{result?.status === 'confirmed' ? 'YOUR STAY CONFIRMATION' : 'STAY CHECKOUT'}</span></nav>
     {error && <p className="flight-error" role="alert">{error}</p>}
     {result?.status === 'confirmed' ? <Confirmation result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
       <header className="flight-checkout-title"><p className="flight-eyebrow">YOUR PLACE TO STAY</p><h1 ref={heading} tabIndex={-1}>{step === 1 ? 'Who’s coming along?' : step === 2 ? 'Complete your booking.' : 'Book your stay.'}</h1><p>{step === 1 ? 'A contact for the booking. A main guest for every room.' : step === 2 ? 'One last step. Pay securely with your card.' : 'Review the room, add your test guests and confirm the final total.'}</p>{step === 1 && result && <p className="stay-guest-context">{result.hotel_name} · {result.check_in} – {result.check_out} · {result.room_count} {result.room_count === 1 ? 'room' : 'rooms'}</p>}</header>
