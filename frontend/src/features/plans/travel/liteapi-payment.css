@@ -1,4 +1,8 @@
 .liteapi-payment{min-width:0;margin-top:22px}
-.liteapi-payment-frame{display:block;width:100%;border:0;border-radius:10px;background:white;min-height:200px}
+.liteapi-payment-element{min-width:0;min-height:100px}
 .liteapi-payment-note{font-size:12px;line-height:1.7;margin:14px 0!important;color:var(--ds-muted)}
-.liteapi-payment>.flight-primary{width:100%;margin-top:16px}
+.liteapi-payment>.flight-primary{width:100%;margin-top:24px}
+.liteapi-payment .liteapi-billing-country{border:0;padding:0;margin:0 0 20px;min-width:0}
+.liteapi-billing-country .travel-search-select>label{display:block;font:500 14px/1.5 system-ui,sans-serif;margin:0 0 6px}
+.liteapi-billing-country .travel-search-select>input{display:block;width:100%;box-sizing:border-box;min-height:44px;border:1px solid #a2b1c3;border-radius:8px;padding:10px 12px;background:#fff;color:#19283b;font:14px/1.5 system-ui,sans-serif}
+.liteapi-billing-country .travel-select-popover ul{max-height:min(280px,32vh);overflow-y:auto}

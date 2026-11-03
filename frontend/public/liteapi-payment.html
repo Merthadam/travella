@@ -4,20 +4,15 @@
   <meta charset="utf-8">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Secure payment</title>
+  <title>Returning to your booking</title>
   <script>
-    // The provider appends payment parameters on return. Remove them before
-    // loading any assets; the parent verifies its original intent independently.
-    window.paymentReturned = Boolean(location.search);
+    // Remove provider parameters before assets load. The checkout retrieves its
+    // original intent independently; URL status/secret values are never trusted.
     if (location.search || location.hash) history.replaceState(null, '', location.pathname);
   </script>
-  <style>
-    *{box-sizing:border-box}body{margin:0;padding:4px;font:14px/1.5 system-ui,sans-serif;background:#fff;color:#172b24}
-    .lp-submit-button-wrapper{margin-top:24px}.lp-submit-button{width:100%;min-height:48px;padding:14px;border:0;border-radius:8px;background:#366f60;color:white;font:600 14px system-ui,sans-serif;cursor:pointer}.lp-submit-button:focus-visible{outline:3px solid #8ab3a7;outline-offset:2px}.lp-submit-button:disabled{opacity:.6;cursor:wait}#st-error-message{color:#a52a2a;margin-top:12px}
-  </style>
 </head>
 <body>
-  <div id="payment-element"></div>
+  <p>Returning to your booking…</p>
   <script src="/liteapi-payment.js"></script>
 </body>
 </html>

@@ -399,19 +399,24 @@ it('discards an unconfirmed removal after status recovery even when the provider
 });
 
 
-it('requires consent and verified SDK return before finalizing the same flight booking', async () => {
-  const stripe = { retrievePaymentIntent: vi.fn().mockResolvedValue({ paymentIntent: { status: 'requires_payment_method', livemode: false } }) };
+it('requires consent and verified Payment Element authorization before finalizing the same flight booking', async () => {
+  const handlers = {};
+  const payment = { on: (event, callback) => { handlers[event] = callback; }, mount: vi.fn(), destroy: vi.fn(), update: vi.fn() };
+  const stripe = { elements: () => ({ create: () => payment, submit: vi.fn().mockResolvedValue({}) }), confirmPayment: vi.fn().mockResolvedValue({}), retrievePaymentIntent: vi.fn().mockResolvedValue({ paymentIntent: { status: 'requires_payment_method', livemode: false } }) };
   stripeSandbox.mockResolvedValue(stripe);
   travelRequest.mockResolvedValueOnce({ ...ready, payment_secret: 'pi_fixture_secret_test' }).mockResolvedValueOnce(confirmed);
   render(<FlightCheckout planId="p" recoveryToken="receipt"/>);
   await screen.findByText('Confirm the booking details above to open secure payment.');
-  expect(screen.queryByTitle('Secure payment form')).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'Billing country' })).toBeNull();
   expect(document.querySelector('.flight-payment-details').open).toBe(false);
   fireEvent.click(screen.getByRole('checkbox'));
-  const frame = await screen.findByTitle('Secure payment form');
+  const country = await screen.findByRole('combobox', { name: 'Billing country' });
+  act(() => handlers.ready());
+  fireEvent.change(country, { target: { value: 'Hungary' } });
+  fireEvent.click(screen.getByRole('option', { name: 'Hungary' }));
   expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/status']);
   stripe.retrievePaymentIntent.mockResolvedValue({paymentIntent:{status:'requires_capture',livemode:false}});
-  await act(async () => window.dispatchEvent(new MessageEvent('message',{origin:window.location.origin,source:frame.contentWindow,data:{source:'travella-liteapi',type:'returned'}})));
+  fireEvent.click(screen.getByRole('button', { name: 'Pay €175.00' }));
   await screen.findByText('Your test itinerary is ready.');
   expect(travelRequest.mock.calls.map(call => call[1])).toEqual(['sandbox/flights/status', 'sandbox/flights/book']);
   expect(travelRequest.mock.calls[1][2]).toEqual({ token: 'prebook', confirm_mock: true });
