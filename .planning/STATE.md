@@ -5,8 +5,8 @@ current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
-last_activity: 2026-11-02
-last_activity_desc: Matched flight final payment to accommodation B; sandbox payment journey and responsive layout verified
+last_activity: 2026-11-03
+last_activity_desc: Verified checkout payment and passenger ticket changes prepared for authorized main merge
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -184,6 +184,9 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261103-vbp | Per-passenger ticket record downloads with scoped read-only provider lookup | 2026-11-03 | af87f69 | Passed — 356 frontend and 47 backend tests; real Chrome downloads and desktop/mobile | [Task](quick/261103-vbp-add-per-passenger-flight-ticket-record-d/) |
+| 261103-dei | Prominent flight/stay return actions, existing stay recovery, supplier ticket research | 2026-11-03 | 91e534d | Passed — 348 tests, build, Chrome desktop/mobile and persistence | [Task](quick/261103-dei-make-flight-and-stay-confirmation-naviga/) |
+| 261102-w0m | Direct LiteAPI Payment Element with searchable billing country | 2026-11-03 | 95fcd23 | Passed —344 tests, build, Chrome sandbox flight/stay and desktop/mobile | [Task](quick/261102-w0m-use-liteapi-direct-payment-element-with-/) |
 | 261029-u8c | Guided stays checkout and durable LiteAPI confirmation | 2026-10-29 | 6cef21d | Passed — 475 tests, build, authenticated desktop/mobile sandbox journey | [Task](quick/261029-u8c-implement-guided-stays-checkout-and-dura/) |
 | 261026-ksg | Connected reply suggestions, exact context and manual/chat choices; browser auth recovered | 2026-10-27 | b0182f1 | Verified — sandbox desktop/mobile; phase UAT unchanged | [261026-ksg](./quick/261026-ksg-connect-topic-chat-suggestions-and-exact/) |
 | 261025-g4x | Add LiteAPI stay details/reviews/rates and flight verification tools | 2026-10-25 | caf905b | 29 targeted tests passed; 387 broad passes with 8 baseline UI failures; no live calls/deployment | [Task](quick/261025-g4x-add-read-only-hotel-details-reviews-and-/) |
@@ -564,3 +567,15 @@ User authorized merging the verified flight payment layout to main. Clean commit
 ### Billing country and alignment — 2 November 2026
 
 Quick261102-tui, source e4ca3b1, reuses searchable paginated country picker and aligns desktop billing fields, stacked on mobile. Chrome DevTools interaction and geometry passed; clean336 tests passed,12 existing skips; build/security passed. Included in authorized PR #33 shipment. Evidence: artifacts/testing/2026-11-02-billing-country/verification.md. Wider phase acceptance unchanged.
+
+### LiteAPI payment SDK — 2 November 2026
+
+Quick261102-ud8 replaces custom flight and stay payment fields with the real LiteAPI SDK. Includes pending accommodation payment prerequisite. Actual Chrome desktop/mobile sandbox decline/retry, redirect/recovery, confirmation and reopen passed.343 regression tests plus8 final focused tests,33 backend/API tests and build passed;12 existing frontend skips. Evidence: artifacts/testing/2026-11-02-liteapi-payment/verification.md. Temporary Plan cleaned. No main merge/deployment for this new task. Broader phase acceptance unchanged.
+
+### Searchable billing country with direct LiteAPI payment — 3 November 2026
+
+User approved the supported direct Stripe Elements alternative to the wrapped LiteAPI SDK. Quick261102-w0m, source95fcd23, restores the shared searchable country picker while Stripe hosts card fields. Actual Chrome flight decline/retry and stay mobile payment, saved confirmations/reload, guest recovery, country changes preserving card values and bounded pagination passed.344 regression tests passed,12 existing skips; build and source hashes passed. Evidence: artifacts/testing/2026-11-02-payment-country/verification.md. Temporary Plans cleaned; no new main merge or deployment. Live wallet/3DS browser acceptance remains unverified; broader phase acceptance unchanged.
+
+### Checkout and ticket shipment — 3 November 2026
+
+User authorized merging all completed payment, recovery, confirmation and passenger ticket work. Clean integration with origin/main passed 356 frontend tests (12 existing skips), 73 backend tests, production build and scoped security review. Shipping records: quick/261103-payment-ticket-ship. PR #34: https://github.com/Merthadam/travella/pull/34; GitHub metadata records the final merge outcome. Broader Phase 18 acceptance remains unchanged; no deployment.

@@ -262,6 +262,10 @@ class SandboxFlightPrebook(SandboxFlightConfirm):
         return self
 
 
+class FlightTicketsQuery(Strict):
+    booking_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+
+
 class TravelInvocation(Strict):
     plan_id: UUID
     action: Literal[
@@ -282,12 +286,14 @@ class TravelInvocation(Strict):
         "sandbox/flights/prebook",
         "sandbox/flights/book",
         "sandbox/flights/status",
+        "sandbox/flights/tickets",
         "sandbox/flights/services",
     ]
     criteria: dict = Field(default_factory=dict)
 
 
 POST_ACTIONS = {
+    "sandbox/flights/tickets",
     "sandbox/flights/services",
     "flights/verify",
     "sandbox/flights/verify",
@@ -302,6 +308,7 @@ POST_ACTIONS = {
 }
 
 INPUTS = {
+    "sandbox/flights/tickets": FlightTicketsQuery,
     "research/snapshot": ResearchSnapshotQuery,
     "sandbox/flights/verify": SandboxHandle,
     "sandbox/flights/prebook": SandboxFlightPrebook,
@@ -537,6 +544,7 @@ class SandboxResult(Public):
     confirmation_code: str | None = None
     reservation: StayReservation | None = None
     price_changed: bool = False
+    payment_secret: str | None = Field(default=None, max_length=300)
 
 
 class FlightService(Public):
@@ -580,7 +588,25 @@ class SandboxFlightResult(Public):
     confirmation_code: str | None = None
 
 
+class PassengerTicket(Public):
+    passenger_index: int = Field(ge=0, le=8)
+    passenger_name: str = Field(min_length=1, max_length=240)
+    ticket_number: str = Field(min_length=1, max_length=100)
+    status: str = Field(min_length=1, max_length=40)
+
+
+class FlightTicketsResult(Public):
+    sandbox: Literal[True] = True
+    provider: Literal["LiteAPI"] = "LiteAPI"
+    booking_id: str = Field(min_length=1, max_length=100)
+    status: Literal["confirmed", "pending", "cancelled"]
+    passenger_count: int = Field(ge=1, le=9)
+    issued_at: str | None = Field(default=None, max_length=40)
+    tickets: list[PassengerTicket] = Field(default_factory=list, max_length=90)
+
+
 OUTPUTS = {
+    "sandbox/flights/tickets": FlightTicketsResult,
     **{f"sandbox/flights/{action}": SandboxFlightResult for action in ("verify", "prebook", "services", "book", "status")},
     "sandbox/prebook": SandboxResult,
     "sandbox/book": SandboxResult,

@@ -6,6 +6,8 @@ import { PassengerDetails } from './PassengerDetails';
 import { FlightExtras, ExtrasSummary, serviceChoices, sameChoices, checkoutTotal } from './FlightExtras';
 import { FlightSeats } from './FlightSeats';
 import { FlightPayment } from './FlightPayment';
+import { ConfirmationActions } from './ConfirmationActions';
+import { PassengerTickets } from './PassengerTickets';
 
 const steps = ['Your flights', 'Passengers', 'Seats', 'Baggage', 'Review & pay'];
 const stepTitles = ['Review your flights.', 'Passenger details.', 'Seats for your journey.', 'Check what you can bring.', 'Complete your booking.'];
@@ -33,21 +35,24 @@ export function FlightLeg({ leg, label }) {
   </section>;
 }
 
-function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
+function Confirmation({ planId, result, savedBooking, saveState, onBackToPlan }) {
   const [downloaded, setDownloaded] = useState(false);
   const summary = savedBooking || flightBookingSummary(result);
   const saved = saveState?.savedReference === result.booking_id;
   return <div className="flight-confirmation"><header><span className="flight-confirm-icon" aria-hidden="true">✓</span><p className="flight-eyebrow">SANDBOX CONFIRMATION</p><h1 tabIndex={-1}>Your test itinerary is ready.</h1><p>{savedBooking ? 'Your saved test booking document.' : 'LiteAPI confirmed this sandbox booking. No real ticket or charge.'}</p></header>
-    <div className="flight-confirm-grid"><article className="flight-receipt" aria-label="Test flight itinerary"><div className="flight-receipt-heading"><span className="flight-eyebrow">TRAVELLA · FLIGHT ITINERARY</span><b>TEST ONLY</b></div><h2>{summary.origin} ⇄ {summary.destination}</h2><p>{summary.departureDate} – {summary.returnDate}</p>
+    <div className="flight-confirm-grid"><ConfirmationActions onReturn={onBackToPlan}
+      saveError={!saved && Boolean(saveState?.error)}
+      saveMessage={saved || (!saveState && savedBooking) ? 'Saved in your Plan’s Flights component.' : saveState?.error ? 'Your booking is confirmed, but the Plan could not be saved. Download your itinerary now; return to your trip to retry saving.' : 'Your confirmed itinerary is being saved to the Plan.'}
+      downloadLabel="Download itinerary" downloadNote="Travella itinerary · HTML · not an airline ticket"
+      ticketActions={<PassengerTickets key={`${planId}:${summary.reference}`} planId={planId} summary={summary}/>}
+      onDownload={() => { downloadItinerary(summary); setDownloaded(true); }} onPrint={() => window.print()} downloaded={downloaded ? 'Itinerary download started.' : ''}>
+      {!summary.itinerary && <p className="flight-muted">This older booking has only a route and reference saved. Missing flight times and fare details are not reconstructed.</p>}
+    </ConfirmationActions><article className="flight-receipt" aria-label="Test flight itinerary"><div className="flight-receipt-heading"><span className="flight-eyebrow">TRAVELLA · FLIGHT ITINERARY</span><b>TEST ONLY</b></div><h2>{summary.origin} ⇄ {summary.destination}</h2><p>{summary.departureDate} – {summary.returnDate}</p>
       <div className="flight-reference"><span>Test booking reference</span><strong>{result.booking_id}</strong>{result.confirmation_code && <><span>Airline confirmation</span><strong>{result.confirmation_code}</strong></>}<small>Not valid for travel</small></div>
       <FlightLeg leg={result.flight.outbound} label="Outbound"/><FlightLeg leg={result.flight.inbound} label="Return"/>
       <dl className="flight-receipt-facts"><div><dt>Passengers</dt><dd>{result.passenger_count ?? 'Count not saved'}</dd></div><div><dt>Seats</dt><dd><ExtrasSummary values={result.selected_services} kind="seat"/></dd></div><div><dt>Test total</dt><dd>{formatFlightPrice(result.flight.price)}</dd></div><div><dt>Baggage</dt><dd>{result.flight.baggage_summary || 'Allowance not supplied.'}<ExtrasSummary values={result.selected_services} kind="baggage"/></dd></div><div><dt>Fare conditions</dt><dd>{result.flight.cancellation_summary || 'Detailed fare conditions not supplied.'}</dd></div></dl>
       <p className="flight-muted">All times are local to each airport. This sandbox receipt is not a ticket or boarding pass. It contains no passenger names, document, contact or payment details.</p>
-    </article><aside><h2>Save your itinerary.</h2><p>Keep an offline copy with your travel documents.</p><button className="flight-primary" onClick={() => { downloadItinerary(summary); setDownloaded(true); }}>Download itinerary</button><small>HTML document · opens offline</small><button className="flight-secondary" onClick={() => window.print()}>Print / save as PDF</button>{downloaded && <p role="status">Itinerary download started.</p>}
-      <div className="flight-save-status" role="status">{saved || (!saveState && savedBooking) ? 'Saved in your Plan’s Flights component.' : saveState?.error ? 'Your booking is confirmed, but the Plan could not be saved. Download your itinerary now; return to the Plan to retry saving.' : 'Your confirmed itinerary is being saved to the Plan.'}</div>
-      <button className="flight-text-button" onClick={onBackToPlan}>Back to Plan →</button>
-      {!summary.itinerary && <p className="flight-muted">This older booking has only a route and reference saved. Missing flight times and fare details are not reconstructed.</p>}
-    </aside></div>
+    </article></div>
   </div>;
 }
 
@@ -55,8 +60,8 @@ export function FlightCheckout(props) {
   const { planId, onClose, onEmpty, onBackToPlan, savedBooking, saveState } = props;
   const checkout = useFlightCheckout(props);
   const { result, busy: requestBusy, error, consent, setConsent, attempted, pendingAction, priceChanged, perform } = checkout;
-  const [choices, setChoices] = useState([]), [paymentBusy, setPaymentBusy] = useState(false), [paymentReady, setPaymentReady] = useState(false);
-  const passengerForm = useRef(null), payment = useRef(null), submitting = useRef(false);
+  const [choices, setChoices] = useState([]), [paymentBusy, setPaymentBusy] = useState(false);
+  const passengerForm = useRef(null), submitting = useRef(false);
   const busy = requestBusy || paymentBusy;
   useEffect(() => { if (result) setChoices(serviceChoices(result.selected_services)); }, [result?.token, result?.selected_services]);
   const [step, setStep] = useState(0), [reached, setReached] = useState(0), [passengers, setPassengers] = useState([]), [contact, setContact] = useState(testContact);
@@ -97,19 +102,24 @@ export function FlightCheckout(props) {
       move(step + 1);
     } else if (step === 4 && consent && status === 'ready_to_book' && !submitting.current) {
       submitting.current = true; setPaymentBusy(true);
-      try { if (!result.payment_secret || await payment.current?.authorize()) await perform('book'); }
+      try { if (!result.payment_secret) await perform('book'); }
       finally { submitting.current = false; setPaymentBusy(false); }
     }
     else move(step + 1);
+  }
+  async function finishPayment() {
+    if (!consent || result?.status !== 'ready_to_book' || submitting.current) return;
+    submitting.current = true;
+    try { return await perform('book'); } finally { submitting.current = false; setPaymentBusy(false); }
   }
   const pricePreview = result && checkoutTotal(result, choices);
   const extrasChanged = result && !sameChoices(choices, serviceChoices(result.selected_services));
   if (empty) return null;
   return <section className={`flight-checkout${status !== 'confirmed' ? ' flight-flow' : ''}${step === 4 && status !== 'confirmed' ? ' flight-payment-active' : ''}`} aria-label="Flight checkout" aria-busy={busy}>
     <div className="flight-sandbox-banner"><b>SANDBOX CHECKOUT</b><span>Test booking · no real ticket or charge</span></div>
-    <nav className="flight-checkout-nav"><button disabled={busy} className="flight-text-button" onClick={status === 'confirmed' ? onBackToPlan : onClose}>← {status === 'confirmed' ? 'Back to Plan' : 'Back to flights'}</button><span>{status === 'confirmed' ? 'YOUR ITINERARY' : 'FLIGHT CHECKOUT'}</span></nav>
+    <nav className="flight-checkout-nav"><button disabled={busy} className="flight-text-button" onClick={status === 'confirmed' ? onBackToPlan : onClose}>← {status === 'confirmed' ? 'Return to my trip' : 'Back to flights'}</button><span>{status === 'confirmed' ? 'YOUR ITINERARY' : 'FLIGHT CHECKOUT'}</span></nav>
     {error && <p className="flight-error" role="alert">{error}</p>}
-    {status === 'confirmed' ? <Confirmation result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
+    {status === 'confirmed' ? <Confirmation planId={props.planId} result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
       {result && step !== 4 && <div className="flight-context"><div><strong>{result.flight.outbound.segments[0].origin} ⇄ {result.flight.outbound.segments.at(-1).destination}</strong><span>{shortDate(result.flight.outbound.segments[0].departure_at)} – {shortDate(result.flight.inbound.segments[0].departure_at, true)} · {result.passenger_count} {result.passenger_count === 1 ? 'traveler' : 'travelers'}</span></div>{step > 0 && <details key={step} className="flight-context-details"><summary>Flight details</summary><div><FlightLeg leg={result.flight.outbound} label="Outbound"/><FlightLeg leg={result.flight.inbound} label="Return"/></div></details>}</div>}
       {busy && <p className={result ? 'flight-loading-announcement' : 'flight-loading'} role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
       {!result && !busy && error && <div className="flight-message"><h2>This flight could not be verified.</h2><p>Return to flights for a fresh offer.</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}
@@ -125,9 +135,9 @@ export function FlightCheckout(props) {
               {step === 3 && <><div className="flight-included"><h3>Included with this fare</h3><p>{result.flight.baggage_summary || 'The provider did not supply a baggage allowance. Do not assume a cabin or checked bag is included.'}</p></div><FlightExtras key="bags" kind="baggage" result={result} choices={choices} onChange={value => { setChoices(value); setReached(3); setConsent(false); }}/></>}
               {step === 4 && <>
                 <div className="flight-payment-total"><span className="flight-eyebrow">TOTAL DUE TODAY</span><strong>{formatFlightPrice(result.flight.price)}</strong><p>{result.flight.outbound.segments[0].origin} ⇄ {result.flight.outbound.segments.at(-1).destination}</p><small>{shortDate(result.flight.outbound.segments[0].departure_at)} – {shortDate(result.flight.inbound.segments[0].departure_at, true)} · {result.passenger_count} {result.passenger_count === 1 ? 'traveler' : 'travelers'} · Includes confirmed extras</small></div>
-                <details className="flight-payment-details"><summary>View booking details</summary><FlightLeg leg={result.flight.outbound} label="Outbound"/><FlightLeg leg={result.flight.inbound} label="Return"/><dl className="flight-review"><div><dt>Passengers</dt><dd>{passengers.length ? passengers.map(p => `${p.first_name} ${p.last_name}`).join(' · ') : `${result.passenger_count} test passengers supplied for this reservation`}</dd></div><div><dt>Seats</dt><dd><ExtrasSummary values={result.selected_services} kind="seat"/></dd></div><div><dt>Baggage</dt><dd>{result.flight.baggage_summary || 'Allowance not supplied.'}<ExtrasSummary values={result.selected_services} kind="baggage"/></dd></div><div><dt>Fare conditions</dt><dd>{result.flight.cancellation_summary || 'Detailed fare conditions not supplied.'}</dd></div></dl></details><h2>Payment details</h2>{result.payment_secret ? <FlightPayment ref={payment} secret={result.payment_secret} country={result.country_code} onReady={setPaymentReady}/> : <div className="flight-payment"><h3>Existing test reservation</h3><p>This older reservation uses LiteAPI’s sandbox account payment. No real charge.</p></div>}<label className="flight-consent"><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)}/><span>I confirm this itinerary, its fare conditions and <b>{formatFlightPrice(result.flight.price)}</b> total for a test-only booking, and want its confirmation saved to my Plan.</span></label></>}
+                <details className="flight-payment-details"><summary>View booking details</summary><FlightLeg leg={result.flight.outbound} label="Outbound"/><FlightLeg leg={result.flight.inbound} label="Return"/><dl className="flight-review"><div><dt>Passengers</dt><dd>{passengers.length ? passengers.map(p => `${p.first_name} ${p.last_name}`).join(' · ') : `${result.passenger_count} test passengers supplied for this reservation`}</dd></div><div><dt>Seats</dt><dd><ExtrasSummary values={result.selected_services} kind="seat"/></dd></div><div><dt>Baggage</dt><dd>{result.flight.baggage_summary || 'Allowance not supplied.'}<ExtrasSummary values={result.selected_services} kind="baggage"/></dd></div><div><dt>Fare conditions</dt><dd>{result.flight.cancellation_summary || 'Detailed fare conditions not supplied.'}</dd></div></dl></details><h2>Payment details</h2><label className="flight-consent"><input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)}/><span>I confirm this itinerary, its fare conditions and <b>{formatFlightPrice(result.flight.price)}</b> total for a test-only booking, and want its confirmation saved to my Plan.</span></label>{result.payment_secret ? <FlightPayment planId={planId} kind="flights" secret={result.payment_secret} consent={consent} onAuthorized={finishPayment} onBusyChange={setPaymentBusy} buttonText={`Pay ${formatFlightPrice(result.flight.price)}`}/> : <div className="flight-payment"><h3>Existing test reservation</h3><p>This older reservation uses LiteAPI’s sandbox account payment. No real charge.</p></div>}</>}
               <footer className="flight-checkout-footer">{step !== 4 && <div className="flight-footer-price"><span>{extrasChanged ? (pricePreview ? 'Estimated total' : 'Last confirmed total') : 'Total · all passengers'}</span><strong>{formatFlightPrice(pricePreview || result.flight.price)}</strong><small>{extrasChanged ? 'Your changes are confirmed when you continue' : 'All travelers · includes confirmed extras'}</small></div>}
-              <div className="flight-actions"><button type="button" className="flight-text-button" onClick={() => step ? move(step - 1) : onClose()}>← {step ? 'Back' : 'Back to flights'}</button><button type="submit" className="flight-primary flight-submit" disabled={busy || (step === 4 && result.payment_secret && !paymentReady) || ((step === 1 && !locked || step === 4) && !consent)}><span aria-hidden={busy} style={{ visibility: busy ? 'hidden' : 'visible' }}>{step === 4 ? `${result.payment_secret ? 'Pay' : 'Confirm test booking ·'} ${formatFlightPrice(result.flight.price)}` : step === 1 && !locked ? 'Reserve test fare & continue' : `Continue to ${steps[step + 1].toLowerCase()} →`}</span><span aria-hidden={!busy} style={{ visibility: busy ? 'visible' : 'hidden' }}>{paymentBusy ? 'Authorizing test payment…' : 'Please wait…'}</span></button></div></footer>
+              <div className="flight-actions"><button type="button" className="flight-text-button" onClick={() => step ? move(step - 1) : onClose()}>← {step ? 'Back' : 'Back to flights'}</button>{!(step === 4 && result.payment_secret) && <button type="submit" className="flight-primary flight-submit" disabled={busy || ((step === 1 && !locked || step === 4) && !consent)}><span aria-hidden={busy} style={{ visibility: busy ? 'hidden' : 'visible' }}>{step === 4 ? `${result.payment_secret ? 'Pay' : 'Confirm test booking ·'} ${formatFlightPrice(result.flight.price)}` : step === 1 && !locked ? 'Reserve test fare & continue' : `Continue to ${steps[step + 1].toLowerCase()} →`}</span><span aria-hidden={!busy} style={{ visibility: busy ? 'visible' : 'hidden' }}>{paymentBusy ? 'Authorizing test payment…' : 'Please wait…'}</span></button>}</div></footer>
             </fieldset>
           </form>}
           {attempted && !reserving && result.token && <button type="button" className="flight-text-button flight-status-button" disabled={busy} onClick={async () => { const value = await perform('status'); if (value?.status === 'ready_to_book') { reserved.current = true; move(4); } }}>Check booking status</button>}

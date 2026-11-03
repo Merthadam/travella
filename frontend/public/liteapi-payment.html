@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Returning to your booking</title>
+  <script>
+    // Remove provider parameters before assets load. The checkout retrieves its
+    // original intent independently; URL status/secret values are never trusted.
+    if (location.search || location.hash) history.replaceState(null, '', location.pathname);
+  </script>
+</head>
+<body>
+  <p>Returning to your booking…</p>
+  <script src="/liteapi-payment.js"></script>
+</body>
+</html>

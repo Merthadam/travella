@@ -66,6 +66,7 @@ def projection(state, token, status, booking=None):
     return SandboxResult.model_validate({
         **{k: state[k] for k in ("hotel_name", "check_in", "check_out", "room_count", "total", "room", "terms")},
         "status": status, "token": token, "sandbox": True,
+        "payment_secret": state.get("payment_secret") if status == "review" else None,
         "booking_id": text(booking.get("bookingId"), 100),
         "confirmation_code": text(booking.get("hotelConfirmationCode"), 100),
         "reservation": reservation(state, booking), "price_changed": state.get("price_changed", False),
@@ -115,12 +116,19 @@ async def _checkout(api, action, data):
         # newly selected offer with a previous supplier reservation after pruning.
         if await lookup(api, {"reference": reference}):
             raise ProviderUnavailable("stay_already_booked")
+        payment_session = stored_payment(api)
+        if payment_session:
+            pending = unseal(api, payment_session, "checkout")
+            return projection(pending, payment_session, "review")
         raw = await api.request("POST", BOOK + "/rates/prebook", json={
-            "offerId": state["offer"], "usePaymentSdk": False,
+            "offerId": state["offer"], "usePaymentSdk": True,
         })
         p = obj(raw.get("data"))
         total = money({"amount": p.get("price"), "currency": p.get("currency")})
-        if not p.get("prebookId") or total["amount"] is None or not total["currency"]:
+        if (not p.get("prebookId") or total["amount"] is None or not total["currency"]
+                or not isinstance(p.get("secretKey"), str) or not p["secretKey"].startswith("pi_")
+                or "_secret_" not in p["secretKey"] or len(p["secretKey"]) > 300
+                or not isinstance(p.get("transactionId"), str) or not 1 <= len(p["transactionId"]) <= 300):
             raise ProviderUnavailable("provider_response_invalid")
         if p.get("hotelId") != state["hotel_id"] or p.get("checkin") != state["check_in"] or p.get("checkout") != state["check_out"]:
             raise ProviderUnavailable("provider_response_invalid")
@@ -137,8 +145,10 @@ async def _checkout(api, action, data):
         state = {k: state[k] for k in ("hotel_id", "hotel_name", "check_in", "check_out", "room_count")}
         state.update(address=address, rooms=room_details(rates), price_changed=changed)
         state.update(prebook=p["prebookId"], reference=reference, total=total, room=room,
+                     payment_secret=p["secretKey"], transaction=p["transactionId"],
                      terms=text(p.get("termsAndConditions"), 6000))
         token = seal(api, "checkout", state)
+        stored_payment(api, token)
         return projection(state, token, "review")
 
     state = unseal(api, token, "checkout", ttl=604800)
@@ -152,7 +162,15 @@ async def _checkout(api, action, data):
     existing = await lookup(api, state)
     if existing:
         return projection(state, token, booking_status(existing), existing)
-    if action == "sandbox/status" or previous:
+    if previous:
+        return projection(state, token, "not_found")
+    if state.get("transaction"):
+        if stored_payment(api) != token:
+            raise ProviderUnavailable("checkout_expired")
+        unseal(api, token, "checkout")
+        if action == "sandbox/status":
+            return projection(state, token, "review")
+    elif action == "sandbox/status":
         return projection(state, token, "not_found")
     # Status remains readable for seven days; a fresh submission expires after 15 minutes.
     unseal(api, token, "checkout")
@@ -168,7 +186,8 @@ async def _checkout(api, action, data):
         raw = await api.request("POST", BOOK + "/rates/book", json={
             "prebookId": state["prebook"], "clientReference": state["reference"],
             "sandbox": True, "holder": holder,
-            "guests": guests, "payment": {"method": "ACC_CREDIT_CARD"},
+            "guests": guests, "payment": ({"method": "TRANSACTION_ID", "transactionId": state["transaction"]}
+                                         if state.get("transaction") else {"method": "ACC_CREDIT_CARD"}),
         })
         booking = obj(raw.get("data"))
         if not booking.get("bookingId"):
@@ -207,6 +226,8 @@ def receipt_table(db):
     # Secure deletion also clears freed SQLite pages containing encrypted receipts.
     db.execute('PRAGMA secure_delete=ON')
     db.execute('DELETE FROM receipts WHERE created_at <= ?', (int(time.time()) - RECEIPT_TTL,))
+    db.execute("CREATE TABLE IF NOT EXISTS payment_sessions (id TEXT PRIMARY KEY, token TEXT NOT NULL, created_at INTEGER NOT NULL)")
+    db.execute("DELETE FROM payment_sessions WHERE created_at <= ?", (int(time.time()) - RECEIPT_TTL,))
 
 
 def prune_stay_receipts():
@@ -225,6 +246,18 @@ def stored_checkout(api, token=None):
             issued = cipher(api).extract_timestamp(token.encode())
             db.execute("INSERT OR IGNORE INTO receipts VALUES (?, ?, ?)", (stay_identity(api), token, issued))
         row = db.execute("SELECT token FROM receipts WHERE id=?", (stay_identity(api),)).fetchone()
+        return row[0] if row else None
+
+
+def stored_payment(api, token=None):
+    # Encrypted provider identifiers only. Keep the same intent across reloads/tabs;
+    # do not replace an expired intent whose authorization outcome may be unknown.
+    with closing(sqlite3.connect(receipt_database(), timeout=5)) as db, db:
+        receipt_table(db)
+        if token:
+            issued = cipher(api).extract_timestamp(token.encode())
+            db.execute("INSERT OR IGNORE INTO payment_sessions VALUES (?, ?, ?)", (stay_identity(api), token, issued))
+        row = db.execute("SELECT token FROM payment_sessions WHERE id=?", (stay_identity(api),)).fetchone()
         return row[0] if row else None
 
 

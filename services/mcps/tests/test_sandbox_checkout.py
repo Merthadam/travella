@@ -29,9 +29,9 @@ class Supplier:
         if path.endswith('/hotels/rates'):
             return httpx.Response(200, json=hotel_payload())
         if path.endswith('/prebook'):
-            assert json.loads(req.content)['usePaymentSdk'] is False
+            assert json.loads(req.content)['usePaymentSdk'] is True
             rate = hotel_payload()['data'][0]['roomTypes'][0]['rates'][0] | {'occupancyNumber': 1}
-            return httpx.Response(200, json={'data': {'prebookId': 'PRIVATE_PREBOOK', 'hotelId': 'lp1',
+            return httpx.Response(200, json={'data': {'prebookId': 'PRIVATE_PREBOOK', 'secretKey': 'pi_fixture_secret_test', 'transactionId': 'tx_fixture', 'hotelId': 'lp1',
                 'checkin': HOTEL['check_in'], 'checkout': HOTEL['check_out'], 'price': 125.5,
                 'currency': 'EUR', 'roomTypes': [{'rates': [rate]}], 'termsAndConditions': 'Refreshed terms'}})
         if path.endswith('/bookings'):
@@ -40,7 +40,7 @@ class Supplier:
             return httpx.Response(200, json={'data': self.booking})
         assert path.endswith('/book') and req.url.host == 'book.liteapi.travel'
         body = json.loads(req.content)
-        assert body['sandbox'] is True and body['payment'] == {'method': 'ACC_CREDIT_CARD'}
+        assert body['sandbox'] is True and body['payment'] == {'method': 'TRANSACTION_ID', 'transactionId': 'tx_fixture'}
         assert body['holder']['email'] == self.expected_email
         self.posts.append(body)
         self.booking = {'bookingId': 'TEST123', 'status': 'CONFIRMED', 'clientReference': body['clientReference'],
@@ -268,3 +268,48 @@ def test_two_room_requests_keep_their_occupancy_mapping():
                   {'first_name':'Sam','last_name':'Tester','requests':'Twin beds.'}]}))
     assert booked['status'] == 'confirmed'
     assert [(g['occupancyNumber'],g['firstName'],g['remarks']) for g in supplier.posts[0]['guests']] == [(1,'Jamie','Quiet room.'),(2,'Sam','Twin beds.')]
+
+
+def test_payment_prebook_is_reused_and_status_can_recover_before_submission():
+    api, supplier, token = setup()
+    first = run(api.call('sandbox/prebook', {'token': token}))
+    again = run(api.call('sandbox/prebook', {'token': token}))
+    recovered = run(api.call('sandbox/status', {'token': first['token']}))
+    assert first == again == recovered
+    assert first['payment_secret'] == 'pi_fixture_secret_test'
+    assert supplier.posts == []
+    booked = run(api.call('sandbox/book', {'token': first['token'], 'confirm_mock': True,
+        'guests': [{'first_name': 'Alex', 'last_name': 'Tester'}]}))
+    assert booked['payment_secret'] is None
+    assert 'pi_fixture_secret_test' not in json.dumps(booked)
+    assert 'tx_fixture' not in json.dumps(booked)
+
+
+def test_missing_payment_intent_fails_closed_without_account_fallback():
+    original = Supplier()
+    def supplier(req):
+        response = original(req)
+        if req.url.path.endswith('/prebook'):
+            payload = response.json()
+            payload['data'].pop('secretKey')
+            return httpx.Response(200, json=payload)
+        return response
+    api = LiteApi('sand_TEST', scope=('owner','plan'), transport=httpx.MockTransport(supplier))
+    token = run(api.call('hotels/search', HOTEL))['results'][0]['rooms'][0]['checkout_token']
+    with pytest.raises(ProviderUnavailable, match='provider_response_invalid'):
+        run(api.call('sandbox/prebook', {'token': token}))
+    assert original.posts == []
+
+
+def test_expired_payment_session_cannot_silently_create_another_intent(monkeypatch):
+    api, supplier, token = setup()
+    first = run(api.call('sandbox/prebook', {'token': token}))
+    now = time.time()
+    monkeypatch.setattr('services.mcps.sandbox_checkout.time.time', lambda: now + 901)
+    with pytest.raises(ProviderUnavailable, match='checkout_expired'):
+        run(api.call('sandbox/status', {'token': first['token']}))
+    from services.mcps.sandbox_checkout import seal
+    fresh_offer = seal(api, 'offer', unseal(api, token, 'offer', ttl=604800))
+    with pytest.raises(ProviderUnavailable, match='checkout_expired'):
+        run(api.call('sandbox/prebook', {'token': fresh_offer}))
+    assert supplier.posts == []
