@@ -184,6 +184,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261102-w0m | Direct LiteAPI Payment Element with searchable billing country | 2026-11-03 | 95fcd23 | Passed —344 tests, build, Chrome sandbox flight/stay and desktop/mobile | [Task](quick/261102-w0m-use-liteapi-direct-payment-element-with-/) |
 | 261029-u8c | Guided stays checkout and durable LiteAPI confirmation | 2026-10-29 | 6cef21d | Passed — 475 tests, build, authenticated desktop/mobile sandbox journey | [Task](quick/261029-u8c-implement-guided-stays-checkout-and-dura/) |
 | 261026-ksg | Connected reply suggestions, exact context and manual/chat choices; browser auth recovered | 2026-10-27 | b0182f1 | Verified — sandbox desktop/mobile; phase UAT unchanged | [261026-ksg](./quick/261026-ksg-connect-topic-chat-suggestions-and-exact/) |
 | 261025-g4x | Add LiteAPI stay details/reviews/rates and flight verification tools | 2026-10-25 | caf905b | 29 targeted tests passed; 387 broad passes with 8 baseline UI failures; no live calls/deployment | [Task](quick/261025-g4x-add-read-only-hotel-details-reviews-and-/) |
@@ -568,3 +569,7 @@ Quick261102-tui, source e4ca3b1, reuses searchable paginated country picker and 
 ### LiteAPI payment SDK — 2 November 2026
 
 Quick261102-ud8 replaces custom flight and stay payment fields with the real LiteAPI SDK. Includes pending accommodation payment prerequisite. Actual Chrome desktop/mobile sandbox decline/retry, redirect/recovery, confirmation and reopen passed.343 regression tests plus8 final focused tests,33 backend/API tests and build passed;12 existing frontend skips. Evidence: artifacts/testing/2026-11-02-liteapi-payment/verification.md. Temporary Plan cleaned. No main merge/deployment for this new task. Broader phase acceptance unchanged.
+
+### Searchable billing country with direct LiteAPI payment — 3 November 2026
+
+User approved the supported direct Stripe Elements alternative to the wrapped LiteAPI SDK. Quick261102-w0m, source95fcd23, restores the shared searchable country picker while Stripe hosts card fields. Actual Chrome flight decline/retry and stay mobile payment, saved confirmations/reload, guest recovery, country changes preserving card values and bounded pagination passed.344 regression tests passed,12 existing skips; build and source hashes passed. Evidence: artifacts/testing/2026-11-02-payment-country/verification.md. Temporary Plans cleaned; no new main merge or deployment. Live wallet/3DS browser acceptance remains unverified; broader phase acceptance unchanged.
