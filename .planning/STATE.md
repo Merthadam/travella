@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
 last_activity: 2026-11-03
-last_activity_desc: Clear flight/stay confirmation return actions verified; existing stay recovered and ticket capability researched
+last_activity_desc: Per-passenger flight ticket records implemented and verified with real sandbox downloads
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -184,6 +184,7 @@ Resume file: None
 
 | # | Description | Date | Commit | Status | Directory |
 | --- | ------------- | ------ | -------- | -------- | ----------- |
+| 261103-vbp | Per-passenger ticket record downloads with scoped read-only provider lookup | 2026-11-03 | af87f69 | Passed — 356 frontend and 47 backend tests; real Chrome downloads and desktop/mobile | [Task](quick/261103-vbp-add-per-passenger-flight-ticket-record-d/) |
 | 261103-dei | Prominent flight/stay return actions, existing stay recovery, supplier ticket research | 2026-11-03 | 91e534d | Passed — 348 tests, build, Chrome desktop/mobile and persistence | [Task](quick/261103-dei-make-flight-and-stay-confirmation-naviga/) |
 | 261102-w0m | Direct LiteAPI Payment Element with searchable billing country | 2026-11-03 | 95fcd23 | Passed —344 tests, build, Chrome sandbox flight/stay and desktop/mobile | [Task](quick/261102-w0m-use-liteapi-direct-payment-element-with-/) |
 | 261029-u8c | Guided stays checkout and durable LiteAPI confirmation | 2026-10-29 | 6cef21d | Passed — 475 tests, build, authenticated desktop/mobile sandbox journey | [Task](quick/261029-u8c-implement-guided-stays-checkout-and-dura/) |
