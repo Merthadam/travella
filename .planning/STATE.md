@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-11-04T19:24:42.861Z"
+last_updated: "2026-11-04T19:51:49.767Z"
 last_activity: 2026-11-04
-last_activity_desc: Implemented and verified shared manual/agent accommodation location filters and activity minimap
+last_activity_desc: Fixed accommodation chat draft blocking and synchronized map selection; live agent search verified
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -17,6 +17,8 @@ progress:
 ---
 
 # Project State
+
+Debug update (2026-11-04): Fixed accommodation chat refusing pending map selections (`8c9db62`). Chat now searches the submitted form and applies matching results through the existing AG-UI workspace update. Live example-account search returned 22 properties within 1.5 km of two map-selected places; desktop/mobile, reload, source hashes, 73 backend and 115 frontend regression tests passed. Evidence: `artifacts/testing/2026-11-04-stay-agent-map-sync/verification.md`. Local preview: http://localhost:5202. Existing phase acceptance is unchanged.
 
 Quick-task update (2026-10-29): Approved focused travel navigation implemented on `feat/focused-travel-integration` with both maple-cake default features. Local review: http://localhost:5196 (isolated from concurrent maple-cake builds on 5174). Evidence: `artifacts/testing/2026-10-29-focused-travel-integration/verification.md`. Existing phase acceptance is unchanged.
 
