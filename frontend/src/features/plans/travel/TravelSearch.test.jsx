@@ -641,3 +641,35 @@ test('filtered and foreign inspection requests cannot silently replace filters o
   expect(view.container.querySelector('.travel-result.is-inspected')).toBeNull();
   expect(searchRequest).not.toHaveBeenCalled();
 });
+
+test('card inspection holds scroll position and map inspection scrolls only the results pane', async () => {
+  const data = imported('accommodation');
+  data.results = [1, 2].map(n => ({ ...data.results[0], id: `scroll-${n}`, name: `Scroll hotel ${n}`, latitude: 38.7 + n/100, longitude: -9.14 }));
+  data.returned_count = 2; data.preview_ids = data.results.map(hotel => hotel.id);
+  const view = render(<TravelSearch {...props} importedSnapshot={data}/>);
+  const card = await screen.findByRole('article', { name: 'Scroll hotel 2' });
+  const pane = screen.getByRole('region', { name: 'Hotel results' });
+  pane.scrollTop = 300;
+  pane.getBoundingClientRect = () => ({ top: 100, bottom: 600 });
+  card.getBoundingClientRect = () => ({ top: 500, bottom: 1100 });
+  card.scrollIntoView = vi.fn();
+  fireEvent.click(card);
+  expect(pane.scrollTop).toBe(300);
+  expect(card.scrollIntoView).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Map Hotel: 2. Scroll hotel 2' }));
+  expect(pane.scrollTop).toBe(688);
+  expect(document.activeElement).toBe(card);
+  expect(card.scrollIntoView).not.toHaveBeenCalled();
+});
+
+test('search summary keeps applied dates while the traveler edits the next search', async () => {
+  const data = imported('accommodation');
+  const view = render(<TravelSearch {...props} importedSnapshot={data}/>);
+  await screen.findByText(data.results[0].name);
+  const summary = view.container.querySelector('.stay-search-summary');
+  const appliedSummary = summary.textContent;
+  fireEvent.change(screen.getByLabelText('Check-in'), { target: { value: '2027-11-20' } });
+  expect(summary.textContent).toBe(appliedSummary);
+  expect(await screen.findByText('Your edited fields apply to the next search. Results below still use the applied search.')).toBeTruthy();
+  expect(searchRequest).not.toHaveBeenCalled();
+});

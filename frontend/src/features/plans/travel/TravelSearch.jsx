@@ -293,7 +293,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   const resultsHeading = useRef(null), heading = useRef(null), form = useRef(null);
   const [inspection, setInspection] = useState(null), [inspectionNotice, setInspectionNotice] = useState(null);
   const inspectionSequence = useRef(0), handledInspection = useRef(null);
-  const cardElements = useRef(new Map()), locationLayout = useRef(null), locationSidebar = useRef(null);
+  const cardElements = useRef(new Map()), locationLayout = useRef(null), locationSidebar = useRef(null), resultsPane = useRef(null);
   const [browsePane, setBrowsePane] = useState('results'), [compactMap, setCompactMap] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(!snapshot);
   useEffect(() => {
@@ -535,6 +535,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
     const index = results.findIndex(item => item.id === entry.item.id);
     if (index < 0) { setInspectionNotice(entry); return; }
     setInspectionNotice(null);
+    setSearchExpanded(false);
     const targetPage = Math.floor(index / PAGE_SIZE) + 1;
     if (targetPage !== currentPage) setPage(targetPage);
     setInspection({ searchId: snapshot.search_id, optionId: entry.item.id, sequence: ++inspectionSequence.current, source: 'chat' });
@@ -544,17 +545,27 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
     if (!inspectedHotel) return;
     if (compactMap && browsePane === 'map') { locationSidebar.current?.focus({ preventScroll: true }); return; }
     const card = cardElements.current.get(inspectedHotel.id);
-    card?.scrollIntoView?.({ block: 'nearest', behavior: 'instant' });
-    if (inspection.source !== 'card') card?.focus({ preventScroll: true });
+    // A click on a card must not move the content under the pointer. Reveal external
+    // selections inside this pane only; scrollIntoView also moves outer ancestors.
+    if (inspection.source !== 'card' && card && resultsPane.current) {
+      const pane = resultsPane.current, bounds = pane.getBoundingClientRect(), target = card.getBoundingClientRect();
+      if (target.top < bounds.top || target.bottom > bounds.bottom) pane.scrollTop += target.top - bounds.top - 12;
+      card.focus({ preventScroll: true });
+    }
   }, [inspectedHotel?.id, inspection?.sequence, compactMap, browsePane]);
   useEffect(() => { setInspectionNotice(null); }, [snapshot?.search_id, planId]);
   function changeResultsPage(next) {
     setInspection(null);
     setPage(next);
-    resultsHeading.current?.focus();
-    resultsHeading.current?.scrollIntoView?.({ behavior: "instant", block: "start" });
+    resultsHeading.current?.focus({ preventScroll: true });
+    if (stay && resultsPane.current) resultsPane.current.scrollTop = 0;
+    else resultsHeading.current?.scrollIntoView?.({ behavior: "instant", block: "start" });
   }
   const SearchFields = stay ? 'details' : 'div';
+  const summaryCriteria = applied || snapshot?.criteria;
+  const summaryRooms = summaryCriteria?.rooms || rooms;
+  const summaryDate = value => value && Number.isFinite(Date.parse(value)) ? new Date(`${value}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Choose dates';
+  const summaryStart = summaryCriteria?.check_in || start, summaryEnd = summaryCriteria?.check_out || end;
   const paging = <Pagination page={currentPage} total={results.length} onChange={changeResultsPage} label="results pages" />;
   return (
     <section
@@ -582,8 +593,11 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       </section>}
       {!stay && !initialData?.flights?.mockBooking && readFlightReceipt(planId) && <button type="button" onClick={() => onFlightCheckout?.({ recoveryToken: readFlightReceipt(planId) })}>Resume flight checkout</button>}
       {stay && !initialData?.accommodation?.mockBooking && readStayReceipt(planId) && <button type="button" onClick={() => onStayCheckout?.({ recoveryToken: readStayReceipt(planId) })}>Resume stay checkout</button>}
-      <SearchFields className={stay ? 'stay-search-settings' : 'flight-search-settings'} open={stay ? searchExpanded : undefined} onToggle={event => { if (stay) setSearchExpanded(event.currentTarget.open); }}>
-        {stay && <summary>Search details{snapshot && ` · ${city} · ${start} – ${end}`}</summary>}
+      <SearchFields className={stay ? 'stay-search-settings' : 'flight-search-settings'} open={stay ? searchExpanded : undefined} onToggle={event => { if (stay) { setSearchExpanded(event.currentTarget.open); if (!event.currentTarget.open) event.currentTarget.closest('.stay-search').scrollTop = 0; } }}>
+        {stay && <summary aria-label="Search details" className="stay-search-summary">
+          <span className="stay-search-summary-copy"><strong>{summaryCriteria?.destination?.city || city || 'Your stay'}</strong><span>{summaryDate(summaryStart)} – {summaryDate(summaryEnd)}{summaryEnd && ` ${summaryEnd.slice(0, 4)}`}<span aria-hidden="true"> · </span>{summaryRooms.reduce((n, r) => n + Number(r.adults) + r.children_ages.length, 0)} guests · {summaryRooms.length} {summaryRooms.length === 1 ? 'room' : 'rooms'}</span></span>
+          <span className="stay-search-edit">{searchExpanded ? (snapshot ? 'Back to results' : 'Close details') : 'Edit search'}<span aria-hidden="true">{searchExpanded ? ' ↑' : ' ↓'}</span></span>
+        </summary>}
       <form
         ref={form}
         className="travel-form"
@@ -593,7 +607,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           event.target.closest("details")?.setAttribute("open", "");
         }}
       >
-        <p className="travel-defaults-hint">Start with your saved trip details. You can change any field before searching.</p>
+        <p className="travel-defaults-hint">{stay ? (snapshot ? 'Update your dates, guests or preferences, then search again.' : 'Choose your dates, guests and preferences.') : 'Start with your saved trip details. You can change any field before searching.'}</p>
         <div className="travel-main-fields">
           {stay ? (
             <StayDestination
@@ -646,9 +660,9 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
               onChange={(e) => setEnd(e.target.value)}
             />
           </label>
-          <button className="travel-primary" disabled={loading}>
-            {loading ? "Searching…" : stay ? "Search stays" : "Search flights"}
-          </button>
+          {!stay && <button className="travel-primary" disabled={loading}>
+            {loading ? "Searching…" : "Search flights"}
+          </button>}
         </div>
         <div className="travel-extra-fields">
           {!stay && (
@@ -758,6 +772,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
             </small>
           </details>
         ) : null}
+        {stay && <div className="stay-search-actions"><span>{workspace.state.draftDirty && snapshot ? 'Changes apply when you search again.' : 'Prices are checked when you search.'}</span><button className="travel-primary" disabled={loading}>{loading ? 'Searching…' : 'Search stays'}</button></div>}
       </form>
       </SearchFields>
       {workspace.state.draftDirty && snapshot && <p className="travel-notice">Your edited fields apply to the next search. Results below still use the applied search.</p>}
@@ -788,7 +803,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       <div ref={locationLayout} className={stay ? `stay-location-layout stay-browse-${browsePane}` : undefined}>
         {stay && <aside ref={locationSidebar} className="stay-location-sidebar" tabIndex={0} aria-label="Hotel map and location filters"><StayLocationFilters value={stayLocation} onChange={setStayLocation} places={initialData?.map?.pins || []} hotels={pageResults.map((item, index) => ({ ...item, mapNumber: (currentPage - 1) * PAGE_SIZE + index + 1 }))} selectedHotelId={inspectedHotel?.id || null} selectionRequest={inspection?.sequence || 0} onHotelInspect={inspectHotel} mentions={mapMentions} destination={city} country={country} planId={planId} active={active} loading={loading} dirty={workspace.state.draftDirty} onApply={() => form.current?.requestSubmit()} onExpired={onExpired}/>
         {snapshot && resultFilters}</aside>}
-        <div className={stay ? 'stay-location-results' : undefined} tabIndex={stay ? 0 : undefined} role={stay ? 'region' : undefined} aria-label={stay ? 'Hotel results' : undefined}>
+        <div ref={resultsPane} className={stay ? 'stay-location-results' : undefined} tabIndex={stay ? 0 : undefined} role={stay ? 'region' : undefined} aria-label={stay ? 'Hotel results' : undefined}>
       {unavailable ? <p role="status" className="travel-notice">{unavailable}</p> : snapshot ? (
         <>
           <div className="travel-results-meta">
