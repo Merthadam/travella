@@ -385,7 +385,8 @@ test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 
     // Late duplicate delivery after the run ended cannot apply again.
     await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
     expect(screen.getAllByRole('heading', { name: 'search-1' })).toHaveLength(1);
-    expect(screen.getByText('Results updated. Your saved choices have not changed.')).toBeTruthy();
+    expect(screen.getByText('Results updated. Your saved choices have not changed.').classList.contains('sr-only')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Undo workspace change' }).closest('.canvas-notice')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Undo workspace change' }));
     expect(screen.getByRole('heading', { name: 'old-search' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Undo workspace change' })).toBeNull();

@@ -1,0 +1,44 @@
+/* Feedback is readable inline text, not a coloured status badge. Keep field
+   validation, destructive controls, and map categories semantically distinct. */
+:root #root :is(.error, .chat-error, .canvas-error, .canvas-chat-error,
+  .canvas-notice, .travel-notice, .travel-error, .ts-error, .ts-lookup-error) {
+  color:var(--app-text, #17263a);
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  padding:8px 0;
+  font-size:13px;
+  line-height:1.6;
+}
+:root #root :is(.error, .chat-error, .canvas-error, .canvas-chat-error,
+  .canvas-notice, .travel-notice, .travel-error, .ts-error, .ts-lookup-error) p {
+  color:inherit;
+}
+:root #root :is(.plan-notice, .auth-notice, .travel-substage-status,
+  .chat-message-status, .canvas-chat-status, .canvas-chat-author,
+  .travel-choice-label) {
+  color:var(--app-muted, #5c706e);
+  background:transparent;
+  border:0;
+  border-radius:0;
+}
+:root #root .travel-rating {
+  color:var(--app-text, #17263a);
+  background:transparent;
+  border:0;
+  padding:0;
+}
+:root #root .stay-hotel-number {
+  color:var(--ds-ink);
+  background:transparent;
+  border:1px solid var(--ds-line);
+  border-radius:50%;
+}
+.travel-workspace-undo { display:flex; justify-content:flex-end; margin:0 0 8px; }
+:root #root .travel-workspace-undo button {
+  color:var(--ds-muted);
+  background:transparent;
+  padding:0;
+  min-height:28px;
+}

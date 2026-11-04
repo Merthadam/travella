@@ -8,7 +8,7 @@ import { suggestedPlaceCategory } from '../placeCategory';
 
 export const CanvasMapContext = createContext({});
 
-function pinIcon() {
+function pinIcon(label) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 28 36'); svg.setAttribute('aria-hidden', 'true');
   const path = document.createElementNS(svg.namespaceURI, 'path');
@@ -16,7 +16,14 @@ function pinIcon() {
   path.setAttribute('fill', 'var(--category)'); path.setAttribute('stroke', 'white'); path.setAttribute('stroke-width', '2');
   const dot = document.createElementNS(svg.namespaceURI, 'circle');
   dot.setAttribute('cx', '14'); dot.setAttribute('cy', '14'); dot.setAttribute('r', '4'); dot.setAttribute('fill', 'white');
-  svg.append(path, dot); return svg;
+  if (label) {
+    path.classList.add('canvas-map-numbered-shape');
+    const text = document.createElementNS(svg.namespaceURI, 'text');
+    text.classList.add('canvas-map-pin-label'); text.setAttribute('x', '14'); text.setAttribute('y', '18');
+    text.setAttribute('text-anchor', 'middle'); text.textContent = label;
+    svg.append(path, text);
+  } else svg.append(path, dot);
+  return svg;
 }
 
 async function geocode(request) {
@@ -141,9 +148,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
       content.className = `canvas-map-pin ${place.id === selectedId ? 'selected' : ''} ${place.muted ? 'is-muted' : ''}`;
       content.dataset.placeId = place.id;
       content.style.setProperty('--category', category.color);
-      if (place.markerLabel) {
-        const label = document.createElement('span'); label.className = 'canvas-map-pin-label'; label.textContent = place.markerLabel; content.append(label);
-      } else content.append(pinIcon());
+      content.append(pinIcon(place.markerLabel));
       const marker = new runtime.Marker({ map: runtime.map, position: place.position, title: `Inspect ${place.name}`, content, zIndex: place.id === selectedId ? 1000 : place.muted ? 0 : 1 });
       listeners.push(marker.addListener('click', () => selection.current(place.id))); markers.push(marker);
     }
