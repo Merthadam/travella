@@ -1,7 +1,7 @@
 ---
 status: complete
 scope: prototypes and production specification
-production_status: awaiting_design_selection
+production_status: not_implemented
 ---
 # Flexible accommodation location search
 
@@ -17,4 +17,4 @@ Chrome DevTools verified all variants, category and individual selection, assist
 Evidence: `artifacts/testing/2026-11-04-stay-location/verification.md`.
 Shared agent/manual implementation scope: `IMPLEMENTATION-SPEC.md` in this directory.
 
-User decisions: three prototypes requested; flexible selection of any combination of saved places/categories required. Layout choice, dynamic category membership and optional place priorities remain open. Recommendation is A's sidebar with C's comparison, but not yet selected. Record the user's choice before production execution, then follow production browser/API gates and remove throwaway entry/components/config from the integration branch while preserving the capture branch.
+User decisions: three prototypes requested; flexible selection of any combination of saved places/categories required. A is now the selected layout direction below the initial accommodation search. User requested activity visibility on the minimap; follow-up quick task 261104-r2q implements and verifies that prototype refinement. Dynamic category membership and optional place priorities remain open. Production implementation still requires the real shared agent/manual contracts and browser/API verification; preserve prototypes on their capture branches.

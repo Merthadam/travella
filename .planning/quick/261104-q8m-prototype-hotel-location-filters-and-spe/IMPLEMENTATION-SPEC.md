@@ -1,10 +1,10 @@
 # Accommodation location preferences: manual and agent search
 
-Status: specification and prototypes only; production implementation awaits traveler selection of the design.
+Status: specification and prototypes only. A is the selected layout direction; activity-aware minimap refinement is under review. Production implementation remains outstanding.
 
 ## Confirmed scope
 
-The traveler can choose any combination of saved places and categories, or use a named city-center point, landmark, neighborhood or map point. These criteria apply to accommodations only. Both the focused Accommodation agent and manual search must share the same normalized criteria and evidence. The user explicitly selected three prototypes; no layout has been selected yet.
+The traveler can choose any combination of saved places and categories, or use a named city-center point, landmark, neighborhood or map point. These criteria apply to accommodations only. Both the focused Accommodation agent and manual search must share the same normalized criteria and evidence. The user reviewed three prototypes and selected A as the direction, below the existing destination/dates/guests search.
 
 ## Search behavior
 
@@ -75,10 +75,16 @@ Extend the accommodation topic skill/tool contract and focused specialist prompt
 
 ## Prototype decisions still open
 
-1. Choose A (sidebar), B (map), C (place comparison), or combine them.
+1. A (sidebar) is selected, placed below the existing initial search. Retain manual access to the activity-aware minimap.
 2. Should choosing a category take a snapshot of its current places, as the prototype does, or automatically include future places added to that category? Dynamic membership must trigger an explicit stale-results indicator and refreshed search.
 3. Do all selected places have equal importance, or should travelers be able to mark a few as must-be-near? Current prototypes use equal weights and one optional hard radius for every selected place.
 
 ## Capture and cleanup
 
 The prototype is an authenticated, development-only rendering alternative on the existing /plans/:id route via ?prototype=stay-location&variant=A|B|C. Its fixture data is explicitly separate from the opened Plan. Browser reload resets demo criteria; variant survives in the URL. Capture on local branch prototype/stay-location-20261104, with this quick-task directory as the context pointer. After a traveler selects a design, record the selection here, implement with production validation and remove the development variants/switcher from the integration branch. Keep the prototype branch as the primary source.
+
+## Activity-aware minimap refinement (2026-11-04)
+
+User requested seeing activities mentioned by the agent on A's minimap. This is available to manual browsing too: selected-place pins and a corresponding name legend appear without requiring chat. A temporary “Mentioned in chat” layer displays referenced places independently of search criteria. Clicking a pin inspects it; only explicit include/remove and Apply actions change the search. The map remains available on mobile, with distinct activity/hotel markers and a hotel-layer toggle.
+
+Production agent output must attach stable, server-validated place references to public answer mentions. Render only resolved, authorized coordinates and names; do not locate a place by guessing from prose. Distinguish saved selected places from unsaved researched suggestions. A map preview is ephemeral and must not save an activity, change a durable requirement, or silently update filters. Any save still goes through the existing explicit confirmation. Missing coordinates show an unplotted list item; stale run/Plan references cannot surface after cancellation or revision. Clearing the mention overlay restores the user's selected-place view without altering criteria.
