@@ -1,3 +1,4 @@
+import './canvas-destination-map.css';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useAppearance } from '../../appearance/AppearanceProvider';
 import { loadGoogleMaps } from '../../../lib/googleMaps';

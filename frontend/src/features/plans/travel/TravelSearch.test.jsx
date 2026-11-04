@@ -1,3 +1,5 @@
+// The real Maps adapter is exercised by authenticated Chrome verification.
+vi.mock('../components/CanvasDestinationMap', async () => { const { createContext } = await import('react'); return { CanvasMapContext: createContext({}), CanvasDestinationMap: () => null }; });
 import React from "react";
 import { beforeEach, afterEach, expect, test, vi } from "vitest";
 import {
@@ -30,6 +32,7 @@ beforeEach(() => {
     const result = await searchRequest(plan, action, criteria, signal);
     if (action.endsWith('/search') && result?.search_id) {
       const safe = structuredClone(result);
+      safe.criteria = { ...safe.criteria, ...criteria }; // The real registry retains the submitted criteria plus host evidence.
       safe.results = safe.results.map(({ checkout_token, ...item }) => item);
       registered.set(result.search_id, safe);
     }

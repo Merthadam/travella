@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { requestId } from '../../../plansApi';
 import { travelRequest } from './travelApi';
 import { destinationCountry, preferredAirport, profileTravelDefaults, stayCityDefault } from './travelDefaults';
+import { emptyStayLocation } from './stayLocation';
 import { emptyStayFilters } from './StaySearchFilters';
 import { draftTravelFacts, travelSnapshotSchema, travelState } from './CanvasTravel';
 import { emptyWorkspaceView, travelReferenceSchema, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
@@ -13,13 +14,13 @@ export function initialWorkspace({ owner = 'session', planId, topic, initialData
   const adults = Number.isInteger(travelers) && travelers >= 1 && travelers <= (topic === 'stays' ? 16 : 9) ? travelers : 2;
   const rooms = Array.from({ length: Math.ceil(adults / 6) }, (_, index) => ({ adults: Math.min(6, adults - index * 6), children_ages: [] }));
   return { owner, planId, topic, instanceId, revision: 0, requestGeneration: 0,
-    draftCriteria: { city: topic === 'stays' ? stayCityDefault(initialData?.map?.destination) : initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms, adults, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters(), ...profileTravelDefaults(travelerProfile, topic) },
+    draftCriteria: { city: topic === 'stays' ? stayCityDefault(initialData?.map?.destination) : initialData?.map?.destination || '', place: null, country: '', nationality: '', start: dates?.flexible ? '' : dates?.start || '', end: dates?.flexible ? '' : dates?.end || '', rooms, adults, children: [], infants: [], origin: null, destination: null, cabin: 'ECONOMY', currency: 'EUR', stayFilters: emptyStayFilters(), stayLocation: emptyStayLocation(), ...profileTravelDefaults(travelerProfile, topic) },
     draftTouched: {}, draftDirty: false, appliedCriteria: null, searchId: null, snapshot: null, view: emptyWorkspaceView(),
     detailsReference: null, loading: false, error: '', imported: false, importIdentity: null, authority: null, inverse: null, inverseRevision: null, notice: '', appliedActions: [],
   };
 }
 export function draftFromCriteria(c, topic) {
-  return topic === 'stays' ? { city: c.destination.city, place: { name: c.destination.city, place_id: c.destination.place_id }, country: c.destination.country_code, nationality: c.guest_nationality, start: c.check_in, end: c.check_out, rooms: c.rooms, currency: c.currency, stayFilters: { hotel_type_ids: c.hotel_type_ids || [], facility_ids: c.facility_ids || [], strict_facility_filtering: c.strict_facility_filtering ?? true, refundable_rates_only: c.refundable_rates_only || false } } : { origin: { iata: c.origin, label: c.origin }, destination: { iata: c.destination, label: c.destination }, start: c.departure_date, end: c.return_date, adults: c.adults, children: c.children_ages, infants: c.infant_ages, cabin: c.cabin_class, country: c.country_code, currency: c.currency };
+  return topic === 'stays' ? { stayLocation: c.location || emptyStayLocation(), city: c.destination.city, place: { name: c.destination.city, place_id: c.destination.place_id }, country: c.destination.country_code, nationality: c.guest_nationality, start: c.check_in, end: c.check_out, rooms: c.rooms, currency: c.currency, stayFilters: { hotel_type_ids: c.hotel_type_ids || [], facility_ids: c.facility_ids || [], strict_facility_filtering: c.strict_facility_filtering ?? true, refundable_rates_only: c.refundable_rates_only || false } } : { origin: { iata: c.origin, label: c.origin }, destination: { iata: c.destination, label: c.destination }, start: c.departure_date, end: c.return_date, adults: c.adults, children: c.children_ages, infants: c.infant_ages, cabin: c.cabin_class, country: c.country_code, currency: c.currency };
 }
 const fresh = (snapshot, now) => snapshot && Number.isFinite(Date.parse(snapshot.expires_at)) && now < Date.parse(snapshot.expires_at) && Date.parse(snapshot.searched_at) <= now;
 const advanced = state => state.revision < Number.MAX_SAFE_INTEGER ? { ...state, revision: state.revision + 1, authority: null, inverse: null, inverseRevision: null, notice: '' } : { ...state, instanceId: requestId(), revision: 0, authority: null, inverse: null, inverseRevision: null, notice: '', appliedActions: [] };
@@ -54,7 +55,7 @@ export function travelWorkspaceReducer(state, action) {
     case 'error': return { ...state, error: action.value };
     case 'cancel': return { ...advanced(state), loading: false, requestGeneration: state.requestGeneration + 1 };
     case 'search-start': return { ...advanced(state), loading: true, error: '', requestGeneration: state.requestGeneration + 1 };
-    case 'search-success': return matches(state, action.token) ? { ...state, loading: false, error: '', imported: false, draftDirty: false, snapshot: action.snapshot, searchId: action.snapshot.search_id || null, appliedCriteria: action.snapshot.criteria, view: emptyWorkspaceView() } : state;
+    case 'search-success': return matches(state, action.token) ? { ...state, loading: false, error: '', imported: false, draftDirty: false, snapshot: action.snapshot, searchId: action.snapshot.search_id || null, appliedCriteria: action.snapshot.criteria, draftCriteria: { ...state.draftCriteria, ...draftFromCriteria(action.snapshot.criteria, state.topic) }, view: emptyWorkspaceView() } : state;
     case 'search-error': return matches(state, action.token) ? { ...state, loading: false, error: action.error } : state;
     case 'recover-success': return matches(state, action.token) ? { ...advanced(state), snapshot: action.snapshot, appliedCriteria: action.snapshot.criteria, loading: false, error: '', recovery: null, recoveredDetails: action.details } : state;
     case 'recover-error': return matches(state, action.token) ? { ...advanced(state), snapshot: null, searchId: null, view: emptyWorkspaceView(), detailsReference: null, recovery: null, loading: false, error: 'Previous results are no longer available. Search again for current options.' } : state;
@@ -81,7 +82,7 @@ export function travelWorkspaceReducer(state, action) {
 export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initialData, travelerProfile, active = true, onExpired, onManualChange, enabled = true }) {
   const owner = getTravelRecoveryScope() || suppliedOwner || 'session';
   const ref = useRef(null), pending = useRef(null), callbacks = useRef({}), checkout = useRef(new Map());
-  const savedFacts = JSON.stringify(draftTravelFacts(initialData)), previousFacts = useRef(savedFacts);
+  const savedFacts = JSON.stringify({ ...draftTravelFacts(initialData), ...(topic === "stays" ? { places: initialData?.map?.pins?.map(p => ({ id: p.id, name: p.name, position: p.position })) || [] } : {}) }), previousFacts = useRef(savedFacts);
   const [, render] = useState(0);
   callbacks.current = { onExpired, onManualChange };
   if (!ref.current || ref.current.owner !== owner || ref.current.planId !== planId || ref.current.topic !== topic) {
@@ -165,6 +166,10 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
     if (previousFacts.current === savedFacts) return;
     previousFacts.current = savedFacts;
     invalidate({ type: 'cancel' });
+    if (topic === 'stays' && ref.current.appliedCriteria?.location?.saved_place_ids?.length) {
+      invalidate({ type: 'draft', field: 'stayLocation', value: ref.current.draftCriteria.stayLocation || emptyStayLocation() });
+      dispatch({ type: 'error', value: 'Your saved places changed. Apply your location filters again for current distances.' });
+    }
   }, [savedFacts]);
   useEffect(() => {
     if (enabled) writeTravelWorkspace(owner, planId, topic, ref.current);
@@ -218,7 +223,7 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
       const retainedKey = retained && `${retained.search_id}:${retained.option_id}`;
       for (const key of checkout.current.keys()) if (key !== retainedKey) checkout.current.delete(key);
       for (const item of result.results || []) if (typeof item.checkout_token === 'string' && item.checkout_token.length <= 40000 && parsed.data.results.some(option => option.id === item.id)) checkout.current.set(`${result.search_id}:${item.id}`, item.checkout_token);
-      dispatch({ type: 'search-success', token, snapshot: { ...parsed.data, criteria: { ...parsed.data.criteria, ...criteria } } });
+      dispatch({ type: 'search-success', token, snapshot: parsed.data });
     } catch (error) {
       if (matches(ref.current, token) && error.name !== 'AbortError') {
         dispatch({ type: 'search-error', token, error: error.message || 'Unable to connect. Please try again.' });

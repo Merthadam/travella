@@ -1,3 +1,5 @@
+// The real Maps adapter is exercised by authenticated Chrome verification.
+vi.mock('../components/CanvasDestinationMap', async () => { const { createContext } = await import('react'); return { CanvasMapContext: createContext({}), CanvasDestinationMap: () => null }; });
 import React from 'react';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';

@@ -10,6 +10,7 @@ from services.research_offers import ResearchOffer
 from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
 from services.travel_topics import TopicSnapshot, TravelDiscussion, WorkspaceContext, WorkspaceUpdate
 
+from .travel_contracts import LocationAnchor
 from .canvas_contracts import CanvasDraft, ThemesComponent
 from .editing_contracts import CanvasEditRequest, PublicCanvasEditResult
 from .claude.canvas_travel import FlightSnapshot
@@ -79,6 +80,7 @@ class AgentResponse(BaseModel):
     flight_preview: FlightSnapshot | None = None
     travel_specialist_result: TopicSnapshot | None = None
     workspace_update: WorkspaceUpdate | None = None
+    stay_map_mentions: list[LocationAnchor] = Field(default_factory=list, max_length=50)
 
 
 class TravelerProfileMemoryRequest(BaseModel):

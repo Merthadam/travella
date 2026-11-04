@@ -71,6 +71,7 @@ class CanvasTravelTools(CanvasTravelObserver):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, parse_message=False)
+        self.location_references = {}
 
     def _validate_dates(self, arguments):
         criteria = arguments.criteria.model_dump(mode="json")
@@ -131,7 +132,8 @@ class CanvasTravelTools(CanvasTravelObserver):
                     return self._error(
                         "hotel_required", "Supply the observed hotel_id to inspect its room rates."
                     )
-                criteria = parsed.criteria.model_dump(mode="json")
+                from ..stay_location import resolve_stay_location
+                criteria = await resolve_stay_location(parsed.criteria, self.draft.components, self._call)
             else:
                 criteria = parsed.model_dump(mode="json")
             caps = Capabilities.model_validate(await self._call("capabilities", {}, "capabilities"))
@@ -226,6 +228,9 @@ class CanvasTravelTools(CanvasTravelObserver):
                     arguments
                 )
                 self._validate_dates(parsed)
+                if mode == "stays":
+                    from ..stay_location import resolve_stay_location
+                    parsed.criteria = HotelSearch.model_validate(await resolve_stay_location(parsed.criteria, self.draft.components, self._call))
                 if mode == "flights":
                     airports = {a["code"] for a in reference_catalog("airports")}
                     invalid = [
@@ -295,6 +300,8 @@ class CanvasTravelTools(CanvasTravelObserver):
                     await self._call("places", query.model_dump(), "lookup")
                 )
                 payload = {"places": [p.model_dump() for p in result.places]}
+                if query.scope == "reference":
+                    self.location_references.update({p.place_id: p.name for p in result.places})
             else:
                 query = AirportQuery.model_validate(arguments)
                 result = Airports.model_validate(
@@ -339,7 +346,7 @@ class CanvasTravelTools(CanvasTravelObserver):
 
         @tool(
             "search_destinations",
-            "Resolve a stay destination by city/area name and ISO country code. Ask if geography is ambiguous.",
+            "Resolve a stay destination or a named location reference by name and ISO country code. Set scope=reference for landmarks or a named city-center point. Ask if geography is ambiguous.",
             PlaceQuery.model_json_schema(),
         )
         async def destinations(args):
@@ -426,7 +433,7 @@ class SpecialistTravelTools(CanvasTravelTools):
     allow_refinement = True
     preview_limit = 10
     evidence_limit = 96 * 1024
-    category_limits = {"lookup": 2, "inspection": 6, "stays": 3, "flights": 3}
+    category_limits = {"lookup": 5, "inspection": 6, "stays": 3, "flights": 3}
 
     def __init__(self, *args, topic, workspace_context=None, **kwargs):
         if topic not in {"stays", "flights"}:
@@ -484,7 +491,10 @@ class SpecialistTravelTools(CanvasTravelTools):
                         for index, option in enumerate(snap.results):
                             baseline = snap.criteria.model_dump(mode="json")
                             inspected = HotelSearch.model_validate(arguments["criteria"]).model_dump(mode="json")
-                            same_search = all(baseline[key] == inspected[key] for key in ("check_in", "check_out", "rooms", "currency", "guest_nationality", "destination"))
+                            def without_anchors(location):
+                                return {k: v for k, v in location.items() if k != "anchors"} if location else None
+                            same_search = (all(baseline[key] == inspected[key] for key in ("check_in", "check_out", "rooms", "currency", "guest_nationality", "destination", "hotel_type_ids", "facility_ids", "strict_facility_filtering", "refundable_rates_only"))
+                                           and without_anchors(baseline.get("location")) == without_anchors(inspected.get("location")))
                             if option.hotel_id == observed.hotel_id and same_search:
                                 snap.results[index] = observed.model_copy(update={"id": option.id})
                                 self.observation_times[option.id] = payload["searched_at"]

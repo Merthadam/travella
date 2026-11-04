@@ -138,6 +138,7 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
             except (HTTPException, ValueError, KeyError):
                 update = None  # Committed conversation remains valid when evidence expires.
         return await finish({"status": projection["status"], "assistant_text": text[:2000],
+                             "stay_map_mentions": output.get("map_mentions", []) if request.topic == "stays" else [],
                              "travel_specialist_result": saved, "workspace_update": update.model_dump(mode="json") if update else None})
     except asyncio.CancelledError:
         await finish({"status": "interrupted"})

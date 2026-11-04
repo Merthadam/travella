@@ -44,7 +44,7 @@ export async function travelRequest(planId, action, criteria, signal) {
   );
   if (!response.ok) {
     const failure = await response.json().catch(() => ({}));
-    const specific = { stay_already_booked: 'This Plan already has a stay. Reopen its saved confirmation.', invalid_services: 'These seats or bags are unavailable. Review your selections.', checkout_changed: 'Your checkout changed. Check its status and review the latest total.', checkout_busy: 'Your checkout is being updated. Check its status shortly.' };
+    const specific = { location_unavailable: 'A selected place changed or could not be located. Review your location filters.', stay_already_booked: 'This Plan already has a stay. Reopen its saved confirmation.', invalid_services: 'These seats or bags are unavailable. Review your selections.', checkout_changed: 'Your checkout changed. Check its status and review the latest total.', checkout_busy: 'Your checkout is being updated. Check its status shortly.' };
     const message = (failure.code === 'invalid_stay_guests' ? 'Check the booking contact, guest names and requests. Nothing was submitted.' : specific[failure.code]) || (
       response.status === 401
         ? "Your session expired. Sign in again."

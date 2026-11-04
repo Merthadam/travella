@@ -1,3 +1,4 @@
+import { locationAnchorSchema } from './features/plans/travel/stayLocation';
 import { ApiError, request } from './api';
 import { travelTopicProjection } from './features/plans/travel/travelTopicSchema';
 import { travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './features/plans/travel/travelWorkspaceSchema';
@@ -71,6 +72,7 @@ async function agentTurnStream(plan, message, eventId, { signal, onEvent, topic,
         sources: Array.isArray(event.sources) ? event.sources.slice(0, 5).map(source => ({ title: String(source?.title || '').slice(0, 120), url: String(source?.url || '').slice(0, 320) })) : [],
         message: typeof event.message === 'string' ? event.message.slice(0, 240) : undefined,
         research_offer: researchOfferProjection(event.research_offer),
+        stay_map_mentions: topic === 'stays' && Array.isArray(event.stay_map_mentions) ? event.stay_map_mentions.slice(0, 50).map(p => locationAnchorSchema.safeParse(p)).filter(p => p.success).map(p => p.data) : [],
         workspace_update: workspaceProjection(event.workspace_update, plan.plan_id, topic, eventId),
         ...(travelTopicProjection(event.travel_specialist_result, plan.plan_id, topic) ? { travel_specialist_result: travelTopicProjection(event.travel_specialist_result, plan.plan_id, topic) } : {}),
         assistant_message_id: typeof event.assistant_message_id === 'string' ? event.assistant_message_id.slice(0, 100) : undefined,

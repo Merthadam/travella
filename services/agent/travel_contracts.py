@@ -67,6 +67,30 @@ def exact_date(value):
     return value
 
 
+class LocationAnchor(Strict):
+    id: str = Field(min_length=1, max_length=255)
+    name: str = Field(min_length=1, max_length=120)
+    latitude: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
+    longitude: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+    source: Literal["saved_place", "provider_place"]
+
+
+class StayLocation(Strict):
+    saved_place_ids: list[str] = Field(default_factory=list, max_length=50)
+    reference_place_ids: list[PlaceId] = Field(default_factory=list, max_length=3)
+    matching: Literal["prefer_nearby", "within_each"] = "prefer_nearby"
+    radius_m: int = Field(default=2000, strict=True, ge=100, le=50000)
+    # Output evidence only. Public/manual and model inputs are always re-resolved.
+    anchors: list[LocationAnchor] = Field(default_factory=list, max_length=53)
+
+    @field_validator("saved_place_ids", "reference_place_ids")
+    @classmethod
+    def unique(cls, values):
+        if any(not value or len(value) > 255 for value in values):
+            raise ValueError("Invalid place reference")
+        return sorted(set(values))
+
+
 class HotelSearch(Strict):
     destination: Destination
     check_in: date
@@ -75,6 +99,7 @@ class HotelSearch(Strict):
     guest_nationality: Country
     currency: Currency = "EUR"
     hotel_id: HotelId | None = None
+    location: StayLocation | None = None
     hotel_type_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(default_factory=list, max_length=10)
     facility_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(default_factory=list, max_length=10)
     strict_facility_filtering: bool = True
@@ -131,7 +156,12 @@ class AirportQuery(Strict):
     q: str = Field(min_length=2, max_length=80)
 
 
+class PlaceDetailQuery(Strict):
+    place_id: PlaceId
+
+
 class PlaceQuery(Strict):
+    scope: Literal["destination", "reference"] = "destination"
     q: str = Field(min_length=2, max_length=120)
     country_code: Country
     _country = field_validator("country_code")(Destination.country.__func__)
@@ -273,6 +303,7 @@ class TravelInvocation(Strict):
         "capabilities",
         "airports",
         "places",
+        "places/detail",
         "hotels/search",
         "hotels/detail",
         "hotels/reviews",
@@ -321,6 +352,7 @@ INPUTS = {
     "capabilities": Strict,
     "airports": AirportQuery,
     "places": PlaceQuery,
+    "places/detail": PlaceDetailQuery,
     "hotels/search": HotelSearch,
     "hotels/detail": HotelQuery,
     "hotels/reviews": HotelReviewsQuery,
@@ -371,6 +403,9 @@ class Hotel(Public):
     address: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    distance_mean_m: float | None = None
+    distance_max_m: float | None = None
+    distance_count: int = 0
     stars: float | None = None
     review_score: float | None = None
     review_count: int | None = None
@@ -458,6 +493,10 @@ class Place(Public):
     place_id: PlaceId
     name: str
     address: str | None = None
+
+
+class PlaceDetail(Envelope):
+    place: LocationAnchor
 
 
 class Places(Envelope):
@@ -614,6 +653,7 @@ OUTPUTS = {
     "capabilities": Capabilities,
     "airports": Airports,
     "places": Places,
+    "places/detail": PlaceDetail,
     "hotels/search": SearchResult,
     "hotels/detail": HotelDetail,
     "hotels/reviews": HotelReviews,
