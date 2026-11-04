@@ -14,3 +14,5 @@ User explicitly authorized merging this completed change to main. Reviewed sourc
 - Scoped inline code/security review passed; see SHIP-SECURITY.md. No external review service was requested. Wider project Phase 18 acceptance is unchanged.
 
 No new supplier transaction or deployment is part of shipment. GitHub PR and final merge metadata provide authoritative merge status.
+
+PR: https://github.com/Merthadam/travella/pull/35 — user-authorized main merge; final outcome recorded by GitHub merge metadata.

@@ -18,7 +18,7 @@ progress:
 
 # Project State
 
-Shipment update (2026-11-04): Automatic confirmed-booking pins approved for main merge. Source 58cc7c0 directly descends from current origin/main; clean shipping checkout passed 98 frontend/105 backend tests, build and scoped security review. Shipping branch `ship/automatic-booking-pins-20261104`; quick261104-psd records verification. Wider phase acceptance unchanged.
+Shipment update (2026-11-04): Automatic confirmed-booking pins approved for main merge. Source 58cc7c0 directly descends from current origin/main; clean shipping checkout passed 98 frontend/105 backend tests, build and scoped security review. PR #35: https://github.com/Merthadam/travella/pull/35. Shipping branch `ship/automatic-booking-pins-20261104`; quick261104-psd records verification. GitHub merge metadata records the final outcome. Wider phase acceptance unchanged.
 
 Quick-task update (2026-11-04): User superseded separate map actions with automatic confirmed-booking pins in quick261104-psd. Checkout map controls removed; hotel/destination-airport pins save automatically, reuse matching places, and respect manual removal after reload. 98 frontend/63 backend tests and build passed; real Chrome desktop/mobile and CRUD persistence verified. Existing Geneva demo now contains GVA. Evidence: `artifacts/testing/2026-11-04-automatic-booking-pins/verification.md`. Wider phase acceptance unchanged.
 
