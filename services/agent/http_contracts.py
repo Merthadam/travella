@@ -10,10 +10,14 @@ from services.research_offers import ResearchOffer
 from services.trip_context import ContextSnapshot, ForwardedProps, TurnResult
 from services.travel_topics import TopicSnapshot, TravelDiscussion, WorkspaceContext, WorkspaceUpdate
 
-from .travel_contracts import LocationAnchor
+from .travel_contracts import LocationAnchor, HotelSearch
 from .canvas_contracts import CanvasDraft, ThemesComponent
 from .editing_contracts import CanvasEditRequest, PublicCanvasEditResult
 from .claude.canvas_travel import FlightSnapshot
+
+
+class AgentWorkspaceContext(WorkspaceContext):
+    stay_draft: HotelSearch | None = None
 
 
 class AgentRequest(BaseModel):
@@ -23,7 +27,7 @@ class AgentRequest(BaseModel):
     message: str = Field(default="", max_length=2000)
     topic: Literal["trip", "stays", "flights"] = "trip"
     travel_discussion: TravelDiscussion | None = None
-    workspace_context: WorkspaceContext | None = None
+    workspace_context: AgentWorkspaceContext | None = None
     forwardedProps: ForwardedProps | None = None
     canvas_action: Literal["generate_themes", "generate_research", "generate_plan"] | None = None
     context_revision: int | None = Field(default=None, ge=1)
@@ -37,6 +41,8 @@ class AgentRequest(BaseModel):
             if self.topic == "trip":
                 raise ValueError("Workspace context requires a focused travel discussion.")
             self.workspace_context.view.validate_topic(self.topic)
+            if self.workspace_context.stay_draft is not None and self.topic != 'stays':
+                raise ValueError('Accommodation draft requires the accommodation discussion.')
         if self.travel_discussion and self.topic == "trip":
             raise ValueError("Option context requires a focused travel discussion.")
         if self.topic != "trip" and (not self.message.strip() or self.canvas_action or self.canvas_edit or self.forwardedProps or self.canvas_themes or self.context_revision or self.research_entry_receipt):

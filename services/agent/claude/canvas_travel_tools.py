@@ -36,7 +36,7 @@ from ..travel_workspace import WorkspaceOperation, WorkspaceSession, apply_works
 
 
 class DateEvidence(StrictResult):
-    source: Literal["canvas", "conversation"]
+    source: Literal["canvas", "conversation", "workspace"]
     quotes: list[str] = Field(default_factory=list, max_length=3)
 
 
@@ -80,7 +80,11 @@ class CanvasTravelTools(CanvasTravelObserver):
             criteria.get("check_out", criteria.get("return_date")),
         ]
         facts = draft_facts(self.draft)
-        if arguments.dates.source == "canvas":
+        if arguments.dates.source == "workspace":
+            draft = getattr(self, 'stay_draft', None)
+            if not isinstance(arguments.criteria, HotelSearch) or not draft or pair != [draft['check_in'], draft['check_out']]:
+                raise ValueError('Dates must match the accommodation form submitted with this message.')
+        elif arguments.dates.source == "canvas":
             if facts["flexible"] or pair != [facts["start"], facts["end"]]:
                 raise ValueError(
                     "Dates must match the exact current Canvas dates, or cite the traveler's date request."
@@ -362,7 +366,7 @@ class CanvasTravelTools(CanvasTravelObserver):
 
         @tool(
             "search_stays",
-            "Search stays using complete structured criteria from the conversation/current Canvas. Exact dates, explicit room allocation/child ages and nationality required. dates.source=canvas uses current exact draft dates; conversation requires verbatim traveler date quotes. Read-only; nothing saved or booked.",
+            "Search stays using complete structured criteria from the conversation/current Canvas. Exact dates, explicit room allocation/child ages and nationality required. dates.source=workspace uses the exact accommodation form submitted with this message; canvas uses saved Canvas dates; conversation requires verbatim traveler date quotes. Read-only; nothing saved or booked.",
             StayArguments.model_json_schema(),
         )
         async def stays(args):
@@ -452,6 +456,8 @@ class SpecialistTravelTools(CanvasTravelTools):
         self.failed_calls = set()
         from ..request_context import current_workspace_context
         workspace_context = workspace_context if workspace_context is not None else current_workspace_context()
+        draft = (workspace_context or {}).get('stay_draft') if topic == 'stays' else None
+        self.stay_draft = HotelSearch.model_validate(draft).model_dump(mode='json') if draft else None
         self.workspace = WorkspaceSession(self.context.traveler_scope, self.context.plan_id, topic, workspace_context) if workspace_context else None
         if self.workspace is not None:
             self.names.add("update_workspace_view")
@@ -533,8 +539,10 @@ class SpecialistTravelTools(CanvasTravelTools):
     async def _invoke(self, name, arguments):
         if name not in self.names:
             return self._error("tool_not_allowed", "Use only this discussion's read-only tools.")
-        if self.workspace and self.workspace.dirty and name in {"search_stays", "search_flights", "update_workspace_view"}:
+        if self.workspace and self.workspace.dirty and name in {"search_stays", "search_flights", "update_workspace_view"} and not (name == 'search_stays' and self.stay_draft):
             return self._error("workspace_pending_edits", "Submit or discard pending form edits before changing the workspace. You can still discuss observed evidence.")
+        if name == 'search_stays' and self.stay_draft and isinstance(arguments.get('criteria'), dict):
+            arguments = {**arguments, 'criteria': {**self.stay_draft, **arguments['criteria']}}
         if name == "update_workspace_view":
             if time.monotonic() >= self.deadline:
                 return self._error("workspace_deadline", "The turn deadline ended. Keep checked evidence; do not continue automatically.")
@@ -586,6 +594,7 @@ class SpecialistTravelTools(CanvasTravelTools):
                     self.final_search_id = found.search_id
                     if self.workspace:
                         self.workspace.observed(found)
+                        self.workspace.dirty = False
             for snap in self.snapshots.values():
                 for option in snap.results[:self.preview_limit]:
                     if snap.mode == "stays":

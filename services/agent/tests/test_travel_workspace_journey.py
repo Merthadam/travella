@@ -33,11 +33,11 @@ def workspace(**extra):
             "view": WorkspaceView().model_dump(), "draft_dirty": False, **extra}
 
 
-def real_handler(system, monkeypatch, pid, *, topic="stays", count=4, view_only=False):
+def real_handler(system, monkeypatch, pid, *, topic="stays", count=4, view_only=False, pins=None):
     from services.trip_context import TripContext
     from langgraph.checkpoint.memory import InMemorySaver
     with system.factory() as db:
-        db.add(PlanningCanvas(plan_id=UUID(pid), payload={"components": components()}, context_revision=1, updated_at=system.current[0]))
+        db.add(PlanningCanvas(plan_id=UUID(pid), payload={"components": {**components(), "map": {**components()["map"], "pins": pins or []}}}, context_revision=1, updated_at=system.current[0]))
         db.add(ResearchContext(plan_id=UUID(pid), revision=1, updated_at=system.current[0],
             payload=TripContext(dateStart=STAY["check_in"], dateEnd=STAY["check_out"], travelers=2,
                                 candidates=["Lisbon, Portugal"], finalDestination="Lisbon, Portugal").model_dump()))
@@ -54,9 +54,9 @@ def real_handler(system, monkeypatch, pid, *, topic="stays", count=4, view_only=
             changed = await sdk_call(options.mcp_servers['travel']['instance'], 'update_workspace_view',
                 {'search_id': json.loads(prompt)['workspace']['search_id'], 'operation': 'sort', 'sort': 'price'})
             assert changed['changed']
-        elif not json.loads(prompt).get("workspace", {}).get("draft_dirty"):
+        elif not json.loads(prompt).get("workspace", {}).get("draft_dirty") or json.loads(prompt).get("workspace", {}).get("stay_draft"):
             found = await sdk_call(options.mcp_servers["travel"]["instance"], f"search_{topic}",
-                {"criteria": STAY if topic == "stays" else FLIGHT, "dates": {"source": "canvas"}})
+                {"criteria": json.loads(prompt).get("workspace", {}).get("stay_draft") or (STAY if topic == "stays" else FLIGHT), "dates": {"source": "workspace" if json.loads(prompt).get("workspace", {}).get("stay_draft") else "canvas"}})
             assert "search_id" in found, found
         yield ResultMessage(subtype="success", duration_ms=1, duration_api_ms=1, is_error=False,
             num_turns=1, session_id="scripted", total_cost_usd=0.01,
@@ -242,3 +242,19 @@ def test_successful_stream_has_identical_workspace_state_and_terminal(system, mo
     terminal = next(e for e in events if e["type"] == "TERMINAL")
     assert terminal["status"] == "complete" and terminal["workspace_update"] == state
     assert "PRIVATE_" not in wire and "workspace_context" not in wire
+
+
+def test_submitted_map_draft_search_crosses_graph_and_commit(system, monkeypatch):
+    pid = create(system)['plan_id']
+    handler, _ = real_handler(system, monkeypatch, pid, pins=[{'id': 'castle', 'name': 'Castle', 'category': 'activity', 'description': '', 'position': {'lat': 38.71, 'lng': -9.13}}])
+    draft = {**STAY, 'location': {'saved_place_ids': ['castle'], 'matching': 'within_each', 'radius_m': 1500}}
+    req = AgentRequest(plan_id=pid, event_id=str(uuid4()), topic='stays', message='Search near the places I selected', workspace_context=workspace(draft_dirty=True, stay_draft=draft))
+    response = asyncio.run(handler.handle(req, 'traveler-one', f'Bearer {system.token}'))
+    assert response.workspace_update is not None, response.error
+    criteria = response.workspace_update.snapshot['criteria']
+    assert criteria['location']['radius_m'] == 1500
+    assert criteria['location']['anchors'][0]['latitude'] == 38.71
+    assert criteria['rooms'] == [{'adults': 2, 'children_ages': []}]
+    saved = system.client.get(f'/v1/plans/{pid}/travel/stays').json()
+    assert saved['shortlist'] == [] and saved['preferred'] is None
+    assert len(saved['messages']) == 2 and saved['locked'] is False

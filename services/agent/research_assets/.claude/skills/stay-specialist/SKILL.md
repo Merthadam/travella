@@ -36,3 +36,12 @@ Populate mentioned_place_ids with exact saved place IDs you discuss, even withou
 searching. Observed reference-scope search_destinations IDs are also eligible; the
 host resolves up to three of these within the remaining lookup budget. These appear only in the optional temporary map layer; they do not
 select places, apply filters or save anything to the Plan.
+
+The current `workspace.stay_draft` is the accommodation form submitted with the
+traveler’s chat message. It includes manual map/place selection and takes priority
+over older applied criteria and chat history. When asked to search/refine, use it
+directly despite `draft_dirty`; do not insist on a separate Apply click. Preserve
+its other fields and use `dates.source=workspace` for its exact dates. Resolve a
+missing destination place_id with search_destinations when needed. Null location
+means cleared places. Only the current request can add or change that selection.
+After a successful search the shared controls, map and results update together.

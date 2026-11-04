@@ -3,6 +3,7 @@ import { requestId } from '../../../plansApi';
 import { travelRequest } from './travelApi';
 import { destinationCountry, preferredAirport, profileTravelDefaults, stayCityDefault } from './travelDefaults';
 import { emptyStayLocation } from './stayLocation';
+import { staySearchDraft } from './staySearchDraft';
 import { emptyStayFilters } from './StaySearchFilters';
 import { draftTravelFacts, travelSnapshotSchema, travelState } from './CanvasTravel';
 import { emptyWorkspaceView, travelReferenceSchema, travelWorkspaceContextSchema, travelWorkspaceUpdateSchema } from './travelWorkspaceSchema';
@@ -64,7 +65,7 @@ export function travelWorkspaceReducer(state, action) {
     case 'run-end': return state.authority?.run_id === action.runId ? { ...state, authority: null } : state;
     case 'workspace-update': {
       const parsed = travelWorkspaceUpdateSchema.safeParse(action.update);
-      if (!parsed.success || action.hydrating || !state.authority || state.draftDirty) return state;
+      if (!parsed.success || action.hydrating || !state.authority || state.draftDirty && !state.authority.acceptStayDraft) return state;
       const u = parsed.data, a = state.authority;
       if (state.appliedActions.includes(u.action_id) || u.plan_id !== state.planId || u.topic !== state.topic || u.instance_id !== state.instanceId || u.base_revision !== state.revision || a.owner !== state.owner || a.instanceId !== state.instanceId || a.revision !== state.revision || u.run_id !== a.run_id || u.brief_digest !== a.brief_digest || !fresh(u.snapshot, action.now ?? Date.now())) return state;
       const next = advanced(state);
@@ -248,7 +249,12 @@ export function useTravelWorkspace({ owner: suppliedOwner, planId, topic, initia
     undo: () => invalidate({ type: 'undo' }),
     dismiss: reference => invalidate({ type: 'dismiss', reference }),
     restore: reference => invalidate({ type: 'restore', reference }),
-    getWorkspaceContext: () => travelWorkspaceContextSchema.parse({ instance_id: ref.current.instanceId, revision: ref.current.revision, search_id: ref.current.searchId, view: ref.current.view, draft_dirty: ref.current.draftDirty }),
+    getWorkspaceContext: () => {
+      const state = ref.current, current = fresh(state.snapshot, Date.now());
+      return travelWorkspaceContextSchema.parse({ instance_id: state.instanceId, revision: state.revision,
+        search_id: current ? state.searchId : null, view: current ? state.view : emptyWorkspaceView(),
+        draft_dirty: state.draftDirty, ...(topic === 'stays' ? { stay_draft: staySearchDraft(state.draftCriteria) } : {}) });
+    },
     onWorkspaceRunStart: authority => dispatch({ type: 'run-start', authority }),
     onWorkspaceRunEnd: runId => dispatch({ type: 'run-end', runId }),
     applyWorkspaceUpdate: (update, options = {}) => { const previous = ref.current; dispatch({ type: 'workspace-update', update, ...options }); return previous !== ref.current; },

@@ -18,12 +18,13 @@ export function StayLocationFilters({ value = emptyStayLocation(), onChange, pla
   const references = value.anchors.filter(a => a.source === 'provider_place' && value.reference_place_ids.includes(a.id));
   const layers = useMemo(() => {
     const map = new Map();
+    for (const saved of places) map.set(`place-${saved.id}`, { id: saved.id, name: saved.name, latitude: saved.position?.lat ?? null, longitude: saved.position?.lng ?? null, source: 'saved_place', category: saved.category, mapId: `place-${saved.id}`, layer: 'Saved place' });
     for (const place of selected.concat(references)) map.set(`place-${place.id}`, { ...place, mapId: `place-${place.id}`, layer: 'Selected place' });
     if (showMentions) for (const mention of mentions) {
       const saved = mention.source === 'saved_place' ? places.find(p => p.id === mention.id) : null;
       if (mention.source === 'saved_place' && !saved) continue;
       const place = saved ? { ...mention, name: saved.name, latitude: saved.position?.lat ?? null, longitude: saved.position?.lng ?? null, category: saved.category } : mention;
-      if (!map.has(`place-${place.id}`)) map.set(`place-${place.id}`, { ...place, mapId: `place-${place.id}`, layer: 'Mentioned in chat' });
+      if (!map.has(`place-${place.id}`) || map.get(`place-${place.id}`).layer === 'Saved place') map.set(`place-${place.id}`, { ...place, mapId: `place-${place.id}`, layer: 'Mentioned in chat' });
     }
     if (showHotels) for (const hotel of hotels) map.set(`hotel-${hotel.id}`, { ...hotel, mapId: `hotel-${hotel.id}`, layer: 'Hotel', category: 'stay' });
     return [...map.values()];
@@ -61,8 +62,8 @@ export function StayLocationFilters({ value = emptyStayLocation(), onChange, pla
       <details><summary>Inspect map places ({layers.length})</summary>{layers.map(p => <button type="button" key={p.mapId} className="ds-text-button stay-map-list-item" onClick={() => setInspected(p.mapId)}>{p.name} · {p.layer}{!hasCoordinates(p) && ' · location unavailable'}</button>)}</details>
       {detail && <div className="stay-map-detail"><strong>{detail.name}</strong><small>{detail.layer}{!hasCoordinates(detail) && ' · location unavailable'}</small>{detail.layer === 'Hotel' ? <p>{locationSummary(detail)}</p> : <button type="button" className="ds-text-button" onClick={() => detail.source === 'saved_place' ? toggle(detail.id) : toggleReference(detail.id)}>{(detail.source === 'saved_place' ? ids : value.reference_place_ids).includes(detail.id) ? 'Remove from search' : 'Include in search'}</button>}<button type="button" className="ds-text-button" onClick={() => setInspected(null)}>Close place details</button></div>}
     </section>
-    <p>Choose any mix of places, or select a whole category.</p>
-    <details open><summary>Your saved places {count > 0 && `· ${count} selected`}</summary>
+    <p>Choose places on the map or by category. Ask Stay chat to search with your selection, or apply it here.</p>
+    <details open><summary>Your saved places {ids.length > 0 && `· ${ids.length} selected`}</summary>
       {!places.length && <p>No saved places yet. Choose a landmark below, or save activities to your Plan.</p>}
       {groups.map(group => <fieldset key={group.key}><legend><label><input type="checkbox" checked={group.items.every(p => ids.includes(p.id))} onChange={event => onChange({ ...value, saved_place_ids: event.target.checked ? [...new Set([...ids, ...group.items.map(p => p.id)])] : ids.filter(id => !group.items.some(p => p.id === id)) })}/>{group.label}</label></legend>
         {group.items.map(place => <label className="stay-location-place" key={place.id}><input type="checkbox" checked={ids.includes(place.id)} onChange={() => toggle(place.id)}/><span>{place.name}</span></label>)}

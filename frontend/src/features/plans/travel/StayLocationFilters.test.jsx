@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { StayLocationFilters } from './StayLocationFilters';
+import { staySearchDraft } from './staySearchDraft';
 import { emptyStayLocation, stayLocationSchema } from './stayLocation';
 import { draftFromCriteria, initialWorkspace, travelWorkspaceReducer } from './useTravelWorkspace';
 
@@ -46,4 +47,24 @@ test('invalid radii and coordinates fail closed; location edits revoke agent aut
   state = travelWorkspaceReducer(state, { type: 'run-start', authority: { run_id: 'run', brief_digest: 'a'.repeat(64) } });
   const next = travelWorkspaceReducer(state, { type: 'draft', field: 'stayLocation', value: { ...emptyStayLocation(), saved_place_ids: ['one'] } });
   expect(next.authority).toBeNull(); expect(next.draftDirty).toBe(true); expect(next.revision).toBeGreaterThan(state.revision);
+});
+
+
+test('unselected saved places are available directly on the map', () => {
+  const changed = vi.fn();
+  render(<StayLocationFilters places={places} onChange={changed}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Saved place: Museum' }));
+  expect(changed).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Include in search' }));
+  expect(changed.mock.calls[0][0].saved_place_ids).toEqual(['one']);
+});
+
+
+test('a fresh stay form supplies search context without inventing a place ID or child age', () => {
+  const draft = { city: 'Lisbon', country: 'PT', nationality: 'HU', start: '2027-05-12', end: '2027-05-16', currency: 'EUR', rooms: [{ adults: '2', children_ages: [] }], stayLocation: emptyStayLocation() };
+  const now = Date.parse('2026-11-04T12:00:00Z');
+  expect(staySearchDraft(draft, now)).toMatchObject({ destination: { city: 'Lisbon', country_code: 'PT', place_id: null }, rooms: [{ adults: 2, children_ages: [] }], location: null });
+  expect(staySearchDraft({ ...draft, rooms: [{ adults: 2, children_ages: [''] }] }, now)).toBeNull();
+  expect(staySearchDraft({ ...draft, nationality: '' }, now)).toBeNull();
+  expect(staySearchDraft({ ...draft, end: draft.start }, now)).toBeNull();
 });

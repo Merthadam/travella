@@ -570,3 +570,24 @@ test.each([3000, 40000, 40001])('manual checkout handle length %i follows the se
   expect(JSON.stringify(result.current.state)).not.toContain(handle);
   expect(JSON.stringify(result.current.getWorkspaceContext())).not.toContain(handle);
 });
+
+
+test('map selections are submitted with chat and expired evidence is excluded', () => {
+  const { result } = renderHook(() => useTravelWorkspace({ owner: 'owner', planId: 'plan-1', topic: 'stays', initialData }));
+  const snapshot = workspaceSnapshot();
+  act(() => result.current.importSnapshot(snapshot, 'first'));
+  const location = { saved_place_ids: ['castle'], reference_place_ids: [], matching: 'within_each', radius_m: 1500, anchors: [] };
+  act(() => result.current.dispatch({ type: 'draft', field: 'stayLocation', value: location }));
+  expect(result.current.getWorkspaceContext()).toMatchObject({ draft_dirty: true, stay_draft: { location, rooms: snapshot.criteria.rooms } });
+  snapshot.expires_at = new Date(Date.now() - 1000).toISOString();
+  act(() => result.current.dispatch({ type: 'import', identity: 'expired', snapshot }));
+  expect(result.current.getWorkspaceContext()).toMatchObject({ search_id: null, view: emptyWorkspaceView(), stay_draft: { check_in: snapshot.criteria.check_in } });
+});
+
+test('an explicitly submitted stay draft accepts the matching agent update but later typing revokes it', () => {
+  const before = { ...authorized(), draftDirty: true };
+  const submitted = travelWorkspaceReducer(before, { type: 'run-start', authority: { ...before.authority, acceptStayDraft: true } });
+  expect(travelWorkspaceReducer(submitted, { type: 'workspace-update', update: update() }).draftDirty).toBe(false);
+  const edited = travelWorkspaceReducer(submitted, { type: 'draft', field: 'stayLocation', value: { saved_place_ids: ['newer'], reference_place_ids: [], matching: 'prefer_nearby', radius_m: 2000, anchors: [] } });
+  expect(travelWorkspaceReducer(edited, { type: 'workspace-update', update: update() })).toBe(edited);
+});

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { travelSnapshotSchema } from './CanvasTravel';
+import { travelSnapshotSchema, staySearchCriteriaSchema } from './CanvasTravel';
 
 const id = z.string().min(1).max(100);
 export const travelReferenceSchema = z.object({ search_id: id, option_id: id, room_id: id.nullable() }).strict();
@@ -17,6 +17,7 @@ export const travelWorkspaceViewSchema = z.object({
 export const travelWorkspaceContextSchema = z.object({
   instance_id: id, revision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
   search_id: id.nullable(), view: travelWorkspaceViewSchema, draft_dirty: z.boolean(),
+  stay_draft: staySearchCriteriaSchema.nullish(),
 }).strict().refine(value => new TextEncoder().encode(JSON.stringify(value)).length <= 32768, 'Workspace context too large');
 export const travelWorkspaceUpdateSchema = z.object({
   action_id: id, plan_id: id, topic: z.enum(['stays', 'flights']), instance_id: id,

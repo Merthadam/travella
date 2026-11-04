@@ -118,7 +118,7 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
         committed = True
         update = None
         final_search = projection.get("workspace_update")
-        if workspace and not workspace.draft_dirty and final_search and await service.runs.generation_current(subject, plan_id, generation):
+        if workspace and (not workspace.draft_dirty or request.topic == 'stays' and workspace.stay_draft is not None) and final_search and await service.runs.generation_current(subject, plan_id, generation):
             # Resolve again after commit: expiry and owner/topic are authority,
             # whereas the browser revision is only an optimistic concurrency token.
             try:

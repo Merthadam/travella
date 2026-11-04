@@ -81,7 +81,7 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     if (!message || blocked || loading || historyError || run.current || (!visible && !explicitComparison)) return false;
     const current = { id: requestId(), controller: new AbortController(), epoch: epoch.current, cancelled: false,
       workspaceContext: callbacks.current.getWorkspaceContext?.(), briefDigest: snapshot?.brief?.digest, pendingUpdate: null };
-    callbacks.current.onWorkspaceRunStart?.({ run_id: current.id, brief_digest: current.briefDigest });
+    callbacks.current.onWorkspaceRunStart?.({ run_id: current.id, brief_digest: current.briefDigest, acceptStayDraft: topic === 'stays' && Boolean(current.workspaceContext?.stay_draft) });
     setMapMentions([]); run.current = current; setActive(true); callbacks.current.onBusyChange?.(topic, true); setError('');
     setMessages(items => [...items, { message_id: `${current.id}-user`, role: 'user', content: message }, { message_id: current.id, role: 'assistant', content: '', status: 'streaming' }]);
     try {

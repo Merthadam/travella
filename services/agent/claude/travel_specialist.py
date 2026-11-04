@@ -249,7 +249,7 @@ class ClaudeSdkTravelSpecialist:
                    "inventory_tools_available": bool(saved_canvas), "previous_research": historical}
         if workspace_context:
             payload["workspace"] = workspace_context
-            payload["workspace_instruction"] = "This is temporary applied research, not saved trip facts. Pending draft edits prohibit workspace changes. After successful completion the host applies the final search and update_workspace_view operations once. Never weaken a hard requirement."
+            payload["workspace_instruction"] = "This is temporary research, not saved trip facts. workspace.stay_draft is the current accommodation form explicitly submitted with this message, including map selections. Use it as the search baseline when the traveler asks to search or refine; do not tell them to apply or discard these edits first. If stay_draft is absent and draft_dirty is true, ask for missing form details. Pending edits still prohibit view-only changes until a successful new search. The host applies the final search and view operations once; subsequent manual edits revoke this run. Never weaken a hard requirement."
             if current_snapshot:
                 payload["workspace_options"] = travel._preview_options(current_snapshot)
                 from ..travel_workspace import workspace_comparison_evidence

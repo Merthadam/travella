@@ -44,6 +44,7 @@ export const travelSnapshotSchema = z.discriminatedUnion('mode', [z.object({...c
   if (ids.size !== s.results.length || new Set(s.preview_ids).size !== s.preview_ids.length || s.preview_ids.some(x => !ids.has(x)) || s.preview_ids.length !== Math.min(3, s.results.length) || s.returned_count !== s.results.length || Date.parse(s.expires_at) <= Date.parse(s.searched_at) || new TextEncoder().encode(JSON.stringify(s)).length > 131072)
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid travel collection' });
 });
+export const staySearchCriteriaSchema = criteria;
 // Compose with the existing activity parser, preserving its cross-field checks and strictness.
 export const canvasTravelResultSchema = z.object({ suggestions: z.unknown(), add_ids: z.unknown(), area: z.unknown(), travel: z.array(travelSnapshotSchema).max(2).default([]) }).strict().transform(({ travel, ...base }) => ({ ...activities.parse(base), travel }));
 export function draftTravelFacts(data) {

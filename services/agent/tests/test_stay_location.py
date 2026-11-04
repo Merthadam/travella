@@ -147,3 +147,22 @@ def test_scripted_agent_mentions_only_observed_places_without_plan_or_search_mut
     result = asyncio.run(worker.complete(message='Tell me about the museum', context=context(), topic='stays', brief={}, saved_canvas={'components': draft}))
     assert [p['id'] for p in result['travel_specialist_result']['map_mentions']] == ['museum']
     assert result['state_changes'] == [] and provider.calls == [] and draft == before
+
+
+def test_map_draft_search_is_allowed_but_view_changes_and_forged_dates_are_not():
+    from services.agent.travel_workspace import WorkspaceSession, finalize_workspace_view
+    from services.travel_topics import WorkspaceView
+    async def run():
+        observer = specialist()
+        observer.draft.components['map']['pins'] = deepcopy(PLACES['map']['pins'])
+        observer.stay_draft = await resolve_stay_location({**HOTEL, "location": LOCATION}, PLACES, no_lookup)
+        observer.workspace = WorkspaceSession(observer.context.traveler_scope, observer.context.plan_id, 'stays', {'draft_dirty': True, 'view': WorkspaceView().model_dump()})
+        assert (await observer.invoke('update_workspace_view', {'search_id': 'old', 'operation': 'sort', 'sort': 'price'}))['is_error']
+        found = value(await observer.invoke('search_stays', {'criteria': HOTEL, 'dates': {'source': 'workspace'}}))
+        snapshot = observer.snapshots[found['search_id']]
+        assert snapshot.criteria.location.saved_place_ids == ['food', 'museum']
+        assert not observer.workspace.dirty and finalize_workspace_view(observer.workspace)
+        observer.stay_draft['check_in'] = '2000-01-01'
+        rejected = await observer.invoke('search_stays', {'criteria': HOTEL, 'dates': {'source': 'workspace'}})
+        assert rejected['is_error'] and 'date_evidence_required' in rejected['content'][0]['text']
+    asyncio.run(run())
