@@ -15,3 +15,5 @@ Verification: 136 backend and 112 frontend regression tests passed, followed by 
 Preview: http://localhost:5202
 Evidence: artifacts/testing/2026-11-04-stay-location-implementation/verification.md
 Planning acceptance and unrelated phase review status remain unchanged. No deployment or merge performed.
+
+Implementation and evidence commit: 0356451.
