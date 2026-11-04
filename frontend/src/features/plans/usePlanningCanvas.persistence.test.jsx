@@ -201,3 +201,45 @@ test('enriching an existing pin saves its website and link atomically without ch
   await waitFor(() => expect(result.current.loading).toBe(false));
   expect(result.current.data.map.pins[0].website).toBe('https://example.org/');
 });
+
+const bookingLocation = { id: 'booking_hotel', name: 'Central Hotel', address: '12 Main Street', category: 'stay', position: { lat: 45, lng: 9 }, source: { provider: 'liteapi', id: 'lp1' } };
+async function confirmedStay(result) {
+  act(() => result.current.updateMockBooking(selected.plan_id, { sandbox: true, status: 'confirmed', booking_id: 'MAP-STAY', hotel_name: 'Central Hotel', check_in: '2027-05-10', check_out: '2027-05-17',
+    reservation: { provider: 'LiteAPI', sandbox: true, hotelId: 'lp1', position: bookingLocation.position, address: '12 Main Street', confirmationCode: null, roomCount: 1,
+      rooms: [{ room: 1, name: 'Double', board: null, occupancy: null, refundable: null, cancellation: null, cancellationDeadline: null, excludedTaxes: [] }], guests: [], total: { amount: '100', currency: 'EUR' }, priceSource: 'booking', roomSource: 'booking', paymentStatus: null, terms: null } }));
+  await waitFor(() => expect(result.current.saved?.components.accommodation.mockBooking.reference).toBe('MAP-STAY'));
+}
+test('confirmed location is explicit, deduplicates immediate repeat and survives reopening', async () => {
+  const { api, stored } = fixture(); const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false)); await confirmedStay(result);
+  expect(result.current.data.map.pins).toEqual([]);
+  act(() => { expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation)).toEqual({ id: 'booking_hotel' }); expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation)).toEqual({ id: 'booking_hotel' }); });
+  expect(result.current.saved.components.map.pins).toHaveLength(0);
+  await waitFor(() => expect(result.current.saved.components.map.pins).toHaveLength(1));
+  expect(stored().components.accommodation.mockBooking.reservation.position).toEqual(bookingLocation.position);
+  act(() => result.current.reload()); await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.data.map.pins[0].source).toEqual(bookingLocation.source);
+  const calls = api.saveCanvas.mock.calls.length;
+  act(() => expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation)).toEqual({ id: 'booking_hotel' }));
+  await act(settle); expect(api.saveCanvas).toHaveBeenCalledTimes(calls);
+});
+test('associating an existing hotel preserves its ID, position and traveler details', async () => {
+  const { api } = fixture(); const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false)); await confirmedStay(result);
+  const old = { id: 'google_existing', name: 'Central Hotel', category: 'stay', position: { lat: 45.0001, lng: 9 }, description: 'Use the side entrance', website: 'https://example.org/hotel' };
+  act(() => result.current.action('map', 'add_pin', old)); await waitFor(() => expect(result.current.dirty).toBe(false));
+  act(() => expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation).error).toMatch(/Review/));
+  act(() => expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation, { existingId: old.id })).toEqual({ id: old.id }));
+  await waitFor(() => expect(result.current.dirty).toBe(false));
+  expect(result.current.saved.components.map.pins).toEqual([{ ...old, source: bookingLocation.source }]);
+});
+test('failed location save never changes acknowledged map; retry persists once', async () => {
+  const { api } = fixture(); const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false)); await confirmedStay(result);
+  api.saveCanvas.mockRejectedValueOnce(new Error('offline'));
+  act(() => result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation));
+  await waitFor(() => expect(result.current.saveError).toBeTruthy());
+  expect(result.current.saved.components.map.pins).toHaveLength(0);
+  await act(async () => result.current.save());
+  expect(result.current.saved.components.map.pins).toHaveLength(1);
+});

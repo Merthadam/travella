@@ -3,6 +3,7 @@ from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from services.map_locations import LocationPosition
 
 
 class StayMoney(BaseModel):
@@ -41,6 +42,7 @@ class StayReservation(BaseModel):
     sandbox: Literal[True] = True
     hotelId: str = Field(max_length=100)
     address: str | None = Field(default=None, max_length=1000)
+    position: LocationPosition | None = None
     confirmationCode: str | None = Field(default=None, max_length=100)
     roomCount: int = Field(ge=1, le=4)
     rooms: list[StayRoom] = Field(min_length=1, max_length=4)

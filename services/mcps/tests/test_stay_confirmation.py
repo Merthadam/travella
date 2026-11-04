@@ -134,3 +134,15 @@ def test_missing_final_tax_information_does_not_erase_prebook_property_charges()
     result = reservation(before, {'bookedRooms': rooms})
     assert result['roomSource'] == 'prebook'
     assert result['rooms'][0]['excludedTaxes'] == before['rooms'][0]['excludedTaxes']
+
+
+def test_hotel_coordinates_are_allowlisted_and_invalid_coordinates_do_not_invent_a_location():
+    from services.mcps.stay_confirmation import hotel_position
+    assert hotel_position({'location': {'latitude': 0, 'longitude': 0}}) == {'lat': 0.0, 'lng': 0.0}
+    assert hotel_position({'latitude': 91, 'longitude': 12}) is None
+    assert hotel_position({'latitude': '45', 'longitude': 12}) is None
+    assert hotel_position({'latitude': float('nan'), 'longitude': 12}) is None
+    snapshot = {**state(), 'position': {'lat': 45.0, 'lng': 9.0}}
+    assert reservation(snapshot, {})['position'] == snapshot['position']
+    assert reservation(snapshot, {'hotel': {'latitude': 46, 'longitude': 10}})['position'] == {'lat': 46.0, 'lng': 10.0}
+    assert reservation(state(), {})['position'] is None

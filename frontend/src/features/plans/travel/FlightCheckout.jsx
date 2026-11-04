@@ -1,3 +1,4 @@
+import { ConfirmationMapActions } from './ConfirmationMapActions';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useFlightCheckout } from './useFlightCheckout';
 import { downloadItinerary, flightBookingSummary, formatFlightPrice } from './flightItinerary';
@@ -35,12 +36,12 @@ export function FlightLeg({ leg, label }) {
   </section>;
 }
 
-function Confirmation({ planId, result, savedBooking, saveState, onBackToPlan }) {
+function Confirmation({ planId, mapActions, result, savedBooking, saveState, onBackToPlan }) {
   const [downloaded, setDownloaded] = useState(false);
   const summary = savedBooking || flightBookingSummary(result);
   const saved = saveState?.savedReference === result.booking_id;
   return <div className="flight-confirmation"><header><span className="flight-confirm-icon" aria-hidden="true">✓</span><p className="flight-eyebrow">SANDBOX CONFIRMATION</p><h1 tabIndex={-1}>Your test itinerary is ready.</h1><p>{savedBooking ? 'Your saved test booking document.' : 'LiteAPI confirmed this sandbox booking. No real ticket or charge.'}</p></header>
-    <div className="flight-confirm-grid"><ConfirmationActions onReturn={onBackToPlan}
+    <div className="flight-confirm-grid"><ConfirmationActions mapActions={<ConfirmationMapActions planId={planId} mode="flights" summary={summary} actions={mapActions}/>} onReturn={onBackToPlan}
       saveError={!saved && Boolean(saveState?.error)}
       saveMessage={saved || (!saveState && savedBooking) ? 'Saved in your Plan’s Flights component.' : saveState?.error ? 'Your booking is confirmed, but the Plan could not be saved. Download your itinerary now; return to your trip to retry saving.' : 'Your confirmed itinerary is being saved to the Plan.'}
       downloadLabel="Download itinerary" downloadNote="Travella itinerary · HTML · not an airline ticket"
@@ -119,7 +120,7 @@ export function FlightCheckout(props) {
     <div className="flight-sandbox-banner"><b>SANDBOX CHECKOUT</b><span>Test booking · no real ticket or charge</span></div>
     <nav className="flight-checkout-nav"><button disabled={busy} className="flight-text-button" onClick={status === 'confirmed' ? onBackToPlan : onClose}>← {status === 'confirmed' ? 'Return to my trip' : 'Back to flights'}</button><span>{status === 'confirmed' ? 'YOUR ITINERARY' : 'FLIGHT CHECKOUT'}</span></nav>
     {error && <p className="flight-error" role="alert">{error}</p>}
-    {status === 'confirmed' ? <Confirmation planId={props.planId} result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
+    {status === 'confirmed' ? <Confirmation mapActions={props.mapActions} planId={props.planId} result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
       {result && step !== 4 && <div className="flight-context"><div><strong>{result.flight.outbound.segments[0].origin} ⇄ {result.flight.outbound.segments.at(-1).destination}</strong><span>{shortDate(result.flight.outbound.segments[0].departure_at)} – {shortDate(result.flight.inbound.segments[0].departure_at, true)} · {result.passenger_count} {result.passenger_count === 1 ? 'traveler' : 'travelers'}</span></div>{step > 0 && <details key={step} className="flight-context-details"><summary>Flight details</summary><div><FlightLeg leg={result.flight.outbound} label="Outbound"/><FlightLeg leg={result.flight.inbound} label="Return"/></div></details>}</div>}
       {busy && <p className={result ? 'flight-loading-announcement' : 'flight-loading'} role="status">{result ? 'Checking your test reservation…' : 'Verifying availability and the current fare…'}</p>}
       {!result && !busy && error && <div className="flight-message"><h2>This flight could not be verified.</h2><p>Return to flights for a fresh offer.</p><button className="flight-secondary" onClick={onClose}>Return to flights</button></div>}

@@ -1,3 +1,4 @@
+import { resolveExistingLocation, sameLocation } from './travel/bookingLocations';
 import { stayBookingSummary } from './travel/stayReservation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
@@ -387,6 +388,39 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }
+  function addBookingLocation(mode, reference, location, { existingId, separate = false } = {}) {
+    if (!base.current || base.current.plan_id !== planId || loading || active.current || savingRef.current || pendingSave.current || externalBusyRef.current || editors.length || conflict || saveError) return { error: 'Wait for the current save or resolve the Plan error before adding this place.' };
+    const previous = dataRef.current;
+    const booking = previous?.[mode === 'stays' ? 'accommodation' : 'flights']?.mockBooking;
+    if (!booking || booking.reference !== reference || !location.source) return { error: 'Reopen the confirmed booking before adding its location.' };
+    const identityMatches = mode === 'stays' ? location.source.provider === 'liteapi' && location.source.id === booking.reservation?.hotelId
+      : location.source.provider === 'iata' && [booking.itinerary?.outbound?.at(-1)?.destination, booking.itinerary?.inbound?.[0]?.origin].includes(location.source.id);
+    if (!identityMatches) return { error: 'This location does not match the confirmed booking.' };
+    const { exact, candidates } = resolveExistingLocation(previous.map.pins, location);
+    if (exact) return { id: exact.id };
+    if (existingId && !candidates.some(pin => pin.id === existingId)) return { error: 'That place changed. Review the current map before continuing.' };
+    if (!existingId && candidates.length && !separate) return { error: 'Review the matching place before adding another pin.' };
+    try {
+      const next = clone(previous);
+      let pin;
+      if (existingId) {
+        pin = next.map.pins.find(pin => pin.id === existingId);
+        pin.source = clone(location.source); pin.category = location.category;
+      } else {
+        if (!location.position || !location.id) return { error: 'The exact location is unavailable. Find it on your trip map.' };
+        if (next.map.pins.length >= 50) return { error: 'Your map has 50 places. Remove one before adding another.' };
+        pin = { id: location.id, source: clone(location.source), name: location.name.slice(0, 120), category: location.category,
+          position: clone(location.position), description: location.address.slice(0, 240) };
+        next.map.pins.push(pin);
+      }
+      if (next.map.pins.filter(p => sameLocation(p, location)).length !== 1) throw new Error('Duplicate location');
+      next.map.status = 'ready'; delete next.map.error;
+      const parsed = validateCanvasComponents(next, true);
+      dataRef.current = parsed; setData(parsed); editedComponents.current.add('map');
+      setNotice('Saving your place to the trip map…'); setError('');
+      return { id: pin.id };
+    } catch { return { error: 'This place could not be added. Review the location and try again.' }; }
+  }
   function acceptTravelChoiceRevision(previous, next) {
     // Only our own exact revision-checked choice can advance the Canvas base.
     // Other-tab changes still conflict instead of being silently overwritten.
@@ -395,5 +429,5 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       callbacks.current.onSaved?.({ ...selected, revision: next });
     }
   }
-  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, saveError, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, acceptTravelChoiceRevision, reload: () => setReloadVersion(value => value + 1) };
+  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, saveError, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, addBookingLocation, updateMockBooking, acceptTravelChoiceRevision, reload: () => setReloadVersion(value => value + 1) };
 }
