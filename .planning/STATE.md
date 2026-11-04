@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
 last_activity: 2026-11-04
-last_activity_desc: Verified hotel-location prototypes and shared agent/manual spec; design selection pending
+last_activity_desc: Selected A location prototype refined with verified activity-aware minimap; live implementation outstanding
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -26,6 +26,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261104-r2q | Refined selected A with manual and agent-mentioned activity minimap; desktop/mobile verified | 2026-11-04 | a89d71a | [261104-r2q](./quick/261104-r2q-refine-selected-hotel-filter-prototype-a/) |
 | 261104-q8m | Three verified flexible hotel-location prototypes and shared agent/manual spec; production design selection pending | 2026-11-04 | 0f9ba4e | [261104-q8m](./quick/261104-q8m-prototype-hotel-location-filters-and-spe/) |
 | 261102-td3 | Flight payment matches accommodation B; hosted card form and real sandbox decline/retry/reload verified | 2026-11-02 | 97c405c | [261102-td3](./quick/261102-td3-match-flight-final-payment-to-the-select/) |
 | 261101-emg | Three interactive accommodation card-payment layouts; verified, selection pending | 2026-11-01 | 31af39d (prototype) | [261101-emg](./quick/261101-emg-compare-three-interactive-accommodation-/) |
