@@ -1,5 +1,5 @@
 import { StayLocationFilters } from './StayLocationFilters';
-import { locationSummary, distanceToAnchor, distanceLabel } from './stayLocation';
+import { locationSummary, distanceToAnchor, distanceLabel, hasCoordinates } from './stayLocation';
 import React, { useEffect, useRef, useState } from "react";
 import { airportSelection } from "./travelDefaults";
 import { useTravelWorkspace } from "./useTravelWorkspace";
@@ -215,7 +215,7 @@ function StandaloneTravelSearch(props) {
   const workspace = useTravelWorkspace({ planId: props.planId, topic: props.mode === "accommodation" ? "stays" : "flights", initialData: props.initialData, travelerProfile: props.travelerProfile, active: props.active, onExpired: props.onExpired });
   return <ControlledTravelSearch {...props} workspace={workspace}/>;
 }
-function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onFlightCheckout, onStayCheckout, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onShortlist, onCompare, onComparisonChange, discussionDisabled, choiceDisabled, workspace, mapMentions = [] }) {
+function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, onFlightCheckout, onStayCheckout, importedSnapshot, importRequest = 0, importReason = "", onDiscuss, onChoose, onShortlist, onCompare, onComparisonChange, discussionDisabled, choiceDisabled, workspace, mapMentions = [], inspectionRequest }) {
   const stay = mode === "accommodation";
   const { snapshot, loading, error, imported, draftCriteria, view, detailsReference } = workspace.state;
   const field = name => [draftCriteria[name], value => workspace.setDraft(name, value)];
@@ -291,6 +291,23 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   useEffect(() => setStayCatalogs(null), [planId]);
   const [, setImportClock] = useState(0);
   const resultsHeading = useRef(null), heading = useRef(null), form = useRef(null);
+  const [inspection, setInspection] = useState(null), [inspectionNotice, setInspectionNotice] = useState(null);
+  const inspectionSequence = useRef(0), handledInspection = useRef(null);
+  const cardElements = useRef(new Map()), locationLayout = useRef(null), locationSidebar = useRef(null);
+  const [browsePane, setBrowsePane] = useState('results'), [compactMap, setCompactMap] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(!snapshot);
+  useEffect(() => {
+    if (!stay || !snapshot?.search_id) return;
+    const fromForm = form.current?.contains(document.activeElement);
+    setSearchExpanded(false);
+    if (fromForm) requestAnimationFrame(() => resultsHeading.current?.focus());
+  }, [stay, snapshot?.search_id]);
+  useEffect(() => {
+    if (!stay || !locationLayout.current || typeof ResizeObserver === 'undefined') return;
+    const update = () => { const width = locationLayout.current?.clientWidth; if (width) setCompactMap(width <= 720); };
+    update(); const observer = new ResizeObserver(update); observer.observe(locationLayout.current);
+    return () => observer.disconnect();
+  }, [stay, active]);
   const importIntent = useRef(null);
   const importIntentKey = `${planId}:${mode}:${importRequest}`;
   if (importIntent.current?.key !== importIntentKey) importIntent.current = { key: importIntentKey, revision: workspace.state.revision };
@@ -390,7 +407,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
   const savedDates = initialData?.essentials?.dates;
   const appliedTravelers = applied && (stay ? applied.rooms.reduce((n, room) => n + room.adults + room.children_ages.length, 0) : applied.adults + applied.children_ages.length + applied.infant_ages.length);
   const exploratory = applied && (savedDates?.start && (savedDates.start !== appliedStart || savedDates.end !== appliedEnd) || initialData?.essentials?.travelers && initialData.essentials.travelers !== appliedTravelers);
-  function editSearch() { form.current?.querySelector('input')?.focus(); form.current?.scrollIntoView?.({ block: 'start' }); }
+  function editSearch() { setSearchExpanded(true); requestAnimationFrame(() => { form.current?.querySelector('input')?.focus(); form.current?.scrollIntoView?.({ block: 'nearest' }); }); }
   function openDetail(item) {
     if (imported && (importReason || travelState(snapshot, initialData))) { setImportClock(Date.now()); return; }
     const token = !stay && workspace.getCheckoutToken({ search_id: snapshot.search_id, option_id: item.id, room_id: null });
@@ -498,15 +515,50 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
     airline,
   });
   const currentPage = Math.min(page, Math.max(1, Math.ceil(results.length / PAGE_SIZE)));
+  const pageResults = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const inspectedHotel = stay && active && inspection?.searchId === snapshot?.search_id ? pageResults.find(item => item.id === inspection.optionId) : null;
+  function inspectHotel(id, source = 'card') {
+    if (!id) { setInspection(null); return; }
+    if (!pageResults.some(item => item.id === id)) return;
+    setInspectionNotice(null);
+    setInspection({ searchId: snapshot.search_id, optionId: id, sequence: ++inspectionSequence.current, source });
+    setBrowsePane(source === 'card' ? 'map' : 'results');
+  }
+  useEffect(() => {
+    if (inspection && !inspectedHotel) setInspection(null);
+  }, [inspectedHotel?.id, inspection, snapshot?.search_id, active]);
+  useEffect(() => {
+    if (!stay || !active || !inspectionRequest || handledInspection.current === inspectionRequest) return;
+    handledInspection.current = inspectionRequest;
+    const entry = comparisonEntry(snapshot, inspectionRequest.reference);
+    if (!entry || unavailable) return;
+    const index = results.findIndex(item => item.id === entry.item.id);
+    if (index < 0) { setInspectionNotice(entry); return; }
+    setInspectionNotice(null);
+    const targetPage = Math.floor(index / PAGE_SIZE) + 1;
+    if (targetPage !== currentPage) setPage(targetPage);
+    setInspection({ searchId: snapshot.search_id, optionId: entry.item.id, sequence: ++inspectionSequence.current, source: 'chat' });
+    setBrowsePane('results');
+  }, [inspectionRequest, snapshot?.search_id, stay, active]);
+  useEffect(() => {
+    if (!inspectedHotel) return;
+    if (compactMap && browsePane === 'map') { locationSidebar.current?.focus({ preventScroll: true }); return; }
+    const card = cardElements.current.get(inspectedHotel.id);
+    card?.scrollIntoView?.({ block: 'nearest', behavior: 'instant' });
+    if (inspection.source !== 'card') card?.focus({ preventScroll: true });
+  }, [inspectedHotel?.id, inspection?.sequence, compactMap, browsePane]);
+  useEffect(() => { setInspectionNotice(null); }, [snapshot?.search_id, planId]);
   function changeResultsPage(next) {
+    setInspection(null);
     setPage(next);
     resultsHeading.current?.focus();
     resultsHeading.current?.scrollIntoView?.({ behavior: "instant", block: "start" });
   }
+  const SearchFields = stay ? 'details' : 'div';
   const paging = <Pagination page={currentPage} total={results.length} onChange={changeResultsPage} label="results pages" />;
   return (
     <section
-      className="travel-search"
+      className={`travel-search ${stay ? `stay-search ${snapshot ? 'has-results' : ''}` : ''}`}
       hidden={!active}
       aria-label={stay ? "Accommodation search" : "Flight search"}
     >
@@ -530,13 +582,16 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       </section>}
       {!stay && !initialData?.flights?.mockBooking && readFlightReceipt(planId) && <button type="button" onClick={() => onFlightCheckout?.({ recoveryToken: readFlightReceipt(planId) })}>Resume flight checkout</button>}
       {stay && !initialData?.accommodation?.mockBooking && readStayReceipt(planId) && <button type="button" onClick={() => onStayCheckout?.({ recoveryToken: readStayReceipt(planId) })}>Resume stay checkout</button>}
+      <SearchFields className={stay ? 'stay-search-settings' : 'flight-search-settings'} open={stay ? searchExpanded : undefined} onToggle={event => { if (stay) setSearchExpanded(event.currentTarget.open); }}>
+        {stay && <summary>Search details{snapshot && ` · ${city} · ${start} – ${end}`}</summary>}
       <form
         ref={form}
         className="travel-form"
         onSubmit={search}
-        onInvalid={(event) =>
-          event.target.closest("details")?.setAttribute("open", "")
-        }
+        onInvalid={event => {
+          if (stay) { setSearchExpanded(true); form.current?.closest('.stay-search-settings')?.setAttribute('open', ''); }
+          event.target.closest("details")?.setAttribute("open", "");
+        }}
       >
         <p className="travel-defaults-hint">Start with your saved trip details. You can change any field before searching.</p>
         <div className="travel-main-fields">
@@ -704,6 +759,7 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           </details>
         ) : null}
       </form>
+      </SearchFields>
       {workspace.state.draftDirty && snapshot && <p className="travel-notice">Your edited fields apply to the next search. Results below still use the applied search.</p>}
       {exploratory && <p className="travel-notice">Exploratory search · dates or travelers differ from your saved trip. Your trip is unchanged.</p>}
       {loading && (
@@ -727,10 +783,12 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
           <button type="button" onClick={() => form.current?.requestSubmit()}>Retry search</button>
         </p>
       )}
-      <div className={stay ? 'stay-location-layout' : undefined}>
-        {stay && <aside className="stay-location-sidebar"><StayLocationFilters value={stayLocation} onChange={setStayLocation} places={initialData?.map?.pins || []} hotels={results} mentions={mapMentions} destination={city} country={country} planId={planId} active={active} loading={loading} dirty={workspace.state.draftDirty} onApply={() => form.current?.requestSubmit()} onExpired={onExpired}/>
+      {stay && <nav className="stay-browse-tabs" aria-label="Accommodation map and results"><button type="button" aria-pressed={browsePane === 'results'} onClick={() => setBrowsePane('results')}>Hotel results</button><button type="button" aria-pressed={browsePane === 'map'} onClick={() => setBrowsePane('map')}>Map & places</button></nav>}
+      {inspectionNotice && <p className="travel-notice" role="status">This hotel is hidden by your current filters or dismissed results. <button type="button" onClick={() => workspace.dispatch({ type: 'details', value: inspectionNotice })}>View referenced hotel details</button><button type="button" onClick={() => setInspectionNotice(null)}>Dismiss notice</button></p>}
+      <div ref={locationLayout} className={stay ? `stay-location-layout stay-browse-${browsePane}` : undefined}>
+        {stay && <aside ref={locationSidebar} className="stay-location-sidebar" tabIndex={0} aria-label="Hotel map and location filters"><StayLocationFilters value={stayLocation} onChange={setStayLocation} places={initialData?.map?.pins || []} hotels={pageResults.map((item, index) => ({ ...item, mapNumber: (currentPage - 1) * PAGE_SIZE + index + 1 }))} selectedHotelId={inspectedHotel?.id || null} selectionRequest={inspection?.sequence || 0} onHotelInspect={inspectHotel} mentions={mapMentions} destination={city} country={country} planId={planId} active={active} loading={loading} dirty={workspace.state.draftDirty} onApply={() => form.current?.requestSubmit()} onExpired={onExpired}/>
         {snapshot && resultFilters}</aside>}
-        <div className={stay ? 'stay-location-results' : undefined}>
+        <div className={stay ? 'stay-location-results' : undefined} tabIndex={stay ? 0 : undefined} role={stay ? 'region' : undefined} aria-label={stay ? 'Hotel results' : undefined}>
       {unavailable ? <p role="status" className="travel-notice">{unavailable}</p> : snapshot ? (
         <>
           <div className="travel-results-meta">
@@ -814,9 +872,15 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                   <button type="button" onClick={editSearch}>Edit search</button>
                 </div>
               )}
-              {results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((item) => (
+              {pageResults.map((item, index) => (
                 <article
-                  className={`travel-result ${stay ? "stay" : "flight"}`}
+                  className={`travel-result ${stay ? "stay" : "flight"} ${inspectedHotel?.id === item.id ? 'is-inspected' : ''}`}
+                  ref={node => { if (node) cardElements.current.set(item.id, node); else cardElements.current.delete(item.id); }}
+                  tabIndex={stay ? -1 : undefined}
+                  aria-label={stay ? item.name : undefined}
+                  onClick={stay ? event => {
+                    if (!event.target.closest('button,a,input,label,select,textarea,summary,details') && !window.getSelection()?.toString()) inspectHotel(item.id);
+                  } : undefined}
                   data-option-id={item.id}
                   key={item.id}
                 >
@@ -829,7 +893,8 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
                             ? `${item.stars} STAR PROPERTY`
                             : "YOUR STAY"}
                         </small>
-                        <h3>{item.name}</h3>
+                        <h3><span className="stay-hotel-number" aria-hidden="true">{(currentPage - 1) * PAGE_SIZE + index + 1}</span> <button type="button" className="stay-hotel-inspect" onClick={() => inspectHotel(item.id)} aria-pressed={inspectedHotel?.id === item.id}>{item.name}</button></h3>
+                        {hasCoordinates(item) ? <button type="button" className="ds-text-button stay-show-map" onClick={() => inspectHotel(item.id)}>Show on map</button> : <small>Map location unavailable</small>}
                         {unknownFilterFacts(item, { stay, ...view }).length > 0 && <p className="travel-note">Not confirmed for your filters: {unknownFilterFacts(item, { stay, ...view }).join(', ')}.</p>}
                         <p>{item.address || "Address unavailable"}</p>
                         <small>{locationSummary(item)}</small>
@@ -967,9 +1032,10 @@ function ControlledTravelSearch({ planId, mode, active, initialData, onExpired, 
       {stay && <p className="travel-note">
         Search results are not saved to your Plan. Sandbox flights and stays support test-only mock checkout. For flight testing, choose Nuitée Air when available.
       </p>}
+      <TravelComparison entries={comparison} currentSearchId={snapshot?.search_id} onChoose={onChoose} onShortlist={onShortlist} choiceDisabled={choiceDisabled} onClose={() => { setComparison([]); comparisonRun.current++; setDiscussing(false); }} onDetails={entry => workspace.dispatch({ type: 'details', value: entry })} onDiscuss={onCompare ? () => discussComparison(comparison) : null} discussionError={comparisonError} discussing={discussing}/>
         </div>
       </div>
-      <TravelComparison entries={comparison} currentSearchId={snapshot?.search_id} onChoose={onChoose} onShortlist={onShortlist} choiceDisabled={choiceDisabled} onClose={() => { setComparison([]); comparisonRun.current++; setDiscussing(false); }} onDetails={entry => workspace.dispatch({ type: 'details', value: entry })} onDiscuss={onCompare ? () => discussComparison(comparison) : null} discussionError={comparisonError} discussing={discussing}/>
+
       {detail && (stay ? (
         <StayDetails
           key={`${detailsReference.snapshot.search_id}:${detail.id}:${detailsReference.reference?.room_id || ''}:${Boolean(detailsReference.historical)}`}

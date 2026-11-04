@@ -591,3 +591,18 @@ test('an explicitly submitted stay draft accepts the matching agent update but l
   const edited = travelWorkspaceReducer(submitted, { type: 'draft', field: 'stayLocation', value: { saved_place_ids: ['newer'], reference_place_ids: [], matching: 'prefer_nearby', radius_m: 2000, anchors: [] } });
   expect(travelWorkspaceReducer(edited, { type: 'workspace-update', update: update() })).toBe(edited);
 });
+
+test('current chat map reference reveals its hotel across pages without opening a room or making requests', async () => {
+  const snapshot = workspaceSnapshot();
+  snapshot.results = Array.from({ length: 12 }, (_, i) => ({ ...snapshot.results[0], id: `hotel-${i}`, name: `Stay ${i}`, latitude: 38.7+i/1000, longitude: -9.1 }));
+  snapshot.returned_count = 12; snapshot.preview_ids = snapshot.results.slice(0,3).map(h => h.id);
+  chat.messages = [{ message_id: 'current', comparison: { options: [{ id: 'chat-hotel', title: 'Stay 11', reference: { search_id: snapshot.search_id, option_id: 'hotel-11', room_id: null } }] } }];
+  const api = { prepareTravelChoice: vi.fn(), confirmTravelChoice: vi.fn() };
+  const view = render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData} importedSnapshot={snapshot}/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Show Stay 11 on map' }));
+  expect(await screen.findByRole('heading', { name: 'Stay 11' })).toBeTruthy();
+  expect(view.container.querySelector('.travel-result.is-inspected').dataset.optionId).toBe('hotel-11');
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(workspaceRequest).not.toHaveBeenCalled();
+  expect(api.prepareTravelChoice).not.toHaveBeenCalled(); expect(api.confirmTravelChoice).not.toHaveBeenCalled();
+});

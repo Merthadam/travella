@@ -8,7 +8,7 @@ import { draftFromCriteria, initialWorkspace, travelWorkspaceReducer } from './u
 
 vi.mock('../components/CanvasDestinationMap', async () => {
   const { createContext } = await import('react');
-  return { CanvasMapContext: createContext({}), CanvasDestinationMap: ({ places, onSelect }) => <div>{places.map(p => <button key={p.id} onClick={() => onSelect(p.id)}>{p.name}</button>)}</div> };
+  return { CanvasMapContext: createContext({}), CanvasDestinationMap: ({ places, onSelect }) => <div>{places.map(p => <button key={p.id} data-muted={p.muted || undefined} onClick={() => onSelect(p.id)}>{p.name}</button>)}</div> };
 });
 vi.mock('./StayDestination', () => ({ StayDestination: () => null }));
 afterEach(cleanup);
@@ -57,6 +57,21 @@ test('unselected saved places are available directly on the map', () => {
   expect(changed).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Include in search' }));
   expect(changed.mock.calls[0][0].saved_place_ids).toEqual(['one']);
+});
+
+test('hotel inspection fades only other hotels and restores pins without changing search preferences', () => {
+  const changed = vi.fn(), apply = vi.fn();
+  const hotels = [{ id: 'h1', name: 'First hotel', latitude: 1, longitude: 2, mapNumber: 1 }, { id: 'h2', name: 'Second hotel', latitude: 2, longitude: 3, mapNumber: 2 }];
+  function Harness() { const [selected, setSelected] = useState(null); return <StayLocationFilters hotels={hotels} places={places} selectedHotelId={selected} onHotelInspect={setSelected} onChange={changed} onApply={apply}/>; }
+  render(<Harness/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Hotel: 1. First hotel' }));
+  expect(screen.getByRole('button', { name: 'Hotel: 2. Second hotel' }).dataset.muted).toBe('true');
+  expect(screen.getByRole('button', { name: 'Hotel: 1. First hotel' }).dataset.muted).toBeUndefined();
+  expect(screen.getByRole('button', { name: 'Saved place: Museum' }).dataset.muted).toBeUndefined();
+  expect(screen.getByRole('button', { name: 'Saved place: Market' }).dataset.muted).toBeUndefined();
+  expect(changed).not.toHaveBeenCalled(); expect(apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Show all hotel pins' }));
+  expect(screen.getByRole('button', { name: 'Hotel: 2. Second hotel' }).dataset.muted).toBeUndefined();
 });
 
 

@@ -6,7 +6,7 @@ import { emptyStayLocation, hasCoordinates, locationSummary, togglePlace } from 
 import './stay-location.css';
 
 const categoryNames = { activity: 'Activities', food: 'Food & drink', other: 'Other places', stay: 'Saved stays', airport: 'Airports' };
-export function StayLocationFilters({ value = emptyStayLocation(), onChange, places = [], hotels = [], mentions = [], destination, country, planId, active, loading, dirty, onApply, onExpired }) {
+export function StayLocationFilters({ value = emptyStayLocation(), onChange, places = [], hotels = [], mentions = [], destination, country, planId, active, loading, dirty, onApply, onExpired, selectedHotelId = null, selectionRequest = 0, onHotelInspect }) {
   const [query, setQuery] = useState(''), [inspected, setInspected] = useState(null);
   const [showMentions, setShowMentions] = useState(false), [showHotels, setShowHotels] = useState(true);
   const [lookupError, setLookupError] = useState(''), [resolving, setResolving] = useState(false);
@@ -29,8 +29,17 @@ export function StayLocationFilters({ value = emptyStayLocation(), onChange, pla
     if (showHotels) for (const hotel of hotels) map.set(`hotel-${hotel.id}`, { ...hotel, mapId: `hotel-${hotel.id}`, layer: 'Hotel', category: 'stay' });
     return [...map.values()];
   }, [JSON.stringify(selected), JSON.stringify(references), mentions, places, hotels, showMentions, showHotels]);
-  const pins = useMemo(() => layers.filter(hasCoordinates).map(p => ({ id: p.mapId, name: `${p.layer}: ${p.name}`, category: p.category || 'activity', position: { lat: p.latitude, lng: p.longitude } })), [layers]);
-  const detail = layers.find(p => p.mapId === inspected);
+  const hotelSelection = hotels.find(h => h.id === selectedHotelId);
+  const inspectedId = hotelSelection ? `hotel-${hotelSelection.id}` : inspected;
+  const pins = useMemo(() => layers.filter(hasCoordinates).map(p => ({ id: p.mapId, name: `${p.layer}: ${p.mapNumber ? `${p.mapNumber}. ` : ''}${p.name}`, category: p.category || 'activity', position: { lat: p.latitude, lng: p.longitude }, ...(p.layer === 'Hotel' ? { markerLabel: String(p.mapNumber || ''), muted: Boolean(hotelSelection && hasCoordinates(hotelSelection) && p.id !== selectedHotelId) } : {}) })), [layers, hotelSelection, selectedHotelId]);
+  const detail = layers.find(p => p.mapId === inspectedId);
+  useEffect(() => { if (selectedHotelId) { setShowHotels(true); setInspected(null); } }, [selectedHotelId, selectionRequest]);
+  function inspect(id) {
+    const hotel = hotels.find(h => `hotel-${h.id}` === id);
+    if (hotel && onHotelInspect) { setInspected(null); onHotelInspect(hotel.id, 'map'); }
+    else { onHotelInspect?.(null); setInspected(id); }
+  }
+  function closeDetails() { setInspected(null); onHotelInspect?.(null); }
   const count = ids.length + value.reference_place_ids.length;
   const missing = ids.filter(id => !places.some(p => p.id === id));
   function toggle(id) { onChange(togglePlace(value, 'saved_place_ids', id)); }
@@ -57,10 +66,11 @@ export function StayLocationFilters({ value = emptyStayLocation(), onChange, pla
   return <section className="stay-location" aria-label="Hotel location preferences">
     <div className="stay-location-heading"><h3>Stay near what matters</h3>{count > 0 && <button type="button" className="ds-text-button" onClick={() => onChange(emptyStayLocation())}>Clear places</button>}</div>
     <section className="stay-location-map" aria-label="Accommodation area map"><h4>Your places & stays</h4>{dirty && hotels.length > 0 && <small>Draft places with your previous search results.</small>}
-      <div className="stay-map-layers"><label><input type="checkbox" checked={showHotels} onChange={e => setShowHotels(e.target.checked)}/>Hotels</label>{mentions.length > 0 && <label><input type="checkbox" checked={showMentions} onChange={e => setShowMentions(e.target.checked)}/>Mentioned in chat ({mentions.length})</label>}</div>
-      <CanvasMapContext.Provider value={{}}><CanvasDestinationMap destination={destination} final places={pins} selectedId={inspected} onSelect={setInspected} active={active}/></CanvasMapContext.Provider>
-      <details><summary>Inspect map places ({layers.length})</summary>{layers.map(p => <button type="button" key={p.mapId} className="ds-text-button stay-map-list-item" onClick={() => setInspected(p.mapId)}>{p.name} · {p.layer}{!hasCoordinates(p) && ' · location unavailable'}</button>)}</details>
-      {detail && <div className="stay-map-detail"><strong>{detail.name}</strong><small>{detail.layer}{!hasCoordinates(detail) && ' · location unavailable'}</small>{detail.layer === 'Hotel' ? <p>{locationSummary(detail)}</p> : <button type="button" className="ds-text-button" onClick={() => detail.source === 'saved_place' ? toggle(detail.id) : toggleReference(detail.id)}>{(detail.source === 'saved_place' ? ids : value.reference_place_ids).includes(detail.id) ? 'Remove from search' : 'Include in search'}</button>}<button type="button" className="ds-text-button" onClick={() => setInspected(null)}>Close place details</button></div>}
+      <div className="stay-map-layers"><label><input type="checkbox" checked={showHotels} onChange={e => { setShowHotels(e.target.checked); if (!e.target.checked) closeDetails(); }}/>Hotels</label>{mentions.length > 0 && <label><input type="checkbox" checked={showMentions} onChange={e => setShowMentions(e.target.checked)}/>Mentioned in chat ({mentions.length})</label>}</div>
+      <CanvasMapContext.Provider value={{}}><CanvasDestinationMap destination={destination} final places={pins} selectedId={inspectedId} selectionRequest={selectionRequest} onSelect={inspect} active={active}/></CanvasMapContext.Provider>
+      {hotels.length > 0 && <small>Numbered hotels match this results page.{hotelSelection && ' Other hotels are faded; your places stay visible.'}</small>}
+      <details><summary>Inspect map places ({layers.length})</summary>{layers.map(p => <button type="button" key={p.mapId} className="ds-text-button stay-map-list-item" onClick={() => inspect(p.mapId)}>{p.name} · {p.layer}{!hasCoordinates(p) && ' · location unavailable'}</button>)}</details>
+      {detail && <div className="stay-map-detail"><strong>{detail.name}</strong><small>{detail.layer}{!hasCoordinates(detail) && ' · location unavailable'}</small>{detail.layer === 'Hotel' ? <><p>{locationSummary(detail)}</p>{onHotelInspect && <button type="button" className="ds-text-button" onClick={() => onHotelInspect(detail.id, 'map')}>Go to hotel card</button>}</> : <button type="button" className="ds-text-button" onClick={() => detail.source === 'saved_place' ? toggle(detail.id) : toggleReference(detail.id)}>{(detail.source === 'saved_place' ? ids : value.reference_place_ids).includes(detail.id) ? 'Remove from search' : 'Include in search'}</button>}<button type="button" className="ds-text-button" onClick={closeDetails}>{detail.layer === 'Hotel' ? 'Show all hotel pins' : 'Close place details'}</button></div>}
     </section>
     <p>Choose places on the map or by category. Ask Stay chat to search with your selection, or apply it here.</p>
     <details open><summary>Your saved places {ids.length > 0 && `· ${ids.length} selected`}</summary>

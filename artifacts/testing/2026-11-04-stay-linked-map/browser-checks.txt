@@ -1,0 +1,33 @@
+PASS AG-UI populated ten hotel cards on first page
+PASS Search fields collapse after successful agent search
+PASS Reload restores results without persisting hotel inspection
+PASS Map contains only current page hotels
+PASS Selected hotel opaque; other nine hotels 25%; all three places opaque
+PASS Real map pin highlights matching hotel card
+PASS Map-selected card is visible inside its result pane
+PASS Result scrolling leaves map sidebar and outer pane fixed
+PASS Keyboard result scrolling keeps map in place
+PASS Clearing inspection restores hotel opacity
+PASS Inspecting an activity does not fade activity pins or edit search
+PASS Second results page supplies only its numbered pins
+PASS Current-search chat reference reveals and highlights its hotel
+PASS Chat reference highlights the same map hotel
+PASS Budget filter produces honest empty results
+PASS Empty results clear hotel pins
+PASS Reset filters restores first result page
+PASS Mobile card switches to map
+PASS Mobile fades only other hotels
+PASS Mobile has no horizontal overflow
+PASS Dark-theme active map tab is visually distinct
+PASS Mobile pin switches to matching result
+PASS Mobile result retains matching highlight
+Emulating viewport: {"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"isLandscape":false,"width":1440,"height":1100}
+Emulating color scheme: light
+## Console messages
+Showing 1-2 of 2 (Page 1 of 1).
+msgid=348 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)
+msgid=349 [warn] <gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener. (1 args)
+Failed network requests: 0
+Browser walkthrough complete.
+
+Supplemental desktop check (app retained its dark theme despite light OS emulation): native room dialog opens, displays provider room choices, and closes back to results. Initial test selector expected role=dialog rather than native dialog; corrected selector passed. No booking or durable choice performed.

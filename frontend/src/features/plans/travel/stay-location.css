@@ -2,3 +2,43 @@
 @container(max-width:720px){.stay-location-layout{grid-template-columns:1fr}.stay-location-sidebar{display:grid;grid-template-columns:1fr}.stay-location-map .canvas-map-frame{height:260px}.stay-location-sidebar>.travel-filters{display:flex}.stay-location-results .travel-result .canvas-travel-photo{width:100%;height:160px}.stay-location-results .travel-result-body{width:100%}}
 /* Keep the compact sidebar labels horizontal inside the shared search form. */
 .travel-search .stay-location label{flex-direction:row;justify-content:flex-start;text-align:left;font-size:13px;font-weight:400;margin:8px 0;gap:8px}.travel-search .stay-location>label{display:block;font-size:12px;font-weight:600}.travel-search .stay-location legend label{font-weight:600}.travel-search .stay-location fieldset{display:block;width:100%;min-width:0}.travel-search .stay-location input[type=checkbox]{margin:0;padding:0;width:16px;height:16px;min-height:16px}.travel-search .stay-location .ds-text-button{background:transparent;border:0;min-height:30px;padding:0 3px;color:var(--ds-green);font-size:12px}.travel-search .stay-location-heading .ds-text-button{flex:none;white-space:nowrap}.travel-search .stay-location-heading h3{font-size:15px;line-height:1.4}.travel-search .stay-location select{margin:7px 0 0}.travel-search .stay-location-map{border-top:0;margin-top:14px;padding-top:0;margin-bottom:18px}.travel-search .stay-location-map h4{font-size:12px;color:var(--ds-muted);font-weight:400}.travel-search .stay-map-layers label{font-size:12px}.travel-search .stay-location .travel-airport label{display:block}.travel-search .stay-location-results .travel-filter-chips>span{font-size:12px;border:1px solid var(--ds-line);border-radius:20px;padding:5px 10px;background:var(--ds-soft);margin-bottom:10px}.travel-search .stay-location .ds-button.primary{background:var(--ds-green);color:var(--ds-surface)}.travel-search .stay-location p{font-size:12px}.travel-search .stay-location details{padding:10px 0}.travel-search .stay-location legend{font-size:12px}.stay-distance-details{font-size:12px;margin-top:8px}.stay-distance-details summary{cursor:pointer;color:var(--ds-green)}.stay-distance-details ul{padding-left:16px}.stay-distance-details li{margin:6px 0}
+
+/* Linked map and results: shared inspection, separate desktop scroll areas. */
+.stay-search-settings { border-block:1px solid var(--ds-line); margin-bottom:14px; flex-shrink:0; }
+.stay-search-settings>summary { cursor:pointer; padding:12px 0; color:var(--ds-green); font-size:13px; overflow-wrap:anywhere; }
+.stay-search-settings[open]>.travel-form { margin:0; padding:12px 0; }
+.stay-browse-tabs { display:none; }
+.stay-location-layout { grid-template-columns:260px minmax(0,1fr); }
+.stay-location-map .canvas-map-frame { height:290px; }
+.stay-location-results .travel-result.is-inspected { border:2px solid var(--ds-green); box-shadow:0 0 0 2px color-mix(in srgb,var(--ds-green) 12%,transparent); }
+.stay-location-results .travel-result { scroll-margin-block:12px; }
+.stay-hotel-number { display:inline-grid; place-items:center; min-width:24px; height:24px; padding:0 4px; border-radius:5px; background:var(--ds-green); color:var(--ds-surface); font-size:12px; vertical-align:middle; }
+:root .travel-search .travel-result .stay-hotel-inspect { background:transparent; border:0; border-radius:0; color:inherit; font:inherit; text-align:left; padding:0; min-height:0; cursor:pointer; }
+.travel-search .stay-show-map { font-size:12px; padding:3px 0; min-height:30px; color:var(--ds-green); }
+.stay-location-sidebar:focus-visible,.stay-location-results:focus-visible { outline:2px solid var(--ds-green); outline-offset:-2px; }
+.travel-options-pane:has(>.stay-search.has-results) { display:flex; flex-direction:column; overflow:hidden; padding-bottom:16px; min-height:0; }
+.travel-options-pane:has(>.stay-search.has-results)>:not(.stay-search) { flex-shrink:0; }
+.travel-options-pane>.stay-search.has-results { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
+.travel-options-pane>.stay-search.has-results>.travel-heading { margin-bottom:10px; flex:none; }
+.travel-options-pane>.stay-search.has-results>.travel-heading h2 { font-size:24px; }
+.travel-options-pane>.stay-search.has-results>.travel-heading p { display:none; }
+.travel-options-pane>.stay-search.has-results>.stay-search-settings[open] { max-height:40dvh; overflow:auto; }
+.travel-options-pane>.stay-search.has-results>.travel-notice,.travel-options-pane>.stay-search.has-results>.travel-error { flex:none; max-height:15dvh; overflow:auto; }
+.travel-options-pane>.stay-search.has-results>.stay-location-layout { flex:1; min-height:0; margin-top:0; align-items:stretch; }
+.travel-options-pane>.stay-search.has-results .stay-location-sidebar,.travel-options-pane>.stay-search.has-results .stay-location-results { overflow-y:auto; overscroll-behavior:contain; min-height:0; scrollbar-gutter:stable; }
+.travel-options-pane>.stay-search.has-results .stay-location-sidebar { padding-right:3px; }
+.travel-options-pane>.stay-search.has-results .stay-location-results { padding:2px 4px; }
+@container(max-width:720px) {
+  .stay-location-layout { grid-template-columns:minmax(0,1fr); }
+  .stay-browse-tabs { display:flex; gap:8px; padding:0 0 12px; flex:none; }
+  .travel-search .stay-browse-tabs button { flex:1; padding:10px; border:1px solid var(--ds-line); border-radius:8px; background:var(--ds-surface); color:var(--ds-ink); font-size:12px; }
+  :root .travel-search .stay-browse-tabs button[aria-pressed=true] { background:var(--ds-green); color:var(--ds-surface); border-color:var(--ds-green); }
+  .stay-browse-results>.stay-location-sidebar,.stay-browse-map>.stay-location-results { display:none; }
+  .stay-location-layout .stay-location-sidebar { display:block; }
+  .stay-location-layout.stay-browse-results>.stay-location-sidebar { display:none; }
+  .stay-location-map .canvas-map-frame { height:230px; }
+  .stay-location-results .travel-result .canvas-travel-photo { width:100%; height:160px; }
+  .stay-search-settings>summary { font-size:12px; }
+}
+.travel-options-pane:has(>.stay-search.has-results)>.travel-saved-options,
+.travel-options-pane:has(>.stay-search.has-results)>section[aria-label='Earlier research details'] { max-height:30dvh; overflow:auto; }

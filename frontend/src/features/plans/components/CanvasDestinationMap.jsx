@@ -27,7 +27,7 @@ async function geocode(request) {
   } catch (error) { if (error.code === 'ZERO_RESULTS') return []; throw error; }
 }
 
-export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect, fitRequest = 0, onShowAll, active = true, editing = false }) {
+export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect, fitRequest = 0, selectionRequest = 0, onShowAll, active = true, editing = false }) {
   const { preview, destinationHint, onClearPreview, onAddPreview, disabled, viewStateKey } = useContext(CanvasMapContext);
   const { theme } = useAppearance();
   const canvas = useRef(null);
@@ -138,10 +138,13 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     for (const place of places) {
       const category = categories[place.category];
       const content = document.createElement('span');
-      content.className = `canvas-map-pin ${place.id === selectedId ? 'selected' : ''}`;
+      content.className = `canvas-map-pin ${place.id === selectedId ? 'selected' : ''} ${place.muted ? 'is-muted' : ''}`;
+      content.dataset.placeId = place.id;
       content.style.setProperty('--category', category.color);
-      content.append(pinIcon());
-      const marker = new runtime.Marker({ map: runtime.map, position: place.position, title: `Inspect ${place.name}`, content });
+      if (place.markerLabel) {
+        const label = document.createElement('span'); label.className = 'canvas-map-pin-label'; label.textContent = place.markerLabel; content.append(label);
+      } else content.append(pinIcon());
+      const marker = new runtime.Marker({ map: runtime.map, position: place.position, title: `Inspect ${place.name}`, content, zIndex: place.id === selectedId ? 1000 : place.muted ? 0 : 1 });
       listeners.push(marker.addListener('click', () => selection.current(place.id))); markers.push(marker);
     }
     return () => { listeners.forEach(listener => listener.remove()); markers.forEach(marker => { marker.map = null; }); };
@@ -165,7 +168,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     if (restored.current && restoredSelection.current === selectedId) return;
     restoredSelection.current = undefined;
     if (runtime && active && selectedPlace && !preview) runtime.map.panTo(selectedPlace.position);
-  }, [runtime, active, selectedId, selectedPlace?.position.lat, selectedPlace?.position.lng, preview]);
+  }, [runtime, active, selectedId, selectedPlace?.position.lat, selectedPlace?.position.lng, preview, selectionRequest]);
 
   function showAll() {
     if (!runtime || !places.length) return;

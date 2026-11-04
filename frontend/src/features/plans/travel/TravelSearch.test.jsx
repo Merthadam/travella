@@ -1,5 +1,5 @@
 // The real Maps adapter is exercised by authenticated Chrome verification.
-vi.mock('../components/CanvasDestinationMap', async () => { const { createContext } = await import('react'); return { CanvasMapContext: createContext({}), CanvasDestinationMap: () => null }; });
+vi.mock('../components/CanvasDestinationMap', async () => { const { createContext } = await import('react'); return { CanvasMapContext: createContext({}), CanvasDestinationMap: ({ places, selectedId, onSelect }) => <div aria-label="Test map">{places.map(p => <button key={p.id} data-muted={p.muted || undefined} aria-pressed={p.id === selectedId} onClick={() => onSelect(p.id)}>Map {p.name}</button>)}</div> }; });
 import React from "react";
 import { beforeEach, afterEach, expect, test, vi } from "vitest";
 import {
@@ -598,4 +598,46 @@ test('delayed Trip import cannot replace a manual search made after its navigati
   expect(screen.queryByRole('heading', { name: 'import-1' })).toBeNull();
   view.rerender(<TravelSearch {...props} importRequest={2} importedSnapshot={imported()}/>);
   expect(screen.getByRole('heading', { name: 'import-1' })).toBeTruthy();
+});
+
+test('hotel pins and cards share search-scoped inspection without search or choice mutations', async () => {
+  const data = imported('accommodation');
+  data.results = Array.from({ length: 12 }, (_, i) => ({ ...data.results[0], id: `hotel-${i+1}`, name: `Linked hotel ${i+1}`, latitude: 38.71 + i/1000, longitude: -9.14 }));
+  data.returned_count = 12; data.preview_ids = data.results.slice(0,3).map(h => h.id);
+  const onChoose = vi.fn(), onShortlist = vi.fn();
+  const view = render(<TravelSearch {...props} importedSnapshot={data} onChoose={onChoose} onShortlist={onShortlist}/>);
+  fireEvent.click(await screen.findByRole('article', { name: 'Linked hotel 1' }));
+  expect(view.container.querySelector('.travel-result.is-inspected').dataset.optionId).toBe('hotel-1');
+  fireEvent.click(await screen.findByRole('button', { name: 'Linked hotel 2' }));
+  expect(screen.getByRole('button', { name: 'Map Hotel: 2. Linked hotel 2' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Map Hotel: 1. Linked hotel 1' }).dataset.muted).toBe('true');
+  fireEvent.click(screen.getByRole('button', { name: 'Map Hotel: 3. Linked hotel 3' }));
+  expect(view.container.querySelector('.travel-result.is-inspected').dataset.optionId).toBe('hotel-3');
+  fireEvent.click(screen.getAllByRole('checkbox', { name: 'Compare' })[0]);
+  expect(view.container.querySelector('.travel-result.is-inspected').dataset.optionId).toBe('hotel-3');
+  fireEvent.click(screen.getAllByRole('button', { name: 'Next results pages' })[0]);
+  expect(view.container.querySelector('.travel-result.is-inspected')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Map Hotel: 3. Linked hotel 3' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Map Hotel: 11. Linked hotel 11' })).toBeTruthy();
+  view.rerender(<TravelSearch {...props} importedSnapshot={data} inspectionRequest={{ reference: { search_id: data.search_id, option_id: 'hotel-2', room_id: null } }}/>);
+  expect(await screen.findByRole('button', { name: 'Linked hotel 2' })).toBeTruthy();
+  expect(view.container.querySelector('.travel-result.is-inspected').dataset.optionId).toBe('hotel-2');
+  view.rerender(<TravelSearch {...props} importedSnapshot={{ ...data, search_id: 'replacement-search' }} importRequest={1}/>);
+  expect(view.container.querySelector('.travel-result.is-inspected')).toBeNull();
+  expect(onChoose).not.toHaveBeenCalled(); expect(onShortlist).not.toHaveBeenCalled();
+  expect(searchRequest).not.toHaveBeenCalled();
+});
+
+test('filtered and foreign inspection requests cannot silently replace filters or select an unrelated hotel', async () => {
+  const data = imported('accommodation'); data.results[0].latitude = 38.7; data.results[0].longitude = -9.1;
+  const view = render(<TravelSearch {...props} importedSnapshot={data}/>);
+  fireEvent.change(screen.getByLabelText('Maximum total (USD)'), { target: { value: '0' } });
+  view.rerender(<TravelSearch {...props} importedSnapshot={data} inspectionRequest={{ reference: { search_id: data.search_id, option_id: data.results[0].id, room_id: null } }}/>);
+  expect(await screen.findByText(/This hotel is hidden by your current filters/)).toBeTruthy();
+  expect(screen.getByLabelText('Maximum total (USD)').value).toBe('0');
+  expect(view.container.querySelector('.travel-result.is-inspected')).toBeNull();
+  fireEvent.click(screen.getAllByRole('button', { name: 'Reset filters' })[0]);
+  view.rerender(<TravelSearch {...props} importedSnapshot={data} inspectionRequest={{ reference: { search_id: 'other-search', option_id: data.results[0].id, room_id: null } }}/>);
+  expect(view.container.querySelector('.travel-result.is-inspected')).toBeNull();
+  expect(searchRequest).not.toHaveBeenCalled();
 });
