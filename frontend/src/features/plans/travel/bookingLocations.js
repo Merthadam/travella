@@ -77,3 +77,25 @@ export function resolveExistingLocation(pins, location) {
   });
   return { exact: null, candidates };
 }
+
+// Return a complete new pin set or leave the draft untouched. Only a single,
+// same-name nearby legacy place can be associated without a separate review.
+export function mergeBookingLocations(pins, locations) {
+  if (!locations.length) return null;
+  const next = structuredClone(pins);
+  for (const location of locations) {
+    if (!location.source) return null;
+    const { exact, candidates } = resolveExistingLocation(next, location);
+    if (exact) continue;
+    const matches = candidates.filter(pin => normalized(pin.name) === normalized(location.name) && location.position &&
+      distance(pin.position, location.position) <= (location.category === 'airport' ? 3000 : 100));
+    if (matches.length === 1) {
+      matches[0].source = { ...location.source }; matches[0].category = location.category;
+    } else {
+      if (!location.position || !location.id || next.length >= 50) return null;
+      next.push({ id: location.id, source: { ...location.source }, name: location.name.slice(0, 120),
+        category: location.category, position: { ...location.position }, description: location.address.slice(0, 240) });
+    }
+  }
+  return next;
+}

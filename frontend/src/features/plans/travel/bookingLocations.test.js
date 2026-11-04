@@ -1,6 +1,6 @@
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { bookingLocationInput, resolveBookingLocations, resolveExistingLocation } from './bookingLocations';
+import { bookingLocationInput, resolveBookingLocations, resolveExistingLocation, mergeBookingLocations } from './bookingLocations';
 import { mapSchema } from '../../../design-system/schemas';
 import { travelRequest } from './travelApi';
 vi.mock('./travelApi', () => ({ travelRequest: vi.fn() }));
@@ -34,7 +34,7 @@ test('only actual destination endpoints become airport candidates, with repeated
   expect(await resolveBookingLocations('p', 'flights', { arrival: 'MXP', departure: 'MXP' })).toHaveLength(1);
   expect(await resolveBookingLocations('p', 'flights', bookingLocationInput('flights', { destination: 'MIL' }))).toEqual([]);
 });
-test('exact identity reuses edited pin; close similar legacy pins require review and distant names do not match', async () => {
+test('exact identity reuses edited pin; close similar legacy pins remain candidates and distant names do not match', async () => {
   const [location] = await resolve(hotel);
   const pin = { id: 'existing', name: hotel.name, category: 'activity', position: hotel.position, description: 'My note' };
   expect(resolveExistingLocation([pin], location)).toEqual({ exact: null, candidates: [pin] });
@@ -56,7 +56,25 @@ test('an exact saved pin remains viewable without querying unavailable hotel det
   expect(location.position).toEqual(known.position); expect(travelRequest).not.toHaveBeenCalled();
 });
 
-test('legacy receipts without property identity use manual fallback instead of an unusable association', () => {
+test('legacy receipts without property identity cannot be automatically associated', () => {
   const legacy = { id: 'old', name: hotel.name, category: 'stay', position: hotel.position };
   expect(resolveExistingLocation([legacy], { ...hotel, source: null })).toEqual({ exact: null, candidates: [] });
+});
+
+test('automatic merge reuses one exact nearby name, preserves edits and does not merge ambiguous matches', async () => {
+  const [location] = await resolve(hotel);
+  const old = { id:'google_existing',name:hotel.name,category:'stay',position:hotel.position,description:'My note' };
+  expect(mergeBookingLocations([old], [location])).toEqual([{...old,source:location.source}]);
+  expect(old.source).toBeUndefined();
+  expect(mergeBookingLocations([old,{...old,id:'another'}], [location])).toHaveLength(3);
+  const linked = {...old,source:location.source,position:{lat:10,lng:10}};
+  expect(mergeBookingLocations([linked], [location])).toEqual([linked]);
+});
+test('automatic merge leaves incomplete or full maps unchanged and deduplicates locations', async () => {
+  const [location] = await resolve(hotel);
+  expect(mergeBookingLocations([], [])).toBeNull();
+  expect(mergeBookingLocations([], [{...location,position:null}])).toBeNull();
+  const full = Array.from({length:50},(_,i)=>({id:`p${i}`,name:'Other',category:'activity',position:{lat:1,lng:2}}));
+  expect(mergeBookingLocations(full,[location])).toBeNull();
+  expect(mergeBookingLocations([], [location,location])).toHaveLength(1);
 });

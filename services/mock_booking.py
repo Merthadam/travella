@@ -76,6 +76,7 @@ def without_stay_document(snapshot):
 class MockStaySummary(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
+    mapSynced: Literal[True] | None = None
     reference: str = Field(min_length=1, max_length=100)
     hotelName: str = Field(min_length=1, max_length=160)
     checkIn: str = Field(min_length=10, max_length=10)
@@ -135,6 +136,7 @@ class FlightItinerary(BaseModel):
 
 class MockFlightSummary(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
+    mapSynced: Literal[True] | None = None
     reference: str = Field(min_length=1, max_length=100)
     origin: str = Field(pattern=r"^[A-Z]{3}$")
     destination: str = Field(pattern=r"^[A-Z]{3}$")

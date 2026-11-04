@@ -171,3 +171,18 @@ test('food previews use the same category color as saved food pins', async () =>
   await waitFor(() => expect(markers).toHaveLength(1));
   expect(markers[0].content.style.getPropertyValue('--category')).toBe(categories.food.color);
 });
+
+test('one automatically saved airport frames at a useful zoom without a competing bounds animation', async () => {
+  const setCenter = vi.fn(), setZoom = vi.fn(), fitBounds = vi.fn();
+  const place = {id:'airport',name:'Geneva Airport',category:'airport',position:{lat:46.238098,lng:6.10895}};
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  loadGoogleMaps.mockResolvedValue({maps:{},libraries:{
+    maps:{Map:class {setCenter=setCenter;setZoom=setZoom;fitBounds=fitBounds;addListener(){return {remove(){}};}getCenter(){return {toJSON:()=>place.position};}getZoom(){return 14;}}},
+    marker:{AdvancedMarkerElement:class {addListener(){return {remove(){}};}}},
+    geocoding:{Geocoder:class {async geocode(){return {results:[]};}}}
+  }});
+  render(<AppearanceProvider><CanvasDestinationMap destination="Geneva" final places={[place]} onSelect={()=>{}}/></AppearanceProvider>);
+  await waitFor(()=>expect(setCenter).toHaveBeenCalledWith(place.position));
+  expect(setZoom).toHaveBeenCalledWith(14);
+  expect(fitBounds).not.toHaveBeenCalled();
+});

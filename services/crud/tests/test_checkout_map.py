@@ -8,6 +8,7 @@ from .test_stay_reservation import reservation_payload, save
 
 def payload():
     value = reservation_payload()
+    value['snapshot']['components']['accommodation']['mockBooking']['mapSynced'] = True
     value['snapshot']['components']['accommodation']['mockBooking']['reservation']['position'] = {'lat': 0.0, 'lng': 0.0}
     value['snapshot']['components']['map'] = {'status': 'ready', 'destination': '', 'final': False, 'pins': [
         {'id': 'existing_google_pin', 'name': 'Existing hotel', 'category': 'stay', 'position': {'lat': 45.0, 'lng': 9.0}, 'description': 'Traveler note'}]}
@@ -48,7 +49,7 @@ def test_associate_add_read_retry_remove_and_restore(system):
     assert system.client.get(path).json()['snapshot'] == value['snapshot']
 
 
-@pytest.mark.parametrize('bad', ['duplicate', 'airport_code', 'category', 'coordinate', 'private'])
+@pytest.mark.parametrize('bad', ['duplicate', 'airport_code', 'category', 'coordinate', 'private', 'sync_marker'])
 def test_invalid_location_never_persists(system, bad):
     plan = create(system); path = f"/v1/plans/{plan['plan_id']}/canvas"; value = payload()
     pin = value['snapshot']['components']['map']['pins'][0]
@@ -57,6 +58,25 @@ def test_invalid_location_never_persists(system, bad):
     if bad == 'airport_code': pin['source'] = {'provider': 'iata', 'id': 'MILAN'}
     if bad == 'category': pin['category'] = 'food'
     if bad == 'coordinate': value['snapshot']['components']['accommodation']['mockBooking']['reservation']['position']['lat'] = 91.0
+    if bad == 'sync_marker': value['snapshot']['components']['accommodation']['mockBooking']['mapSynced'] = 'yes'
     if bad == 'private': pin['source']['token'] = 'PRIVATE'
     assert system.client.post(path+'/challenge', json=value, headers=write_headers(system, plan['revision'])).status_code == 422
     assert system.client.get(path).json()['snapshot'] is None
+
+
+def test_flight_sync_marker_survives_pin_removal_and_reload(system):
+    plan = create(system)
+    path = f"/v1/plans/{plan['plan_id']}/canvas"
+    value = payload()
+    value['snapshot']['components']['flights'] = {
+        **value['snapshot']['components']['flights'], 'bookingStatus': 'mock-booked',
+        'mockBooking': {'reference': 'TEST-FLIGHT', 'origin': 'BUD', 'destination': 'MXP',
+                        'departureDate': '2027-05-10', 'returnDate': '2027-05-17', 'mapSynced': True}}
+    value['snapshot']['components']['map']['pins'].append({
+        'id': 'airport', 'name': 'Malpensa', 'category': 'airport',
+        'position': {'lat': 45.63, 'lng': 8.72}, 'description': '',
+        'source': {'provider': 'iata', 'id': 'MXP'}})
+    revision = save(system, path, plan['revision'], value)
+    value['snapshot']['components']['map']['pins'].pop()
+    save(system, path, revision, value)
+    assert system.client.get(path).json()['snapshot'] == value['snapshot']

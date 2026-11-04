@@ -1,4 +1,3 @@
-import { ConfirmationMapActions } from './ConfirmationMapActions';
 import { ConfirmationActions } from './ConfirmationActions';
 import React, { useEffect, useRef, useState } from 'react';
 import { StayPayment } from './StayPayment';
@@ -18,7 +17,7 @@ export function StayRooms({ reservation }) {
     {room.excludedTaxes.map((tax, index) => <p key={index}>Pay at property: {tax.name} · {formatStayPrice(tax)}</p>)}
   </section>)}</>;
 }
-function Confirmation({ planId, mapActions, result, savedBooking, saveState, onBackToPlan }) {
+function Confirmation({ result, savedBooking, saveState, onBackToPlan }) {
   const [downloaded, setDownloaded] = useState(false);
   const receipt = useRef(null), printDetails = useRef(null);
   function preparePrint() {
@@ -42,7 +41,7 @@ function Confirmation({ planId, mapActions, result, savedBooking, saveState, onB
   const summary = savedBooking || stayBookingSummary(result), r = summary.reservation;
   const saved = saveState?.savedReference === summary.reference || (!saveState && savedBooking);
   return <div className="flight-confirmation"><header><span className="flight-confirm-icon">✓</span><p className="flight-eyebrow">LITEAPI SANDBOX CONFIRMATION</p><h1 tabIndex={-1}>Your test stay is confirmed.</h1><p>Keep your reservation details together, ready to reopen from your Plan.</p></header>
-    <div className="flight-confirm-grid"><ConfirmationActions mapActions={<ConfirmationMapActions planId={planId} mode="stays" summary={summary} actions={mapActions}/>} onReturn={onBackToPlan}
+    <div className="flight-confirm-grid"><ConfirmationActions onReturn={onBackToPlan}
       saveError={!saved && Boolean(saveState?.error)}
       saveMessage={saved ? 'Saved in your Plan’s Stays component.' : saveState?.error ? 'Your reservation is confirmed, but the Plan could not be saved. Download your confirmation now; return to your trip to retry saving.' : 'Your confirmed reservation is being saved to the Plan.'}
       downloadLabel="Download confirmation" downloadNote="Travella confirmation · HTML · opens offline"
@@ -100,7 +99,7 @@ export function StayCheckout(props) {
     <div className="flight-sandbox-banner"><b>SANDBOX CHECKOUT</b><span>Test booking · no real reservation or charge</span></div>
     <nav className="flight-checkout-nav"><button disabled={working} className="flight-text-button" onClick={result?.status === 'confirmed' ? onBackToPlan : onClose}>← {result?.status === 'confirmed' ? 'Return to my trip' : 'Back to stays'}</button><span>{result?.status === 'confirmed' ? 'YOUR STAY CONFIRMATION' : 'STAY CHECKOUT'}</span></nav>
     {error && <p className="flight-error" role="alert">{error}</p>}
-    {result?.status === 'confirmed' ? <Confirmation planId={planId} mapActions={props.mapActions} result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
+    {result?.status === 'confirmed' ? <Confirmation result={result} savedBooking={savedBooking} saveState={saveState} onBackToPlan={onBackToPlan}/> : <>
       <header className="flight-checkout-title"><p className="flight-eyebrow">YOUR PLACE TO STAY</p><h1 ref={heading} tabIndex={-1}>{step === 1 ? 'Who’s coming along?' : step === 2 ? 'Complete your booking.' : 'Book your stay.'}</h1><p>{step === 1 ? 'A contact for the booking. A main guest for every room.' : step === 2 ? 'One last step. Pay securely with your card.' : 'Review the room, add your test guests and confirm the final total.'}</p>{step === 1 && result && <p className="stay-guest-context">{result.hotel_name} · {result.check_in} – {result.check_out} · {result.room_count} {result.room_count === 1 ? 'room' : 'rooms'}</p>}</header>
       {busy && <p className="flight-loading" role="status">{attempted ? 'Confirming your test reservation…' : 'Checking availability, price and room terms…'}</p>}
       {!result && !busy && <div className="flight-message"><h2>{error ? 'This stay could not be verified.' : 'Choose a room to start checkout.'}</h2><p>Return to stays for a current offer. Unsubmitted guest details are not retained after leaving.</p><button className="flight-secondary" onClick={onClose}>Return to stays</button></div>}

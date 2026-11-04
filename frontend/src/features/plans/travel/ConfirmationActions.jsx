@@ -1,12 +1,11 @@
 import React from 'react';
 
-export function ConfirmationActions({ mapActions, onReturn, saveMessage, saveError, downloadLabel, onDownload, onPrint, downloaded, downloadNote, ticketActions, children }) {
+export function ConfirmationActions({ onReturn, saveMessage, saveError, downloadLabel, onDownload, onPrint, downloaded, downloadNote, ticketActions, children }) {
   return <aside className="confirmation-actions" aria-label="Booking actions">
     <h2>Continue your trip.</h2>
     <p>Return to your trip overview for your flights, stay and saved places.</p>
     <button type="button" className="flight-primary confirmation-return" onClick={onReturn}>Return to my trip <span aria-hidden="true">→</span></button>
     <div className={`flight-save-status${saveError ? ' confirmation-save-error' : ''}`} role={saveError ? 'alert' : 'status'}>{saveMessage}</div>
-    {mapActions}
     {ticketActions}
     <div className="confirmation-downloads">
       <h3>Keep a copy</h3>

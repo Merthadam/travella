@@ -1,8 +1,11 @@
+import { webcrypto } from 'node:crypto';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { usePlanningCanvas } from './usePlanningCanvas';
 
-afterEach(cleanup);
+vi.mock('../onboarding/catalogs', () => ({ loadAirports: async () => [{code:'MXP',name:'Malpensa Airport',lat:45.63,lng:8.72,country:'IT'},{code:'LIN',name:'Linate Airport',lat:45.44,lng:9.27,country:'IT'}] }));
+beforeEach(() => vi.stubGlobal('crypto', webcrypto));
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const selected = { plan_id: 'automatic-draft' };
 function fixture() {
   let stored = null, revision = 1;
@@ -209,37 +212,69 @@ async function confirmedStay(result) {
       rooms: [{ room: 1, name: 'Double', board: null, occupancy: null, refundable: null, cancellation: null, cancellationDeadline: null, excludedTaxes: [] }], guests: [], total: { amount: '100', currency: 'EUR' }, priceSource: 'booking', roomSource: 'booking', paymentStatus: null, terms: null } }));
   await waitFor(() => expect(result.current.saved?.components.accommodation.mockBooking.reference).toBe('MAP-STAY'));
 }
-test('confirmed location is explicit, deduplicates immediate repeat and survives reopening', async () => {
+test('confirmation automatically saves a hotel once and manual removal survives refresh and repeated confirmation', async () => {
   const { api, stored } = fixture(); const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
   await waitFor(() => expect(result.current.loading).toBe(false)); await confirmedStay(result);
-  expect(result.current.data.map.pins).toEqual([]);
-  act(() => { expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation)).toEqual({ id: 'booking_hotel' }); expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation)).toEqual({ id: 'booking_hotel' }); });
-  expect(result.current.saved.components.map.pins).toHaveLength(0);
-  await waitFor(() => expect(result.current.saved.components.map.pins).toHaveLength(1));
-  expect(stored().components.accommodation.mockBooking.reservation.position).toEqual(bookingLocation.position);
+  await waitFor(() => expect(result.current.saved?.components.accommodation.mockBooking.mapSynced).toBe(true));
+  expect(stored().components.map.pins).toHaveLength(1);
+  expect(stored().components.map.pins[0].source).toEqual(bookingLocation.source);
+  const id = result.current.data.map.pins[0].id;
+  act(() => result.current.action('map', 'remove_pin', { id }));
+  await waitFor(() => expect(result.current.dirty).toBe(false));
+  await confirmedStay(result);
   act(() => result.current.reload()); await waitFor(() => expect(result.current.loading).toBe(false));
-  expect(result.current.data.map.pins[0].source).toEqual(bookingLocation.source);
-  const calls = api.saveCanvas.mock.calls.length;
-  act(() => expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation)).toEqual({ id: 'booking_hotel' }));
-  await act(settle); expect(api.saveCanvas).toHaveBeenCalledTimes(calls);
+  await act(settle);
+  expect(result.current.data.map.pins).toHaveLength(0);
+  expect(result.current.data.accommodation.mockBooking.mapSynced).toBe(true);
 });
-test('associating an existing hotel preserves its ID, position and traveler details', async () => {
+test('automatic association preserves an existing hotel ID, edited position and traveler details', async () => {
   const { api } = fixture(); const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
-  await waitFor(() => expect(result.current.loading).toBe(false)); await confirmedStay(result);
+  await waitFor(() => expect(result.current.loading).toBe(false));
   const old = { id: 'google_existing', name: 'Central Hotel', category: 'stay', position: { lat: 45.0001, lng: 9 }, description: 'Use the side entrance', website: 'https://example.org/hotel' };
   act(() => result.current.action('map', 'add_pin', old)); await waitFor(() => expect(result.current.dirty).toBe(false));
-  act(() => expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation).error).toMatch(/Review/));
-  act(() => expect(result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation, { existingId: old.id })).toEqual({ id: old.id }));
-  await waitFor(() => expect(result.current.dirty).toBe(false));
+  await confirmedStay(result);
+  await waitFor(() => expect(result.current.saved?.components.accommodation.mockBooking.mapSynced).toBe(true));
   expect(result.current.saved.components.map.pins).toEqual([{ ...old, source: bookingLocation.source }]);
 });
-test('failed location save never changes acknowledged map; retry persists once', async () => {
-  const { api } = fixture(); const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
-  await waitFor(() => expect(result.current.loading).toBe(false)); await confirmedStay(result);
+test('failed automatic pin save retries without duplication', async () => {
+  const { api, stored } = fixture(); const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
   api.saveCanvas.mockRejectedValueOnce(new Error('offline'));
-  act(() => result.current.addBookingLocation('stays', 'MAP-STAY', bookingLocation));
+  const confirmation = confirmedStay(result);
   await waitFor(() => expect(result.current.saveError).toBeTruthy());
-  expect(result.current.saved.components.map.pins).toHaveLength(0);
+  expect(stored()).toBeNull();
   await act(async () => result.current.save());
-  expect(result.current.saved.components.map.pins).toHaveLength(1);
+  await waitFor(() => expect(result.current.saved?.components.map.pins).toHaveLength(1));
+  expect(stored().components.accommodation.mockBooking.mapSynced).toBe(true);
+  await confirmation;
+});
+test('previously confirmed flights automatically add arrival and distinct return airport on load', async () => {
+  const { api } = fixture();
+  const first = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(first.result.current.loading).toBe(false));
+  const components = structuredClone(first.result.current.data);
+  const segment = (origin, destination, day) => ({ origin, destination, departureAt:`2027-05-${day}T10:00:00`,arrivalAt:`2027-05-${day}T12:00:00`,airline:'Test',flightNumber:'T1' });
+  components.flights.bookingStatus = 'mock-booked';
+  components.flights.mockBooking = {reference:'OLD-FLIGHT',origin:'BUD',destination:'MXP',departureDate:'2027-05-10',returnDate:'2027-05-17',itinerary:{outbound:[segment('BUD','MXP','10')],inbound:[segment('LIN','BUD','17')],passengerCount:2,amount:'200',currency:'EUR',baggage:'',fareConditions:'',confirmationCode:'TEST'}};
+  first.unmount();
+  await api.saveCanvas(selected,{snapshot:{version:1,components,evidence:{}},context_revision:1});
+  const { result } = renderHook(() => usePlanningCanvas({ selected, api }));
+  await waitFor(() => expect(result.current.saved?.components.flights.mockBooking.mapSynced).toBe(true));
+  expect(result.current.saved.components.map.pins.map(p=>p.source.id)).toEqual(['MXP','LIN']);
+});
+
+test('a late location resolution cannot write into a different Plan', async () => {
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  vi.spyOn(crypto.subtle, 'digest').mockImplementation(() => pending);
+  const first = fixture(), second = fixture();
+  const { result, rerender } = renderHook(props => usePlanningCanvas(props), {initialProps:{selected,api:first.api}});
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await confirmedStay(result);
+  rerender({selected:{plan_id:'another-plan'},api:second.api});
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => { release(new Uint8Array(32).buffer); });
+  await act(settle);
+  expect(result.current.data.map.pins).toEqual([]);
+  expect(second.api.saveCanvas).not.toHaveBeenCalled();
 });

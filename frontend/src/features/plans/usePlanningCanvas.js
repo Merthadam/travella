@@ -1,4 +1,4 @@
-import { resolveExistingLocation, sameLocation } from './travel/bookingLocations';
+import { bookingLocationInput, resolveBookingLocations, mergeBookingLocations } from './travel/bookingLocations';
 import { stayBookingSummary } from './travel/stayReservation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
@@ -111,6 +111,43 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   const dirty = Boolean(snapshot && (pendingSave.current || fingerprint(snapshot) !== fingerprint(saved || initialSnapshot.current)));
   const valid = useMemo(() => { try { if (!data) return false; validateCanvasComponents(data, true); return true; } catch { return false; } }, [data]);
 
+  // Resolve each confirmed booking once, including receipts saved before automatic pins.
+  // Persist the marker with the map so a later manual removal survives recovery/reload.
+  const bookingLocations = JSON.stringify(['flights', 'accommodation'].flatMap(component => {
+    const booking = data?.[component]?.mockBooking;
+    if (!booking || booking.mapSynced) return [];
+    const mode = component === 'flights' ? 'flights' : 'stays';
+    return [{ component, mode, reference: booking.reference, input: bookingLocationInput(mode, booking) }];
+  }));
+  useEffect(() => {
+    if (loading || saving || activeGroup || externalBusy || editors.length || conflict || saveError) return;
+    const pending = JSON.parse(bookingLocations);
+    if (!pending.length) return;
+    const controller = new AbortController(), generation = epoch.current;
+    Promise.all(pending.map(async item => {
+      try { return { ...item, locations: await resolveBookingLocations(planId, item.mode, item.input, controller.signal, dataRef.current?.map.pins) }; }
+      catch (err) {
+        if (!controller.signal.aborted && err.status === 401) callbacks.current.onExpired?.();
+        return { ...item, locations: [] };
+      }
+    })).then(results => {
+      if (controller.signal.aborted || generation !== epoch.current || base.current?.plan_id !== planId) return;
+      const next = clone(dataRef.current);
+      let changed = false;
+      for (const item of results) {
+        const booking = next[item.component]?.mockBooking;
+        if (!booking || booking.mapSynced || booking.reference !== item.reference || JSON.stringify(bookingLocationInput(item.mode, booking)) !== JSON.stringify(item.input)) continue;
+        const pins = mergeBookingLocations(next.map.pins, item.locations);
+        if (!pins) continue; // Missing location evidence or a full map: preserve the receipt.
+        next.map.pins = pins; next.map.status = 'ready'; delete next.map.error;
+        booking.mapSynced = true; changed = true;
+        editedComponents.current.add(item.component); editedComponents.current.add('map');
+      }
+      if (changed) { const parsed = validateCanvasComponents(next, true); dataRef.current = parsed; setData(parsed); }
+    }).catch(err => { if (!controller.signal.aborted && err.status === 401) callbacks.current.onExpired?.(); });
+    return () => controller.abort();
+  }, [planId, bookingLocations, data?.map.pins.length, loading, saving, activeGroup, externalBusy, editors.length, conflict, saveError]);
+
   const action = useCallback((id, name, payload) => {
     if (!ids.includes(id)) return;
     if (name === 'editor_state') {
@@ -182,9 +219,11 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (result.status === 'confirmed') {
       stay.bookingStatus = 'mock-booked';
       if (stay.mockBooking && stay.mockBooking.reference !== result.booking_id) return;
+      const mapSynced = stay.mockBooking?.mapSynced;
       const previousItinerary = stay.mockBooking?.itinerary;
       const previousReservation = stay.mockBooking?.reservation;
       stay.mockBooking = result.mode === 'flights' ? flightBookingSummary(result) : stayBookingSummary(result);
+      if (mapSynced) stay.mockBooking.mapSynced = true;
       if (result.mode !== 'flights' && previousReservation && !stay.mockBooking.reservation) stay.mockBooking.reservation = previousReservation;
       if (result.mode === 'flights' && previousItinerary && !stay.mockBooking.itinerary) stay.mockBooking.itinerary = previousItinerary;
     } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
@@ -388,39 +427,6 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       return true;
     } catch { setError('These places could not be added. Check your draft has room for more places.'); return false; }
   }
-  function addBookingLocation(mode, reference, location, { existingId, separate = false } = {}) {
-    if (!base.current || base.current.plan_id !== planId || loading || active.current || savingRef.current || pendingSave.current || externalBusyRef.current || editors.length || conflict || saveError) return { error: 'Wait for the current save or resolve the Plan error before adding this place.' };
-    const previous = dataRef.current;
-    const booking = previous?.[mode === 'stays' ? 'accommodation' : 'flights']?.mockBooking;
-    if (!booking || booking.reference !== reference || !location.source) return { error: 'Reopen the confirmed booking before adding its location.' };
-    const identityMatches = mode === 'stays' ? location.source.provider === 'liteapi' && location.source.id === booking.reservation?.hotelId
-      : location.source.provider === 'iata' && [booking.itinerary?.outbound?.at(-1)?.destination, booking.itinerary?.inbound?.[0]?.origin].includes(location.source.id);
-    if (!identityMatches) return { error: 'This location does not match the confirmed booking.' };
-    const { exact, candidates } = resolveExistingLocation(previous.map.pins, location);
-    if (exact) return { id: exact.id };
-    if (existingId && !candidates.some(pin => pin.id === existingId)) return { error: 'That place changed. Review the current map before continuing.' };
-    if (!existingId && candidates.length && !separate) return { error: 'Review the matching place before adding another pin.' };
-    try {
-      const next = clone(previous);
-      let pin;
-      if (existingId) {
-        pin = next.map.pins.find(pin => pin.id === existingId);
-        pin.source = clone(location.source); pin.category = location.category;
-      } else {
-        if (!location.position || !location.id) return { error: 'The exact location is unavailable. Find it on your trip map.' };
-        if (next.map.pins.length >= 50) return { error: 'Your map has 50 places. Remove one before adding another.' };
-        pin = { id: location.id, source: clone(location.source), name: location.name.slice(0, 120), category: location.category,
-          position: clone(location.position), description: location.address.slice(0, 240) };
-        next.map.pins.push(pin);
-      }
-      if (next.map.pins.filter(p => sameLocation(p, location)).length !== 1) throw new Error('Duplicate location');
-      next.map.status = 'ready'; delete next.map.error;
-      const parsed = validateCanvasComponents(next, true);
-      dataRef.current = parsed; setData(parsed); editedComponents.current.add('map');
-      setNotice('Saving your place to the trip map…'); setError('');
-      return { id: pin.id };
-    } catch { return { error: 'This place could not be added. Review the location and try again.' }; }
-  }
   function acceptTravelChoiceRevision(previous, next) {
     // Only our own exact revision-checked choice can advance the Canvas base.
     // Other-tab changes still conflict instead of being silently overwritten.
@@ -429,5 +435,5 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       callbacks.current.onSaved?.({ ...selected, revision: next });
     }
   }
-  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, saveError, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, addBookingLocation, updateMockBooking, acceptTravelChoiceRevision, reload: () => setReloadVersion(value => value + 1) };
+  return { data, renderData, mapDestinationHint, saved, dirty, loading, saving, activeGroup, generationProgress, groups, error, saveError, notice, conflict, staleContext, editing: editors.length > 0, valid, action, generate, stop, save, addActivities, updateMockBooking, acceptTravelChoiceRevision, reload: () => setReloadVersion(value => value + 1) };
 }
