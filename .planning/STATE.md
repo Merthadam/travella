@@ -5,8 +5,8 @@ current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-10-31T14:41:15.046Z"
-last_activity: 2026-11-03
-last_activity_desc: Verified checkout payment and passenger ticket changes prepared for authorized main merge
+last_activity: 2026-11-04
+last_activity_desc: Automatic booking pins verified for authorized main shipment
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -17,6 +17,12 @@ progress:
 ---
 
 # Project State
+
+Shipment update (2026-11-04): Automatic confirmed-booking pins approved for main merge. Source 58cc7c0 directly descends from current origin/main; clean shipping checkout passed 98 frontend/105 backend tests, build and scoped security review. PR #35: https://github.com/Merthadam/travella/pull/35. Shipping branch `ship/automatic-booking-pins-20261104`; quick261104-psd records verification. GitHub merge metadata records the final outcome. Wider phase acceptance unchanged.
+
+Quick-task update (2026-11-04): User superseded separate map actions with automatic confirmed-booking pins in quick261104-psd. Checkout map controls removed; hotel/destination-airport pins save automatically, reuse matching places, and respect manual removal after reload. 98 frontend/63 backend tests and build passed; real Chrome desktop/mobile and CRUD persistence verified. Existing Geneva demo now contains GVA. Evidence: `artifacts/testing/2026-11-04-automatic-booking-pins/verification.md`. Wider phase acceptance unchanged.
+
+Quick-task update (2026-11-04): Approved confirmed-checkout hotel/airport map actions implemented in quick261104-nc5. Existing pins are reused or explicitly matched; new pins require Add and persist through normal canvas saves. 100 frontend/123 backend tests and build passed; actual authenticated Chrome DevTools desktop/mobile test-confirmation flows verified reuse, add, failure/retry, focus and reload. Broader travel-search tests have five failures, with a representative reproduced on unchanged HEAD. Test Plan cleaned; no new supplier payment, push, merge or deployment. Evidence: `artifacts/testing/2026-11-04-checkout-trip-map/verification.md`. Wider phase acceptance unchanged.
 
 Quick-task update (2026-10-29): Approved focused travel navigation implemented on `feat/focused-travel-integration` with both maple-cake default features. Local review: http://localhost:5196 (isolated from concurrent maple-cake builds on 5174). Evidence: `artifacts/testing/2026-10-29-focused-travel-integration/verification.md`. Existing phase acceptance is unchanged.
 

@@ -168,9 +168,13 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
 
   function showAll() {
     if (!runtime || !places.length) return;
+    if (places.length === 1) {
+      runtime.map.setCenter(places[0].position);
+      runtime.map.setZoom(14);
+      return;
+    }
     const bounds = new runtime.maps.LatLngBounds(); places.forEach(place => bounds.extend(place.position));
     runtime.map.fitBounds(bounds, 48);
-    if (places.length === 1) runtime.map.setZoom(14);
   }
   const message = mapError ? 'The map is unavailable. Your places are available in List view.' : !usableDestination ? 'Choose a destination in the conversation to frame your map.' : loading ? 'Finding your destination…' : error || (!final && resolved ? `Exploring ${usableDestination}. Your final destination is still yours to choose.` : '');
   return <div className="canvas-map-adapter">

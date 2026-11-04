@@ -16,7 +16,7 @@ from urllib.parse import quote
 from cryptography.fernet import Fernet, InvalidToken
 from services.agent.travel_contracts import SandboxResult
 from .liteapi import ProviderUnavailable, items, obj, text, money, normalize_hotels
-from .stay_confirmation import room_details, reservation
+from .stay_confirmation import room_details, reservation, hotel_position
 
 BOOK = "https://book.liteapi.travel/v3.0"
 RECEIPT_TTL = 604800
@@ -55,7 +55,8 @@ def attach_offers(api, raw, hotels, criteria):
             if isinstance(offer.get("offerId"), str) and len(offer["offerId"]) <= 20000:
                 room["checkout_token"] = seal(api, "offer", {
                     "offer": offer["offerId"], "hotel_id": hotel["hotel_id"],
-                    "hotel_name": hotel["name"], "address": hotel.get("address"), "previous_total": room["total"], "check_in": criteria["check_in"],
+                    "hotel_name": hotel["name"], "address": hotel.get("address"),
+                    "position": hotel_position(hotel), "previous_total": room["total"], "check_in": criteria["check_in"],
                     "check_out": criteria["check_out"], "room_count": len(criteria["rooms"]),
                 })
 
@@ -142,8 +143,9 @@ async def _checkout(api, action, data):
         room = normalized[0]["rooms"][0]
         changed = state.get("previous_total") != total
         address = state.get("address")
+        position = state.get("position")
         state = {k: state[k] for k in ("hotel_id", "hotel_name", "check_in", "check_out", "room_count")}
-        state.update(address=address, rooms=room_details(rates), price_changed=changed)
+        state.update(address=address, position=position, rooms=room_details(rates), price_changed=changed)
         state.update(prebook=p["prebookId"], reference=reference, total=total, room=room,
                      payment_secret=p["secretKey"], transaction=p["transactionId"],
                      terms=text(p.get("termsAndConditions"), 6000))

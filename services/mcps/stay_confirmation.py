@@ -1,4 +1,6 @@
 """Allowlisted stay evidence, with explicit provenance and no contact/payment secrets."""
+from services.map_locations import LocationPosition
+from pydantic import ValidationError
 from services.mock_booking import StayReservation
 from .liteapi import obj, items, text, money, terms, excluded
 
@@ -85,6 +87,15 @@ def _confirmed_guests(state, booking):
     return sorted(guests, key=lambda guest: (guest['room'] is None, guest['room'] or 0))
 
 
+def hotel_position(hotel):
+    location = obj(hotel.get('location'))
+    try:
+        return LocationPosition(lat=hotel.get('latitude', location.get('latitude')),
+                                lng=hotel.get('longitude', location.get('longitude'))).model_dump()
+    except ValidationError:
+        return None
+
+
 def reservation(state, booking):
     """Final booking evidence takes precedence; incomplete room sets stay labeled."""
     hotel = obj(booking.get('hotel'))
@@ -98,6 +109,7 @@ def reservation(state, booking):
                   'board': state['room'].get('board_name') if state['room_count'] == 1 else None}
                  for i in range(state['room_count'])]
     return StayReservation.model_validate({
+        'position': hotel_position(hotel) or state.get('position'),
         'hotelId': state['hotel_id'], 'address': text(hotel.get('address'), 1000) or state.get('address'),
         'confirmationCode': text(booking.get('hotelConfirmationCode'), 100),
         'roomCount': state['room_count'], 'rooms': rooms, 'guests': guests,

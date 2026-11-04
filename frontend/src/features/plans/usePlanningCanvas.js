@@ -1,3 +1,4 @@
+import { bookingLocationInput, resolveBookingLocations, mergeBookingLocations } from './travel/bookingLocations';
 import { stayBookingSummary } from './travel/stayReservation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
@@ -110,6 +111,43 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
   const dirty = Boolean(snapshot && (pendingSave.current || fingerprint(snapshot) !== fingerprint(saved || initialSnapshot.current)));
   const valid = useMemo(() => { try { if (!data) return false; validateCanvasComponents(data, true); return true; } catch { return false; } }, [data]);
 
+  // Resolve each confirmed booking once, including receipts saved before automatic pins.
+  // Persist the marker with the map so a later manual removal survives recovery/reload.
+  const bookingLocations = JSON.stringify(['flights', 'accommodation'].flatMap(component => {
+    const booking = data?.[component]?.mockBooking;
+    if (!booking || booking.mapSynced) return [];
+    const mode = component === 'flights' ? 'flights' : 'stays';
+    return [{ component, mode, reference: booking.reference, input: bookingLocationInput(mode, booking) }];
+  }));
+  useEffect(() => {
+    if (loading || saving || activeGroup || externalBusy || editors.length || conflict || saveError) return;
+    const pending = JSON.parse(bookingLocations);
+    if (!pending.length) return;
+    const controller = new AbortController(), generation = epoch.current;
+    Promise.all(pending.map(async item => {
+      try { return { ...item, locations: await resolveBookingLocations(planId, item.mode, item.input, controller.signal, dataRef.current?.map.pins) }; }
+      catch (err) {
+        if (!controller.signal.aborted && err.status === 401) callbacks.current.onExpired?.();
+        return { ...item, locations: [] };
+      }
+    })).then(results => {
+      if (controller.signal.aborted || generation !== epoch.current || base.current?.plan_id !== planId) return;
+      const next = clone(dataRef.current);
+      let changed = false;
+      for (const item of results) {
+        const booking = next[item.component]?.mockBooking;
+        if (!booking || booking.mapSynced || booking.reference !== item.reference || JSON.stringify(bookingLocationInput(item.mode, booking)) !== JSON.stringify(item.input)) continue;
+        const pins = mergeBookingLocations(next.map.pins, item.locations);
+        if (!pins) continue; // Missing location evidence or a full map: preserve the receipt.
+        next.map.pins = pins; next.map.status = 'ready'; delete next.map.error;
+        booking.mapSynced = true; changed = true;
+        editedComponents.current.add(item.component); editedComponents.current.add('map');
+      }
+      if (changed) { const parsed = validateCanvasComponents(next, true); dataRef.current = parsed; setData(parsed); }
+    }).catch(err => { if (!controller.signal.aborted && err.status === 401) callbacks.current.onExpired?.(); });
+    return () => controller.abort();
+  }, [planId, bookingLocations, data?.map.pins.length, loading, saving, activeGroup, externalBusy, editors.length, conflict, saveError]);
+
   const action = useCallback((id, name, payload) => {
     if (!ids.includes(id)) return;
     if (name === 'editor_state') {
@@ -181,9 +219,11 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     if (result.status === 'confirmed') {
       stay.bookingStatus = 'mock-booked';
       if (stay.mockBooking && stay.mockBooking.reference !== result.booking_id) return;
+      const mapSynced = stay.mockBooking?.mapSynced;
       const previousItinerary = stay.mockBooking?.itinerary;
       const previousReservation = stay.mockBooking?.reservation;
       stay.mockBooking = result.mode === 'flights' ? flightBookingSummary(result) : stayBookingSummary(result);
+      if (mapSynced) stay.mockBooking.mapSynced = true;
       if (result.mode !== 'flights' && previousReservation && !stay.mockBooking.reservation) stay.mockBooking.reservation = previousReservation;
       if (result.mode === 'flights' && previousItinerary && !stay.mockBooking.itinerary) stay.mockBooking.itinerary = previousItinerary;
     } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
