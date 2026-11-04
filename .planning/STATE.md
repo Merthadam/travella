@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-11-04T20:53:22.481956+00:00"
+last_updated: "2026-11-04T21:31:24.354616+00:00"
 last_activity: 2026-11-04
-last_activity_desc: Implemented selected accommodation map A with linked inspection and translucent hotel pins; browser and 133 tests passed
+last_activity_desc: Refined accommodation scrolling and search editor; live desktop/mobile checks and 135 tests passed
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -17,6 +17,8 @@ progress:
 ---
 
 # Project State
+
+Quick-task update (2026-11-04): Refined selected accommodation layout A after scrolling/search-details feedback. Full workspace editor, applied-search summary, preserved list position and pane-only selection scrolling verified in real Chrome desktop/mobile. 135 frontend tests, build, canonical auth and source hashes passed. Evidence: `artifacts/testing/2026-11-04-stay-scroll-polish/verification.md`. Preview: http://localhost:5202. Broader phase acceptance unchanged.
 
 Quick-task update (2026-11-04): Selected accommodation map A implemented with independently scrolling sidebar/results, linked map/card/current-chat references, and 25% opacity for other hotel pins while activities remain opaque. Real agent search, desktop/mobile, reload, room details, 133 frontend tests and build passed. Evidence: `artifacts/testing/2026-11-04-stay-linked-map/verification.md`. Preview: http://localhost:5202. Wider phase acceptance unchanged.
 
@@ -30,6 +32,7 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261104-v1h | Refined hotel search editor and scrolling; desktop/mobile verified | 2026-11-04 | af39e53 | [261104-v1h](./quick/261104-v1h-polish-accommodation-scrolling-and-searc/) |
 | 261104-tvq | Selected linked hotel map A; faded other hotels, opaque activities, independent scrolling; browser verified | 2026-11-04 | 866ac6d | [261104-tvq](./quick/261104-tvq-implement-selected-accommodation-map-lay/) |
 | 261104-rdh | Implemented shared manual/agent hotel location filters and activity minimap; live desktop/mobile verified | 2026-11-04 | 0356451 | [261104-rdh](./quick/261104-rdh-implement-shared-accommodation-location-/) |
 | 261104-r2q | Refined selected A with manual and agent-mentioned activity minimap; desktop/mobile verified | 2026-11-04 | a89d71a | [261104-r2q](./quick/261104-r2q-refine-selected-hotel-filter-prototype-a/) |
