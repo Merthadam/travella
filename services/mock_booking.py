@@ -3,6 +3,7 @@ from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from services.map_locations import LocationPosition
 
 
 class StayMoney(BaseModel):
@@ -34,12 +35,6 @@ class StayRoom(BaseModel):
     excludedTaxes: list[StayTax] = Field(default_factory=list, max_length=50)
 
 
-class StayPosition(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-    lat: float = Field(ge=-90, le=90, allow_inf_nan=False)
-    lng: float = Field(ge=-180, le=180, allow_inf_nan=False)
-
-
 class StayReservation(BaseModel):
     """Owner-only reservation document; never included in agent context."""
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -47,7 +42,7 @@ class StayReservation(BaseModel):
     sandbox: Literal[True] = True
     hotelId: str = Field(max_length=100)
     address: str | None = Field(default=None, max_length=1000)
-    position: StayPosition | None = None
+    position: LocationPosition | None = None
     confirmationCode: str | None = Field(default=None, max_length=100)
     roomCount: int = Field(ge=1, le=4)
     rooms: list[StayRoom] = Field(min_length=1, max_length=4)
@@ -81,6 +76,7 @@ def without_stay_document(snapshot):
 class MockStaySummary(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
+    mapSynced: Literal[True] | None = None
     reference: str = Field(min_length=1, max_length=100)
     hotelName: str = Field(min_length=1, max_length=160)
     checkIn: str = Field(min_length=10, max_length=10)
@@ -140,6 +136,7 @@ class FlightItinerary(BaseModel):
 
 class MockFlightSummary(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
+    mapSynced: Literal[True] | None = None
     reference: str = Field(min_length=1, max_length=100)
     origin: str = Field(pattern=r"^[A-Z]{3}$")
     destination: str = Field(pattern=r"^[A-Z]{3}$")

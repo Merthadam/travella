@@ -330,3 +330,19 @@ def test_expired_payment_session_cannot_silently_create_another_intent(monkeypat
     with pytest.raises(ProviderUnavailable, match='checkout_expired'):
         run(api.call('sandbox/prebook', {'token': fresh_offer}))
     assert supplier.posts == []
+
+
+def test_property_coordinates_survive_offer_prebook_and_recovered_status(monkeypatch):
+    original = hotel_payload
+    def located_payload():
+        value = original()
+        value['hotels'][0].update(latitude=0.0, longitude=9.0)
+        return value
+    monkeypatch.setattr('services.mcps.tests.test_sandbox_checkout.hotel_payload', located_payload)
+    api, supplier, token = setup()
+    assert unseal(api, token, 'offer')['position'] == {'lat': 0.0, 'lng': 9.0}
+    prebook = run(api.call('sandbox/prebook', {'token': token}))
+    assert prebook['reservation']['position'] == {'lat': 0.0, 'lng': 9.0}
+    assert unseal(api, prebook['token'], 'checkout')['position'] == {'lat': 0.0, 'lng': 9.0}
+    status = run(api.call('sandbox/status', {'token': prebook['token']}))
+    assert status['reservation']['position'] == prebook['reservation']['position']

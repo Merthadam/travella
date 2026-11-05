@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from services.place_details import GooglePlaceDetails
+from services.map_locations import LocationSource
 from services.place_websites import WebsiteUrl, public_website
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -92,6 +93,7 @@ class Position(Strict):
 
 
 class Pin(Strict):
+    source: LocationSource | None = None
     googleDetails: GooglePlaceDetails | None = None
     website: WebsiteUrl | None = None
     id: ItemId
@@ -108,6 +110,12 @@ class MapComponent(Component):
 
     @model_validator(mode="after")
     def chosen_destination(self):
+        identities = [(pin.source.provider, pin.source.id) for pin in self.pins if pin.source]
+        if len(set(identities)) != len(identities):
+            raise ValueError("duplicate location identities")
+        for pin in self.pins:
+            if pin.source and pin.category != {"liteapi": "stay", "iata": "airport"}[pin.source.provider]:
+                raise ValueError("location identity must match pin category")
         if self.final and not self.destination.strip():
             raise ValueError("chosen destination must have a name")
         return self

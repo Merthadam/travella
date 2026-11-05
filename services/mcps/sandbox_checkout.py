@@ -16,7 +16,7 @@ from urllib.parse import quote
 from cryptography.fernet import Fernet, InvalidToken
 from services.agent.travel_contracts import SandboxResult
 from .liteapi import ProviderUnavailable, items, obj, text, money, normalize_hotels
-from .stay_confirmation import room_details, reservation
+from .stay_confirmation import room_details, reservation, hotel_position
 
 BOOK = "https://book.liteapi.travel/v3.0"
 RECEIPT_TTL = 604800
@@ -55,9 +55,8 @@ def attach_offers(api, raw, hotels, criteria):
             if isinstance(offer.get("offerId"), str) and len(offer["offerId"]) <= 20000:
                 room["checkout_token"] = seal(api, "offer", {
                     "offer": offer["offerId"], "hotel_id": hotel["hotel_id"],
-                    "hotel_name": hotel["name"], "address": hotel.get("address"), "previous_total": room["total"], "check_in": criteria["check_in"],
-                    "position": ({"lat": hotel["latitude"], "lng": hotel["longitude"]}
-                                 if hotel.get("latitude") is not None and hotel.get("longitude") is not None else None),
+                    "hotel_name": hotel["name"], "address": hotel.get("address"),
+                    "position": hotel_position(hotel), "previous_total": room["total"], "check_in": criteria["check_in"],
                     "check_out": criteria["check_out"], "room_count": len(criteria["rooms"]),
                 })
 
