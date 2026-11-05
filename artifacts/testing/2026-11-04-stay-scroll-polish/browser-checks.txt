@@ -1,0 +1,27 @@
+PASS Successful manual provider search returns to browsing
+PASS Only sidebar and hotel results scroll while browsing
+PASS Ten real hotel cards rendered
+PASS Clicking a visible hotel does not jump the list
+PASS Keyboard results scrolling holds sidebar and outer page steady
+PASS Map selection aligns matching hotel within results pane
+PASS Other hotels still fade during inspection
+PASS Activity pins remain opaque
+PASS Editor replaces browsing area without squeezing it
+PASS Summary keeps the applied search while dates are edited
+PASS Closing editor restores exact results scroll position
+PASS Mobile editor has one scroll area
+PASS Back-to-results summary stays reachable while scrolling editor
+PASS Mobile editor has no horizontal overflow
+PASS Closing scrolled editor resets its outer scroll
+PASS Mobile hotel selection still opens linked map
+PASS Mobile pin returns to results
+Emulating viewport: {"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"isLandscape":false,"width":1440,"height":900}
+Emulating color scheme: light
+## Console messages
+Showing 1-2 of 2 (Page 1 of 1).
+msgid=404 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)
+msgid=405 [warn] <gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener. (1 args)
+Failed network requests: 0
+Browser polish verification complete
+
+Supplemental exact-identity checks: unobscured hotel 1 marker selected its exact matching hotel ID on desktop and mobile. Passed.

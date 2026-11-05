@@ -1,0 +1,10 @@
+.canvas-map-adapter .canvas-map-pin { display:block; width:28px; height:36px; padding:0; border:0; border-radius:0; background:none; box-shadow:none; filter:drop-shadow(0 1px 2px #0005); }
+.canvas-map-adapter .canvas-map-pin svg { width:28px; height:36px; }
+.canvas-map-adapter .canvas-map-pin.selected { outline:0; filter:drop-shadow(0 0 3px var(--ds-ink)); transform:scale(1.15); }
+.canvas-map-adapter .canvas-map-pin.is-preview { opacity:.85; outline:0; }
+.canvas-map-adapter .canvas-map-pin.is-muted { opacity:.25; filter:none; }
+/* Accommodation uses the same geographic pin silhouette as saved places. */
+.canvas-map-pin .canvas-map-numbered-shape { fill:var(--ds-surface); stroke:var(--ds-ink); stroke-width:1.5; }
+.canvas-map-pin .canvas-map-pin-label { fill:var(--ds-ink); font:600 11px var(--ds-font); }
+.canvas-map-pin.selected .canvas-map-numbered-shape { fill:var(--ds-ink); stroke:var(--ds-surface); }
+.canvas-map-pin.selected .canvas-map-pin-label { fill:var(--ds-surface); }

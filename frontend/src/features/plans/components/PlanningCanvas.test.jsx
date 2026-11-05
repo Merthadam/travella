@@ -1,4 +1,5 @@
 import React from 'react';
+import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -21,6 +22,7 @@ vi.mock('../travel/StayCheckout', () => ({
   StayCheckout: ({ planId, onBookingResult, onBackToPlan }) => <section aria-label="Stay checkout"><button onClick={() => onBookingResult(planId, { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hotel_name: 'Ski stay', check_in: '2027-02-03', check_out: '2027-02-07' })}>Complete mock stay</button><button onClick={onBackToPlan}>Back to Plan</button></section>,
 }));
 beforeEach(() => {
+  vi.stubGlobal('crypto', webcrypto);
   sessionStorage.clear(); vi.mocked(travelRequest).mockReset();
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   HTMLDialogElement.prototype.showModal = function () { this.open = true; };
@@ -193,6 +195,68 @@ test('adding an explicitly chosen activity preserves an independent open editor'
 });
 
 const booking = { sandbox: true, status: 'confirmed', booking_id: 'TEST123', hotel_name: 'Ski stay', check_in: '2027-02-03', check_out: '2027-02-07', token: 'never-save-this', guests: ['never-save-guests'] };
+const stayDocument = { provider: 'LiteAPI', sandbox: true, hotelId: 'lp1', address: null, confirmationCode: null,
+  roomCount: 1, rooms: [{ room: 1, name: 'Double', board: null, occupancy: null, refundable: null, cancellation: null, cancellationDeadline: null, excludedTaxes: [] }],
+  guests: [], total: { amount: '125', currency: 'EUR' }, priceSource: 'booking', roomSource: 'prebook', paymentStatus: null, terms: null };
+
+test('confirmed hotel pin saves with the booking, survives reload, deduplicates and clears only for matching cancellation', async () => {
+  let stored = null;
+  const api = {
+    canvas: async () => ({ revision: 1, context_revision: 1, saved_context_revision: 1, snapshot: stored }),
+    researchContext: async () => ({ revision: 1, context: confirmedFlights }),
+    saveCanvas: vi.fn(async (_plan, body) => { stored = structuredClone(body.snapshot); return { ...body, revision: 2 }; }),
+  };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.data).not.toBeNull());
+  const activity = { id: 'park', name: 'Park', category: 'activity', position: { lat: 38.71, lng: -9.14 } };
+  act(() => result.current.addActivities([activity]));
+  const located = { ...booking, reservation: { ...stayDocument, position: { lat: 38.713, lng: -9.139 } } };
+  act(() => result.current.updateMockBooking('test-plan', { ...located, status: 'pending' }));
+  expect(result.current.data.map.pins).toHaveLength(1);
+  act(() => result.current.updateMockBooking('test-plan', located));
+  await waitFor(() => expect(result.current.data.map.pins).toHaveLength(2));
+  expect(result.current.data.map.pins[1]).toMatchObject({ category: 'stay', name: booking.hotel_name, position: located.reservation.position });
+  act(() => result.current.updateMockBooking('test-plan', located));
+  expect(result.current.data.map.pins).toHaveLength(2);
+  await act(() => result.current.save());
+  act(() => result.current.reload());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.data.map.pins).toEqual(stored.components.map.pins);
+  // Old receipts cannot erase location, and unrelated bookings cannot remove it.
+  act(() => result.current.updateMockBooking('test-plan', { ...booking, reservation: stayDocument }));
+  expect(result.current.data.accommodation.mockBooking.reservation.position).toEqual(located.reservation.position);
+  act(() => result.current.updateMockBooking('test-plan', { ...booking, booking_id: 'OTHER', status: 'cancelled' }));
+  expect(result.current.data.map.pins).toHaveLength(2);
+  act(() => result.current.updateMockBooking('test-plan', { ...booking, status: 'cancelled' }));
+  expect(result.current.data.map.pins.map(pin => pin.id)).toEqual(['park']);
+});
+
+test('legacy booked hotel uses exact provider ID to repair its missing map location', async () => {
+  travelRequest.mockResolvedValue({ status: 'ready', hotel: { hotel_id: 'lp1', latitude: 38.713, longitude: -9.139 } });
+  const api = { canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: confirmedFlights }), saveCanvas: vi.fn() };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.data).not.toBeNull());
+  act(() => result.current.updateMockBooking('test-plan', { ...booking, reservation: stayDocument }));
+  await waitFor(() => expect(result.current.data.map.pins).toHaveLength(1));
+  expect(travelRequest).toHaveBeenCalledWith('test-plan', 'hotels/detail', { hotel_id: 'lp1' }, expect.any(AbortSignal));
+  expect(result.current.data.accommodation.mockBooking.reservation.position).toEqual({ lat: 38.713, lng: -9.139 });
+  // An explicit map removal is respected on subsequent status syncs.
+  act(() => result.current.action('map', 'remove_pin', { id: result.current.data.map.pins[0].id }));
+  act(() => result.current.updateMockBooking('test-plan', { ...booking, reservation: stayDocument }));
+  expect(result.current.data.map.pins).toHaveLength(0);
+});
+
+test.each([null, { hotel_id: 'another', latitude: 38, longitude: -9 }, { hotel_id: 'lp1', latitude: null, longitude: -9 }])('missing or mismatched provider locations never create a hotel pin (%j)', async hotel => {
+  travelRequest.mockResolvedValue({ status: 'ready', hotel });
+  const api = { canvas: async () => ({ revision: 1, context_revision: 1, snapshot: null }),
+    researchContext: async () => ({ revision: 1, context: confirmedFlights }), saveCanvas: vi.fn() };
+  const { result } = renderHook(() => usePlanningCanvas({ selected: { plan_id: 'test-plan' }, api }));
+  await waitFor(() => expect(result.current.data).not.toBeNull());
+  await act(async () => result.current.updateMockBooking('test-plan', { ...booking, reservation: stayDocument }));
+  expect(result.current.data.accommodation.bookingStatus).toBe('mock-booked');
+  expect(result.current.data.map.pins).toHaveLength(0);
+});
 
 test('confirmed checkout switches the real canvas card to a clearly labeled mock state', async () => {
   const user = userEvent.setup(); const api = setup();

@@ -140,6 +140,9 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
         const pins = mergeBookingLocations(next.map.pins, item.locations);
         if (!pins) continue; // Missing location evidence or a full map: preserve the receipt.
         next.map.pins = pins; next.map.status = 'ready'; delete next.map.error;
+        if (item.mode === 'stays' && booking.reservation && !booking.reservation.position && item.locations[0]?.position) {
+          booking.reservation.position = item.locations[0].position;
+        }
         booking.mapSynced = true; changed = true;
         editedComponents.current.add(item.component); editedComponents.current.add('map');
       }
@@ -225,8 +228,15 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
       stay.mockBooking = result.mode === 'flights' ? flightBookingSummary(result) : stayBookingSummary(result);
       if (mapSynced) stay.mockBooking.mapSynced = true;
       if (result.mode !== 'flights' && previousReservation && !stay.mockBooking.reservation) stay.mockBooking.reservation = previousReservation;
+      if (result.mode !== 'flights' && previousReservation?.position && stay.mockBooking.reservation && !stay.mockBooking.reservation.position) {
+        stay.mockBooking.reservation.position = previousReservation.position;
+      }
       if (result.mode === 'flights' && previousItinerary && !stay.mockBooking.itinerary) stay.mockBooking.itinerary = previousItinerary;
     } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
+      if (result.mode !== 'flights') {
+        const hotelId = stay.mockBooking.reservation?.hotelId;
+        next.map.pins = next.map.pins.filter(pin => pin.id !== 'booked_stay' && !(pin.id.startsWith('booking_') && pin.source?.provider === 'liteapi' && pin.source.id === hotelId));
+      }
       stay.bookingStatus = 'not-booked'; delete stay.mockBooking;
     } else return;
     try {

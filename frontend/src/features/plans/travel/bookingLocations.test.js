@@ -78,3 +78,9 @@ test('automatic merge leaves incomplete or full maps unchanged and deduplicates 
   expect(mergeBookingLocations(full,[location])).toBeNull();
   expect(mergeBookingLocations([], [location,location])).toHaveLength(1);
 });
+
+test('the earlier booked stay pin gains identity without duplication or losing traveler edits', async () => {
+  const [location] = await resolve(hotel);
+  const legacy = { id: 'booked_stay', name: 'My hotel', category: 'stay', position: { lat: 45.5, lng: 9.2 }, description: 'Use the side entrance' };
+  expect(mergeBookingLocations([legacy], [location])).toEqual([{ ...legacy, source: location.source }]);
+});

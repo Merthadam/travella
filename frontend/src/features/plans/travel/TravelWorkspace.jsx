@@ -6,6 +6,7 @@ import { comparisonEntry } from './TravelComparison';
 import { draftTravelFacts, parseTravelRegistrySnapshot } from './CanvasTravel';
 import { reviewExactTravelOption, travelRequest } from './travelApi';
 import { TravelSearch } from './TravelSearch';
+import { hasCoordinates } from './stayLocation';
 import { TravelConversation } from './TravelConversation';
 import { useTravelConversation } from './useTravelConversation';
 import { useTravelWorkspace } from './useTravelWorkspace';
@@ -20,7 +21,7 @@ export function TravelWorkspace({ backNavigation, travelerProfile, sandbox, sele
   const comparisonScope = workspace.state.instanceId;
   const displayedComparison = useRef(null);
   const onComparisonChange = useCallback(references => { displayedComparison.current = { scope: comparisonScope, references }; }, [comparisonScope]);
-  const chat = useTravelConversation({ selected, api, topic, visible: active, blocked, onExpired, onBusyChange, getDiscussionContext: () => displayedComparison.current?.scope === comparisonScope && displayedComparison.current.references.length ? { intent: 'discuss', options: displayedComparison.current.references } : undefined, getWorkspaceContext: workspace.getWorkspaceContext, onWorkspaceRunStart: workspace.onWorkspaceRunStart, onWorkspaceRunEnd: workspace.onWorkspaceRunEnd, onWorkspaceUpdate: workspace.applyWorkspaceUpdate });
+  const chat = useTravelConversation({ selected, api, topic, visible: active, blocked, onExpired, onBusyChange, getDiscussionContext: () => displayedComparison.current?.scope === comparisonScope && displayedComparison.current.references.length && displayedComparison.current.references.every(ref => ref.search_id === workspace.getWorkspaceContext().search_id) ? { intent: 'discuss', options: displayedComparison.current.references } : undefined, getWorkspaceContext: workspace.getWorkspaceContext, onWorkspaceRunStart: workspace.onWorkspaceRunStart, onWorkspaceRunEnd: workspace.onWorkspaceRunEnd, onWorkspaceUpdate: workspace.applyWorkspaceUpdate });
   const [pane, setPane] = useState('options'), [chatOpen, setChatOpen] = useState(true), [contextOptions, setContextOptions] = useState([]);
   const chatToggle = useRef(null);
   const [narrow, setNarrow] = useState(() => window.matchMedia?.('(max-width: 760px)').matches || false);
@@ -38,6 +39,7 @@ export function TravelWorkspace({ backNavigation, travelerProfile, sandbox, sele
   }
   function closeChat() { setChatOpen(false); setPane('options'); requestAnimationFrame(() => chatToggle.current?.focus()); }
   const [historicalOption, setHistoricalOption] = useState(null);
+  const [inspectionRequest, setInspectionRequest] = useState(null);
   const [review, setReview] = useState(null), [saving, setSaving] = useState(false), [choiceError, setChoiceError] = useState('');
   const [clock, setClock] = useState(Date.now());
   const dialog = useRef(null), returnFocus = useRef(null);
@@ -84,6 +86,10 @@ export function TravelWorkspace({ backNavigation, travelerProfile, sandbox, sele
     const version = operationEpoch.current;
     setChoiceError(''); setPane('options');
     if (!option.reference) { setHistoricalOption(option); return; }
+    if (topic === 'stays' && comparisonEntry(workspace.state.snapshot, option.reference)) {
+      setInspectionRequest({ reference: { ...option.reference } });
+      if (!option.reference.room_id) return;
+    }
     try {
       const value = parseTravelRegistrySnapshot(await travelRequest(selected.plan_id, 'research/snapshot', { search_id: option.reference.search_id }));
       if (!current(version)) return;
@@ -158,7 +164,16 @@ export function TravelWorkspace({ backNavigation, travelerProfile, sandbox, sele
   }
   const renderReferences = message => message.comparison?.options?.length ? <section className="travel-reply-references" aria-label="Referenced options">
     <p>Earlier observations · prices and availability may change</p>
-    <ul>{message.comparison.options.map(item => <li key={optionId(item)}><button type="button" className="ds-text-button" aria-label={`View ${item.title}`} onClick={() => openReference(item)}>{item.title}</button>{item.price_label && <span>{item.price_label}</span>}{item.reference && <button type="button" className="ds-text-button" aria-label={`Discuss ${item.title}`} disabled={unavailable} onClick={() => discuss([item])}>Discuss</button>}</li>)}</ul>
+    <ul>{message.comparison.options.map(item => {
+      const current = topic === 'stays' && comparisonEntry(workspace.state.snapshot, item.reference || {});
+      const located = current && hasCoordinates(current.item);
+      return <li key={optionId(item)}>
+        <button type="button" className="ds-text-button" aria-label={`View ${item.title}`} onClick={() => openReference(item)}>{item.title}</button>
+        {item.price_label && <span>{item.price_label}</span>}
+        {current && <button type="button" className="ds-text-button" aria-label={`Show ${item.title} on ${located ? 'map' : 'results'}`} onClick={() => { setPane('options'); setInspectionRequest({ reference: { ...item.reference } }); }}>{located ? 'On map' : 'In results'}</button>}
+        {item.reference && <button type="button" className="ds-text-button" aria-label={`Discuss ${item.title}`} disabled={unavailable} onClick={() => discuss([item])}>Discuss</button>}
+      </li>;
+    })}</ul>
   </section> : null;
   // Legacy histories predate reply attachments. Keep their latest research visible.
   const savedSuggestions = <>
@@ -178,11 +193,12 @@ export function TravelWorkspace({ backNavigation, travelerProfile, sandbox, sele
         <div className="travel-substage-status" role="status">{readiness}<span className="travel-provider-label">{sandbox ? 'LiteAPI sandbox · test inventory' : 'Search with LiteAPI'}</span></div>
         {workspace.state.recoveredDetails && <button type="button" className="ds-text-button" onClick={() => workspace.dispatch({ type: 'details', value: workspace.state.recoveredDetails })}>Reopen previous details</button>}
         {saving && !review && <p role="status">Preparing your exact choice…</p>}
-        {workspace.state.notice && <div className="canvas-notice"><p role="status">{workspace.state.notice}</p>{workspace.state.inverse && <button type="button" className="ds-text-button" aria-label="Undo workspace change" onClick={workspace.undo}>Undo</button>}</div>}
+        {workspace.state.notice && <p className="sr-only" role="status">{workspace.state.notice}</p>}
+        {workspace.state.inverse && <div className="travel-workspace-undo"><button type="button" className="ds-text-button" aria-label="Undo workspace change" onClick={workspace.undo}>Undo last change</button></div>}
         {workspace.state.view.dismissed_ids.length > 0 && <details className="travel-saved-options" open><summary>Dismissed from these results ({workspace.state.view.dismissed_ids.length})</summary>
           {workspace.state.snapshot?.results.filter(item => workspace.state.view.dismissed_ids.includes(item.id)).map(item => <div key={item.id}><span>{topic === 'stays' ? item.name : item.airlines.join(' / ') || 'Flight'}</span>{' '}<button type="button" className="ds-text-button" disabled={workspace.state.draftDirty} onClick={() => workspace.restore({ search_id: workspace.state.searchId, option_id: item.id, room_id: null })}>Restore {topic === 'stays' ? item.name : item.airlines.join(' / ') || 'flight'}</button></div>)}
         </details>}
-        <TravelSearch workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onFlightCheckout={onFlightCheckout} onStayCheckout={onStayCheckout} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onShortlist={item => chooseManual(item, 'shortlist')} onCompare={compare} onComparisonChange={onComparisonChange} discussionDisabled={unavailable || saving} choiceDisabled={blocked || saving}/>
+        <TravelSearch inspectionRequest={inspectionRequest} mapMentions={chat.mapMentions} workspace={workspace} planId={selected.plan_id} mode={mode} active={active} initialData={initialData} onExpired={onExpired} onFlightCheckout={onFlightCheckout} onStayCheckout={onStayCheckout} importedSnapshot={importedSnapshot} importRequest={importRequest} importReason={importReason} onDiscuss={item => discuss([item])} onChoose={chooseManual} onShortlist={item => chooseManual(item, 'shortlist')} onCompare={compare} onComparisonChange={onComparisonChange} discussionDisabled={unavailable || saving} choiceDisabled={blocked || saving}/>
         {savedSuggestions}
       </section>
       <div id={`travel-${topic}-chat`} className="travel-chat-pane" hidden={!chatVisible}><TravelConversation chat={chat} topic={topic} visible={active && chatVisible} disabled={blocked || snapshot?.locked && !chat.active} contextOptions={contextOptions} onClearContext={() => setContextOptions([])} brief={snapshot?.brief} pendingEdits={pendingEdits} renderReferences={renderReferences} notes={notes}/></div>

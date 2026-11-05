@@ -63,6 +63,11 @@ class StayRoom(StrictResult):
 
 
 class StayOption(StrictResult):
+    latitude: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
+    longitude: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+    distance_mean_m: float | None = Field(default=None, ge=0)
+    distance_max_m: float | None = Field(default=None, ge=0)
+    distance_count: int = Field(default=0, ge=0, le=53)
     id: Identifier
     hotel_id: Identifier
     name: Text
@@ -577,6 +582,8 @@ def safe_stay(raw):
     return StayOption(id=hotel.id, hotel_id=hotel.hotel_id, name=hotel.name, address=hotel.address,
         image_url=safe_photo(hotel.image_url), stars=hotel.stars, review_score=hotel.review_score,
         review_count=hotel.review_count, facilities=hotel.facilities,
+        latitude=hotel.latitude, longitude=hotel.longitude, distance_mean_m=hotel.distance_mean_m,
+        distance_max_m=hotel.distance_max_m, distance_count=hotel.distance_count,
         price=Price(**hotel.price.model_dump()),
         rooms=[StayRoom(**room.model_dump(include=set(StayRoom.model_fields))) for room in hotel.rooms])
 

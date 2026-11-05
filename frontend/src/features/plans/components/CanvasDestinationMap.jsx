@@ -1,3 +1,4 @@
+import './canvas-destination-map.css';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useAppearance } from '../../appearance/AppearanceProvider';
 import { loadGoogleMaps } from '../../../lib/googleMaps';
@@ -7,7 +8,7 @@ import { suggestedPlaceCategory } from '../placeCategory';
 
 export const CanvasMapContext = createContext({});
 
-function pinIcon() {
+function pinIcon(label) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 28 36'); svg.setAttribute('aria-hidden', 'true');
   const path = document.createElementNS(svg.namespaceURI, 'path');
@@ -15,7 +16,14 @@ function pinIcon() {
   path.setAttribute('fill', 'var(--category)'); path.setAttribute('stroke', 'white'); path.setAttribute('stroke-width', '2');
   const dot = document.createElementNS(svg.namespaceURI, 'circle');
   dot.setAttribute('cx', '14'); dot.setAttribute('cy', '14'); dot.setAttribute('r', '4'); dot.setAttribute('fill', 'white');
-  svg.append(path, dot); return svg;
+  if (label) {
+    path.classList.add('canvas-map-numbered-shape');
+    const text = document.createElementNS(svg.namespaceURI, 'text');
+    text.classList.add('canvas-map-pin-label'); text.setAttribute('x', '14'); text.setAttribute('y', '18');
+    text.setAttribute('text-anchor', 'middle'); text.textContent = label;
+    svg.append(path, text);
+  } else svg.append(path, dot);
+  return svg;
 }
 
 async function geocode(request) {
@@ -26,7 +34,7 @@ async function geocode(request) {
   } catch (error) { if (error.code === 'ZERO_RESULTS') return []; throw error; }
 }
 
-export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect, fitRequest = 0, onShowAll, active = true, editing = false }) {
+export function CanvasDestinationMap({ destination, final, places, selectedId, onSelect, fitRequest = 0, selectionRequest = 0, onShowAll, active = true, editing = false }) {
   const { preview, destinationHint, onClearPreview, onAddPreview, disabled, viewStateKey } = useContext(CanvasMapContext);
   const { theme } = useAppearance();
   const canvas = useRef(null);
@@ -137,10 +145,11 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     for (const place of places) {
       const category = categories[place.category];
       const content = document.createElement('span');
-      content.className = `canvas-map-pin ${place.id === selectedId ? 'selected' : ''}`;
+      content.className = `canvas-map-pin ${place.id === selectedId ? 'selected' : ''} ${place.muted ? 'is-muted' : ''}`;
+      content.dataset.placeId = place.id;
       content.style.setProperty('--category', category.color);
-      content.append(pinIcon());
-      const marker = new runtime.Marker({ map: runtime.map, position: place.position, title: `Inspect ${place.name}`, content });
+      content.append(pinIcon(place.markerLabel));
+      const marker = new runtime.Marker({ map: runtime.map, position: place.position, title: `Inspect ${place.name}`, content, zIndex: place.id === selectedId ? 1000 : place.muted ? 0 : 1 });
       listeners.push(marker.addListener('click', () => selection.current(place.id))); markers.push(marker);
     }
     return () => { listeners.forEach(listener => listener.remove()); markers.forEach(marker => { marker.map = null; }); };
@@ -164,7 +173,7 @@ export function CanvasDestinationMap({ destination, final, places, selectedId, o
     if (restored.current && restoredSelection.current === selectedId) return;
     restoredSelection.current = undefined;
     if (runtime && active && selectedPlace && !preview) runtime.map.panTo(selectedPlace.position);
-  }, [runtime, active, selectedId, selectedPlace?.position.lat, selectedPlace?.position.lng, preview]);
+  }, [runtime, active, selectedId, selectedPlace?.position.lat, selectedPlace?.position.lng, preview, selectionRequest]);
 
   function showAll() {
     if (!runtime || !places.length) return;

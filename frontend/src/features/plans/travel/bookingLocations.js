@@ -85,6 +85,10 @@ export function mergeBookingLocations(pins, locations) {
   const next = structuredClone(pins);
   for (const location of locations) {
     if (!location.source) return null;
+    // Compatibility with the earlier single-stay pin. Its ID was reserved for
+    // this Plan's confirmed hotel; retain traveler edits when attaching identity.
+    const legacy = location.source.provider === 'liteapi' && next.find(pin => pin.id === 'booked_stay' && pin.category === 'stay' && !pin.source);
+    if (legacy && !next.some(pin => sameLocation(pin, location))) legacy.source = { ...location.source };
     const { exact, candidates } = resolveExistingLocation(next, location);
     if (exact) continue;
     const matches = candidates.filter(pin => normalized(pin.name) === normalized(location.name) && location.position &&

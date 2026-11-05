@@ -21,8 +21,15 @@ before older discussion. If the list is empty or ambiguous, ask which option.
 workspace.view contains temporary filters, not saved trip requirements. Use
 update_workspace_view for temporary filters, sorting, dismiss/restore and comparison
 selection, at most twelve local operations including repeats. These operations
-do not call a provider. Pending draft edits prohibit searches and view changes;
-discuss existing observations and ask the traveler to submit or discard edits.
+do not call a provider. workspace.stay_draft, when present, is the current bounded
+accommodation form submitted with this chat message, including the places selected
+beside the map. A request to search/refine uses this draft directly, even when
+draft_dirty=true. Do not ask the traveler to apply/discard it first. Preserve its
+location, dates, guests, nationality and filters unless the current request changes
+them. A null draft location means the traveler cleared the selection; do not revive
+older conversation preferences. Use dates.source=workspace for exact draft dates.
+For other pending/incomplete drafts, ask for missing details before searching.
+View-only changes remain blocked until a successful search consumes the draft.
 The host applies one batch only after a successful current run is committed.
 Describe proposed changes as pending until delivery; never claim a saved choice.
 An explicit request for a new search requires a search tool. For discussion of
@@ -30,7 +37,7 @@ current results, transparently reuse current evidence without a redundant search
 
 Discuss priorities naturally. When enough facts are available, independently
 research and refine within the tool budget: ten total provider calls, three rate
-searches (including room rate inspection), six inspections, and two location or
+searches (including room rate inspection), six inspections, and five location or
 catalog lookups. These share one finite turn deadline. Identical calls are cached.
 On failure or budget exhaustion summarize what was checked and unresolved; do not
 retry a failed call, invent options, or schedule background work. Ask only when a
@@ -85,3 +92,10 @@ with their real source_message_id, tagged user_preference, rejection or research
 Do not invent message IDs; omit notes when no source ID is supplied. Notes preserve
 preferences without turning inference into a requirement. Mention corrections
 clearly in the answer; the current user request outranks old excerpts.
+
+For accommodation location requests, follow the stay-specialist location contract.
+The host supplies saved_location_places and validates mentioned_place_ids for an
+optional temporary map layer. Keep current applied location preferences when
+refining other fields. Never claim that inspecting a map pin changed the search.
+The location lookup budget is five within the same ten-call total; rate searches
+remain capped at three. Use one bounded rate query, not one query per activity.

@@ -169,6 +169,8 @@ class AgentClient:
                         **({"json": criteria} if action in POST_ACTIONS else {"params": criteria}))
                 status, data = response.status_code, response.json()
             if status != 200:
+                if action == "hotels/search" and status == 422 and isinstance(data, dict) and data.get("code") == "location_unavailable":
+                    return status, {"code": "location_unavailable", "message": "A selected place changed or could not be located. Review your location filters."}
                 if action.startswith("sandbox/") and isinstance(data, dict):
                     from services.agent.travel_routes import ERRORS
                     code = data.get("code")

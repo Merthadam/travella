@@ -5,6 +5,7 @@ import { getTravelRecoveryScope, subscribeTravelRecovery } from '../canvasViewSt
 // Each mounted workspace owns its transcript and draft. A stopped run remains
 // locked until the server acknowledges cancellation, including a pending commit.
 export function useTravelConversation({ api, selected, topic, visible, blocked, onExpired, onBusyChange, getDiscussionContext, getWorkspaceContext, onWorkspaceRunStart, onWorkspaceRunEnd, onWorkspaceUpdate }) {
+  const [mapMentions, setMapMentions] = useState([]);
   const [snapshot, setSnapshot] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,13 +31,13 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     finally { if (version === epoch.current) setLoading(false); }
   }, [refresh]);
   useEffect(() => {
-    epoch.current++; setSnapshot(null); setMessages([]); setActive(false); setError(''); void load();
+    epoch.current++; setMapMentions([]); setSnapshot(null); setMessages([]); setActive(false); setError(''); void load();
     return () => { epoch.current++; const current = run.current; run.current = null; if (current) { callbacks.current.onWorkspaceRunEnd?.(current.id); current.controller.abort(); api.cancelAgentTurn(selected, current.id).catch(() => {}); } callbacks.current.onBusyChange?.(topic, false); };
   }, [load]);
   useEffect(() => subscribeTravelRecovery(() => {
     epoch.current++; const current = run.current; run.current = null;
     if (current) { callbacks.current.onWorkspaceRunEnd?.(current.id); current.controller.abort(); void api.cancelAgentTurn(selected, current.id).catch(() => {}); }
-    setSnapshot(null); setMessages([]); setActive(false); callbacks.current.onBusyChange?.(topic, false);
+    setMapMentions([]); setSnapshot(null); setMessages([]); setActive(false); callbacks.current.onBusyChange?.(topic, false);
   }), [api, selected.plan_id, topic]);
   useEffect(() => {
     const version = epoch.current;
@@ -80,8 +81,8 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     if (!message || blocked || loading || historyError || run.current || (!visible && !explicitComparison)) return false;
     const current = { id: requestId(), controller: new AbortController(), epoch: epoch.current, cancelled: false,
       workspaceContext: callbacks.current.getWorkspaceContext?.(), briefDigest: snapshot?.brief?.digest, pendingUpdate: null };
-    callbacks.current.onWorkspaceRunStart?.({ run_id: current.id, brief_digest: current.briefDigest });
-    run.current = current; setActive(true); callbacks.current.onBusyChange?.(topic, true); setError('');
+    callbacks.current.onWorkspaceRunStart?.({ run_id: current.id, brief_digest: current.briefDigest, acceptStayDraft: topic === 'stays' && Boolean(current.workspaceContext?.stay_draft) });
+    setMapMentions([]); run.current = current; setActive(true); callbacks.current.onBusyChange?.(topic, true); setError('');
     setMessages(items => [...items, { message_id: `${current.id}-user`, role: 'user', content: message }, { message_id: current.id, role: 'assistant', content: '', status: 'streaming' }]);
     try {
       const terminal = await api.travelTurn(selected, topic, message, current.id, {
@@ -97,6 +98,8 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
       if (current.cancelled || run.current !== current || current.epoch !== epoch.current) return false;
       if (!current.cancelled && run.current === current && current.epoch === epoch.current &&
           ['complete', 'needs your input', 'shortlist_ready'].includes(terminal.status) && latest?.brief?.digest === current.briefDigest) {
+        const now = callbacks.current.getWorkspaceContext?.();
+        if (now?.instance_id === current.workspaceContext?.instance_id && now?.revision === current.workspaceContext?.revision) setMapMentions(terminal.stay_map_mentions || []);
         const update = terminal.workspace_update || current.pendingUpdate;
         if (update) callbacks.current.onWorkspaceUpdate?.(update);
       }
@@ -116,5 +119,5 @@ export function useTravelConversation({ api, selected, topic, visible, blocked, 
     // local run. Its receipt proves the server accepted the operation's lease.
     if (run.current?.cancelled && !value.locked) finish(run.current);
   }
-  return { snapshot, messages, loading, historyError, error, active, send, stop, refresh, acceptReceipt, retryHistory: load };
+  return { mapMentions, snapshot, messages, loading, historyError, error, active, send, stop, refresh, acceptReceipt, retryHistory: load };
 }

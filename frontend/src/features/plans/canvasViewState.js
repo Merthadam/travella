@@ -1,5 +1,6 @@
 // Browser-tab view preferences only. Durable plan content is owned by the CRUD API.
 import { z } from 'zod';
+import { stayLocationSchema } from './travel/stayLocation';
 import { travelReferenceSchema, travelWorkspaceViewSchema } from './travel/travelWorkspaceSchema';
 const prefix = 'travella.canvas-view.v1:';
 const travelPrefix = 'travella.travel-view.v1:', scopeKey = 'travella.recovery-scope.v1';
@@ -11,9 +12,9 @@ const age = z.union([z.number().int().min(0).max(17), z.string().max(2).regex(/^
 const draftRoom = z.object({ adults: z.union([z.number().int().min(1).max(6), z.string().max(1).regex(/^[1-6]$/)]), children_ages: z.array(age).max(4) }).strict();
 const filters = z.object({ hotel_type_ids: z.array(z.number().int().positive()).max(10), facility_ids: z.array(z.number().int().positive()).max(10), strict_facility_filtering: z.boolean(), refundable_rates_only: z.boolean() }).strict();
 const airport = z.object({ iata: z.string().regex(/^[A-Z]{3}$/), label: text }).strict().nullable();
-const draftSchema = z.object({ city: text, place: z.object({ name: text.optional(), place_id: z.string().max(255).nullish() }).strict().nullable(), country: z.string().max(2), nationality: z.string().max(2), start: z.string().max(10), end: z.string().max(10), rooms: z.array(draftRoom).max(4), adults: z.union([z.number().int().min(1).max(16), z.string().max(2).regex(/^[0-9]{0,2}$/)]), children: z.array(age).max(8), infants: z.array(age).max(8), origin: airport, destination: airport, cabin: z.enum(['ECONOMY','PREMIUM_ECONOMY','BUSINESS','FIRST']), currency: z.enum(['EUR','USD','GBP','HUF','CAD','AUD','JPY','CHF']), stayFilters: filters }).strict();
+const draftSchema = z.object({ city: text, place: z.object({ name: text.optional(), place_id: z.string().max(255).nullish() }).strict().nullable(), country: z.string().max(2), nationality: z.string().max(2), start: z.string().max(10), end: z.string().max(10), rooms: z.array(draftRoom).max(4), adults: z.union([z.number().int().min(1).max(16), z.string().max(2).regex(/^[0-9]{0,2}$/)]), children: z.array(age).max(8), infants: z.array(age).max(8), origin: airport, destination: airport, cabin: z.enum(['ECONOMY','PREMIUM_ECONOMY','BUSINESS','FIRST']), currency: z.enum(['EUR','USD','GBP','HUF','CAD','AUD','JPY','CHF']), stayFilters: filters, stayLocation: stayLocationSchema.optional() }).strict();
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/), country = z.string().regex(/^[A-Z]{2}$/), currency = draftSchema.shape.currency;
-const stayCriteria = z.object({ destination: z.object({ city: z.string().min(2).max(120), country_code: country, place_id: z.string().max(255).nullable() }).strict(), check_in: date, check_out: date, rooms: z.array(z.object({ adults: z.number().int().min(1).max(6), children_ages: z.array(z.number().int().min(0).max(17)).max(4) }).strict()).min(1).max(4), guest_nationality: country, currency, hotel_id: id.nullable(), hotel_type_ids: filters.shape.hotel_type_ids.optional(), facility_ids: filters.shape.facility_ids.optional(), strict_facility_filtering: z.boolean().optional(), refundable_rates_only: z.boolean().optional() }).strict();
+const stayCriteria = z.object({ destination: z.object({ city: z.string().min(2).max(120), country_code: country, place_id: z.string().max(255).nullable() }).strict(), check_in: date, check_out: date, rooms: z.array(z.object({ adults: z.number().int().min(1).max(6), children_ages: z.array(z.number().int().min(0).max(17)).max(4) }).strict()).min(1).max(4), location: stayLocationSchema.nullish(), guest_nationality: country, currency, hotel_id: id.nullable(), hotel_type_ids: filters.shape.hotel_type_ids.optional(), facility_ids: filters.shape.facility_ids.optional(), strict_facility_filtering: z.boolean().optional(), refundable_rates_only: z.boolean().optional() }).strict();
 const flightCriteria = z.object({ origin: z.string().regex(/^[A-Z]{3}$/), destination: z.string().regex(/^[A-Z]{3}$/), departure_date: date, return_date: date, adults: z.number().int().min(1).max(9), children_ages: z.array(z.number().int().min(2).max(11)).max(8), infant_ages: z.array(z.number().int().min(0).max(1)).max(8), cabin_class: draftSchema.shape.cabin, currency, country_code: country }).strict();
 const recordSchema = z.object({ version: z.literal(1), owner: z.string().regex(scopePattern), planId: id, topic: z.enum(['stays','flights']), draftCriteria: draftSchema, draftDirty: z.boolean(), appliedCriteria: z.union([stayCriteria, flightCriteria]).nullable(), searchId: id.nullable(), view: travelWorkspaceViewSchema, detailsReference: travelReferenceSchema.nullable() }).strict().superRefine((record, ctx) => {
   if (record.appliedCriteria && !(record.topic === 'stays' ? stayCriteria : flightCriteria).safeParse(record.appliedCriteria).success ||
@@ -44,6 +45,7 @@ export function readTravelWorkspace(owner, planId, topic) {
   try {
     let raw;
     try { raw = sessionStorage.getItem(key); } catch { raw = travelFallback.get(key); }
+    raw ||= travelFallback.get(key);
     if (!raw || new TextEncoder().encode(raw).length > 32768) return null;
     const value = recordSchema.parse(JSON.parse(raw));
     return value.owner === owner && value.planId === planId && value.topic === topic ? value : null;

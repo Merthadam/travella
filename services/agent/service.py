@@ -445,6 +445,7 @@ class AgentTurnService:
                                                "flight_preview": final.get("flight_preview"),
                                                "travel_specialist_result": final.get("travel_specialist_result"),
                                                "workspace_update": final.get("workspace_update"),
+                                               "stay_map_mentions": final.get("stay_map_mentions", []),
                                                "result": final.get("result")}))
             except asyncio.CancelledError:
                 reason = state["reason"] or "interrupted"

@@ -36,7 +36,7 @@ from ..travel_workspace import WorkspaceOperation, WorkspaceSession, apply_works
 
 
 class DateEvidence(StrictResult):
-    source: Literal["canvas", "conversation"]
+    source: Literal["canvas", "conversation", "workspace"]
     quotes: list[str] = Field(default_factory=list, max_length=3)
 
 
@@ -71,6 +71,7 @@ class CanvasTravelTools(CanvasTravelObserver):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, parse_message=False)
+        self.location_references = {}
 
     def _validate_dates(self, arguments):
         criteria = arguments.criteria.model_dump(mode="json")
@@ -79,7 +80,11 @@ class CanvasTravelTools(CanvasTravelObserver):
             criteria.get("check_out", criteria.get("return_date")),
         ]
         facts = draft_facts(self.draft)
-        if arguments.dates.source == "canvas":
+        if arguments.dates.source == "workspace":
+            draft = getattr(self, 'stay_draft', None)
+            if not isinstance(arguments.criteria, HotelSearch) or not draft or pair != [draft['check_in'], draft['check_out']]:
+                raise ValueError('Dates must match the accommodation form submitted with this message.')
+        elif arguments.dates.source == "canvas":
             if facts["flexible"] or pair != [facts["start"], facts["end"]]:
                 raise ValueError(
                     "Dates must match the exact current Canvas dates, or cite the traveler's date request."
@@ -131,7 +136,8 @@ class CanvasTravelTools(CanvasTravelObserver):
                     return self._error(
                         "hotel_required", "Supply the observed hotel_id to inspect its room rates."
                     )
-                criteria = parsed.criteria.model_dump(mode="json")
+                from ..stay_location import resolve_stay_location
+                criteria = await resolve_stay_location(parsed.criteria, self.draft.components, self._call)
             else:
                 criteria = parsed.model_dump(mode="json")
             caps = Capabilities.model_validate(await self._call("capabilities", {}, "capabilities"))
@@ -226,6 +232,9 @@ class CanvasTravelTools(CanvasTravelObserver):
                     arguments
                 )
                 self._validate_dates(parsed)
+                if mode == "stays":
+                    from ..stay_location import resolve_stay_location
+                    parsed.criteria = HotelSearch.model_validate(await resolve_stay_location(parsed.criteria, self.draft.components, self._call))
                 if mode == "flights":
                     airports = {a["code"] for a in reference_catalog("airports")}
                     invalid = [
@@ -295,6 +304,8 @@ class CanvasTravelTools(CanvasTravelObserver):
                     await self._call("places", query.model_dump(), "lookup")
                 )
                 payload = {"places": [p.model_dump() for p in result.places]}
+                if query.scope == "reference":
+                    self.location_references.update({p.place_id: p.name for p in result.places})
             else:
                 query = AirportQuery.model_validate(arguments)
                 result = Airports.model_validate(
@@ -339,7 +350,7 @@ class CanvasTravelTools(CanvasTravelObserver):
 
         @tool(
             "search_destinations",
-            "Resolve a stay destination by city/area name and ISO country code. Ask if geography is ambiguous.",
+            "Resolve a stay destination or a named location reference by name and ISO country code. Set scope=reference for landmarks or a named city-center point. Ask if geography is ambiguous.",
             PlaceQuery.model_json_schema(),
         )
         async def destinations(args):
@@ -355,7 +366,7 @@ class CanvasTravelTools(CanvasTravelObserver):
 
         @tool(
             "search_stays",
-            "Search stays using complete structured criteria from the conversation/current Canvas. Exact dates, explicit room allocation/child ages and nationality required. dates.source=canvas uses current exact draft dates; conversation requires verbatim traveler date quotes. Read-only; nothing saved or booked.",
+            "Search stays using complete structured criteria from the conversation/current Canvas. Exact dates, explicit room allocation/child ages and nationality required. dates.source=workspace uses the exact accommodation form submitted with this message; canvas uses saved Canvas dates; conversation requires verbatim traveler date quotes. Read-only; nothing saved or booked.",
             StayArguments.model_json_schema(),
         )
         async def stays(args):
@@ -426,7 +437,7 @@ class SpecialistTravelTools(CanvasTravelTools):
     allow_refinement = True
     preview_limit = 10
     evidence_limit = 96 * 1024
-    category_limits = {"lookup": 2, "inspection": 6, "stays": 3, "flights": 3}
+    category_limits = {"lookup": 5, "inspection": 6, "stays": 3, "flights": 3}
 
     def __init__(self, *args, topic, workspace_context=None, **kwargs):
         if topic not in {"stays", "flights"}:
@@ -445,6 +456,8 @@ class SpecialistTravelTools(CanvasTravelTools):
         self.failed_calls = set()
         from ..request_context import current_workspace_context
         workspace_context = workspace_context if workspace_context is not None else current_workspace_context()
+        draft = (workspace_context or {}).get('stay_draft') if topic == 'stays' else None
+        self.stay_draft = HotelSearch.model_validate(draft).model_dump(mode='json') if draft else None
         self.workspace = WorkspaceSession(self.context.traveler_scope, self.context.plan_id, topic, workspace_context) if workspace_context else None
         if self.workspace is not None:
             self.names.add("update_workspace_view")
@@ -484,7 +497,10 @@ class SpecialistTravelTools(CanvasTravelTools):
                         for index, option in enumerate(snap.results):
                             baseline = snap.criteria.model_dump(mode="json")
                             inspected = HotelSearch.model_validate(arguments["criteria"]).model_dump(mode="json")
-                            same_search = all(baseline[key] == inspected[key] for key in ("check_in", "check_out", "rooms", "currency", "guest_nationality", "destination"))
+                            def without_anchors(location):
+                                return {k: v for k, v in location.items() if k != "anchors"} if location else None
+                            same_search = (all(baseline[key] == inspected[key] for key in ("check_in", "check_out", "rooms", "currency", "guest_nationality", "destination", "hotel_type_ids", "facility_ids", "strict_facility_filtering", "refundable_rates_only"))
+                                           and without_anchors(baseline.get("location")) == without_anchors(inspected.get("location")))
                             if option.hotel_id == observed.hotel_id and same_search:
                                 snap.results[index] = observed.model_copy(update={"id": option.id})
                                 self.observation_times[option.id] = payload["searched_at"]
@@ -523,8 +539,10 @@ class SpecialistTravelTools(CanvasTravelTools):
     async def _invoke(self, name, arguments):
         if name not in self.names:
             return self._error("tool_not_allowed", "Use only this discussion's read-only tools.")
-        if self.workspace and self.workspace.dirty and name in {"search_stays", "search_flights", "update_workspace_view"}:
+        if self.workspace and self.workspace.dirty and name in {"search_stays", "search_flights", "update_workspace_view"} and not (name == 'search_stays' and self.stay_draft):
             return self._error("workspace_pending_edits", "Submit or discard pending form edits before changing the workspace. You can still discuss observed evidence.")
+        if name == 'search_stays' and self.stay_draft and isinstance(arguments.get('criteria'), dict):
+            arguments = {**arguments, 'criteria': {**self.stay_draft, **arguments['criteria']}}
         if name == "update_workspace_view":
             if time.monotonic() >= self.deadline:
                 return self._error("workspace_deadline", "The turn deadline ended. Keep checked evidence; do not continue automatically.")
@@ -576,6 +594,7 @@ class SpecialistTravelTools(CanvasTravelTools):
                     self.final_search_id = found.search_id
                     if self.workspace:
                         self.workspace.observed(found)
+                        self.workspace.dirty = False
             for snap in self.snapshots.values():
                 for option in snap.results[:self.preview_limit]:
                     if snap.mode == "stays":

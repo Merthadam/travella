@@ -541,6 +541,17 @@ class LiteApi:
                 "getSentiment": str(data["sentiment"]).lower(), "timeout": 4,
             })
             result = {**envelope, **normalize_reviews(raw, data)}
+        elif action == "places/detail":
+            raw = await self.request("GET", f"/data/places/{data['place_id']}", params={"language": "en"})
+            place = obj(raw.get("data"))
+            position = obj(place.get("location"))
+            name = text(place.get("displayName"), 120)
+            if not name:
+                raise ProviderUnavailable("provider_response_invalid")
+            result = {**envelope, "status": "ready", "place": {
+                "id": data["place_id"], "name": name, "source": "provider_place",
+                "latitude": number(position.get("latitude"), -90, 90), "longitude": number(position.get("longitude"), -180, 180),
+            }}
         elif action == "places":
             country = next(
                 c["name"]
@@ -567,7 +578,7 @@ class LiteApi:
                 if isinstance(p, dict)
                 and re.fullmatch(r"[A-Za-z0-9_-]{1,255}", str(p.get("placeId", "")))
                 and text(p.get("displayName"), 120)
-                and set(items(p.get("types"))) & {"locality", "ski_resort", "administrative_area_level_3", "sublocality", "natural_feature"}
+                and (data["scope"] == "reference" or set(items(p.get("types"))) & {"locality", "ski_resort", "administrative_area_level_3", "sublocality", "natural_feature"})
             ][:8]
             result = {**envelope, "status": "ready" if places else "empty", "places": places}
         elif action == "airports":
@@ -626,9 +637,11 @@ class LiteApi:
                     body["strictFacilityFiltering"] = data["strict_facility_filtering"]
                 if data["refundable_rates_only"]:
                     body["refundableRatesOnly"] = True
+                from services.agent.stay_location import location_query, rank_location_results
                 body.update(
                     {"hotelIds": [data["hotel_id"]]}
                     if data["hotel_id"]
+                    else location_query(data["location"]) if data.get("location")
                     else {"placeId": data["destination"]["place_id"]}
                     if data["destination"]["place_id"]
                     else {
@@ -645,8 +658,14 @@ class LiteApi:
                     attach_offers(self, raw, results, data)
                 if raw["data"] and not results:
                     raise ProviderUnavailable("provider_response_invalid")
+                if data.get("location"):
+                    results = rank_location_results(results, data["location"])
                 truncated = not bool(data["hotel_id"])
                 notice = "Showing availability from up to 30 properties; room choices are limited to the returned offers."
+                if data.get("location"):
+                    notice = "Up to 30 properties, ranked by average straight-line distance, not walking time. Limited room offers; not an exhaustive area search."
+                    if any(a['latitude'] is None or a['longitude'] is None for a in data['location']['anchors']):
+                        notice += " Places without coordinates were excluded from distance ranking."
             else:
                 body = {
                     "legs": [

@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Literal
+from typing import Annotated, Literal
 
 from claude_agent_sdk import HookMatcher
 from pydantic import Field
@@ -53,6 +53,7 @@ class SpecialistAnswer(StrictResult):
     answer: str = Field(min_length=1, max_length=2000)
     needs_input: bool
     comparisons: list[ComparisonReference] = Field(default_factory=list, max_length=3)
+    mentioned_place_ids: list[Annotated[str, Field(min_length=1, max_length=255)]] = Field(default_factory=list, max_length=50, description="Exact saved_location_places IDs or observed reference-scope search_destinations place IDs mentioned in this answer; temporary map inspection only, never a search or saved Plan change.")
     notes: list[NoteQuote] = Field(default_factory=list, max_length=6)
 
 
@@ -195,11 +196,16 @@ class ClaudeSdkTravelSpecialist:
             authorization_token, draft, message, time.monotonic() + min(120, self.config.timeout_seconds), topic=topic, workspace_context=workspace_context)
         if not saved_canvas:
             travel.names = set()
+        from ..stay_location import saved_location_places
+        location_places = saved_location_places(draft.components) if topic == "stays" else {}
         attached = []
         current_snapshot = None
         if workspace_context and workspace_context.get("search_id"):
             from ..travel_registry import travel_registry
             current_snapshot = travel_registry.get(context.traveler_scope, context.plan_id, workspace_context["search_id"], topic)
+            from ..stay_location import location_matches_saved
+            if topic == "stays" and not location_matches_saved(current_snapshot.criteria.location, draft.components):
+                raise ValueError("location_place_changed")
             travel.snapshots[current_snapshot.search_id] = current_snapshot
             for option in current_snapshot.results:
                 if topic == "stays":
@@ -238,12 +244,12 @@ class ClaudeSdkTravelSpecialist:
             return _deny()
 
         payload = {"current_date_utc": datetime.now(UTC).date().isoformat(), "topic": topic,
-                   "current_message": message[:2000], "trip_brief": brief,
+                   "current_message": message[:2000], "trip_brief": brief, "saved_location_places": [{k: p[k] for k in ("id", "name", "category", "position") if k in p} for p in location_places.values()],
                    "conversation_history": list(bounded.recent_messages), "attributed_notes": prior_notes.model_dump(),
                    "inventory_tools_available": bool(saved_canvas), "previous_research": historical}
         if workspace_context:
             payload["workspace"] = workspace_context
-            payload["workspace_instruction"] = "This is temporary applied research, not saved trip facts. Pending draft edits prohibit workspace changes. After successful completion the host applies the final search and update_workspace_view operations once. Never weaken a hard requirement."
+            payload["workspace_instruction"] = "This is temporary research, not saved trip facts. workspace.stay_draft is the current accommodation form explicitly submitted with this message, including map selections. Use it as the search baseline when the traveler asks to search or refine; do not tell them to apply or discard these edits first. If stay_draft is absent and draft_dirty is true, ask for missing form details. Pending edits still prohibit view-only changes until a successful new search. The host applies the final search and view operations once; subsequent manual edits revoke this run. Never weaken a hard requirement."
             if current_snapshot:
                 payload["workspace_options"] = travel._preview_options(current_snapshot)
                 from ..travel_workspace import workspace_comparison_evidence
@@ -324,10 +330,26 @@ class ClaudeSdkTravelSpecialist:
                     await answer_stream.finish(reply.answer)
                     collect_travel_results(bundles)
                     logging.getLogger(__name__).info("travel_specialist topic=%s calls=%s rates=%s", topic, travel.calls, travel.rate_calls)
+                    map_mentions = []
+                    for identifier in dict.fromkeys(reply.mentioned_place_ids):
+                        if p := location_places.get(identifier):
+                            map_mentions.append({"id": p["id"], "name": p["name"], "source": "saved_place",
+                                "latitude": (p.get("position") or {}).get("lat"), "longitude": (p.get("position") or {}).get("lng")})
+                        elif topic == "stays" and identifier in travel.location_references and sum(p['source'] == 'provider_place' for p in map_mentions) < 3:
+                            from ..travel_contracts import PlaceDetail
+                            mention = {"id": identifier, "name": travel.location_references[identifier], "source": "provider_place", "latitude": None, "longitude": None}
+                            try:
+                                detail = PlaceDetail.model_validate(await travel._call("places/detail", {"place_id": identifier}, "lookup"))
+                                if detail.place.id == identifier:
+                                    mention = detail.place.model_dump()
+                            except Exception:
+                                pass  # Unknown position remains listed, never guessed.
+                            map_mentions.append(mention)
                     return {"status": "needs your input" if reply.needs_input else "in_progress",
                             "assistant_text": reply.answer, "question": reply.answer if reply.needs_input else None,
                             "state_changes": [], "travel_specialist_result": {"topic": topic,
-                            "comparison": comparison.model_dump(), "notes": output_notes.model_dump()}}
+                            "comparison": comparison.model_dump(), "notes": output_notes.model_dump(),
+                            "map_mentions": map_mentions}}
         except asyncio.CancelledError:
             raise
         except Exception as error:

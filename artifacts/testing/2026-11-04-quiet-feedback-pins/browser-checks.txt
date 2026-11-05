@@ -1,0 +1,22 @@
+PASS Real manual hotel search succeeds
+PASS All ten accommodation markers use numbered SVG pins
+PASS Card selects its numbered pin
+PASS Only other hotel pins fade; activities remain opaque
+PASS Ratings have no green badge fill
+PASS Dismissing a result shows no coloured or repeated announcement banner
+PASS Dismissal remains announced to assistive technology
+PASS Undo restores the result
+PASS Cancelled search leaves no lingering cancel status
+PASS Cancellation preserves completed hotel results
+PASS Real validation error remains readable without coloured box
+PASS Corrected destination searches successfully
+PASS Mobile map has no horizontal overflow
+Emulating viewport: {"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"isLandscape":false,"width":1440,"height":900}
+Emulating color scheme: light
+## Console messages
+Showing 1-3 of 3 (Page 1 of 1).
+msgid=416 [warn] Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information. (1 args)
+msgid=417 [warn] <gmp-advanced-marker>: Please use addEventListener with 'gmp-' events instead of addListener. (1 args)
+msgid=419 [error] Failed to load resource: the server responded with a status of 409 (Conflict) (0 args)
+Failed network requests: 0
+Quiet feedback and pin verification complete

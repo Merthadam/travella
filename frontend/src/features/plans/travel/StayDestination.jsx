@@ -10,6 +10,8 @@ export function StayDestination({
   planId,
   active,
   onExpired,
+  scope = "destination",
+  label = "Destination or ski area",
 }) {
   const [options, setOptions] = useState([]);
   const [message, setMessage] = useState("");
@@ -23,33 +25,33 @@ export function StayDestination({
         value
           ? `Selected: ${value.name}${value.address ? `, ${value.address}` : ""}`
           : !country
-            ? "Choose a destination country to find destinations."
-            : "Type a city or ski area, then choose a suggestion.",
+            ? scope === "reference" ? "Choose a destination country to find places." : "Choose a destination country to find destinations."
+            : scope === "reference" ? "Find a named center, landmark or neighborhood." : "Type a city or ski area, then choose a suggestion.",
       );
       return;
     }
     const controller = new AbortController();
     let live = true;
-    setMessage("Finding destinations…");
+    setMessage(scope === "reference" ? "Finding places…" : "Finding destinations…");
     const timer = setTimeout(async () => {
       try {
         const result = await travelRequest(
           planId,
           "places",
-          { q: query.trim(), country_code: country },
+          { q: query.trim(), country_code: country, scope },
           controller.signal,
         );
         if (live) {
           setOptions(result.places);
           setMessage(
             result.places.length
-              ? "Choose your destination below."
-              : "No destinations found. Check the city and country.",
+              ? scope === "reference" ? "Choose a reference point below." : "Choose your destination below."
+              : scope === "reference" ? "No places found. Try a landmark or neighborhood name." : "No destinations found. Check the city and country.",
           );
         }
       } catch (error) {
         if (live && error.name !== "AbortError") {
-          setMessage("Destination suggestions unavailable. Please retry.");
+          setMessage(scope === "reference" ? "Place suggestions unavailable. Please retry." : "Destination suggestions unavailable. Please retry.");
           setFailed(true);
           if (error.status === 401) onExpired?.();
         }
@@ -60,13 +62,13 @@ export function StayDestination({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, country, value, planId, active, retry]);
+  }, [query, country, value, planId, active, retry, scope]);
   return (
     <div className="travel-airport travel-stay-destination">
       <label>
-        Destination or ski area
+        {label}
         <input
-          required
+          required={scope === "destination"}
           minLength={2}
           maxLength={120}
           autoComplete="off"
@@ -81,11 +83,11 @@ export function StayDestination({
       <small role="status">{message}</small>
       {failed && (
         <button type="button" onClick={() => setRetry((n) => n + 1)}>
-          Retry destinations
+          {scope === "reference" ? "Retry places" : "Retry destinations"}
         </button>
       )}
       {options.length > 0 && (
-        <ul aria-label="Destination or ski area suggestions">
+        <ul aria-label={scope === "reference" ? "Location reference suggestions" : "Destination or ski area suggestions"}>
           {options.map((place) => (
             <li key={place.place_id}>
               <button

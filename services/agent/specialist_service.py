@@ -118,7 +118,7 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
         committed = True
         update = None
         final_search = projection.get("workspace_update")
-        if workspace and not workspace.draft_dirty and final_search and await service.runs.generation_current(subject, plan_id, generation):
+        if workspace and (not workspace.draft_dirty or request.topic == 'stays' and workspace.stay_draft is not None) and final_search and await service.runs.generation_current(subject, plan_id, generation):
             # Resolve again after commit: expiry and owner/topic are authority,
             # whereas the browser revision is only an optimistic concurrency token.
             try:
@@ -138,6 +138,7 @@ async def handle_specialist(service, request, subject, token, plan, *, on_text_d
             except (HTTPException, ValueError, KeyError):
                 update = None  # Committed conversation remains valid when evidence expires.
         return await finish({"status": projection["status"], "assistant_text": text[:2000],
+                             "stay_map_mentions": output.get("map_mentions", []) if request.topic == "stays" else [],
                              "travel_specialist_result": saved, "workspace_update": update.model_dump(mode="json") if update else None})
     except asyncio.CancelledError:
         await finish({"status": "interrupted"})

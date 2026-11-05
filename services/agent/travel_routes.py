@@ -58,7 +58,13 @@ def register_travel_routes(app, identity_dependency, read_plan, client=None, rea
                 status_code=422,
             )
         if invocation.action == "research/snapshot":
-            return travel_registry.get(identity.subject, invocation.plan_id, criteria["search_id"]).model_dump(mode="json")
+            snapshot = travel_registry.get(identity.subject, invocation.plan_id, criteria["search_id"])
+            if snapshot.mode == "stays" and snapshot.criteria.location:
+                from .stay_location import location_matches_saved
+                saved = await read_canvas(invocation.plan_id, token) if read_canvas else {}
+                if not location_matches_saved(snapshot.criteria.location, (saved.get("snapshot") or {}).get("components", {})):
+                    raise HTTPException(409, "Selected places changed. Search again.")
+            return snapshot.model_dump(mode="json")
         now = time.monotonic()
         for key in list(attempts):
             if not attempts[key] or attempts[key][-1] < now - 60:
@@ -76,6 +82,18 @@ def register_travel_routes(app, identity_dependency, read_plan, client=None, rea
         try:
             async with asyncio.timeout(128):
                 async with slots:
+                    if invocation.action == "hotels/search" and criteria.get("location"):
+                        from .stay_location import resolve_stay_location
+                        try:
+                            if not read_canvas:
+                                raise ValueError("location_unavailable")
+                            saved = await read_canvas(invocation.plan_id, token)
+                            async def lookup(action, data, category):
+                                return await client.call("travel_search", {"action": action, "criteria": data},
+                                    subject=identity.subject, plan_id=str(invocation.plan_id), authorization_token=authorization)
+                            criteria = await resolve_stay_location(criteria, (saved.get("snapshot") or {}).get("components", {}), lookup)
+                        except (ValueError, KeyError):
+                            return JSONResponse({"code": "location_unavailable", "message": "A selected place changed or could not be located. Review your location filters."}, status_code=422)
                     raw = await client.call(
                         "travel_search",
                         {"action": invocation.action, "criteria": criteria},

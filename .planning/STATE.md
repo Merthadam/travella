@@ -4,9 +4,9 @@ current_phase: 18
 current_phase_name: Focused Flights and Accommodation Agents
 status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
-last_updated: "2026-10-31T14:41:15.046Z"
-last_activity: 2026-11-04
-last_activity_desc: Automatic booking pins verified for authorized main shipment
+last_updated: "2026-11-05T15:38:12.122270+00:00"
+last_activity: 2026-11-05
+last_activity_desc: Accommodation location and map branch verified for authorized main merge through PR 36
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -17,6 +17,18 @@ progress:
 ---
 
 # Project State
+
+Shipment update (2026-11-05): User authorized merging `descriptive-find` into main. Integrated main's shared booking-pin contracts and preserved location filters, agent/manual parity, linked maps and feedback/scroll refinements. Merged code 2c93e0c passed 230 frontend/234 backend tests, build, scoped security and authenticated Chrome checks. PR #36: https://github.com/Merthadam/travella/pull/36. GitHub merge metadata records the final outcome. Evidence: `artifacts/testing/2026-11-05-stay-main-merge/verification.md`. Wider phase acceptance unchanged.
+
+Debug update (2026-11-05): Confirmed stay coordinates now survive checkout and add a persisted global map pin. Legacy confirmations recover location by exact provider hotel ID. Existing Lisbon hotel restored alongside all three saved places; marker selection, reload and narrow layout verified in authenticated Chrome. 85 frontend and 86 backend tests, build, auth and runtime source hashes passed. Evidence: `artifacts/testing/2026-11-05-booked-hotel-map-pin/verification.md`. Preview: http://localhost:5202. Broader phase acceptance unchanged.
+
+Quick-task update (2026-11-04): Shared neutral feedback styling, quiet workspace Undo and numbered accommodation pins implemented after user feedback. Desktop/mobile search, cancellation, dismiss/undo, validation and pin opacity verified; 135 tests, build, canonical auth and source hashes passed. Evidence: `artifacts/testing/2026-11-04-quiet-feedback-pins/verification.md`. Preview: http://localhost:5202. Broader phase acceptance unchanged.
+
+Quick-task update (2026-11-04): Refined selected accommodation layout A after scrolling/search-details feedback. Full workspace editor, applied-search summary, preserved list position and pane-only selection scrolling verified in real Chrome desktop/mobile. 135 frontend tests, build, canonical auth and source hashes passed. Evidence: `artifacts/testing/2026-11-04-stay-scroll-polish/verification.md`. Preview: http://localhost:5202. Broader phase acceptance unchanged.
+
+Quick-task update (2026-11-04): Selected accommodation map A implemented with independently scrolling sidebar/results, linked map/card/current-chat references, and 25% opacity for other hotel pins while activities remain opaque. Real agent search, desktop/mobile, reload, room details, 133 frontend tests and build passed. Evidence: `artifacts/testing/2026-11-04-stay-linked-map/verification.md`. Preview: http://localhost:5202. Wider phase acceptance unchanged.
+
+Debug update (2026-11-04): Fixed accommodation chat refusing pending map selections (`8c9db62`). Chat now searches the submitted form and applies matching results through the existing AG-UI workspace update. Live example-account search returned 22 properties within 1.5 km of two map-selected places; desktop/mobile, reload, source hashes, 73 backend and 115 frontend regression tests passed. Evidence: `artifacts/testing/2026-11-04-stay-agent-map-sync/verification.md`. Local preview: http://localhost:5202. Existing phase acceptance is unchanged.
 
 Shipment update (2026-11-04): Automatic confirmed-booking pins approved for main merge. Source 58cc7c0 directly descends from current origin/main; clean shipping checkout passed 98 frontend/105 backend tests, build and scoped security review. PR #35: https://github.com/Merthadam/travella/pull/35. Shipping branch `ship/automatic-booking-pins-20261104`; quick261104-psd records verification. GitHub merge metadata records the final outcome. Wider phase acceptance unchanged.
 
@@ -32,6 +44,12 @@ Briefing update (2026-10-27): User approved compact prototype D and requested im
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261104-vdn | Quiet feedback and numbered accommodation pins; browser verified | 2026-11-04 | da18fbd | [261104-vdn](./quick/261104-vdn-remove-noisy-status-banners-and-use-pin-/) |
+| 261104-v1h | Refined hotel search editor and scrolling; desktop/mobile verified | 2026-11-04 | af39e53 | [261104-v1h](./quick/261104-v1h-polish-accommodation-scrolling-and-searc/) |
+| 261104-tvq | Selected linked hotel map A; faded other hotels, opaque activities, independent scrolling; browser verified | 2026-11-04 | 866ac6d | [261104-tvq](./quick/261104-tvq-implement-selected-accommodation-map-lay/) |
+| 261104-rdh | Implemented shared manual/agent hotel location filters and activity minimap; live desktop/mobile verified | 2026-11-04 | 0356451 | [261104-rdh](./quick/261104-rdh-implement-shared-accommodation-location-/) |
+| 261104-r2q | Refined selected A with manual and agent-mentioned activity minimap; desktop/mobile verified | 2026-11-04 | a89d71a | [261104-r2q](./quick/261104-r2q-refine-selected-hotel-filter-prototype-a/) |
+| 261104-q8m | Three verified flexible hotel-location prototypes and shared agent/manual spec; production design selection pending | 2026-11-04 | 0f9ba4e | [261104-q8m](./quick/261104-q8m-prototype-hotel-location-filters-and-spe/) |
 | 261102-td3 | Flight payment matches accommodation B; hosted card form and real sandbox decline/retry/reload verified | 2026-11-02 | 97c405c | [261102-td3](./quick/261102-td3-match-flight-final-payment-to-the-select/) |
 | 261101-emg | Three interactive accommodation card-payment layouts; verified, selection pending | 2026-11-01 | 31af39d (prototype) | [261101-emg](./quick/261101-emg-compare-three-interactive-accommodation-/) |
 | 261101-e0w | Ship approved guest details and per-room requests via PR #32 | 2026-11-01 | d284365 (integrated source) | [261101-e0w](./quick/261101-e0w-ship-approved-stay-guest-details-and-req/) |

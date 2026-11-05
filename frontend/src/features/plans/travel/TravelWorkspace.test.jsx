@@ -1,3 +1,5 @@
+// The real Maps adapter is exercised by authenticated Chrome verification.
+vi.mock('../components/CanvasDestinationMap', async () => { const { createContext } = await import('react'); return { CanvasMapContext: createContext({}), CanvasDestinationMap: () => null }; });
 import React from 'react';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
@@ -383,7 +385,8 @@ test.each(['current', 'state-only', 'terminal-only', 'draft', 'sort', 'filter', 
     // Late duplicate delivery after the run ended cannot apply again.
     await act(async () => stream.onEvent({ type: 'STATE_SNAPSHOT', snapshot: { workspace_update: batch } }));
     expect(screen.getAllByRole('heading', { name: 'search-1' })).toHaveLength(1);
-    expect(screen.getByText('Results updated. Your saved choices have not changed.')).toBeTruthy();
+    expect(screen.getByText('Results updated. Your saved choices have not changed.').classList.contains('sr-only')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Undo workspace change' }).closest('.canvas-notice')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Undo workspace change' }));
     expect(screen.getByRole('heading', { name: 'old-search' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Undo workspace change' })).toBeNull();
@@ -567,4 +570,40 @@ test.each([3000, 40000, 40001])('manual checkout handle length %i follows the se
   expect(result.current.getCheckoutToken({search_id:snap.search_id,option_id:'option-1'})).toBe(length <= 40000 ? handle : undefined);
   expect(JSON.stringify(result.current.state)).not.toContain(handle);
   expect(JSON.stringify(result.current.getWorkspaceContext())).not.toContain(handle);
+});
+
+
+test('map selections are submitted with chat and expired evidence is excluded', () => {
+  const { result } = renderHook(() => useTravelWorkspace({ owner: 'owner', planId: 'plan-1', topic: 'stays', initialData }));
+  const snapshot = workspaceSnapshot();
+  act(() => result.current.importSnapshot(snapshot, 'first'));
+  const location = { saved_place_ids: ['castle'], reference_place_ids: [], matching: 'within_each', radius_m: 1500, anchors: [] };
+  act(() => result.current.dispatch({ type: 'draft', field: 'stayLocation', value: location }));
+  expect(result.current.getWorkspaceContext()).toMatchObject({ draft_dirty: true, stay_draft: { location, rooms: snapshot.criteria.rooms } });
+  snapshot.expires_at = new Date(Date.now() - 1000).toISOString();
+  act(() => result.current.dispatch({ type: 'import', identity: 'expired', snapshot }));
+  expect(result.current.getWorkspaceContext()).toMatchObject({ search_id: null, view: emptyWorkspaceView(), stay_draft: { check_in: snapshot.criteria.check_in } });
+});
+
+test('an explicitly submitted stay draft accepts the matching agent update but later typing revokes it', () => {
+  const before = { ...authorized(), draftDirty: true };
+  const submitted = travelWorkspaceReducer(before, { type: 'run-start', authority: { ...before.authority, acceptStayDraft: true } });
+  expect(travelWorkspaceReducer(submitted, { type: 'workspace-update', update: update() }).draftDirty).toBe(false);
+  const edited = travelWorkspaceReducer(submitted, { type: 'draft', field: 'stayLocation', value: { saved_place_ids: ['newer'], reference_place_ids: [], matching: 'prefer_nearby', radius_m: 2000, anchors: [] } });
+  expect(travelWorkspaceReducer(edited, { type: 'workspace-update', update: update() })).toBe(edited);
+});
+
+test('current chat map reference reveals its hotel across pages without opening a room or making requests', async () => {
+  const snapshot = workspaceSnapshot();
+  snapshot.results = Array.from({ length: 12 }, (_, i) => ({ ...snapshot.results[0], id: `hotel-${i}`, name: `Stay ${i}`, latitude: 38.7+i/1000, longitude: -9.1 }));
+  snapshot.returned_count = 12; snapshot.preview_ids = snapshot.results.slice(0,3).map(h => h.id);
+  chat.messages = [{ message_id: 'current', comparison: { options: [{ id: 'chat-hotel', title: 'Stay 11', reference: { search_id: snapshot.search_id, option_id: 'hotel-11', room_id: null } }] } }];
+  const api = { prepareTravelChoice: vi.fn(), confirmTravelChoice: vi.fn() };
+  const view = render(<TravelWorkspace selected={{ plan_id: 'plan-1' }} api={api} mode="accommodation" active initialData={initialData} importedSnapshot={snapshot}/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Show Stay 11 on map' }));
+  expect(await screen.findByRole('heading', { name: 'Stay 11' })).toBeTruthy();
+  expect(view.container.querySelector('.travel-result.is-inspected').dataset.optionId).toBe('hotel-11');
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(workspaceRequest).not.toHaveBeenCalled();
+  expect(api.prepareTravelChoice).not.toHaveBeenCalled(); expect(api.confirmTravelChoice).not.toHaveBeenCalled();
 });
