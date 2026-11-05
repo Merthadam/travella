@@ -6,7 +6,7 @@ status: human_needed
 stopped_at: Phase18 shared workspace implemented; bounded goal reconciliation recorded; independent review and traveler acceptance pending
 last_updated: "2026-11-05T15:38:12.122270+00:00"
 last_activity: 2026-11-05
-last_activity_desc: Fixed booked hotels missing from global map; existing hotel recovered, browser reload and 171 tests passed
+last_activity_desc: Accommodation location and map branch verified for authorized main merge through PR 36
 state_head: 6ce099b8fe06d3c23b75b7a7527370f983c2fa79
 progress:
   total_phases: 19
@@ -17,6 +17,8 @@ progress:
 ---
 
 # Project State
+
+Shipment update (2026-11-05): User authorized merging `descriptive-find` into main. Integrated main's shared booking-pin contracts and preserved location filters, agent/manual parity, linked maps and feedback/scroll refinements. Merged code 2c93e0c passed 230 frontend/234 backend tests, build, scoped security and authenticated Chrome checks. PR #36: https://github.com/Merthadam/travella/pull/36. GitHub merge metadata records the final outcome. Evidence: `artifacts/testing/2026-11-05-stay-main-merge/verification.md`. Wider phase acceptance unchanged.
 
 Debug update (2026-11-05): Confirmed stay coordinates now survive checkout and add a persisted global map pin. Legacy confirmations recover location by exact provider hotel ID. Existing Lisbon hotel restored alongside all three saved places; marker selection, reload and narrow layout verified in authenticated Chrome. 85 frontend and 86 backend tests, build, auth and runtime source hashes passed. Evidence: `artifacts/testing/2026-11-05-booked-hotel-map-pin/verification.md`. Preview: http://localhost:5202. Broader phase acceptance unchanged.
 
