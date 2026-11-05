@@ -56,6 +56,8 @@ def attach_offers(api, raw, hotels, criteria):
                 room["checkout_token"] = seal(api, "offer", {
                     "offer": offer["offerId"], "hotel_id": hotel["hotel_id"],
                     "hotel_name": hotel["name"], "address": hotel.get("address"), "previous_total": room["total"], "check_in": criteria["check_in"],
+                    "position": ({"lat": hotel["latitude"], "lng": hotel["longitude"]}
+                                 if hotel.get("latitude") is not None and hotel.get("longitude") is not None else None),
                     "check_out": criteria["check_out"], "room_count": len(criteria["rooms"]),
                 })
 
@@ -142,8 +144,9 @@ async def _checkout(api, action, data):
         room = normalized[0]["rooms"][0]
         changed = state.get("previous_total") != total
         address = state.get("address")
+        position = state.get("position")
         state = {k: state[k] for k in ("hotel_id", "hotel_name", "check_in", "check_out", "room_count")}
-        state.update(address=address, rooms=room_details(rates), price_changed=changed)
+        state.update(address=address, position=position, rooms=room_details(rates), price_changed=changed)
         state.update(prebook=p["prebookId"], reference=reference, total=total, room=room,
                      payment_secret=p["secretKey"], transaction=p["transactionId"],
                      terms=text(p.get("termsAndConditions"), 6000))

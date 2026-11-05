@@ -37,6 +37,10 @@ def test_reservation_save_read_update_delete_restore(system):
     revision = save(system,path,plan['revision'],payload)
     assert system.client.get(path).json()['snapshot'] == payload['snapshot']
     payload['snapshot']['components']['accommodation']['mockBooking']['reservation']['confirmationCode'] = 'HOTEL-FINAL'
+    payload['snapshot']['components']['accommodation']['mockBooking']['reservation']['position'] = {'lat': 38.713, 'lng': -9.139}
+    payload['snapshot']['components']['map'] = {'status': 'ready', 'destination': '', 'final': False,
+        'pins': [{'id': 'booked_stay', 'name': 'Test hotel', 'category': 'stay',
+                  'position': {'lat': 38.713, 'lng': -9.139}, 'description': 'Mock booked · no real reservation'}]}
     revision = save(system,path,revision,payload)
     assert system.client.get(path).json()['snapshot'] == payload['snapshot']
     current = system.client.get(f"/v1/plans/{plan['plan_id']}").json()
@@ -55,7 +59,9 @@ def test_existing_stay_cannot_be_replaced(system):
     assert system.client.get(path).json()['snapshot'] == payload['snapshot']
 
 
-@pytest.mark.parametrize('field,value', [('token','SECRET'),('email','PRIVATE'),('cardNumber','SECRET'),('raw',{}),('roomCount',3)])
+@pytest.mark.parametrize('field,value', [('token','SECRET'),('email','PRIVATE'),('cardNumber','SECRET'),('raw',{}),('roomCount',3),
+    ('position', {'lat': 91, 'lng': 0}), ('position', {'lat': 0, 'lng': -181}),
+    ('position', {'lat': 0}), ('position', {'lat': '38.7', 'lng': 0})])
 def test_private_or_inconsistent_document_rejected(system,field,value):
     plan=create(system); path=f"/v1/plans/{plan['plan_id']}/canvas"; payload=reservation_payload()
     payload['snapshot']['components']['accommodation']['mockBooking']['reservation'][field]=value

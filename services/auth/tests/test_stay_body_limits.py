@@ -88,6 +88,8 @@ def test_large_checkout_handle_passes_authenticated_proxy(system, tmp_path, acti
         assert result.status_code == 200, result.text
         assert result.json()["status"] == "pending"
         assert len(captured) == 1
-        assert json.loads(captured[0].content) == payload
+        expected = payload if action != 'book' else {**payload, 'contact': None,
+            'guests': [{**guest, 'requests': ''} for guest in payload['guests']]}
+        assert json.loads(captured[0].content) == expected
         assert not captured[0].url.query
     store.close()

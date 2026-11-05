@@ -1,4 +1,5 @@
-import { stayBookingSummary } from './travel/stayReservation';
+import { savedStayResult, stayBookingSummary } from './travel/stayReservation';
+import { travelRequest } from './travel/travelApi';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestId } from '../../plansApi';
 import { definitions, ids } from '../../design-system/schemas';
@@ -178,25 +179,60 @@ export function usePlanningCanvas({ selected, api, onExpired, onSaved, externalB
     const next = clone(dataRef.current);
     const stay = next[result.mode === 'flights' ? 'flights' : 'accommodation'];
     if (!stay || (result.mode === 'flights' && stay.need !== 'needed')) return;
-    if (result.status === 'confirmed') {
-      stay.bookingStatus = 'mock-booked';
-      if (stay.mockBooking && stay.mockBooking.reference !== result.booking_id) return;
-      const previousItinerary = stay.mockBooking?.itinerary;
-      const previousReservation = stay.mockBooking?.reservation;
-      stay.mockBooking = result.mode === 'flights' ? flightBookingSummary(result) : stayBookingSummary(result);
-      if (result.mode !== 'flights' && previousReservation && !stay.mockBooking.reservation) stay.mockBooking.reservation = previousReservation;
-      if (result.mode === 'flights' && previousItinerary && !stay.mockBooking.itinerary) stay.mockBooking.itinerary = previousItinerary;
-    } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
-      stay.bookingStatus = 'not-booked'; delete stay.mockBooking;
-    } else return;
+    let mapFull = false;
     try {
+      if (result.status === 'confirmed') {
+        stay.bookingStatus = 'mock-booked';
+        if (stay.mockBooking && stay.mockBooking.reference !== result.booking_id) return;
+        const previousItinerary = stay.mockBooking?.itinerary;
+        const previousReservation = stay.mockBooking?.reservation;
+        stay.mockBooking = result.mode === 'flights' ? flightBookingSummary(result) : stayBookingSummary(result);
+        if (result.mode !== 'flights' && previousReservation && !stay.mockBooking.reservation) stay.mockBooking.reservation = previousReservation;
+        if (result.mode !== 'flights' && stay.mockBooking.reservation) {
+          const reservation = stay.mockBooking.reservation;
+          // Older status receipts lack coordinates; never erase a recovered location.
+          if (!reservation.position && previousReservation?.position) reservation.position = previousReservation.position;
+          const existing = next.map.pins.findIndex(pin => pin.id === 'booked_stay');
+          if (reservation.position && existing < 0 && !previousReservation?.position) {
+            const pin = { id: 'booked_stay', name: stay.mockBooking.hotelName.slice(0, 120), category: 'stay',
+              position: reservation.position, description: 'Mock booked · no real reservation' };
+            if (next.map.pins.length < 50) next.map.pins.push(pin);
+            else mapFull = true;
+          }
+        }
+        if (result.mode === 'flights' && previousItinerary && !stay.mockBooking.itinerary) stay.mockBooking.itinerary = previousItinerary;
+      } else if (['cancelled', 'failed'].includes(result.status) && stay.mockBooking?.reference === result.booking_id) {
+        stay.bookingStatus = 'not-booked'; delete stay.mockBooking;
+        if (result.mode !== 'flights') next.map.pins = next.map.pins.filter(pin => pin.id !== 'booked_stay');
+      } else return;
       const parsed = validateCanvasComponents(next, true);
       if (fingerprint(parsed) === fingerprint(dataRef.current)) return;
       dataRef.current = parsed; setData(parsed);
       setNotice('Mock booking state updated. Your draft saves automatically. No real reservation was made.');
-      setError('');
+      setError(mapFull ? 'Your stay is in the draft, but its pin could not be added: the map has a 50-place limit.' : '');
     } catch { setError('The mock booking could not be added to your canvas. Reopen the checkout and check its status.'); }
   }, []);
+
+  const bookedStay = data?.accommodation?.mockBooking;
+  const missingStayPosition = data?.accommodation?.bookingStatus === 'mock-booked' && bookedStay?.reservation && !bookedStay.reservation.position;
+  useEffect(() => {
+    if (loading || !missingStayPosition || !bookedStay.reservation.hotelId) return;
+    const controller = new AbortController();
+    const reference = bookedStay.reference, hotelId = bookedStay.reservation.hotelId;
+    // Recover old confirmations by exact provider ID, never by an ambiguous name or address.
+    async function locate() {
+      try {
+        const result = await travelRequest(selected.plan_id, 'hotels/detail', { hotel_id: hotelId }, controller.signal);
+        const hotel = result?.hotel;
+        const current = dataRef.current?.accommodation?.mockBooking;
+        if (controller.signal.aborted || current?.reference !== reference || current?.reservation?.hotelId !== hotelId || hotel?.hotel_id !== hotelId ||
+            !Number.isFinite(hotel.latitude) || !Number.isFinite(hotel.longitude)) return;
+        updateMockBooking(selected.plan_id, { ...savedStayResult(current), reservation: { ...current.reservation, position: { lat: hotel.latitude, lng: hotel.longitude } } });
+      } catch { /* The confirmed stay remains usable when provider location is unavailable. */ }
+    }
+    void locate();
+    return () => controller.abort();
+  }, [selected.plan_id, loading, missingStayPosition, bookedStay?.reference, bookedStay?.reservation?.hotelId, updateMockBooking]);
 
   async function generate(group = 'all', reviewedRevision, researchEntryReceipt) {
     if (active.current || savingRef.current || pendingSave.current || externalBusyRef.current || !base.current || editors.length || !groupIds[group]) return;

@@ -33,6 +33,7 @@ export const mapSchema = z.object({ ...state, destination: text(100), final: z.b
 const stayMoney = z.object({ amount: z.string().max(30).regex(/^\d+(\.\d+)?$/).nullable(), currency: z.string().regex(/^[A-Z]{3}$/).nullable() }).strict();
 const stayTax = stayMoney.extend({ name: text(300) });
 export const stayReservationSchema = z.object({
+  position: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).strict().nullish(),
   provider: z.literal('LiteAPI'), sandbox: z.literal(true), hotelId: text(100), address: text(1000).nullable(), confirmationCode: text(100).nullable(),
   roomCount: z.number().int().min(1).max(4), rooms: z.array(z.object({ room: z.number().int().min(1).max(4), name: text(500), board: text(300).nullable(), occupancy: text(300).nullable(), refundable: z.boolean().nullable(), cancellation: text(4000).nullable(), cancellationDeadline: text(120).nullable(), excludedTaxes: z.array(stayTax).max(50) }).strict()).min(1).max(4),
   guests: z.array(z.object({ room: z.number().int().min(1).max(4).nullable(), firstName: z.string().min(1).max(50), lastName: z.string().min(1).max(50) }).strict()).max(40),

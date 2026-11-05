@@ -99,6 +99,7 @@ def reservation(state, booking):
                  for i in range(state['room_count'])]
     return StayReservation.model_validate({
         'hotelId': state['hotel_id'], 'address': text(hotel.get('address'), 1000) or state.get('address'),
+        'position': state.get('position'),
         'confirmationCode': text(booking.get('hotelConfirmationCode'), 100),
         'roomCount': state['room_count'], 'rooms': rooms, 'guests': guests,
         'total': total if final_price else state['total'], 'priceSource': 'booking' if final_price else 'prebook',

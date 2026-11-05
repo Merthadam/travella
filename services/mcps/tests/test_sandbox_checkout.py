@@ -111,6 +111,23 @@ def test_real_flow_projection_price_refresh_readback_and_idempotency():
     assert len(supplier.posts) == 1
 
 
+def test_provider_coordinates_survive_offer_prebook_confirmation_and_status():
+    from services.mcps.sandbox_checkout import attach_offers
+    from services.mcps.liteapi import normalize_hotels
+    api, supplier, _ = setup()
+    raw = hotel_payload()
+    raw['hotels'][0].update(latitude=38.713, longitude=-9.139)
+    hotels = normalize_hotels(raw)
+    attach_offers(api, raw, hotels, HOTEL)
+    prebook = run(api.call('sandbox/prebook', {'token': hotels[0]['rooms'][0]['checkout_token']}))
+    position = {'lat': 38.713, 'lng': -9.139}
+    assert prebook['reservation']['position'] == position
+    booked = run(api.call('sandbox/book', {'token': prebook['token'], 'confirm_mock': True,
+        'guests': [{'first_name': 'Test', 'last_name': 'Guest'}]}))
+    assert booked['reservation']['position'] == position
+    assert run(api.call('sandbox/status', {'token': prebook['token']}))['reservation']['position'] == position
+
+
 def test_timeout_reconciles_instead_of_creating_second_booking():
     api, supplier, token = setup()
     p = run(api.call('sandbox/prebook', {'token': token}))
