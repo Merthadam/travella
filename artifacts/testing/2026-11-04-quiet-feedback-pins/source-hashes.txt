@@ -1,5 +1,0 @@
-frontend/src/main.jsx MATCH
-frontend/src/design-system/feedback.css MATCH
-frontend/src/features/plans/components/CanvasDestinationMap.jsx MATCH
-frontend/src/features/plans/components/canvas-destination-map.css MATCH
-frontend/src/features/plans/travel/TravelWorkspace.jsx MATCH

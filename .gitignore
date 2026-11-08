@@ -11,3 +11,10 @@ dist/
 *.sqlite3*
 playwright-report/
 test-results/
+
+# Local-only agent planning, documentation, and evidence
+/.planning/
+/artifacts/
+/agent_working_logs/
+/docs/superpowers/
+/docs/plans/

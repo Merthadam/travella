@@ -1,5 +1,9 @@
 # Travella agent rules
 
+## Generated files stay local
+
+Keep generated planning documents, Superpowers specs/plans, agent logs, and testing artifacts out of Git. Use the ignored `.planning/`, `docs/superpowers/` (or legacy `docs/plans/`), `agent_working_logs/`, and `artifacts/` directories. Do not force-add or commit these files, even when a workflow asks for a planning or evidence commit. Keep application code, tests, and maintained project documentation tracked.
+
 For every frontend change, frontend planning/design session, or backend CRUD change, **read and follow [the mandatory planning and testing skill](.agents/skills/travella-testing/SKILL.md)** before starting work and before reporting completion. This includes the frontend planning prototype offer. Its applicable verification and evidence requirements are delivery gates.
 
 <!-- GSD:project-start source:PROJECT.md -->

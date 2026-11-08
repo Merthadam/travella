@@ -1,4 +1,0 @@
-Script ran on page and returned:
-```json
-[{"title":"Quiet drawer check · Lisbon revised","status":200,"lifecycle":"deleted","recoverable":true,"revision":4},{"title":"Quiet drawer check · Kyoto","status":200,"lifecycle":"active","recoverable":false,"revision":2}]
-```
