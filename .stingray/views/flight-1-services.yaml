@@ -1,0 +1,67 @@
+version: 1
+name: "Flight booking · 1. Services"
+description: "Level 1 (overview). Which services a flight booking passes through and how they talk to each other. Click a service for its role. More detail: 'Flight booking · 2. Endpoints', then 'Flight booking · 3. Checkout logic'."
+kind: flow
+scope:
+  include: ["frontend/src/features/plans/travel/useFlightCheckout.js", "frontend/src/features/plans/usePlanningCanvas.js", "services/agent/travel_routes.py", "services/mcps/liteapi.py", "services/mcps/flight_checkout.py"]
+rules:
+  - id: node-browser
+    language: javascript
+    files: ["frontend/src/features/plans/travel/useFlightCheckout.js"]
+    query: |
+      (call_expression function: (identifier) @f (#eq? @f "travelRequest"))
+    emit: { node: { id: browser, label: "Browser (React app)", subtitle: "Flight checkout UI · useFlightCheckout", detail: "The traveler goes through the sandbox flight checkout (verify, passengers, extras, payment). Every call goes to the Agent service; the browser never talks to LiteAPI or holds provider credentials. Next level: open the view 'Flight booking · 2. Endpoints' to see which endpoints each checkout step calls.", kind: service, role: start } }
+  - id: node-agent
+    language: python
+    files: ["services/agent/travel_routes.py"]
+    query: |
+      (call function: (identifier) @f (#eq? @f "read_plan"))
+    emit: { node: { id: agent, label: "Agent service", subtitle: "travel route · travel_routes.dispatch", detail: "Public API for travel actions. Validates the traveler's Cognito token, checks with CRUD that the traveler owns the Plan, rate-limits, then forwards the action to the private Connector. Next level: open the view 'Flight booking · 2. Endpoints' to see which endpoints each checkout step calls.", kind: service } }
+  - id: node-crud
+    language: javascript
+    files: ["frontend/src/features/plans/usePlanningCanvas.js"]
+    query: |
+      (call_expression function: (member_expression property: (property_identifier) @m (#eq? @m "saveCanvas")))
+    emit: { node: { id: crud, label: "CRUD backend", subtitle: "owns durable Plan data", detail: "The only service that stores Plan data. The Agent asks it to authorize the Plan; after a confirmed booking the browser saves the booking to the Plan's canvas with revision checks. Next level: open the view 'Flight booking · 2. Endpoints' to see which endpoints each checkout step calls.", kind: service, role: end } }
+  - id: node-connector
+    language: python
+    files: ["services/mcps/liteapi.py"]
+    query: |
+      (import_from_statement module_name: (relative_import) @mod (#eq? @mod ".flight_checkout") name: (dotted_name) @n (#eq? @n "checkout"))
+    emit: { node: { id: connector, label: "Connector service (private)", subtitle: "MCP server · travel_search → flight_checkout", detail: "Private service that holds the LiteAPI key. It runs the checkout state machine: sealed tokens, idempotent receipts, revision checks and provider readback. Its internals are in 'Flight booking · 3. Checkout logic'.", kind: service } }
+  - id: node-liteapi
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")))
+    emit: { node: { id: liteapi, label: "LiteAPI sandbox", subtitle: "external flight provider", detail: "External provider in sandbox mode: verifies offers, holds prebooks, adds seats/bags and creates the (test) booking. No real ticket or charge. Next level: open the view 'Flight booking · 2. Endpoints' to see which endpoints each checkout step calls.", kind: service } }
+  - id: edge-browser-agent
+    language: javascript
+    files: ["frontend/src/features/plans/travel/useFlightCheckout.js"]
+    query: |
+      (call_expression function: (identifier) @f (#eq? @f "travelRequest"))
+    emit: { edge: { from: browser, to: agent, label: "1. HTTPS POST /v1/agent/plans/{id}/travel/sandbox/flights/*" } }
+  - id: edge-agent-crud
+    language: python
+    files: ["services/agent/travel_routes.py"]
+    query: |
+      (call function: (identifier) @f (#eq? @f "read_plan"))
+    emit: { edge: { from: agent, to: crud, label: "2. authorize Plan (GET /v1/plans/{id})" } }
+  - id: edge-agent-connector
+    language: python
+    files: ["services/agent/travel_routes.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "call")) arguments: (argument_list . (string (string_content) @tool (#eq? @tool "travel_search"))))
+    emit: { edge: { from: agent, to: connector, label: "3. MCP over HTTP: travel_search" } }
+  - id: edge-connector-liteapi
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")))
+    emit: { edge: { from: connector, to: liteapi, label: "4. REST /flights/* (sandbox key)" } }
+  - id: edge-browser-crud
+    language: javascript
+    files: ["frontend/src/features/plans/usePlanningCanvas.js"]
+    query: |
+      (call_expression function: (member_expression property: (property_identifier) @m (#eq? @m "saveCanvas")))
+    emit: { edge: { from: browser, to: crud, label: "5. save confirmed booking (PUT /v1/plans/{id}/canvas)" } }

@@ -1,0 +1,205 @@
+version: 1
+name: "Travella · 1. Runtime map"
+description: "Level 1. Which processes talk to each other at runtime. Every box and arrow is extracted from the code that makes the call, so it updates when the code changes; click a box for its purpose (from module docstrings). Next level: 'Travella · 2. Agent ↔ CRUD endpoints'."
+kind: graph
+scope:
+  include: ["frontend/src/**/*.js", "services/**/*.py"]
+  exclude: ["**/tests/**", "**/*.test.js", "services/agent/evals/**"]
+rules:
+  # ── groups ─────────────────────────────────────────────────────────────
+  - id: group-repo
+    language: python
+    files: ["services/agent/app.py"]
+    query: |
+      (module . (expression_statement (string (string_content))))
+    emit: { group: { id: repo, label: "Travella services (this repo)" } }
+  - id: group-connector
+    language: python
+    files: ["services/mcps/travel_server.py"]
+    query: |
+      (module . (expression_statement (string (string_content))))
+    emit: { group: { id: connector, label: "Connector service · private MCP servers (services/mcps)" } }
+  - id: group-external
+    language: python
+    files: ["services/mcps/liteapi.py"]
+    query: |
+      (module . (expression_statement (string (string_content))))
+    emit: { group: { id: external, label: "External providers & managed services" } }
+
+  # ── Travella processes ─────────────────────────────────────────────────
+  - id: node-browser
+    language: javascript
+    files: ["frontend/src/api.js"]
+    query: |
+      (function_declaration name: (identifier) @f (#eq? @f "request"))
+    emit: { node: { id: browser, label: "Browser · React app", subtitle: "frontend/src · all calls via @f() in api.js", kind: client, role: start, detail: "Single-page app. Every API call goes through @f() in frontend/src/api.js as a same-origin request to /v1/* or /auth/* carrying the session cookie; the browser never holds service tokens or provider credentials." } }
+  - id: node-auth
+    language: python
+    files: ["services/auth/api.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc)))
+    emit: { node: { id: auth, label: "Auth service · browser gateway", subtitle: "services/auth", kind: service, group: repo, detail: "@doc It is the only service the browser talks to: it signs travelers in with Cognito, keeps the session server-side and forwards /v1/* calls to CRUD and the Agent with the traveler's access token." } }
+  - id: node-crud
+    language: python
+    files: ["services/crud/api.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc)))
+    emit: { node: { id: crud, label: "CRUD backend", subtitle: "services/crud · owns durable Plan data", kind: service, group: repo, detail: "@doc The only writer of Plan data; every route verifies the access token itself." } }
+  - id: node-agent
+    language: python
+    files: ["services/agent/app.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc)))
+    emit: { node: { id: agent, label: "Agent service", subtitle: "services/agent · LangGraph + Claude", kind: service, group: repo, detail: "@doc Runs one traveler turn through the LangGraph graph (see view 'Agent LangGraph flow'); reads Plan context from CRUD and never writes Plan data without a confirmed CRUD call." } }
+  - id: node-mcp
+    language: python
+    files: ["services/mcps/*_server.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc))
+        (expression_statement (assignment right: (call function: (identifier) @f (#eq? @f "FastMCP") arguments: (argument_list . (string (string_content) @name))))))
+    emit: { node: { id: "mcp:@stem", label: "@name", subtitle: "services/mcps/@stem.py", kind: service, group: connector, detail: "@doc" } }
+  - id: mcp-tools
+    language: python
+    files: ["services/mcps/*_server.py"]
+    query: |
+      (decorated_definition
+        (decorator (call function: (attribute attribute: (identifier) @t (#eq? @t "tool"))))
+        definition: (function_definition name: (identifier) @tool))
+    emit: { field: { node: "mcp:@stem", id: "@tool", label: "@tool", type: "MCP tool" } }
+
+  # ── data stores & managed services ─────────────────────────────────────
+  - id: node-postgres
+    language: python
+    files: ["services/crud/config.py"]
+    query: |
+      (call function: (identifier) @f (#eq? @f "create_engine"))
+    emit: { node: { id: postgres, label: "PostgreSQL", subtitle: "Plan data · sessions · agent checkpoints", kind: database, group: external, detail: "One database, separate concerns: CRUD's Plan tables, the Auth session store and the Agent's LangGraph checkpoints." } }
+  - id: node-cognito
+    language: python
+    files: ["services/auth/cognito_adapter.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "boto3") attribute: (identifier) @m (#eq? @m "client")) arguments: (argument_list . (string (string_content) @svc (#eq? @svc "cognito-idp"))))
+    emit: { node: { id: cognito, label: "Amazon Cognito", subtitle: "managed identity (@svc)", kind: external, group: external, detail: "Issues traveler access tokens. Auth calls it to sign in; CRUD, Agent and the MCP servers verify the resulting JWTs independently." } }
+  - id: node-agentcore
+    language: python
+    files: ["services/agent/memory.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "boto3") attribute: (identifier) @m (#eq? @m "client")) arguments: (argument_list . (string (string_content) @svc (#eq? @svc "bedrock-agentcore"))))
+    emit: { node: { id: agentcore, label: "AWS Bedrock AgentCore", subtitle: "Runtime · Memory · Gateway (@svc)", kind: external, group: external, detail: "Deployed hosting for the Agent (Runtime), advisory traveler memory (Memory) and the MCP Gateway that fronts the Connector. Locally the Agent and MCP servers are called directly instead." } }
+  - id: node-claude
+    language: python
+    files: ["services/agent/claude/runtime.py"]
+    query: |
+      (import_from_statement module_name: (dotted_name) @m (#eq? @m "claude_agent_sdk"))
+    emit: { node: { id: claude, label: "Claude (Anthropic)", subtitle: "via @m", kind: external, group: external, detail: "LLM used by the Agent's chat, canvas and research workers through the Claude Agent SDK." } }
+  - id: node-provider-url
+    language: python
+    files: ["services/mcps/*.py"]
+    query: |
+      (module (expression_statement (assignment left: (identifier) @const right: (string (string_content) @url (#match? @url "^https://")))))
+    emit: { node: { id: "@url", label: "@url", subtitle: "@const in services/mcps/@stem.py", kind: external, group: external } }
+  - id: node-browser-provider
+    language: javascript
+    files: ["frontend/src/**/*.js"]
+    query: |
+      (call_expression function: (identifier) @f (#eq? @f "fetch") arguments: (arguments . (string (string_fragment) @url (#match? @url "^https://"))))
+    emit: { node: { id: "@url", label: "@url", subtitle: "called from the browser (@stem.js)", kind: external, group: external } }
+
+  # ── runtime calls ──────────────────────────────────────────────────────
+  - id: edge-browser-auth
+    language: javascript
+    files: ["frontend/src/api.js"]
+    within: { function: request }
+    query: |
+      (call_expression function: (identifier) @fetch (#eq? @fetch "fetch"))
+    emit: { edge: { from: browser, to: auth, label: "HTTPS /v1/* + /auth/* · session cookie" } }
+  - id: edge-browser-provider
+    language: javascript
+    files: ["frontend/src/**/*.js"]
+    query: |
+      (call_expression function: (identifier) @f (#eq? @f "fetch") arguments: (arguments . (string (string_fragment) @url (#match? @url "^https://"))))
+    emit: { edge: { from: browser, to: "@url", label: "sandbox payment form (@stem.js)" } }
+  - id: edge-auth-crud
+    language: python
+    files: ["services/auth/crud_client.py"]
+    query: |
+      (class_definition name: (identifier) @c (#eq? @c "CrudClient"))
+    emit: { edge: { from: auth, to: crud, label: "@c · HTTP + traveler token" } }
+  - id: edge-auth-agent
+    language: python
+    files: ["services/auth/agent_client.py"]
+    query: |
+      (class_definition name: (identifier) @c (#eq? @c "AgentClient"))
+    emit: { edge: { from: auth, to: agent, label: "@c · HTTP + SSE stream (AgentCore Runtime when deployed)" } }
+  - id: edge-auth-cognito
+    language: python
+    files: ["services/auth/cognito_adapter.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "boto3")) arguments: (argument_list . (string (string_content) @svc (#eq? @svc "cognito-idp"))))
+    emit: { edge: { from: auth, to: cognito, label: "sign-in / refresh (@stem.py)" } }
+  - id: edge-auth-postgres
+    language: python
+    files: ["services/auth/session_store.py"]
+    query: |
+      (call function: (identifier) @f (#eq? @f "create_engine"))
+    emit: { edge: { from: auth, to: postgres, label: "server-side sessions (@stem.py)" } }
+  - id: edge-crud-postgres
+    language: python
+    files: ["services/crud/config.py"]
+    query: |
+      (call function: (identifier) @f (#eq? @f "create_engine"))
+    emit: { edge: { from: crud, to: postgres, label: "Plan data · SQLAlchemy" } }
+  - id: edge-agent-crud
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (module . (expression_statement (string (string_content))))
+    emit: { edge: { from: agent, to: crud, label: "@stem.py · HTTP + traveler token (level 2)" } }
+  - id: edge-agent-postgres
+    language: python
+    files: ["services/agent/checkpoint.py"]
+    query: |
+      (import_from_statement name: (dotted_name) @n (#eq? @n "AsyncPostgresSaver"))
+    emit: { edge: { from: agent, to: postgres, label: "LangGraph checkpoints (@n)" } }
+  - id: edge-agent-claude
+    language: python
+    files: ["services/agent/claude/runtime.py"]
+    query: |
+      (import_from_statement module_name: (dotted_name) @m (#eq? @m "claude_agent_sdk"))
+    emit: { edge: { from: agent, to: claude, label: "Claude Agent SDK" } }
+  - id: edge-agent-agentcore
+    language: python
+    files: ["services/agent/memory.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "boto3")) arguments: (argument_list . (string (string_content) @svc (#eq? @svc "bedrock-agentcore"))))
+    emit: { edge: { from: agent, to: agentcore, label: "traveler memory (@stem.py)" } }
+  - id: edge-agent-mcp
+    language: python
+    files: ["services/agent/travel_client.py", "services/agent/maps_client.py"]
+    query: |
+      (class_definition name: (identifier) @c (#match? @c "^(Travel|Maps)Client$"))
+    emit: { edge: { from: agent, to: "@c", label: "@c · MCP over HTTP (via AgentCore Gateway when deployed)" } }
+  - id: mcp-alias-travel
+    language: python
+    files: ["services/mcps/travel_server.py"]
+    query: |
+      (module . (expression_statement (string (string_content))))
+    emit: { node: { id: "mcp:@stem", aliases: [TravelClient] } }
+  - id: mcp-alias-map
+    language: python
+    files: ["services/mcps/map_server.py"]
+    query: |
+      (module . (expression_statement (string (string_content))))
+    emit: { node: { id: "mcp:@stem", aliases: [MapsClient] } }
+  - id: edge-mcp-provider
+    language: python
+    files: ["services/mcps/map_server.py", "services/mcps/research_server.py"]
+    query: |
+      (module (expression_statement (assignment left: (identifier) @const right: (string (string_content) @url (#match? @url "^https://")))))
+    emit: { edge: { from: "mcp:@stem", to: "@url", label: "@const" } }
+  - id: edge-travel-provider
+    language: python
+    files: ["services/mcps/liteapi.py", "services/mcps/sandbox_checkout.py"]
+    query: |
+      (module (expression_statement (assignment left: (identifier) @const right: (string (string_content) @url (#match? @url "^https://")))))
+    emit: { edge: { from: "mcp:travel_server", to: "@url", label: "@const (@stem.py)" } }

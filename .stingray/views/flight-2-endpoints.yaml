@@ -1,0 +1,205 @@
+version: 1
+name: "Flight booking · 2. Endpoints"
+description: "Level 2. The Agent endpoints the browser calls for each checkout step (top group) and the LiteAPI endpoints each one triggers through the Connector. Solid = normal order, dashed = recovery. Level up: 'Flight booking · 1. Services'. Level down: 'Flight booking · 3. Checkout logic'."
+kind: flow
+scope:
+  include: ["services/agent/travel_contracts.py", "services/mcps/flight_checkout.py", "services/mcps/flight_tickets.py", "frontend/src/features/plans/usePlanningCanvas.js"]
+rules:
+  - id: group-agent
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/verify")))
+    emit: { group: { id: agent, label: "Agent service · /v1/agent/plans/{id}/travel/…" } }
+  - id: group-liteapi
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (string (string_content) @p (#eq? @p "/flights/verify"))))
+    emit: { group: { id: liteapi, label: "LiteAPI sandbox (called by the Connector via MCP travel_search)" } }
+  - id: group-crud
+    language: javascript
+    files: ["frontend/src/features/plans/usePlanningCanvas.js"]
+    query: |
+      (call_expression function: (member_expression property: (property_identifier) @m (#eq? @m "saveCanvas")))
+    emit: { group: { id: crud, label: "CRUD backend" } }
+  - id: action-verify
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/verify")))
+    emit: { node: { id: verify, label: "POST …/sandbox/flights/verify", subtitle: "Step 1 · open checkout", detail: "Re-prices the selected offer when checkout opens. Expired offers return 409 and the traveler must search again. Level up: 'Flight booking · 1. Services'. Level down: 'Flight booking · 3. Checkout logic' (how the Connector handles this action).", kind: endpoint, group: agent, role: start } }
+  - id: action-prebook
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/prebook")))
+    emit: { node: { id: prebook, label: "POST …/sandbox/flights/prebook", subtitle: "Step 2 · passengers & contact", detail: "Sends passengers and contact; the Connector journals a receipt first so a lost response can be recovered via status. Level up: 'Flight booking · 1. Services'. Level down: 'Flight booking · 3. Checkout logic' (how the Connector handles this action).", kind: endpoint, group: agent } }
+  - id: action-services
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/services")))
+    emit: { node: { id: services, label: "POST …/sandbox/flights/services", subtitle: "Step 3 · seats & bags (optional)", detail: "Only sent when chosen extras changed. Booking stays disabled until the provider confirms the new total; a stale revision returns checkout_changed. Level up: 'Flight booking · 1. Services'. Level down: 'Flight booking · 3. Checkout logic' (how the Connector handles this action).", kind: endpoint, group: agent } }
+  - id: action-book
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/book")))
+    emit: { node: { id: book, label: "POST …/sandbox/flights/book", subtitle: "Step 4 · pay & book", detail: "Books once per prebook id (provider-idempotent), then reads the booking back and requires a sandbox environment marker. Level up: 'Flight booking · 1. Services'. Level down: 'Flight booking · 3. Checkout logic' (how the Connector handles this action).", kind: endpoint, group: agent } }
+  - id: action-status
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/status")))
+    emit: { node: { id: status, label: "POST …/sandbox/flights/status", subtitle: "Recovery · check status", detail: "Polled every 5 s while the outcome is pending/unknown, or via Check booking status. Re-reads the prebook/booking from the provider. Level up: 'Flight booking · 1. Services'. Level down: 'Flight booking · 3. Checkout logic' (how the Connector handles this action).", kind: endpoint, group: agent } }
+  - id: action-tickets
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/tickets")))
+    emit: { node: { id: tickets, label: "POST …/sandbox/flights/tickets", subtitle: "After booking · tickets", detail: "Loads passenger ticket records for a confirmed booking the traveler owns. Level up: 'Flight booking · 1. Services'. Level down: 'Flight booking · 3. Checkout logic' (how the Connector handles this action).", kind: endpoint, group: agent } }
+  - id: endpoint-p-verify
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (string (string_content) @p (#eq? @p "/flights/verify"))))
+    emit: { node: { id: p-verify, label: "POST /flights/verify", kind: endpoint, group: liteapi } }
+  - id: endpoint-p-prebook
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (string (string_content) @p (#eq? @p "/flights/prebooks"))))
+    emit: { node: { id: p-prebook, label: "POST /flights/prebooks", kind: endpoint, group: liteapi } }
+  - id: endpoint-p-services
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (binary_operator left: (binary_operator left: (string (string_content) @p (#eq? @p "/flights/prebooks/"))) right: (string (string_content) @s (#eq? @s "/services")))))
+    emit: { node: { id: p-services, label: "POST /flights/prebooks/{id}/services", kind: endpoint, group: liteapi } }
+  - id: endpoint-p-prebook-get
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "GET")) . (binary_operator left: (string (string_content) @p (#eq? @p "/flights/prebooks/")))))
+    emit: { node: { id: p-prebook-get, label: "GET /flights/prebooks/{id}", kind: endpoint, group: liteapi } }
+  - id: endpoint-p-book
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (string (string_content) @p (#eq? @p "/flights/bookings/"))))
+    emit: { node: { id: p-book, label: "POST /flights/bookings/", kind: endpoint, group: liteapi } }
+  - id: endpoint-p-booking-get
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "GET")) . (binary_operator left: (string (string_content) @p (#eq? @p "/flights/bookings/")))))
+    emit: { node: { id: p-booking-get, label: "GET /flights/bookings/{id}", kind: endpoint, group: liteapi } }
+  - id: crud-canvas
+    language: javascript
+    files: ["frontend/src/features/plans/usePlanningCanvas.js"]
+    query: |
+      (call_expression function: (member_expression property: (property_identifier) @m (#eq? @m "saveCanvas")))
+    emit: { node: { id: canvas, label: "PUT /v1/plans/{id}/canvas", subtitle: "save booking to the Plan", detail: "After a confirmed booking the browser stores it as the flight mockBooking on the Planning Canvas (revision-checked, idempotent).", kind: endpoint, group: crud, role: end } }
+  - id: call-verify-p-verify
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (string (string_content) @p (#eq? @p "/flights/verify"))))
+    emit: { edge: { from: verify, to: p-verify, kind: call } }
+  - id: call-prebook-p-prebook
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (string (string_content) @p (#eq? @p "/flights/prebooks"))))
+    emit: { edge: { from: prebook, to: p-prebook, kind: call } }
+  - id: call-services-p-services
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (binary_operator left: (binary_operator left: (string (string_content) @p (#eq? @p "/flights/prebooks/"))) right: (string (string_content) @s (#eq? @s "/services")))))
+    emit: { edge: { from: services, to: p-services, kind: call } }
+  - id: call-book-p-book
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "POST")) . (string (string_content) @p (#eq? @p "/flights/bookings/"))))
+    emit: { edge: { from: book, to: p-book, kind: call } }
+  - id: call-book-p-booking-get
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "GET")) . (binary_operator left: (string (string_content) @p (#eq? @p "/flights/bookings/")))))
+    emit: { edge: { from: book, to: p-booking-get, kind: call } }
+  - id: call-status-p-prebook-get
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "GET")) . (binary_operator left: (string (string_content) @p (#eq? @p "/flights/prebooks/")))))
+    emit: { edge: { from: status, to: p-prebook-get, kind: call } }
+  - id: call-status-p-booking-get
+    language: python
+    files: ["services/mcps/flight_checkout.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "GET")) . (binary_operator left: (string (string_content) @p (#eq? @p "/flights/bookings/")))))
+    emit: { edge: { from: status, to: p-booking-get, kind: call } }
+  - id: call-tickets
+    language: python
+    files: ["services/mcps/flight_tickets.py"]
+    query: |
+      (call function: (attribute object: (identifier) @o (#eq? @o "api") attribute: (identifier) @m (#eq? @m "request")) arguments: (argument_list . (string (string_content) @v (#eq? @v "GET")) . (binary_operator left: (string (string_content) @p (#eq? @p "/flights/bookings/")))))
+    emit: { edge: { from: tickets, to: p-booking-get, kind: call } }
+  - id: step-verify-prebook
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/verify")))
+    emit: { edge: { from: verify, to: prebook, label: "next step", kind: step } }
+  - id: step-prebook-services
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/prebook")))
+    emit: { edge: { from: prebook, to: services, label: "ready_to_book", kind: step } }
+  - id: step-services-book
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/services")))
+    emit: { edge: { from: services, to: book, label: "extras confirmed", kind: step } }
+  - id: step-book-status
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/book")))
+    emit: { edge: { from: book, to: status, label: "pending / lost response", kind: step, certain: false } }
+  - id: step-prebook-status
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/prebook")))
+    emit: { edge: { from: prebook, to: status, label: "lost response", kind: step, certain: false } }
+  - id: step-status-book
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/status")))
+    emit: { edge: { from: status, to: book, label: "ready_to_book", kind: step, certain: false } }
+  - id: step-book-canvas
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/book")))
+    emit: { edge: { from: book, to: canvas, label: "confirmed → save", kind: step } }
+  - id: step-status-canvas
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/status")))
+    emit: { edge: { from: status, to: canvas, label: "confirmed → save", kind: step, certain: false } }
+  - id: step-canvas-tickets
+    language: python
+    files: ["services/agent/travel_contracts.py"]
+    query: |
+      (set (string (string_content) @a (#eq? @a "sandbox/flights/tickets")))
+    emit: { edge: { from: canvas, to: tickets, label: "view tickets", kind: step, certain: false } }

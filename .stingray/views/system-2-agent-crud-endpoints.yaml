@@ -1,0 +1,108 @@
+version: 1
+name: "Travella · 2. Agent ↔ CRUD endpoints"
+description: "Level 2 for the Agent → CRUD arrow of 'Travella · 1. Runtime map'. Left: every HTTP call the Agent makes in services/agent/crud_client.py. Right: the CRUD route it hits, joined on method + path, with the CRUD handler as a row. An endpoint without a 'handler' row has no matching CRUD route: the code has drifted."
+kind: graph
+scope:
+  include: ["services/agent/crud_client.py", "services/crud/api.py"]
+rules:
+  - id: group-agent-class
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (class_definition name: (identifier) @cls)
+    emit: { group: { id: "agent:@cls", label: "Agent service · @cls (services/agent/crud_client.py)" } }
+  - id: group-crud
+    language: python
+    files: ["services/crud/api.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc)))
+    emit: { group: { id: crud, label: "CRUD backend · services/crud/api.py" } }
+  - id: agent-method
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (function_definition name: (identifier) @name (#not-eq? @name "__init__")
+        body: (block . (expression_statement (string (string_content) @doc))?))
+    emit: { node: { id: "agent:@class.@name", label: "@name()", subtitle: "@class", kind: method, group: "agent:@class", detail: "@doc" } }
+  - id: endpoint-a
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (call function: (attribute object: (identifier) @c (#eq? @c "client") attribute: (identifier) @verb)
+        arguments: (argument_list . (string (string_start) . (interpolation) . (string_content) @a . (string_end))))
+    emit: { node: { id: "@verb @a", label: "@verb @a", subtitle: "CRUD endpoint", kind: endpoint, group: crud, detail: "Called by @class.@function() in services/agent/crud_client.py with the traveler's bearer token. The handler row shows the CRUD function that serves it; no handler row means CRUD has no route for this method + path." } }
+  - id: call-a
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (call function: (attribute object: (identifier) @c (#eq? @c "client") attribute: (identifier) @verb)
+        arguments: (argument_list . (string (string_start) . (interpolation) . (string_content) @a . (string_end))))
+    emit: { edge: { from: "agent:@class.@function", to: "@verb @a" } }
+  - id: endpoint-a-p
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (call function: (attribute object: (identifier) @c (#eq? @c "client") attribute: (identifier) @verb)
+        arguments: (argument_list . (string (string_start) . (interpolation) . (string_content) @a . (interpolation expression: (identifier) @p1) . (string_end))))
+    emit: { node: { id: "@verb @a{@p1}", label: "@verb @a{@p1}", subtitle: "CRUD endpoint", kind: endpoint, group: crud, detail: "Called by @class.@function() in services/agent/crud_client.py with the traveler's bearer token. The handler row shows the CRUD function that serves it; no handler row means CRUD has no route for this method + path." } }
+  - id: call-a-p
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (call function: (attribute object: (identifier) @c (#eq? @c "client") attribute: (identifier) @verb)
+        arguments: (argument_list . (string (string_start) . (interpolation) . (string_content) @a . (interpolation expression: (identifier) @p1) . (string_end))))
+    emit: { edge: { from: "agent:@class.@function", to: "@verb @a{@p1}" } }
+  - id: endpoint-a-p-b
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (call function: (attribute object: (identifier) @c (#eq? @c "client") attribute: (identifier) @verb)
+        arguments: (argument_list . (string (string_start) . (interpolation) . (string_content) @a . (interpolation expression: (identifier) @p1) . (string_content) @b . (string_end))))
+    emit: { node: { id: "@verb @a{@p1}@b", label: "@verb @a{@p1}@b", subtitle: "CRUD endpoint", kind: endpoint, group: crud, detail: "Called by @class.@function() in services/agent/crud_client.py with the traveler's bearer token. The handler row shows the CRUD function that serves it; no handler row means CRUD has no route for this method + path." } }
+  - id: call-a-p-b
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (call function: (attribute object: (identifier) @c (#eq? @c "client") attribute: (identifier) @verb)
+        arguments: (argument_list . (string (string_start) . (interpolation) . (string_content) @a . (interpolation expression: (identifier) @p1) . (string_content) @b . (string_end))))
+    emit: { edge: { from: "agent:@class.@function", to: "@verb @a{@p1}@b" } }
+  - id: endpoint-a-p-b-p-c
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (call function: (attribute object: (identifier) @c (#eq? @c "client") attribute: (identifier) @verb)
+        arguments: (argument_list . (string (string_start) . (interpolation) . (string_content) @a . (interpolation expression: (identifier) @p1) . (string_content) @b . (interpolation expression: (identifier) @p2) . (string_content) @z . (string_end))))
+    emit: { node: { id: "@verb @a{@p1}@b{@p2}@z", label: "@verb @a{@p1}@b{@p2}@z", subtitle: "CRUD endpoint", kind: endpoint, group: crud, detail: "Called by @class.@function() in services/agent/crud_client.py with the traveler's bearer token. The handler row shows the CRUD function that serves it; no handler row means CRUD has no route for this method + path." } }
+  - id: call-a-p-b-p-c
+    language: python
+    files: ["services/agent/crud_client.py"]
+    query: |
+      (call function: (attribute object: (identifier) @c (#eq? @c "client") attribute: (identifier) @verb)
+        arguments: (argument_list . (string (string_start) . (interpolation) . (string_content) @a . (interpolation expression: (identifier) @p1) . (string_content) @b . (interpolation expression: (identifier) @p2) . (string_content) @z . (string_end))))
+    emit: { edge: { from: "agent:@class.@function", to: "@verb @a{@p1}@b{@p2}@z" } }
+  - id: crud-route
+    language: python
+    files: ["services/crud/api.py"]
+    query: |
+      (function_definition
+        body: (block
+          (expression_statement (assignment right: (call function: (identifier) @r (#eq? @r "APIRouter")
+            arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "prefix") value: (string (string_content) @prefix))))))
+          (decorated_definition
+            (decorator (call function: (attribute object: (identifier) @o (#eq? @o "router") attribute: (identifier) @verb)
+              arguments: (argument_list . (string (string_content) @path))))
+            definition: (function_definition name: (identifier) @handler))))
+    emit: { field: { node: "@verb @prefix@path", id: "@handler", label: "handler @handler()", type: "services/crud/api.py" } }
+  - id: crud-route-root
+    language: python
+    files: ["services/crud/api.py"]
+    query: |
+      (function_definition
+        body: (block
+          (expression_statement (assignment right: (call function: (identifier) @r (#eq? @r "APIRouter")
+            arguments: (argument_list (keyword_argument name: (identifier) @k (#eq? @k "prefix") value: (string (string_content) @prefix))))))
+          (decorated_definition
+            (decorator (call function: (attribute object: (identifier) @o (#eq? @o "router") attribute: (identifier) @verb)
+              arguments: (argument_list . (string . (string_start) . (string_end)))))
+            definition: (function_definition name: (identifier) @handler))))
+    emit: { field: { node: "@verb @prefix", id: "@handler", label: "handler @handler()", type: "services/crud/api.py" } }

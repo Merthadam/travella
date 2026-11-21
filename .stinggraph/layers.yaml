@@ -1,0 +1,30 @@
+version: 1
+services:
+  - id: frontend
+    label: Frontend (Portal)
+    aliases: [frontend, portal, web app, ui]
+    include: ["frontend/**"]
+  - id: agent
+    label: Agent service
+    aliases: [agent, agent runtime, langgraph]
+    include: ["services/agent/**"]
+  - id: crud
+    label: CRUD backend
+    aliases: [backend, crud, crud api, data service]
+    include: ["services/crud/**"]
+  - id: mcps
+    label: Connector service (MCPs)
+    aliases: [connector, connectors, mcp, mcps, research mcp, map mcp]
+    include: ["services/mcps/**"]
+  - id: auth
+    label: Auth service
+    aliases: [auth, cognito]
+    include: ["services/auth/**"]
+  - id: shared
+    label: Shared domain library
+    aliases: [shared, domain]
+    include: ["services/*.py", "services/shared/**"]
+  - id: tooling
+    label: Local dev tooling
+    aliases: [scripts, compose]
+    include: ["scripts/**", "compose*.yaml"]
