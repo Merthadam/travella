@@ -1,7 +1,7 @@
 version: 1
 name: "Travella · 2. Agent ↔ CRUD endpoints"
 description: "Level 2 for the Agent → CRUD arrow of 'Travella · 1. Runtime map'. Left: every HTTP call the Agent makes in services/agent/crud_client.py. Right: the CRUD route it hits, joined on method + path, with the CRUD handler as a row. An endpoint without a 'handler' row has no matching CRUD route: the code has drifted."
-kind: graph
+kind: flow
 scope:
   include: ["services/agent/crud_client.py", "services/crud/api.py"]
 rules:

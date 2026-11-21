@@ -1,7 +1,7 @@
 version: 1
 name: "Travella · 1. Runtime map"
 description: "Level 1. Which processes talk to each other at runtime. Every box and arrow is extracted from the code that makes the call, so it updates when the code changes; click a box for its purpose (from module docstrings). Next level: 'Travella · 2. Agent ↔ CRUD endpoints'."
-kind: graph
+kind: flow
 scope:
   include: ["frontend/src/**/*.js", "services/**/*.py"]
   exclude: ["**/tests/**", "**/*.test.js", "services/agent/evals/**"]
