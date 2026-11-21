@@ -1,0 +1,122 @@
+version: 1
+name: Agent LangGraph flow
+description: How one traveler message is handled by the Agent service. AgentTurnService authorizes the Plan and gathers CRUD context, then AgentGraph routes the turn to exactly one node. Click a node for its purpose (taken from the code docstrings).
+kind: flow
+scope:
+  include: ["services/agent/service.py", "services/agent/graph/**/*.py"]
+  exclude: ["**/tests/**"]
+rules:
+  - id: group-turn
+    language: python
+    files: ["services/agent/service.py"]
+    query: |
+      (class_definition name: (identifier) @c (#eq? @c "AgentTurnService") body: (block . (expression_statement (string (string_content) @doc))))
+    emit: { group: { id: turn, label: "Agent service: one Plan turn" } }
+  - id: group-graph
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_node")) arguments: (argument_list . (string (string_content) @n (#eq? @n "chat"))))
+    emit: { group: { id: graph, label: "AgentGraph (LangGraph, services/agent/graph/builder.py)" } }
+  - id: group-sub
+    language: python
+    files: ["services/agent/graph/nodes/travel_specialist.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_node")) arguments: (argument_list . (string (string_content) @n (#eq? @n "research"))))
+    emit: { group: { id: subgraph, label: "Travel specialist subgraph (not checkpointed)" } }
+  - id: start
+    language: python
+    files: ["services/agent/service.py"]
+    query: |
+      (class_definition name: (identifier) @c (#eq? @c "AgentTurnService") body: (block . (expression_statement (string (string_content) @doc))))
+    emit: { node: { id: START, label: "Traveler message arrives", subtitle: "POST /v1/agent/plans/{id}/events/stream → AgentTurnService", detail: "AgentTurnService: @doc", role: start, group: turn } }
+  - id: end
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (class_definition name: (identifier) @c (#eq? @c "AgentGraph") body: (block . (expression_statement (string (string_content) @doc))))
+    emit: { node: { id: END, label: "Turn result streamed back", subtitle: "AgentGraph.invoke projects allow-listed fields to the browser", detail: "AgentGraph: @doc Only the projection (status, assistant text, question, sources, canvas draft/edit result) reaches the browser; durable Plan changes still need traveler confirmation through CRUD.", role: end, group: turn } }
+  - id: step-chat
+    language: python
+    files: ["services/agent/graph/nodes/conversation.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc)))
+    emit: { node: { id: chat, label: "Conversation", subtitle: "Default route: answer, research and propose edits", detail: "ConversationNode (conversation.py): @doc", kind: step, group: graph, symbol: ConversationNode } }
+  - id: registered-chat
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_node")) arguments: (argument_list . (string (string_content) @n (#eq? @n "chat"))))
+    emit: { edge: { from: chat, to: END, label: "returns turn result" } }
+  - id: step-canvas-generation
+    language: python
+    files: ["services/agent/graph/nodes/canvas_generation.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc)))
+    emit: { node: { id: canvas_generation, label: "Generate Planning Canvas", subtitle: "Builds a canvas draft; never writes Plan data", detail: "CanvasGenerationNode (canvas_generation.py): @doc", kind: step, group: graph, symbol: CanvasGenerationNode } }
+  - id: registered-canvas-generation
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_node")) arguments: (argument_list . (string (string_content) @n (#eq? @n "canvas_generation"))))
+    emit: { edge: { from: canvas_generation, to: END, label: "returns turn result" } }
+  - id: step-canvas-editing
+    language: python
+    files: ["services/agent/graph/nodes/canvas_editing.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc)))
+    emit: { node: { id: canvas_editing, label: "Edit canvas activities", subtitle: "Applies a requested edit to the canvas draft", detail: "CanvasEditingNode (canvas_editing.py): @doc", kind: step, group: graph, symbol: CanvasEditingNode } }
+  - id: registered-canvas-editing
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_node")) arguments: (argument_list . (string (string_content) @n (#eq? @n "canvas_editing"))))
+    emit: { edge: { from: canvas_editing, to: END, label: "returns turn result" } }
+  - id: step-travel-specialist
+    language: python
+    files: ["services/agent/graph/nodes/travel_specialist.py"]
+    query: |
+      (module . (expression_statement (string (string_content) @doc)))
+    emit: { node: { id: travel_specialist, label: "Travel specialist", subtitle: "Stays / flights topic discussion", detail: "TravelSpecialistNode (travel_specialist.py): @doc", kind: step, group: graph, symbol: TravelSpecialistNode } }
+  - id: registered-travel-specialist
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_node")) arguments: (argument_list . (string (string_content) @n (#eq? @n "travel_specialist"))))
+    emit: { edge: { from: travel_specialist, to: END, label: "returns turn result" } }
+  - id: route-travel-specialist
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_conditional_edges")) arguments: (argument_list (dictionary (pair key: (string (string_content) @k (#eq? @k "travel_specialist"))))))
+    emit: { edge: { from: START, to: travel_specialist, label: "1. topic is stays or flights", certain: false } }
+  - id: route-canvas-editing
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_conditional_edges")) arguments: (argument_list (dictionary (pair key: (string (string_content) @k (#eq? @k "canvas_editing"))))))
+    emit: { edge: { from: START, to: canvas_editing, label: "2. request has canvas_edit", certain: false } }
+  - id: route-canvas-generation
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_conditional_edges")) arguments: (argument_list (dictionary (pair key: (string (string_content) @k (#eq? @k "canvas_generation"))))))
+    emit: { edge: { from: START, to: canvas_generation, label: "3. request has canvas_action", certain: false } }
+  - id: route-chat
+    language: python
+    files: ["services/agent/graph/builder.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_conditional_edges")) arguments: (argument_list (dictionary (pair key: (string (string_content) @k (#eq? @k "chat"))))))
+    emit: { edge: { from: START, to: chat, label: "4. otherwise", certain: false } }
+  - id: step-research
+    language: python
+    files: ["services/agent/graph/nodes/travel_specialist.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_node")) arguments: (argument_list . (string (string_content) @n (#eq? @n "research"))))
+    emit: { node: { id: research, label: "Specialist research", subtitle: "Claude SDK travel specialist for the topic", detail: "TravelSpecialistNode._research runs ClaudeSdkTravelSpecialist.complete with the topic message, own-topic history and saved Canvas context, and returns one bounded result to the parent graph.", kind: step, group: subgraph, symbol: _research } }
+  - id: sub-call
+    language: python
+    files: ["services/agent/graph/nodes/travel_specialist.py"]
+    query: |
+      (call function: (attribute attribute: (identifier) @m (#eq? @m "add_node")) arguments: (argument_list . (string (string_content) @n (#eq? @n "research"))))
+    emit: { edge: { from: travel_specialist, to: research, label: "invokes subgraph (START → research → END)", certain: false } }

@@ -16,6 +16,7 @@ class CrudPlanReader:
         self.base_url = base_url.rstrip("/")
 
     async def __call__(self, subject: str, plan_id: UUID, token: str) -> dict[str, Any] | None:
+        """Authorize a turn: return the traveler's Plan only when CRUD finds it and it is active."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(
                 f"{self.base_url}/v1/plans/{plan_id}",
@@ -34,6 +35,7 @@ class CrudContextReader:
         self.base_url = base_url.rstrip("/")
 
     async def travel_run(self, plan_id: UUID, token: str, *, topic: str, **payload) -> dict:
+        """Record a stays or flights discussion turn in CRUD (fails if the discussion changed)."""
         if topic not in {"stays", "flights"}:
             raise HTTPException(422, "Unknown travel discussion.")
         async with httpx.AsyncClient(timeout=15) as client:
@@ -59,6 +61,7 @@ class CrudContextReader:
         return response.json()
 
     async def context(self, plan_id: UUID, token: str) -> dict[str, Any]:
+        """Read the Plan context the agent needs for a turn (recent conversation included)."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(
                 f"{self.base_url}/v1/plans/{plan_id}/agent-context",
@@ -98,6 +101,7 @@ class CrudContextReader:
                 cursor = next_cursor
 
     async def context_run(self, plan_id: UUID, token: str, **payload) -> dict[str, Any]:
+        """Save a research-context run in CRUD; a conflicting revision fails with 409."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(
                 f"{self.base_url}/v1/plans/{plan_id}/research-context/run",
@@ -116,6 +120,7 @@ class CrudContextReader:
         return snapshot
 
     async def edit_context(self, plan_id: UUID, token: str, *, event_id: str, revision: int, changes: list) -> dict:
+        """Apply trip-detail changes idempotently (Idempotency-Key) against the expected revision (If-Match)."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.patch(
                 f"{self.base_url}/v1/plans/{plan_id}/research-context",
@@ -129,6 +134,7 @@ class CrudContextReader:
 
     async def consume_research_entry(self, plan_id: UUID, token: str, *, receipt: str,
                                      request_id: str, revision: int) -> dict[str, Any]:
+        """Consume the traveler's research-offer receipt before generating a draft."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(
                 f"{self.base_url}/v1/plans/{plan_id}/research-offer/consume",
@@ -141,6 +147,7 @@ class CrudContextReader:
         return response.json()
 
     async def research_offer(self, plan_id: UUID, token: str) -> dict[str, Any] | None:
+        """Read the current research offer for the Plan, if one is available."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(
                 f"{self.base_url}/v1/plans/{plan_id}/research-offer",
@@ -152,6 +159,7 @@ class CrudContextReader:
         return ResearchOffer.model_validate(offer).model_dump() if offer else None
 
     async def profile(self, token: str) -> dict[str, Any]:
+        """Read the traveler's canonical profile, which CRUD owns."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(
                 f"{self.base_url}/v1/traveler-profile",
@@ -166,6 +174,7 @@ class CrudContextReader:
         content: str, generation: int,
         status: str = "complete",
     ) -> None:
+        """Append one Conversation message to the Plan in CRUD."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(
                 f"{self.base_url}/v1/plans/{plan_id}/conversation/messages",

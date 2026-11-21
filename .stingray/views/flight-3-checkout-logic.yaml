@@ -1,0 +1,10 @@
+version: 1
+name: "Flight booking · 3. Checkout logic"
+description: "Level 3 (deep). Control flow of the Connector's checkout_locked for every action (verify, prebook, services, status, book): sealed tokens, idempotent receipts, revision checks and provider readback. Raise the depth to expand helpers. Level up: 'Flight booking · 2. Endpoints'."
+kind: flowchart
+scope:
+  include: ["services/mcps/flight_checkout.py", "services/mcps/flight_ancillaries.py"]
+flowchart:
+  start: { symbol: checkout_locked, file: services/mcps/flight_checkout.py }
+  depth: 0
+  include: ["services/mcps/flight_checkout.py", "services/mcps/flight_ancillaries.py"]
